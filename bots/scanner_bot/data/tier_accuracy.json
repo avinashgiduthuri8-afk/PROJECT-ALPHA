@@ -1,0 +1,10 @@
+{
+  "ELITE": {
+    "tier": "ELITE",
+    "total_signals": 305,
+    "winning_signals": 94,
+    "losing_signals": 211,
+    "win_rate_pct": 30.8,
+    "avg_return_pct": -1.2
+  }
+}

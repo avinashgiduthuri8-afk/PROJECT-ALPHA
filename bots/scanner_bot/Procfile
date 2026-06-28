@@ -1,0 +1,1 @@
+web: python -m bots.scanner_bot.main

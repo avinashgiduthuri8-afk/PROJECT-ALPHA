@@ -1,0 +1,25 @@
+2026-06-27 07:54:17,829 INFO scanner_bot: Storage ready: /home/claude/V1_WORKING_TREE/bots/scanner_bot/data
+2026-06-27 07:55:04,801 INFO scanner_bot: Storage ready: /home/claude/V1_WORKING_TREE/bots/scanner_bot/data
+2026-06-27 07:55:46,890 INFO scanner_bot: Storage ready: /home/claude/V1_WORKING_TREE/bots/scanner_bot/data
+2026-06-27 07:56:05,401 INFO scanner_bot: Storage ready: /home/claude/V1_WORKING_TREE/bots/scanner_bot/data
+2026-06-27 07:56:45,864 INFO scanner_bot: Storage ready: /home/claude/V1_WORKING_TREE/bots/scanner_bot/data
+2026-06-27 07:57:01,042 INFO scanner_bot: Storage ready: /home/claude/V1_WORKING_TREE/bots/scanner_bot/data
+2026-06-28 07:20:10,675 INFO scanner_bot: Storage ready: /app/bots/scanner_bot/data
+2026-06-28 07:20:22,716 INFO scanner_bot: Storage ready: /app/bots/scanner_bot/data
+2026-06-28 07:20:22,733 INFO scanner_bot: Bootstrap: fetching current tickers to build coin list...
+2026-06-28 07:20:23,081 INFO scanner_bot: Bootstrap: loading history for 58 coins
+2026-06-28 07:20:32,827 WARNING scanner_bot: Bootstrap failed for coin=USDT
+2026-06-28 07:20:32,827 WARNING scanner_bot: Bootstrap failed for coin=AAVE
+2026-06-28 07:20:32,827 WARNING scanner_bot: Bootstrap failed for coin=LTC
+2026-06-28 07:20:32,827 WARNING scanner_bot: Bootstrap failed for coin=JTO
+2026-06-28 07:20:32,827 WARNING scanner_bot: Bootstrap failed for coin=ADA
+2026-06-28 07:20:32,827 INFO scanner_bot: [Bootstrap] Startup history pre-load complete
+2026-06-28 07:20:32,827 INFO scanner_bot:   Coins attempted : 58
+2026-06-28 07:20:32,827 INFO scanner_bot:   Successfully loaded : 0
+2026-06-28 07:20:32,827 INFO scanner_bot:   Failed          : 58
+2026-06-28 07:20:32,827 INFO scanner_bot:   Avg history len : 0.0 ticks
+2026-06-28 07:20:32,827 INFO scanner_bot:   Ready for EMA   : NO
+2026-06-28 07:20:32,828 INFO scanner_bot:   Ready for MTF   : NO
+2026-06-28 07:20:32,828 INFO scanner_bot:   Ready for Phase5: NO
+2026-06-28 07:20:32,828 INFO scanner_bot:   Duration        : 9.7s
+2026-06-28 07:20:33,047 INFO scanner_bot: Updated 301 signal performance checkpoints
