@@ -615,23 +615,6 @@ document.addEventListener("DOMContentLoaded", () => {
             // ── Signal table rows ──────────────────────────────────────────
             patchSignalTable(data.recent_signals || []);
 
-            // ── Bot watchlist counts (Watchlist Center summary row) ────────
-            if (data.bot_watchlists) {
-                const vgxLen = (data.bot_watchlists.vgx  && data.bot_watchlists.vgx.coins  ? data.bot_watchlists.vgx.coins.length  : 0);
-                const pmbLen = (data.bot_watchlists.pmb  && data.bot_watchlists.pmb.coins  ? data.bot_watchlists.pmb.coins.length  : 0);
-                const mtbLen = (data.bot_watchlists.mtb  && data.bot_watchlists.mtb.coins  ? data.bot_watchlists.mtb.coins.length  : 0);
-                const vgxCount = document.getElementById("vgx-coin-count");
-                const pmbCount = document.getElementById("pmb-coin-count");
-                const mtbCount = document.getElementById("mtb-coin-count");
-                const totalCount = document.getElementById("total-coin-count");
-                if (vgxCount) vgxCount.textContent = vgxLen;
-                if (pmbCount) pmbCount.textContent = pmbLen;
-                if (mtbCount) mtbCount.textContent = mtbLen;
-                if (totalCount) totalCount.textContent = (typeof data.bot_watchlists.total === "number")
-                    ? data.bot_watchlists.total
-                    : (vgxLen + pmbLen + mtbLen);
-            }
-
             // ── Scanner watchlist count ────────────────────────────────────
             if (data.scanner_overview) {
                 const scannerWlCount = document.getElementById("scanner-watchlist-count");
@@ -920,9 +903,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-    window.addCoin = async function(bot) {
-        const input = document.getElementById(bot + "-add-input");
-        const errorDiv = document.getElementById(bot + "-add-error");
+    window.addCoin = async function() {
+        const input = document.getElementById("scanner-add-input");
+        const errorDiv = document.getElementById("scanner-add-error");
         const coin = input.value.trim().toUpperCase();
 
         if (errorDiv) { errorDiv.style.display = "none"; errorDiv.textContent = ""; }
@@ -932,16 +915,16 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         try {
-            const resp = await fetch("/api/watchlists/add", {
+            const resp = await fetch("/api/watchlist/add", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({bot, coin}),
+                body: JSON.stringify({coin}),
             });
             const data = await resp.json();
             if (data.success) {
                 input.value = "";
                 if (errorDiv) { errorDiv.style.display = "none"; errorDiv.textContent = ""; }
-                refreshWatchlistTables();
+                refreshWatchlistTable();
             } else {
                 const msg = data.error || "Add failed";
                 if (errorDiv) {
@@ -959,17 +942,17 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-    window.removeCoin = async function(bot, coin) {
-        if (!confirm("Remove " + coin + " from " + bot.toUpperCase() + "?")) return;
+    window.removeCoin = async function(coin) {
+        if (!confirm("Remove " + coin + " from Scanner Watchlist?")) return;
         try {
-            const resp = await fetch("/api/watchlists/remove", {
+            const resp = await fetch("/api/watchlist/remove", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({bot, coin}),
+                body: JSON.stringify({coin}),
             });
             const data = await resp.json();
             if (data.success) {
-                refreshWatchlistTables();
+                refreshWatchlistTable();
             } else {
                 alert("Remove failed: " + (data.error || "unknown"));
             }
@@ -982,29 +965,24 @@ document.addEventListener("DOMContentLoaded", () => {
     document.addEventListener("click", function(e) {
         const btn = e.target.closest(".btn-remove-coin");
         if (!btn) return;
-        const bot = btn.dataset.bot;
         const coin = btn.dataset.coin;
-        if (bot && coin) removeCoin(bot, coin);
+        if (coin) removeCoin(coin);
     });
 
-    async function refreshWatchlistTables() {
+    async function refreshWatchlistTable() {
         try {
-            const resp = await fetch("/api/watchlists");
+            const resp = await fetch("/api/watchlist");
             const data = await resp.json();
-            let totalCoins = 0;
-            ["vgx", "pmb", "mtb"].forEach(bot => {
-                const coins = data[bot] || [];
-                totalCoins += coins.length;
-                const countNode = document.getElementById(bot + "-coin-count");
-                if (countNode) countNode.textContent = coins.length;
-                const tbody = document.getElementById(bot + "-coin-table");
-                if (!tbody) return;
-                tbody.innerHTML = coins.length === 0
-                    ? '<tr><td colspan="2" class="text-muted">No coins</td></tr>'
-                    : coins.map(c => '<tr><td><strong>' + c + '/INR</strong></td><td><button class="btn-remove-coin" data-bot="' + bot + '" data-coin="' + c + '">REMOVE</button></td></tr>').join("");
-            });
+            const coins = data.coins || [];
+            const countNode = document.getElementById("scanner-coin-count");
+            if (countNode) countNode.textContent = coins.length;
+            const tbody = document.getElementById("scanner-coin-table");
+            if (!tbody) return;
+            tbody.innerHTML = coins.length === 0
+                ? '<tr><td colspan="2" class="text-muted">No coins</td></tr>'
+                : coins.map(c => '<tr><td><strong>' + c + '/INR</strong></td><td><button class="btn-remove-coin" data-coin="' + c + '">REMOVE</button></td></tr>').join("");
             const totalNode = document.getElementById("total-coin-count");
-            if (totalNode) totalNode.textContent = totalCoins;
+            if (totalNode) totalNode.textContent = coins.length;
         } catch (err) {
             console.warn("[ProjectA] Watchlist refresh failed:", err.message);
         }

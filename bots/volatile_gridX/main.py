@@ -32,9 +32,6 @@ from .telegram_handlers import (
     buy_cmd,
     sell_cmd,
     tradeamount_cmd,
-    watchlist_cmd,
-    addcoin_cmd,
-    removecoin_cmd,
     mode_cmd,
     setmode_cmd,
     threshold_cmd,
@@ -77,7 +74,6 @@ def startup():
 
     print(
 
-        f"Watchlist : {storage.watchlist}"
 
     )
 
@@ -240,42 +236,6 @@ def main():
             "tradeamount",
 
             tradeamount_cmd
-
-        )
-
-    )
-
-    app.add_handler(
-
-        CommandHandler(
-
-            "watchlist",
-
-            watchlist_cmd
-
-        )
-
-    )
-
-    app.add_handler(
-
-        CommandHandler(
-
-            "addcoin",
-
-            addcoin_cmd
-
-        )
-
-    )
-
-    app.add_handler(
-
-        CommandHandler(
-
-            "removecoin",
-
-            removecoin_cmd
 
         )
 

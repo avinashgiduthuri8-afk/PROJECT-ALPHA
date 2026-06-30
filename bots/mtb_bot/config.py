@@ -56,16 +56,9 @@ ALLOWED_MARKET_STATES = frozenset(
     if s.strip()
 )
 
-DEFAULT_WATCHLIST = [
-    coin.strip().upper()
-    for coin in os.getenv("MTB_DEFAULT_WATCHLIST", "BTC,ETH,SOL,BNB,XRP,ZEC").split(",")
-    if coin.strip()
-]
-
 BASE_DIR        = Path(__file__).resolve().parent
 DATA_DIR        = Path(os.getenv("MTB_DATA_DIR", str(BASE_DIR / "data")))
 
-WATCHLIST_FILE  = DATA_DIR / "watchlist.json"
 POSITIONS_FILE  = DATA_DIR / "positions.json"
 TRADES_FILE     = DATA_DIR / "trades.json"
 STATS_FILE      = DATA_DIR / "stats.json"

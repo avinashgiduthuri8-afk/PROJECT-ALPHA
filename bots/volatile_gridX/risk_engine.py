@@ -104,15 +104,12 @@ def risk_check(score):
 
 def market_intelligence():
 
-    proxy_coin = (
-
-        storage.watchlist[0]
-
-        if storage.watchlist
-
-        else "BTC"
-
-    )
+    try:
+        from bots.scanner_bot.scanner import get_watchlist
+        wl = get_watchlist().get("coins", [])
+        proxy_coin = wl[0] if wl else "BTC"
+    except Exception:
+        proxy_coin = "BTC"
 
     result = analyze_coin(
 
@@ -317,18 +314,8 @@ def validate_signal(
 
         )
 
-    if coin not in storage.watchlist:
-
-        return (
-
-            False,
-
-            "Coin Not In Watchlist",
-
-            signal
-
-        )
-
+    # V1 Architecture: Bots accept all scanner signals and apply their own
+    # strategy filters/risk checks. No per-bot watchlist rejection.
     allowed, reason = (
 
         can_open_position(

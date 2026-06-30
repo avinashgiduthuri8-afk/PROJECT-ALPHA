@@ -51,67 +51,34 @@ def update_market_cache():
 
             )
 
-            for coin in storage.watchlist:
+            if (
 
-                if (
+                "INR" in pair
 
-                    coin in pair
+                or
 
-                    and
+                "USDT" in pair
 
-                    (
+            ):
 
-                        "INR" in pair
+                # Extract coin from market pair (e.g. BTCINR -> BTC)
+                coin = pair.replace("INR", "").replace("USDT", "")
 
-                        or
+                try:
 
-                        "USDT" in pair
+                    market_cache[coin] = {
 
-                    )
+                        "price": float(ticker.get("last_price", 0)),
 
-                ):
+                        "volume": float(ticker.get("volume", 0)),
 
-                    try:
+                        "timestamp": time.time()
 
-                        market_cache[coin] = {
+                    }
 
-                            "price":
+                except:
 
-                                float(
-
-                                    ticker.get(
-
-                                        "last_price",
-
-                                        0
-
-                                    )
-
-                                ),
-
-                            "volume":
-
-                                float(
-
-                                    ticker.get(
-
-                                        "volume",
-
-                                        0
-
-                                    )
-
-                                ),
-
-                            "timestamp":
-
-                                time.time()
-
-                        }
-
-                    except:
-
-                        pass
+                    pass
 
         return True
 

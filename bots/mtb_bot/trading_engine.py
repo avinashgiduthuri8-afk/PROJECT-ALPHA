@@ -88,14 +88,11 @@ def validate_signal(signal: dict, positions: list[dict] | None = None) -> Valida
     score        = float(signal.get("score") or 0)
     confidence   = float(signal.get("confidence") or score)
     market_state = str(signal.get("market_state", "unknown")).lower()
-    watchlist    = storage.load_watchlist()
     coin         = str(signal.get("coin", symbol.replace("USDT", ""))).upper()
     age          = scanner_bridge.signal_age_seconds(signal)
 
     if not symbol:
         return ValidationResult(False, "MISSING_SYMBOL", "Signal has no symbol.")
-    if coin not in watchlist and symbol not in watchlist:
-        return ValidationResult(False, "NOT_IN_WATCHLIST", f"{coin} not in MTB watchlist.")
     if _open_position_for_symbol(symbol, positions):
         return ValidationResult(False, "DUPLICATE_POSITION", f"Open position already exists for {symbol}.")
     open_count = len([p for p in positions if str(p.get("status", "")).upper() == "OPEN"])

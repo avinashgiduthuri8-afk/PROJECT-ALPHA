@@ -123,11 +123,13 @@ def dispatch_alert_payload(
 
 async def auto_alerts():
 
-    for coin in list(
+    try:
+        from bots.scanner_bot.scanner import get_watchlist
+        scanner_coins = get_watchlist().get("coins", [])
+    except Exception:
+        scanner_coins = []
 
-        storage.watchlist
-
-    ):
+    for coin in list(scanner_coins):
 
         price = (
 

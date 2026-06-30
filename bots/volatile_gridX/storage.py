@@ -19,8 +19,6 @@ positions = {}
 
 trade_log = []
 
-watchlist = list(PHASE5["coins"])
-
 price_history = {}
 
 market_cache = {}
@@ -89,8 +87,6 @@ def _normalise(data):
 
         "trade_log": [],
 
-        "watchlist": list(PHASE5["coins"]),
-
         "price_history": {},
 
         "market_cache": {},
@@ -123,8 +119,6 @@ def load_data():
     global positions
 
     global trade_log
-
-    global watchlist
 
     global price_history
 
@@ -160,8 +154,6 @@ def load_data():
 
     trade_log = data["trade_log"]
 
-    watchlist = data["watchlist"]
-
     price_history = data["price_history"]
 
     market_cache = data["market_cache"]
@@ -190,9 +182,6 @@ def save_data():
         "positions": positions,
 
         "trade_log": trade_log,
-
-        "watchlist": watchlist,
-
         "price_history": price_history,
 
         "market_cache": market_cache,

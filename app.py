@@ -18,13 +18,7 @@ from bots.mtb_bot.storage import snapshot as mtb_snapshot
 from bots.pmb_bot.storage import snapshot as pmb_snapshot
 from bots.risk_engine.engine import snapshot as risk_snapshot
 
-from bots.shared.watchlist_manager import (
-    load_watchlist as bot_load_watchlist,
-    all_watchlists as bot_all_watchlists,
-    add_coin as bot_add_coin,
-    remove_coin as bot_remove_coin,
-    get_scanner_universe,  # I-11: unified scanner universe
-)
+from bots.scanner_bot.scanner import get_watchlist as _scanner_get_watchlist
 
 _VGX_STORAGE_FILE = os.path.join(
     os.path.dirname(__file__), "bots", "volatile_gridX", "storage", "TradingBotCrypto.json"
@@ -322,20 +316,10 @@ def pull_state_payload():
         "pmb_overview": pmb_state,
         "risk_engine":  risk_snapshot(),
         "vgx_trade_amount": vgx_trade_amount,
-        "bot_watchlists": {
-            "vgx": bot_load_watchlist("vgx"),
-            "pmb": bot_load_watchlist("pmb"),
-            "mtb": bot_load_watchlist("mtb"),
-            "total": (
-                len(bot_load_watchlist("vgx").get("coins", []))
-                + len(bot_load_watchlist("pmb").get("coins", []))
-                + len(bot_load_watchlist("mtb").get("coins", []))
-            ),
-        },
 
         "scanner_overview": {
-            # I-11: Scanner universe = single source of truth from watchlist_manager
-            "coins_scanned":   len(get_scanner_universe().get("coins", [])),
+            "coins":           _scanner_get_watchlist().get("coins", []),
+            "coins_scanned":   len(_scanner_get_watchlist().get("coins", [])),
             "active_signals":  len(latest_signals),
             "elite_signals":   _elite,
             "high_signals":    _high,
@@ -449,20 +433,9 @@ async def viewport_router(request: Request):
 # Watchlist Center API
 # ──────────────────────────────────────────────────────────────
 
-@app.get("/api/watchlists", response_class=JSONResponse)
-async def get_all_watchlists():
-    """Return all bot watchlists as flat coin lists."""
-    return {
-        "vgx": bot_all_watchlists()["vgx"]["coins"],
-        "pmb": bot_all_watchlists()["pmb"]["coins"],
-        "mtb": bot_all_watchlists()["mtb"]["coins"],
-    }
-
-
 from pydantic import BaseModel
 
 class WatchlistRequest(BaseModel):
-    bot: str
     coin: str
 
 async def _get_coin_markets() -> tuple:
@@ -509,29 +482,15 @@ async def _get_supported_coins() -> set:
 
 
 # I-08: Manual refresh endpoint
-@app.post("/api/scanner/refresh", response_class=JSONResponse)
-async def refresh_scanner():
-    """Trigger an immediate scanner refresh from the dashboard.
-    Directly sets the scanner's refresh event (same process)."""
-    try:
-        import bots.scanner_bot.main as _scanner_main
-        _scanner_main._REFRESH_EVENT.set()
-        return JSONResponse(content={"success": True, "message": "Scan triggered"})
-    except Exception as e:
-        return JSONResponse(
-            content={"success": False, "error": "Scanner refresh failed"},
-            status_code=503,
-        )
+@app.get("/api/watchlist", response_class=JSONResponse)
+async def get_scanner_watchlist():
+    """Return the unified scanner watchlist (single source of truth)."""
+    return _scanner_get_watchlist()
 
 
-@app.post("/api/watchlists/add", response_class=JSONResponse)
-async def add_coin_to_watchlist(req: WatchlistRequest):
-    """Add a coin to a specific bot watchlist.
-
-    Step 1: Check COIN+INR — if exists, add with market=INR.
-    Step 2: If no INR pair, check COIN+USDT — if exists, add with market=USDT.
-    Step 3: If neither exists, reject with specific error message.
-    """
+@app.post("/api/watchlist/add", response_class=JSONResponse)
+async def add_coin_to_scanner_watchlist(req: WatchlistRequest):
+    """Add a coin to the unified scanner watchlist."""
     coin = req.coin.strip().upper()
     inr_coins, usdt_coins = await _get_coin_markets()
 
@@ -548,26 +507,59 @@ async def add_coin_to_watchlist(req: WatchlistRequest):
     else:
         market = "INR"
 
-    result = bot_add_coin(req.bot, coin)
-    return {
-        "success": True,
-        "bot": req.bot,
-        "coin": coin,
-        "market": market,
-        "watchlist": result["coins"],
-    }
+    try:
+        from bots.scanner_bot.scanner import WatchlistStore
+        store = WatchlistStore()
+        store.add(coin)
+        coins = store.all()
+        return {
+            "success": True,
+            "coin": coin,
+            "market": market,
+            "watchlist": coins,
+        }
+    except Exception as e:
+        return JSONResponse(
+            {"success": False, "error": str(e)},
+            status_code=500,
+        )
 
 
-@app.post("/api/watchlists/remove", response_class=JSONResponse)
-async def remove_coin_from_watchlist(req: WatchlistRequest):
-    """Remove a coin from a specific bot watchlist. Strictly isolated."""
-    result = bot_remove_coin(req.bot, req.coin)
-    return {
-        "success": True,
-        "bot": req.bot,
-        "coin": req.coin.upper(),
-        "watchlist": result["coins"],
-    }
+@app.post("/api/watchlist/remove", response_class=JSONResponse)
+async def remove_coin_from_scanner_watchlist(req: WatchlistRequest):
+    """Remove a coin from the unified scanner watchlist."""
+    try:
+        from bots.scanner_bot.scanner import WatchlistStore
+        store = WatchlistStore()
+        store.remove(req.coin.strip().upper())
+        coins = store.all()
+        return {
+            "success": True,
+            "coin": req.coin.upper(),
+            "watchlist": coins,
+        }
+    except Exception as e:
+        return JSONResponse(
+            {"success": False, "error": str(e)},
+            status_code=500,
+        )
+
+
+@app.post("/api/scanner/refresh", response_class=JSONResponse)
+async def refresh_scanner():
+    """Trigger an immediate scanner refresh from the dashboard.
+    Directly sets the scanner's refresh event (same process)."""
+    try:
+        import bots.scanner_bot.main as _scanner_main
+        _scanner_main._REFRESH_EVENT.set()
+        return JSONResponse(content={"success": True, "message": "Scan triggered"})
+    except Exception as e:
+        return JSONResponse(
+            content={"success": False, "error": "Scanner refresh failed"},
+            status_code=503,
+        )
+
+
 
 
 @app.get("/api/supported-coins", response_class=JSONResponse)

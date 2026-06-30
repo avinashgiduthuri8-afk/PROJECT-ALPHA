@@ -170,33 +170,6 @@ def process_scanner_signal(signal):
 
         }
 
-    # WATCHLIST FILTER
-
-    if coin not in storage.watchlist:
-
-        reason = (
-
-            "Coin Not In Watchlist"
-
-        )
-
-        scanner_rejections.append({
-
-            "coin": coin,
-
-            "reason": reason,
-
-            "time": time.time()
-
-        })
-
-        return {
-
-            "result": "REJECTED",
-
-            "reason": reason
-
-        }
 
     # VALIDATE SIGNAL
 

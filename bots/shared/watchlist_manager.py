@@ -1,11 +1,8 @@
 """
-PROJECT-ALPHA — Shared Watchlist Manager
-Handles per-bot watchlists with strict isolation.
+PROJECT-ALPHA — Unified Scanner Watchlist Manager
 
-I-11: Scanner Universe Sync
-- Scanner universe is the union of all bot watchlists.
-- Every add/remove syncs to the scanner's watchlist file.
-- Scanner always sees the latest universe via disk-reload.
+V1 Architecture: Scanner is the single source of truth.
+All bots read scanner watchlist directly — no per-bot watchlists.
 """
 
 import json
@@ -13,119 +10,118 @@ import os
 import time
 from typing import List
 
-_BOT_DIRS = {
-    "vgx": os.path.join(os.path.dirname(os.path.dirname(__file__)), "volatile_gridX", "data"),
-    "pmb": os.path.join(os.path.dirname(os.path.dirname(__file__)), "pmb_bot", "data"),
-    "mtb": os.path.join(os.path.dirname(os.path.dirname(__file__)), "mtb_bot", "data"),
-}
-
-_DEFAULTS = {
-    "vgx": ["BTC", "ETH", "SOL"],
-    "pmb": ["BTC", "XRP", "DOGE"],
-    "mtb": ["ETH", "SOL", "ADA"],
-}
-
-# I-11: Single scanner universe file (union of all bot watchlists)
-_SCANNER_UNIVERSE_FILE = os.path.join(
+# Scanner watchlist is the single source of truth
+_SCANNER_WATCHLIST_FILE = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "scanner_bot", "data", "watchlist.json"
 )
 
-
-def _path(bot: str) -> str:
-    return os.path.join(_BOT_DIRS[bot.lower()], "watchlist.json")
-
+# Old bot watchlist files for one-time migration
+_OLD_BOT_FILES = {
+    "vgx": os.path.join(os.path.dirname(os.path.dirname(__file__)), "volatile_gridX", "data", "watchlist.json"),
+    "pmb": os.path.join(os.path.dirname(os.path.dirname(__file__)), "pmb_bot", "data", "watchlist.json"),
+    "mtb": os.path.join(os.path.dirname(os.path.dirname(__file__)), "mtb_bot", "data", "watchlist.json"),
+}
 
 _QUOTE_SUFFIXES = ("USDT", "BUSD", "INR", "BTC")
 
 
 def _normalize_coin(coin: str) -> str:
-    """Strip known quote suffixes so BTCINR → BTC, ETHUSDT → ETH, etc.
-    Consistent with scanner WatchlistStore._load() normalization."""
+    """Strip known quote suffixes so BTCINR -> BTC, ETHUSDT -> ETH, etc."""
     c = str(coin).upper().strip()
     for suffix in _QUOTE_SUFFIXES:
         if c.endswith(suffix) and len(c) > len(suffix):
-            return c[: -len(suffix)]
+            return c[:-len(suffix)]
     return c
 
 
-def _ensure(bot: str):
-    p = _path(bot)
-    os.makedirs(os.path.dirname(p), exist_ok=True)
-    if not os.path.exists(p):
-        with open(p, "w") as f:
-            json.dump({"coins": _DEFAULTS[bot], "updated_at": None}, f, indent=2)
-
-
-def load_watchlist(bot: str) -> dict:
-    bot = bot.lower()
-    _ensure(bot)
-    with open(_path(bot), "r") as f:
-        return json.load(f)
-
-
-def save_watchlist(bot: str, data: dict):
-    bot = bot.lower()
-    _ensure(bot)
-    data["updated_at"] = int(time.time())
-    with open(_path(bot), "w") as f:
-        json.dump(data, f, indent=2)
-
-
-def _scanner_universe() -> list:
-    """Return the current scanner universe coins from disk."""
-    if not os.path.exists(_SCANNER_UNIVERSE_FILE):
+def _read_scanner_watchlist() -> list:
+    """Read the scanner watchlist from disk."""
+    if not os.path.exists(_SCANNER_WATCHLIST_FILE):
         return []
     try:
-        with open(_SCANNER_UNIVERSE_FILE, "r") as f:
-            return json.load(f).get("coins", [])
+        with open(_SCANNER_WATCHLIST_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data.get("coins", [])
     except (json.JSONDecodeError, OSError):
         return []
 
 
-def _write_scanner_universe(coins: list):
-    """Write the scanner universe to disk."""
-    os.makedirs(os.path.dirname(_SCANNER_UNIVERSE_FILE), exist_ok=True)
-    with open(_SCANNER_UNIVERSE_FILE, "w") as f:
+def _write_scanner_watchlist(coins: list) -> None:
+    """Write the scanner watchlist to disk."""
+    os.makedirs(os.path.dirname(_SCANNER_WATCHLIST_FILE), exist_ok=True)
+    with open(_SCANNER_WATCHLIST_FILE, "w", encoding="utf-8") as f:
         json.dump({"coins": sorted(set(coins)), "updated_at": int(time.time())}, f, indent=2)
 
 
-def _sync_scanner_universe():
-    """Sync scanner universe = union of all bot watchlists (deduplicated)."""
-    universe = set()
-    for bot in ("vgx", "pmb", "mtb"):
-        data = load_watchlist(bot)
-        universe.update(c.get("coin", c) if isinstance(c, dict) else c for c in data.get("coins", []))
-    _write_scanner_universe(list(universe))
+def _migrate_old_bot_watchlists() -> list:
+    """
+    One-time migration: if old bot watchlist files exist, merge their unique
+    coins into the scanner watchlist, then log the migration.
+    """
+    migrated_coins = set()
+    sources = []
+    for bot, path in _OLD_BOT_FILES.items():
+        if os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                coins = data.get("coins", [])
+                for c in coins:
+                    coin = _normalize_coin(c) if isinstance(c, str) else _normalize_coin(str(c))
+                    if coin:
+                        migrated_coins.add(coin)
+                sources.append(bot)
+            except (json.JSONDecodeError, OSError):
+                pass
+
+    if not migrated_coins:
+        return []
+
+    # Merge with existing scanner watchlist
+    existing = set(_read_scanner_watchlist())
+    new_coins = migrated_coins - existing
+    if new_coins:
+        _write_scanner_watchlist(list(existing | migrated_coins))
+
+    return sorted(new_coins)
 
 
-def add_coin(bot: str, coin: str) -> dict:
-    data = load_watchlist(bot)
-    coin = _normalize_coin(coin)
-    if coin not in data["coins"]:
-        data["coins"].append(coin)
-    save_watchlist(bot, data)
-    _sync_scanner_universe()  # I-11: keep scanner universe in sync
-    return data
+# Run migration on first import (only when old files exist)
+_MIGRATION_RESULT = None
 
 
-def remove_coin(bot: str, coin: str) -> dict:
-    data = load_watchlist(bot)
-    coin = _normalize_coin(coin)
-    if coin in data["coins"]:
-        data["coins"].remove(coin)
-    save_watchlist(bot, data)
-    _sync_scanner_universe()  # I-11: keep scanner universe in sync
-    return data
-
-
-def all_watchlists() -> dict:
-    return {
-        "vgx": load_watchlist("vgx"),
-        "pmb": load_watchlist("pmb"),
-        "mtb": load_watchlist("mtb"),
-    }
+def ensure_migration():
+    """Run one-time migration of old bot watchlists into scanner watchlist."""
+    global _MIGRATION_RESULT
+    if _MIGRATION_RESULT is not None:
+        return _MIGRATION_RESULT
+    _MIGRATION_RESULT = _migrate_old_bot_watchlists()
+    return _MIGRATION_RESULT
 
 
 def get_scanner_universe() -> dict:
-    """I-11: Return the unified scanner universe (single source of truth)."""
-    return {"coins": _scanner_universe()}
+    """Return the unified scanner universe (single source of truth)."""
+    ensure_migration()
+    return {"coins": _read_scanner_watchlist()}
+
+
+def add_coin(coin: str) -> dict:
+    """Add a coin to the scanner watchlist."""
+    ensure_migration()
+    coin = _normalize_coin(coin)
+    coins = set(_read_scanner_watchlist())
+    if coin not in coins:
+        coins.add(coin)
+        _write_scanner_watchlist(list(coins))
+    return {"coins": sorted(coins)}
+
+
+def remove_coin(coin: str) -> dict:
+    """Remove a coin from the scanner watchlist."""
+    ensure_migration()
+    coin = _normalize_coin(coin)
+    coins = set(_read_scanner_watchlist())
+    if coin in coins:
+        coins.remove(coin)
+        _write_scanner_watchlist(list(coins))
+    return {"coins": sorted(coins)}

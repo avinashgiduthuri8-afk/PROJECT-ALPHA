@@ -911,25 +911,19 @@ async def cmd_positions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 @require_auth
 async def cmd_watchlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /watchlist command."""
+    """Handle /watchlist command — returns unified scanner watchlist."""
     try:
-        from bots.shared.watchlist_manager import all_watchlists
-        
-        watchlists = all_watchlists()
-        
-        message = "👀 *Watchlists*\n\n"
-        
-        for bot_name, data in watchlists.items():
-            coins = data.get("coins", [])
-            message += f"*{bot_name.upper()}:* `{len(coins)}` coins\n"
-            if coins:
-                coin_list = ", ".join(coins[:10])
-                message += f"└ {coin_list}"
-                if len(coins) > 10:
-                    message += f" +{len(coins) - 10} more"
-                message += "\n"
-            message += "\n"
-        
+        from bots.scanner_bot.scanner import get_watchlist
+        wl = get_watchlist()
+        coins = wl.get("coins", [])
+        message = f"👀 *Scanner Watchlist* — `{len(coins)}` coins\n\n"
+        if coins:
+            coin_list = ", ".join(coins[:20])
+            message += f"└ {coin_list}"
+            if len(coins) > 20:
+                message += f" +{len(coins) - 20} more"
+        else:
+            message += "└ Empty"
         await update.message.reply_text(message, parse_mode="Markdown")
     except Exception as e:
         logger.error("Watchlist command error: %s", e)

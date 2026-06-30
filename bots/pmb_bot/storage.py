@@ -15,13 +15,11 @@ from typing import Any
 
 from .config import (
     DATA_DIR,
-    DEFAULT_WATCHLIST,
     INITIAL_CASH_BALANCE,
     BASE_BUY,
     POSITIONS_FILE,
     STATS_FILE,
     TRADES_FILE,
-    WATCHLIST_FILE,
 )
 
 
@@ -58,8 +56,6 @@ def _write_json(path: Path, data: Any) -> None:
 
 def ensure_storage() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    if not WATCHLIST_FILE.exists():
-        _write_json(WATCHLIST_FILE, {"coins": DEFAULT_WATCHLIST})
     if not POSITIONS_FILE.exists():
         _write_json(POSITIONS_FILE, {"positions": []})
     if not TRADES_FILE.exists():
@@ -74,15 +70,15 @@ def ensure_storage() -> None:
         })
 
 
-def load_watchlist() -> list[str]:
-    ensure_storage()
-    data  = _read_json(WATCHLIST_FILE, {"coins": DEFAULT_WATCHLIST})
-    coins = data.get("coins", DEFAULT_WATCHLIST)
-    return [str(c).upper().strip() for c in coins if str(c).strip()]
-
-
-def save_watchlist(coins: list[str]) -> None:
-    _write_json(WATCHLIST_FILE, {"coins": [c.upper().strip() for c in coins if c.strip()]})
+def _scanner_watchlist() -> list[str]:
+    """Read the unified scanner watchlist (single source of truth)."""
+    try:
+        from bots.scanner_bot.scanner import get_watchlist
+        wl = get_watchlist()
+        coins = wl.get("coins", [])
+        return [str(c).upper().strip() for c in coins if str(c).strip()]
+    except Exception:
+        return []
 
 
 def load_positions() -> list[dict]:
@@ -145,7 +141,7 @@ def snapshot() -> dict:
         "total_pnl":      round(float(stats.get("total_pnl",     0.0)), 4),
         "trade_amount":   float(BASE_BUY),
         "cash_balance":   round(float(stats.get("cash_balance",  0.0)), 4),
-        "watchlist":      load_watchlist(),
+        "watchlist":      _scanner_watchlist(),
         "last_updated":   stats.get("last_updated"),
     }
 

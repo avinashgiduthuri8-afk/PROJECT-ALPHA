@@ -36,16 +36,9 @@ STOP_LOSS_PCT         = float(os.getenv("PMB_STOP_LOSS_PCT","20.0"))
 
 INITIAL_CASH_BALANCE = float(os.getenv("PMB_INITIAL_CASH_BALANCE", "100000"))
 
-DEFAULT_WATCHLIST = [
-    coin.strip().upper()
-    for coin in os.getenv("PMB_DEFAULT_WATCHLIST", "BTC,ETH,SOL,BNB,XRP,ZEC").split(",")
-    if coin.strip()
-]
-
 BASE_DIR  = Path(__file__).resolve().parent
 DATA_DIR  = Path(os.getenv("PMB_DATA_DIR", str(BASE_DIR / "data")))
 
-WATCHLIST_FILE  = DATA_DIR / "watchlist.json"
 POSITIONS_FILE  = DATA_DIR / "positions.json"
 TRADES_FILE     = DATA_DIR / "trades.json"
 STATS_FILE      = DATA_DIR / "stats.json"

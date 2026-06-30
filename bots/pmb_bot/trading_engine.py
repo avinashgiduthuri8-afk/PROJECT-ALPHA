@@ -85,13 +85,10 @@ def validate_signal(signal: dict, positions: list[dict] | None = None) -> Valida
     coin       = str(signal.get("coin", "")).upper().strip()
     price      = float(signal.get("entry_price") or 0)
     score      = float(signal.get("score") or 0)
-    watchlist  = storage.load_watchlist()
     age        = scanner_bridge.signal_age_seconds(signal)
 
     if not coin:
         return ValidationResult(False, "MISSING_COIN", "Signal has no coin.")
-    if coin not in watchlist:
-        return ValidationResult(False, "NOT_IN_WATCHLIST", f"{coin} not in PMB watchlist.")
     if _open_position_exists(coin, positions):
         return ValidationResult(False, "DUPLICATE_POSITION", f"PMB position already open for {coin}.")
     open_count = sum(1 for p in positions if str(p.get("status", "")).upper() == "OPEN")

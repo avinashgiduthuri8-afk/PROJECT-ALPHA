@@ -38,11 +38,8 @@
                 <a href="#" class="nav-anchor" data-target="coin-performance">Coin Performance</a>
                 <a href="#" class="nav-anchor" data-target="tier-accuracy">Tier Accuracy</a>
 
-                <div class="nav-header">Watchlists</div>
-                <a href="#" class="nav-anchor" data-target="watchlist-center">Watchlist Center</a>
-                <a href="#" class="nav-anchor" data-target="vgx-watchlist-view">VGX Watchlist</a>
-                <a href="#" class="nav-anchor" data-target="pmb-watchlist-view">PMB Watchlist</a>
-                <a href="#" class="nav-anchor" data-target="mtb-watchlist-view">MTB Watchlist</a>
+                <div class="nav-header">Watchlist</div>
+                <a href="#" class="nav-anchor" data-target="watchlist-center">Scanner Watchlist</a>
 
                 <div class="nav-header">DevOps Engine</div>
                 <a href="#" class="nav-anchor" data-target="monitoring-view">System Health</a>
@@ -1254,47 +1251,29 @@
 
 
                 <!-- ═══════════════════════════════════════════════════════ -->
-                <!--  WATCHLIST CENTER — All 3 Bot Watchlists in One Page      -->
+                <!--  SCANNER WATCHLIST — Single Source of Truth               -->
                 <!-- ═══════════════════════════════════════════════════════ -->
 
                 <div id="watchlist-center" class="spa-view-layer view-hidden">
                     <div class="dashboard-grid-matrix">
-                        <h3 style="grid-column: span 12; margin-bottom: 0;">Watchlist Center</h3>
-                        <p style="grid-column: span 12; color: var(--text-muted); font-size: 0.85rem;">Manage all bot watchlists with strict isolation. Adding a coin to one bot does NOT affect others.</p>
+                        <h3 style="grid-column: span 12; margin-bottom: 0;">Scanner Watchlist</h3>
+                        <p style="grid-column: span 12; color: var(--text-muted); font-size: 0.85rem;">Unified scanner watchlist. All bots read from this single source of truth and apply their own strategy filters.</p>
 
-                        <!-- Watchlist Summary Row -->
-                        <div class="metric-card span-3">
-                            <h6 style="color: var(--text-muted); margin-bottom: 4px;">VGX Coins</h6>
-                            <h4 class="text-blue" id="vgx-coin-count">{{ data.bot_watchlists.vgx.coins | length }}</h4>
-                        </div>
-                        <div class="metric-card span-3">
-                            <h6 style="color: var(--text-muted); margin-bottom: 4px;">PMB Coins</h6>
-                            <h4 class="text-blue" id="pmb-coin-count">{{ data.bot_watchlists.pmb.coins | length }}</h4>
-                        </div>
-                        <div class="metric-card span-3">
-                            <h6 style="color: var(--text-muted); margin-bottom: 4px;">MTB Coins</h6>
-                            <h4 class="text-blue" id="mtb-coin-count">{{ data.bot_watchlists.mtb.coins | length }}</h4>
-                        </div>
-                        <div class="metric-card span-3" style="border: 1px solid var(--accent-blue); box-shadow: 0 0 8px rgba(59,130,246,0.2);">
+                        <div class="metric-card span-12" style="border: 1px solid var(--accent-blue); box-shadow: 0 0 8px rgba(59,130,246,0.2);">
                             <h6 style="color: var(--text-muted); margin-bottom: 4px;">Total Coins</h6>
-                            <h4 class="text-blue" id="total-coin-count">{{ data.bot_watchlists.total }}</h4>
+                            <h4 class="text-blue" id="total-coin-count">{{ data.scanner_overview.coins_scanned or 0 }}</h4>
                         </div>
 
-                        <!-- VGX Watchlist Section -->
-                        <div class="metric-card span-4">
-                            <h5>VGX Watchlist</h5>
-                            <div class="nested-status-well">
-                                <h6>Total Coins</h6>
-                                <h4 class="text-blue">{{ data.bot_watchlists.vgx.coins | length }}</h4>
-                            </div>
-                            <div class="scroller-table-axis" style="max-height: 200px;">
+                        <div class="metric-card span-12">
+                            <h5>Scanner Universe</h5>
+                            <div class="scroller-table-axis" style="max-height: 400px;">
                                 <table>
                                     <thead><tr><th>Coin</th><th>Action</th></tr></thead>
-                                    <tbody id="vgx-coin-table">
-                                        {% for coin in data.bot_watchlists.vgx.coins %}
+                                    <tbody id="scanner-coin-table">
+                                        {% for coin in data.scanner_overview.coins %}
                                         <tr>
                                             <td><strong>{{ coin }}/INR</strong></td>
-                                            <td><button class="btn-remove-coin" data-bot="vgx" data-coin="{{ coin }}">REMOVE</button></td>
+                                            <td><button class="btn-remove-coin" data-coin="{{ coin }}">REMOVE</button></td>
                                         </tr>
                                         {% else %}
                                         <tr><td colspan="2" class="text-muted">No coins</td></tr>
@@ -1302,164 +1281,11 @@
                                     </tbody>
                                 </table>
                             </div>
-                            <!-- shared datalist — all 3 inputs draw from this -->
                             <datalist id="coindcx-coins"></datalist>
                             <div class="form-element-container" style="margin-top: 12px;">
-                                <input type="text" id="vgx-add-input" list="coindcx-coins" placeholder="Enter coin symbol…" autocomplete="off" class="form-select-control" style="width: 60%; display: inline-block;">
-                                <button class="btn-commit-mock-state" onclick="addCoin('vgx')" style="width: 35%; display: inline-block; margin-left: 4px;">Add</button>
-                                <div id="vgx-add-error" style="display:none; color:#ff4444; font-size:0.78rem; margin-top:4px;"></div>
-                            </div>
-                        </div>
-
-                        <!-- PMB Watchlist Section -->
-                        <div class="metric-card span-4">
-                            <h5>PMB Watchlist</h5>
-                            <div class="nested-status-well">
-                                <h6>Total Coins</h6>
-                                <h4 class="text-blue">{{ data.bot_watchlists.pmb.coins | length }}</h4>
-                            </div>
-                            <div class="scroller-table-axis" style="max-height: 200px;">
-                                <table>
-                                    <thead><tr><th>Coin</th><th>Action</th></tr></thead>
-                                    <tbody id="pmb-coin-table">
-                                        {% for coin in data.bot_watchlists.pmb.coins %}
-                                        <tr>
-                                            <td><strong>{{ coin }}/INR</strong></td>
-                                            <td><button class="btn-remove-coin" data-bot="pmb" data-coin="{{ coin }}">REMOVE</button></td>
-                                        </tr>
-                                        {% else %}
-                                        <tr><td colspan="2" class="text-muted">No coins</td></tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                            <div class="form-element-container" style="margin-top: 12px;">
-                                <input type="text" id="pmb-add-input" list="coindcx-coins" placeholder="Enter coin symbol…" autocomplete="off" class="form-select-control" style="width: 60%; display: inline-block;">
-                                <button class="btn-commit-mock-state" onclick="addCoin('pmb')" style="width: 35%; display: inline-block; margin-left: 4px;">Add</button>
-                                <div id="pmb-add-error" style="display:none; color:#ff4444; font-size:0.78rem; margin-top:4px;"></div>
-                            </div>
-                        </div>
-
-                        <!-- MTB Watchlist Section -->
-                        <div class="metric-card span-4">
-                            <h5>MTB Watchlist</h5>
-                            <div class="nested-status-well">
-                                <h6>Total Coins</h6>
-                                <h4 class="text-blue">{{ data.bot_watchlists.mtb.coins | length }}</h4>
-                            </div>
-                            <div class="scroller-table-axis" style="max-height: 200px;">
-                                <table>
-                                    <thead><tr><th>Coin</th><th>Action</th></tr></thead>
-                                    <tbody id="mtb-coin-table">
-                                        {% for coin in data.bot_watchlists.mtb.coins %}
-                                        <tr>
-                                            <td><strong>{{ coin }}/INR</strong></td>
-                                            <td><button class="btn-remove-coin" data-bot="mtb" data-coin="{{ coin }}">REMOVE</button></td>
-                                        </tr>
-                                        {% else %}
-                                        <tr><td colspan="2" class="text-muted">No coins</td></tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                            <div class="form-element-container" style="margin-top: 12px;">
-                                <input type="text" id="mtb-add-input" list="coindcx-coins" placeholder="Enter coin symbol…" autocomplete="off" class="form-select-control" style="width: 60%; display: inline-block;">
-                                <button class="btn-commit-mock-state" onclick="addCoin('mtb')" style="width: 35%; display: inline-block; margin-left: 4px;">Add</button>
-                                <div id="mtb-add-error" style="display:none; color:#ff4444; font-size:0.78rem; margin-top:4px;"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- ═══════════════════════════════════════════════════════ -->
-                <!--  WATCHLIST VIEWS — Per-Bot Isolated Watchlists           -->
-                <!-- ═══════════════════════════════════════════════════════ -->
-
-                <div id="vgx-watchlist-view" class="spa-view-layer view-hidden">
-                    <div class="dashboard-grid-matrix">
-                        <div class="metric-card span-12">
-                            <h5>VGX Watchlist</h5>
-                            <div class="layout-matrix-inner-row">
-                                <div class="nested-status-well"><h6>Coin Count</h6><h4 class="text-blue">{{ data.bot_watchlists.vgx.coins | length }}</h4></div>
-                                <div class="nested-status-well"><h6>Last Updated</h6><h4 class="text-gold">{% if data.bot_watchlists.vgx.updated_at %}{{ data.bot_watchlists.vgx.updated_at }}{% else %}Never{% endif %}</h4></div>
-                            </div>
-                        </div>
-                        <div class="metric-card span-12 table-container-card">
-                            <h5>VGX Coins</h5>
-                            <div class="scroller-table-axis">
-                                <table>
-                                    <thead><tr><th>Coin</th><th>Action</th></tr></thead>
-                                    <tbody>
-                                        {% for coin in data.bot_watchlists.vgx.coins %}
-                                        <tr>
-                                            <td><strong>{{ coin }}/INR</strong></td>
-                                            <td><button class="btn-remove-coin" data-bot="vgx" data-coin="{{ coin }}">REMOVE</button></td>
-                                        </tr>
-                                        {% else %}
-                                        <tr><td colspan="2" class="text-muted">No coins in VGX watchlist</td></tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="pmb-watchlist-view" class="spa-view-layer view-hidden">
-                    <div class="dashboard-grid-matrix">
-                        <div class="metric-card span-12">
-                            <h5>PMB Watchlist</h5>
-                            <div class="layout-matrix-inner-row">
-                                <div class="nested-status-well"><h6>Coin Count</h6><h4 class="text-blue">{{ data.bot_watchlists.pmb.coins | length }}</h4></div>
-                                <div class="nested-status-well"><h6>Last Updated</h6><h4 class="text-gold">{% if data.bot_watchlists.pmb.updated_at %}{{ data.bot_watchlists.pmb.updated_at }}{% else %}Never{% endif %}</h4></div>
-                            </div>
-                        </div>
-                        <div class="metric-card span-12 table-container-card">
-                            <h5>PMB Coins</h5>
-                            <div class="scroller-table-axis">
-                                <table>
-                                    <thead><tr><th>Coin</th><th>Action</th></tr></thead>
-                                    <tbody>
-                                        {% for coin in data.bot_watchlists.pmb.coins %}
-                                        <tr>
-                                            <td><strong>{{ coin }}/INR</strong></td>
-                                            <td><button class="btn-remove-coin" data-bot="pmb" data-coin="{{ coin }}">REMOVE</button></td>
-                                        </tr>
-                                        {% else %}
-                                        <tr><td colspan="2" class="text-muted">No coins in PMB watchlist</td></tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="mtb-watchlist-view" class="spa-view-layer view-hidden">
-                    <div class="dashboard-grid-matrix">
-                        <div class="metric-card span-12">
-                            <h5>MTB Watchlist</h5>
-                            <div class="layout-matrix-inner-row">
-                                <div class="nested-status-well"><h6>Coin Count</h6><h4 class="text-blue">{{ data.bot_watchlists.mtb.coins | length }}</h4></div>
-                                <div class="nested-status-well"><h6>Last Updated</h6><h4 class="text-gold">{% if data.bot_watchlists.mtb.updated_at %}{{ data.bot_watchlists.mtb.updated_at }}{% else %}Never{% endif %}</h4></div>
-                            </div>
-                        </div>
-                        <div class="metric-card span-12 table-container-card">
-                            <h5>MTB Coins</h5>
-                            <div class="scroller-table-axis">
-                                <table>
-                                    <thead><tr><th>Coin</th><th>Action</th></tr></thead>
-                                    <tbody>
-                                        {% for coin in data.bot_watchlists.mtb.coins %}
-                                        <tr>
-                                            <td><strong>{{ coin }}/INR</strong></td>
-                                            <td><button class="btn-remove-coin" data-bot="mtb" data-coin="{{ coin }}">REMOVE</button></td>
-                                        </tr>
-                                        {% else %}
-                                        <tr><td colspan="2" class="text-muted">No coins in MTB watchlist</td></tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
+                                <input type="text" id="scanner-add-input" list="coindcx-coins" placeholder="Enter coin symbol…" autocomplete="off" class="form-select-control" style="width: 60%; display: inline-block;">
+                                <button class="btn-commit-mock-state" onclick="addCoin()" style="width: 35%; display: inline-block; margin-left: 4px;">Add</button>
+                                <div id="scanner-add-error" style="display:none; color:#ff4444; font-size:0.78rem; margin-top:4px;"></div>
                             </div>
                         </div>
                     </div>

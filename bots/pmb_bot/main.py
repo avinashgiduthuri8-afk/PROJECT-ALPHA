@@ -46,7 +46,7 @@ async def post_init(app) -> None:
 def build_application():
     from telegram.ext import ApplicationBuilder, CommandHandler
     from .telegram_handlers import (
-        buy_cmd, sell_cmd, start_cmd, status_cmd, watchlist_cmd,
+        buy_cmd, sell_cmd, start_cmd, status_cmd,
     )
     if not TELEGRAM_BOT_TOKEN:
         raise RuntimeError("PMB_BOT_TOKEN or BOT_TOKEN must be set.")
@@ -55,7 +55,6 @@ def build_application():
     app.add_handler(CommandHandler("status",    status_cmd))
     app.add_handler(CommandHandler("buy",       buy_cmd))
     app.add_handler(CommandHandler("sell",      sell_cmd))
-    app.add_handler(CommandHandler("watchlist", watchlist_cmd))
     return app
 
 

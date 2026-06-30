@@ -24,7 +24,7 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         f"  Base Buy: {_fmt(BASE_BUY)}\n"
         f"  Dip Buy:  {_fmt(DIP_BUY)} (max {MAX_DIPS} dips)\n"
         f"  Part Sell:{_fmt(PARTIAL_SELL)}\n\n"
-        "Commands: /status /buy /sell /watchlist"
+        "Commands: /status /buy /sell"
     )
 
 
@@ -48,11 +48,6 @@ async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
                 f"  qty={float(p.get('total_quantity',0)):.6f}"
             )
     await update.message.reply_text("\n".join(lines))
-
-
-async def watchlist_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    coins = storage.load_watchlist()
-    await update.message.reply_text("PMB Watchlist: " + ", ".join(coins))
 
 
 async def buy_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

@@ -19,7 +19,7 @@ def _fmt_money(value: float) -> str:
 async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         f"{BOT_NAME} Bot v{BOT_VERSION} online.\n"
-        "Commands: /status /buy /sell /watchlist /tradeamount"
+        "Commands: /status /buy /sell /tradeamount"
     )
 
 
@@ -34,11 +34,6 @@ async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         f"Trade Amount: {_fmt_money(snap['trade_amount'])}\n"
         f"Cash: {_fmt_money(snap['cash_balance'])}"
     )
-
-
-async def watchlist_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    coins = storage.load_watchlist()
-    await update.message.reply_text("MTB Watchlist: " + ", ".join(coins))
 
 
 async def tradeamount_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

@@ -21,10 +21,7 @@ async def start_cmd(update, context):
         "/help - Show Commands\n"
         "/buy <coin>\n"
         "/sell <coin>\n"
-        "/watchlist\n"
         "/tradeamount <amount>\n"
-        "/addcoin <coin>\n"
-        "/removecoin <coin>\n"
         "/stats\n"
         "/history\n"
         "/analytics"
@@ -49,7 +46,7 @@ async def status_cmd(update, context):
         f"Open Positions: {open_positions}\n"
         f"Closed Trades: {closed_trades}\n"
         f"Trade Amount: â‚¹{round(config.TRADE_AMOUNT, 2)}\n"
-        f"Watchlist: {len(storage.watchlist)} coins"
+        "Scanner signals drive all trades."
     )
 
     await update.message.reply_text(msg)
@@ -69,9 +66,6 @@ async def help_cmd(update, context):
 /sell BTC
 /tradeamount 110
 
-/watchlist
-/addcoin DOGE
-/removecoin DOGE
 
 /stats
 /history
@@ -321,123 +315,6 @@ async def sell_cmd(update, context):
 # WATCHLIST
 # ============================================================
 
-async def watchlist_cmd(
-
-    update,
-
-    context
-
-):
-
-    msg = "📋 WATCHLIST\n\n"
-
-    for coin in storage.watchlist:
-
-        price = (
-
-            get_cached_price_safe(
-
-                coin
-
-            )
-
-        )
-
-        msg += (
-
-            f"{coin}"
-
-            f"  ₹{round(price,2)}\n"
-
-        )
-
-    await update.message.reply_text(
-
-        msg
-
-    )
-
-
-# ============================================================
-# ADD COIN
-# ============================================================
-
-async def addcoin_cmd(
-
-    update,
-
-    context
-
-):
-
-    if not context.args:
-
-        return
-
-    coin = (
-
-        context.args[0]
-
-        .upper()
-
-    )
-
-    if coin not in storage.watchlist:
-
-        storage.watchlist.append(
-
-            coin
-
-        )
-
-        storage.save_data()
-
-    await update.message.reply_text(
-
-        f"✅ {coin} Added"
-
-    )
-
-
-# ============================================================
-# REMOVE COIN
-# ============================================================
-
-async def removecoin_cmd(
-
-    update,
-
-    context
-
-):
-
-    if not context.args:
-
-        return
-
-    coin = (
-
-        context.args[0]
-
-        .upper()
-
-    )
-
-    if coin in storage.watchlist:
-
-        storage.watchlist.remove(
-
-            coin
-
-        )
-
-        storage.save_data()
-
-    await update.message.reply_text(
-
-        f"❌ {coin} Removed"
-
-    )
 
 
 # ============================================================

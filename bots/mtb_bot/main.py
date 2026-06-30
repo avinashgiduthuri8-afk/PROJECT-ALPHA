@@ -21,7 +21,6 @@ from .telegram_handlers import (
     start_cmd,
     status_cmd,
     tradeamount_cmd,
-    watchlist_cmd,
 )
 from .trading_engine import run_cycle
 
@@ -60,7 +59,6 @@ def build_application():
     app.add_handler(CommandHandler("status", status_cmd))
     app.add_handler(CommandHandler("buy", buy_cmd))
     app.add_handler(CommandHandler("sell", sell_cmd))
-    app.add_handler(CommandHandler("watchlist", watchlist_cmd))
     app.add_handler(CommandHandler("tradeamount", tradeamount_cmd))
     return app
 
