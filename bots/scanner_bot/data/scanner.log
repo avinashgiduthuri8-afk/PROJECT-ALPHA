@@ -4745,3 +4745,102 @@ ValueError: invalid candle data
 2026-06-30 15:40:43,646 WARNING scanner_bot: Bootstrap: coin=ETH — all pairs failed, no history loaded
 2026-06-30 15:40:43,652 WARNING scanner_bot: Bootstrap: coin=XRP — all pairs failed, no history loaded
 2026-06-30 15:40:43,657 WARNING scanner_bot: Bootstrap: coin=BTC — all pairs failed, no history loaded
+2026-06-30 16:40:30,522 INFO scanner_bot: Storage ready: /home/runner/workspace/bots/scanner_bot/data
+2026-06-30 16:40:30,808 INFO scanner_bot: Bootstrap: fetching current tickers to build coin list...
+2026-06-30 16:40:30,923 INFO scanner_bot: Bootstrap: loading history for 82 coins
+2026-06-30 16:40:30,923 INFO scanner_bot: [Bootstrap] Starting — coins=82 concurrency=30 min_candles=21
+2026-06-30 16:40:31,026 WARNING scanner_bot: Bootstrap: coin=LTC — all pairs failed, no history loaded
+2026-06-30 16:40:31,035 WARNING scanner_bot: Bootstrap: coin=XRP — all pairs failed, no history loaded
+2026-06-30 16:40:31,039 WARNING scanner_bot: Bootstrap: coin=ETH — all pairs failed, no history loaded
+2026-06-30 16:40:31,048 WARNING scanner_bot: Bootstrap: coin=ADA — all pairs failed, no history loaded
+2026-06-30 16:40:31,049 WARNING scanner_bot: Bootstrap: coin=SOL — all pairs failed, no history loaded
+2026-06-30 16:40:31,051 WARNING scanner_bot: Bootstrap: coin=DASH — all pairs failed, no history loaded
+2026-06-30 16:40:31,115 WARNING scanner_bot: Bootstrap: coin=BTC — all pairs failed, no history loaded
+2026-06-30 16:40:31,127 WARNING scanner_bot: Bootstrap: coin=INJ — all pairs failed, no history loaded
+2026-06-30 16:40:31,145 WARNING scanner_bot: Bootstrap: coin=ATM — all pairs failed, no history loaded
+2026-06-30 16:40:31,158 WARNING scanner_bot: Bootstrap: coin=ZEN — all pairs failed, no history loaded
+2026-06-30 16:40:31,163 WARNING scanner_bot: Bootstrap: coin=KAS — all pairs failed, no history loaded
+2026-06-30 16:40:31,168 WARNING scanner_bot: Bootstrap: coin=SUI — all pairs failed, no history loaded
+2026-06-30 16:40:31,213 WARNING scanner_bot: Bootstrap: coin=BIO — all pairs failed, no history loaded
+2026-06-30 16:40:31,232 WARNING scanner_bot: Bootstrap: coin=GIGGLE — all pairs failed, no history loaded
+2026-06-30 16:40:31,239 WARNING scanner_bot: Bootstrap: coin=PENDLE — all pairs failed, no history loaded
+2026-06-30 16:40:31,271 WARNING scanner_bot: Bootstrap: coin=RLUSD — all pairs failed, no history loaded
+2026-06-30 16:40:31,283 WARNING scanner_bot: Bootstrap: coin=LINK — all pairs failed, no history loaded
+2026-06-30 16:40:31,284 WARNING scanner_bot: Bootstrap: coin=SPX — all pairs failed, no history loaded
+2026-06-30 16:40:31,314 WARNING scanner_bot: Bootstrap: coin=TAO — all pairs failed, no history loaded
+2026-06-30 16:40:31,330 WARNING scanner_bot: Bootstrap: coin=RIF — all pairs failed, no history loaded
+2026-06-30 16:40:31,340 WARNING scanner_bot: Bootstrap: coin=ZEC — all pairs failed, no history loaded
+2026-06-30 16:40:31,357 WARNING scanner_bot: Bootstrap: coin=WLD — all pairs failed, no history loaded
+2026-06-30 16:40:31,379 WARNING scanner_bot: Bootstrap: coin=EURI — all pairs failed, no history loaded
+2026-06-30 16:40:31,396 WARNING scanner_bot: Bootstrap: coin=O — all pairs failed, no history loaded
+2026-06-30 16:40:31,421 WARNING scanner_bot: Bootstrap: coin=ACT — all pairs failed, no history loaded
+2026-06-30 16:40:31,447 WARNING scanner_bot: Bootstrap: coin=DOT — all pairs failed, no history loaded
+2026-06-30 16:40:31,449 WARNING scanner_bot: Bootstrap: coin=USD1 — all pairs failed, no history loaded
+2026-06-30 16:40:31,465 WARNING scanner_bot: Bootstrap: coin=AAVE — all pairs failed, no history loaded
+2026-06-30 16:40:31,482 WARNING scanner_bot: Bootstrap: coin=LIGHT — all pairs failed, no history loaded
+2026-06-30 16:40:31,493 WARNING scanner_bot: Bootstrap: coin=TRUMP — all pairs failed, no history loaded
+2026-06-30 16:40:31,541 WARNING scanner_bot: Bootstrap: coin=MORPHO — all pairs failed, no history loaded
+2026-06-30 16:40:31,551 WARNING scanner_bot: Bootstrap: coin=ONDO — all pairs failed, no history loaded
+2026-06-30 16:40:31,559 WARNING scanner_bot: Bootstrap: coin=USDC — all pairs failed, no history loaded
+2026-06-30 16:40:31,579 WARNING scanner_bot: Bootstrap: coin=POL — all pairs failed, no history loaded
+2026-06-30 16:40:31,584 WARNING scanner_bot: Bootstrap: coin=AIGENSYN — all pairs failed, no history loaded
+2026-06-30 16:40:31,588 WARNING scanner_bot: Bootstrap: coin=VELVET — all pairs failed, no history loaded
+2026-06-30 16:40:31,639 WARNING scanner_bot: Bootstrap: coin=ENA — all pairs failed, no history loaded
+2026-06-30 16:40:31,652 WARNING scanner_bot: Bootstrap: coin=ALLO — all pairs failed, no history loaded
+2026-06-30 16:40:31,658 WARNING scanner_bot: Bootstrap: coin=S — all pairs failed, no history loaded
+2026-06-30 16:40:31,690 WARNING scanner_bot: Bootstrap: coin=XUSD — all pairs failed, no history loaded
+2026-06-30 16:40:31,696 WARNING scanner_bot: Bootstrap: coin=RENDER — all pairs failed, no history loaded
+2026-06-30 16:40:31,703 WARNING scanner_bot: Bootstrap: coin=ALCX — all pairs failed, no history loaded
+2026-06-30 16:40:31,733 WARNING scanner_bot: Bootstrap: coin=ZEREBRO — all pairs failed, no history loaded
+2026-06-30 16:40:31,759 WARNING scanner_bot: Bootstrap: coin=HEI — all pairs failed, no history loaded
+2026-06-30 16:40:31,768 WARNING scanner_bot: Bootstrap: coin=SIREN — all pairs failed, no history loaded
+2026-06-30 16:40:31,793 WARNING scanner_bot: Bootstrap: coin=SYN — all pairs failed, no history loaded
+2026-06-30 16:40:31,809 WARNING scanner_bot: Bootstrap: coin=MAVIA — all pairs failed, no history loaded
+2026-06-30 16:40:31,829 WARNING scanner_bot: Bootstrap: coin=WBTC — all pairs failed, no history loaded
+2026-06-30 16:40:31,836 WARNING scanner_bot: Bootstrap: coin=LAYER — all pairs failed, no history loaded
+2026-06-30 16:40:31,871 WARNING scanner_bot: Bootstrap: coin=PYTH — all pairs failed, no history loaded
+2026-06-30 16:40:31,879 WARNING scanner_bot: Bootstrap: coin=FARTCOIN — all pairs failed, no history loaded
+2026-06-30 16:40:31,926 WARNING scanner_bot: Bootstrap: coin=LAB — all pairs failed, no history loaded
+2026-06-30 16:40:31,939 WARNING scanner_bot: Bootstrap: coin=USDT — all pairs failed, no history loaded
+2026-06-30 16:40:31,965 WARNING scanner_bot: Bootstrap: coin=VVV — all pairs failed, no history loaded
+2026-06-30 16:40:31,981 WARNING scanner_bot: Bootstrap: coin=JTO — all pairs failed, no history loaded
+2026-06-30 16:40:32,020 WARNING scanner_bot: Bootstrap: coin=MANTA — all pairs failed, no history loaded
+2026-06-30 16:40:32,050 WARNING scanner_bot: Bootstrap: coin=HYPE — all pairs failed, no history loaded
+2026-06-30 16:40:32,057 WARNING scanner_bot: Bootstrap: coin=ORDI — all pairs failed, no history loaded
+2026-06-30 16:40:32,088 WARNING scanner_bot: Bootstrap: coin=ICP — all pairs failed, no history loaded
+2026-06-30 16:40:32,119 WARNING scanner_bot: Bootstrap: coin=XMR — all pairs failed, no history loaded
+2026-06-30 16:40:32,144 WARNING scanner_bot: Bootstrap: coin=ONG — all pairs failed, no history loaded
+2026-06-30 16:40:32,147 WARNING scanner_bot: Bootstrap: coin=RE — all pairs failed, no history loaded
+2026-06-30 16:40:32,197 WARNING scanner_bot: Bootstrap: coin=XLM — all pairs failed, no history loaded
+2026-06-30 16:40:32,214 WARNING scanner_bot: Bootstrap: coin=DEXE — all pairs failed, no history loaded
+2026-06-30 16:40:32,218 WARNING scanner_bot: Bootstrap: coin=ASTER — all pairs failed, no history loaded
+2026-06-30 16:40:32,258 WARNING scanner_bot: Bootstrap: coin=USDE — all pairs failed, no history loaded
+2026-06-30 16:40:32,306 WARNING scanner_bot: Bootstrap: coin=AVAX — all pairs failed, no history loaded
+2026-06-30 16:40:32,369 WARNING scanner_bot: Bootstrap: coin=KCS — all pairs failed, no history loaded
+2026-06-30 16:40:32,372 WARNING scanner_bot: Bootstrap: coin=LIT — all pairs failed, no history loaded
+2026-06-30 16:40:32,392 WARNING scanner_bot: Bootstrap: coin=NEAR — all pairs failed, no history loaded
+2026-06-30 16:40:32,401 WARNING scanner_bot: Bootstrap: coin=SWCH — all pairs failed, no history loaded
+2026-06-30 16:40:32,414 WARNING scanner_bot: Bootstrap: coin=U — all pairs failed, no history loaded
+2026-06-30 16:40:32,488 WARNING scanner_bot: Bootstrap: coin=PIEVERSE — all pairs failed, no history loaded
+2026-06-30 16:40:32,490 WARNING scanner_bot: Bootstrap: coin=XPL — all pairs failed, no history loaded
+2026-06-30 16:40:32,496 WARNING scanner_bot: Bootstrap: coin=TRX — all pairs failed, no history loaded
+2026-06-30 16:40:32,501 WARNING scanner_bot: Bootstrap: coin=FDUSD — all pairs failed, no history loaded
+2026-06-30 16:40:32,548 WARNING scanner_bot: Bootstrap: coin=IN — all pairs failed, no history loaded
+2026-06-30 16:40:32,568 WARNING scanner_bot: Bootstrap: coin=HBAR — all pairs failed, no history loaded
+2026-06-30 16:40:32,608 WARNING scanner_bot: Bootstrap: coin=BNB — all pairs failed, no history loaded
+2026-06-30 16:40:32,615 WARNING scanner_bot: Bootstrap: coin=DOGE — all pairs failed, no history loaded
+2026-06-30 16:40:32,623 WARNING scanner_bot: Bootstrap: coin=PHA — all pairs failed, no history loaded
+2026-06-30 16:40:32,633 WARNING scanner_bot: Bootstrap: coin=AI — all pairs failed, no history loaded
+2026-06-30 16:40:32,634 WARNING scanner_bot: [Bootstrap] 82 coin(s) failed to load: LTC, XRP, ETH, ADA, SOL, DASH, BTC, INJ, ATM, ZEN, KAS, SUI, BIO, GIGGLE, PENDLE, RLUSD, SPX, LINK, TAO, RIF …
+2026-06-30 16:40:32,634 INFO scanner_bot: [Bootstrap] Startup history pre-load complete
+2026-06-30 16:40:32,634 INFO scanner_bot:   Coins attempted  : 82
+2026-06-30 16:40:32,634 INFO scanner_bot:   Loaded           : 0
+2026-06-30 16:40:32,635 INFO scanner_bot:   Skipped (cached) : 0
+2026-06-30 16:40:32,635 INFO scanner_bot:   Failed           : 82 (82 coins)
+2026-06-30 16:40:32,635 INFO scanner_bot:   Avg history len  : 0.0 ticks
+2026-06-30 16:40:32,635 INFO scanner_bot:   Min history len  : 0 ticks
+2026-06-30 16:40:32,635 INFO scanner_bot:   Ready for EMA    : NO (need 21)
+2026-06-30 16:40:32,635 INFO scanner_bot:   Ready for MTF    : NO (need 48)
+2026-06-30 16:40:32,635 INFO scanner_bot:   Ready for Phase5 : NO (need 20)
+2026-06-30 16:40:32,635 INFO scanner_bot:   Duration         : 1.7s
+2026-06-30 16:40:32,794 INFO scanner_bot: Updated 29 signal performance checkpoints

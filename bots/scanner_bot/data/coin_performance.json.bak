@@ -12,25 +12,25 @@
   },
   "BTC": {
     "coin": "BTC",
-    "total_signals": 10,
-    "winning_signals": 4,
+    "total_signals": 12,
+    "winning_signals": 6,
     "losing_signals": 6,
-    "win_rate_pct": 40.0,
-    "avg_return_pct": 3003.65,
+    "win_rate_pct": 50.0,
+    "avg_return_pct": 5957.38,
     "best_return_pct": 12014.65,
     "worst_return_pct": -0.07,
-    "last_signal_time": "2026-06-30T09:38:34.517436+00:00"
+    "last_signal_time": "2026-06-30T15:24:32.544052+00:00"
   },
   "ETH": {
     "coin": "ETH",
-    "total_signals": 4,
-    "winning_signals": 4,
+    "total_signals": 6,
+    "winning_signals": 6,
     "losing_signals": 0,
     "win_rate_pct": 100.0,
-    "avg_return_pct": 112.17,
+    "avg_return_pct": 166.37,
     "best_return_pct": 223.32,
     "worst_return_pct": 1.03,
-    "last_signal_time": "2026-06-30T09:38:34.517458+00:00"
+    "last_signal_time": "2026-06-30T15:24:32.544075+00:00"
   },
   "SOL": {
     "coin": "SOL",
@@ -284,5 +284,16 @@
     "best_return_pct": -0.55,
     "worst_return_pct": -0.55,
     "last_signal_time": "2026-06-24T00:23:46.711282+00:00"
+  },
+  "A": {
+    "coin": "A",
+    "total_signals": 2,
+    "winning_signals": 0,
+    "losing_signals": 2,
+    "win_rate_pct": 0.0,
+    "avg_return_pct": -99.99,
+    "best_return_pct": -99.99,
+    "worst_return_pct": -99.99,
+    "last_signal_time": "2026-06-30T15:20:56.977614+00:00"
   }
 }
