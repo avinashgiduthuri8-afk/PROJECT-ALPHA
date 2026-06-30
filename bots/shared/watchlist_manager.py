@@ -8,7 +8,6 @@ All bots read scanner watchlist directly — no per-bot watchlists.
 import json
 import os
 import time
-from typing import List
 
 # Scanner watchlist is the single source of truth
 _SCANNER_WATCHLIST_FILE = os.path.join(

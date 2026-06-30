@@ -10,8 +10,6 @@ from bots.scanner_bot.scanner import get_signals, get_live_signals
 from bots.scanner_bot.scanner import get_watchlist
 from bots.scanner_bot.scanner import get_stats
 from bots.scanner_bot.scanner import get_market_state, get_signal_stats, get_performance_stats, get_performance_signals, get_per_coin_performance, get_signal_history, get_signal_history_stats, get_coin_performance_data, get_coin_performance_stats, get_tier_accuracy_data, get_tier_accuracy_stats
-from threading import Thread
-import time
 import bots.scanner_bot.main as scanner_main
 from bots.scanner_bot.main import scanner_router
 import bots.mtb_bot.main as mtb_main

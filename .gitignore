@@ -7,3 +7,5 @@ credentials.json
 .credentials
 __pycache__/
 *.pyc
+*.json.bak
+bots/scanner_bot/attached_assets/*.ipynb

@@ -11,10 +11,9 @@ Provides real market analysis using:
 - Coin scoring
 """
 
-import time
 import logging
 from dataclasses import dataclass
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict
 from datetime import datetime, timezone
 
 logger = logging.getLogger("vgx.market_analysis")

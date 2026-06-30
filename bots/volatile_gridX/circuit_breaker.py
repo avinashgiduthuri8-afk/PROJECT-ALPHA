@@ -13,7 +13,6 @@ All thresholds are configurable via environment variables.
 
 import os
 import json
-import time
 import logging
 from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass, asdict
