@@ -6,3 +6,13 @@ pandas
 numpy
 yfinance
 python-telegram-bot
+fastapi
+jinja2
+numpy
+pandas
+psutil
+pydantic
+python-telegram-bot
+requests
+uvicorn
+yfinance
