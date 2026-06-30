@@ -56,8 +56,8 @@
                         Scanner: <span class="badge-label text-green">{{ data.service_statuses.scanner }}</span>
                     </div>
                     <div class="status-badge-item">
-                        <span class="status-dot gold"></span>
-                        Trading Bot: <span class="badge-label text-gold">{{ data.service_statuses.trading_bot }}</span>
+                        <span class="status-dot {% if data.service_statuses.vgx == 'ONLINE' %}green{% else %}gold{% endif %}"></span>
+                        VGX: <span class="badge-label {% if data.service_statuses.vgx == 'ONLINE' %}text-green{% else %}text-gold{% endif %}">{{ data.service_statuses.vgx }}</span>
                     </div>
                     <div class="status-badge-item">
                         <span class="status-dot {% if data.pmb_overview.status == 'INTEGRATED' %}green{% else %}gold{% endif %}"></span>

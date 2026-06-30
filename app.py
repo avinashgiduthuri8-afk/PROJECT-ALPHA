@@ -348,8 +348,8 @@ def pull_state_payload():
         },
 
         "service_statuses": {
-            "scanner":     "ONLINE",
-            "trading_bot": "OFFLINE",
+            "scanner":      "ONLINE",
+            "vgx":          vgx_snapshot().get("status", "OFFLINE"),
             "telegram_bot": "ONLINE",
         },
 
