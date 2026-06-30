@@ -9,9 +9,15 @@ from __future__ import annotations
 
 import json
 import shutil
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+# One lock per state file — used in every save_* function body.
+_positions_lock = threading.Lock()
+_trades_lock    = threading.Lock()
+_stats_lock     = threading.Lock()
 
 from .config import (
     DATA_DIR,
@@ -92,7 +98,8 @@ def load_positions() -> list[dict]:
 
 
 def save_positions(positions: list[dict]) -> None:
-    _write_json(POSITIONS_FILE, {"positions": positions})
+    with _positions_lock:
+        _write_json(POSITIONS_FILE, {"positions": positions})
 
 
 def load_trades() -> list[dict]:
@@ -103,7 +110,8 @@ def load_trades() -> list[dict]:
 
 
 def save_trades(trades: list[dict]) -> None:
-    _write_json(TRADES_FILE, {"trades": trades})
+    with _trades_lock:
+        _write_json(TRADES_FILE, {"trades": trades})
 
 
 def load_stats() -> dict:
@@ -120,9 +128,10 @@ def load_stats() -> dict:
 
 
 def save_stats(stats: dict) -> None:
-    stats = dict(stats)
-    stats["last_updated"] = utc_now()
-    _write_json(STATS_FILE, stats)
+    with _stats_lock:
+        stats = dict(stats)
+        stats["last_updated"] = utc_now()
+        _write_json(STATS_FILE, stats)
 
 
 def get_open_positions() -> list[dict]:

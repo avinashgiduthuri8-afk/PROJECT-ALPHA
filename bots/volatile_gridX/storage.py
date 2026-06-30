@@ -5,9 +5,13 @@ PROJECT-ALPHA Persistent Storage Engine
 import os
 import json
 import shutil
+import threading
 import time
 
 from .config import *
+
+# Single lock guarding the one TradingBotCrypto.json storage file.
+_storage_lock = threading.Lock()
 
 # ============================================================
 # RUNTIME VARIABLES
@@ -173,52 +177,54 @@ def load_data():
 
 def save_data():
 
-    os.makedirs(STORAGE_DIR, exist_ok=True)
+    with _storage_lock:
 
-    payload = {
+        os.makedirs(STORAGE_DIR, exist_ok=True)
 
-        "virtual_balance": virtual_balance,
+        payload = {
 
-        "positions": positions,
+            "virtual_balance": virtual_balance,
 
-        "trade_log": trade_log,
-        "price_history": price_history,
+            "positions": positions,
 
-        "market_cache": market_cache,
+            "trade_log": trade_log,
+            "price_history": price_history,
 
-        "portfolio_history": portfolio_history,
+            "market_cache": market_cache,
 
-        "trade_history": trade_history,
+            "portfolio_history": portfolio_history,
 
-        "error_logs": error_logs,
+            "trade_history": trade_history,
 
-        "metrics_summary": metrics_summary
+            "error_logs": error_logs,
 
-    }
+            "metrics_summary": metrics_summary
 
-    temp_file = STORAGE_FILE + ".tmp"
+        }
 
-    with open(temp_file, "w") as f:
+        temp_file = STORAGE_FILE + ".tmp"
 
-        json.dump(payload, f, indent=4)
+        with open(temp_file, "w") as f:
 
-    if os.path.exists(STORAGE_FILE):
+            json.dump(payload, f, indent=4)
 
-        shutil.copy2(
+        if os.path.exists(STORAGE_FILE):
 
-            STORAGE_FILE,
+            shutil.copy2(
 
-            STORAGE_BACKUP
+                STORAGE_FILE,
 
-        )
+                STORAGE_BACKUP
 
-    os.replace(temp_file, STORAGE_FILE)
+            )
 
-    storage_state["status"] = "SYNCED"
+        os.replace(temp_file, STORAGE_FILE)
 
-    storage_state["last_sync"] = time.time()
+        storage_state["status"] = "SYNCED"
 
-    storage_state["sync_count"] += 1
+        storage_state["last_sync"] = time.time()
+
+        storage_state["sync_count"] += 1
 
 
 def get_open_positions() -> list[dict]:

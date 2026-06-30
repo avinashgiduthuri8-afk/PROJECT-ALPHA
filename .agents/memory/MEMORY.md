@@ -1,0 +1,3 @@
+- [Storage locking pattern](storage-locking.md) — threading.Lock() per-file in all bot storages; scanner uses 5 separate locks
+- [Snapshot cache pattern](snapshot-cache.md) — 3s TTL cache + asyncio.to_thread in app.py; _unified_stats accepts pre-fetched dicts
+- [API auth pattern](api-auth.md) — X-API-Key header, fail-closed (500 if env unset); / and scanner read routes exempted

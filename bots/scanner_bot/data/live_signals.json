@@ -1,21 +1,6 @@
 {
   "signals": [
     {
-      "coin": "LAYER",
-      "market": "INR",
-      "market_state": "breakout",
-      "opportunity_type": "momentum_trade",
-      "priority": "Medium",
-      "score": 70,
-      "confidence": 63,
-      "tier": "PREMIUM",
-      "final_score": 64,
-      "risk_level": "high",
-      "price": 7.013,
-      "coin_class": "C",
-      "timestamp": "2026-06-23T16:51:55.676570+00:00"
-    },
-    {
       "coin": "TRX",
       "market": "INR",
       "market_state": "breakout",
@@ -76,21 +61,6 @@
       "timestamp": "2026-06-24T00:23:46.704287+00:00"
     },
     {
-      "coin": "ADA",
-      "market": "INR",
-      "market_state": "bull_trend",
-      "opportunity_type": "continuation",
-      "priority": "Medium",
-      "score": 77,
-      "confidence": 63,
-      "tier": "PREMIUM",
-      "final_score": 62,
-      "risk_level": "medium",
-      "price": 15.405,
-      "coin_class": "C",
-      "timestamp": "2026-06-23T16:51:54.713902+00:00"
-    },
-    {
       "coin": "AAVE",
       "market": "INR",
       "market_state": "breakout",
@@ -121,21 +91,6 @@
       "timestamp": "2026-06-24T01:37:34.540424+00:00"
     },
     {
-      "coin": "RENDER",
-      "market": "INR",
-      "market_state": "breakout",
-      "opportunity_type": "momentum_trade",
-      "priority": "High",
-      "score": 81,
-      "confidence": 78,
-      "tier": "PREMIUM",
-      "final_score": 64,
-      "risk_level": "medium",
-      "price": 160.8,
-      "coin_class": "B",
-      "timestamp": "2026-06-23T16:51:55.700742+00:00"
-    },
-    {
       "coin": "WLD",
       "market": "INR",
       "market_state": "recovery",
@@ -151,36 +106,6 @@
       "timestamp": "2026-06-24T01:37:34.531406+00:00"
     },
     {
-      "coin": "DOGE",
-      "market": "INR",
-      "market_state": "bull_trend",
-      "opportunity_type": "continuation",
-      "priority": "Medium",
-      "score": 77,
-      "confidence": 63,
-      "tier": "PREMIUM",
-      "final_score": 62,
-      "risk_level": "medium",
-      "price": 8.022,
-      "coin_class": "C",
-      "timestamp": "2026-06-23T16:51:55.289353+00:00"
-    },
-    {
-      "coin": "UNI",
-      "market": "INR",
-      "market_state": "breakout",
-      "opportunity_type": "momentum_trade",
-      "priority": "Medium",
-      "score": 70,
-      "confidence": 63,
-      "tier": "PREMIUM",
-      "final_score": 64,
-      "risk_level": "high",
-      "price": 291.78,
-      "coin_class": "C",
-      "timestamp": "2026-06-23T16:51:55.286749+00:00"
-    },
-    {
       "coin": "MOVR",
       "market": "INR",
       "market_state": "breakout",
@@ -194,21 +119,6 @@
       "price": 122.18,
       "coin_class": "C",
       "timestamp": "2026-06-24T01:37:34.535402+00:00"
-    },
-    {
-      "coin": "NEAR",
-      "market": "INR",
-      "market_state": "breakout",
-      "opportunity_type": "momentum_trade",
-      "priority": "High",
-      "score": 81,
-      "confidence": 78,
-      "tier": "PREMIUM",
-      "final_score": 65,
-      "risk_level": "medium",
-      "price": 201.93,
-      "coin_class": "B",
-      "timestamp": "2026-06-23T16:51:55.287795+00:00"
     },
     {
       "coin": "TRUMP",

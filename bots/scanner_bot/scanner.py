@@ -13,6 +13,7 @@ import logging
 import os
 import re
 import shutil
+import threading
 import time
 from collections import defaultdict
 from dataclasses import dataclass
@@ -71,6 +72,13 @@ MAX_SIGNALS      = int(os.getenv("MAX_SIGNALS",        "5000"))
 ALERT_COOLDOWN_SECONDS = int(os.getenv("ALERT_COOLDOWN_SECONDS", "1800"))
 
 MODEL_VERSION = "v12.2"
+
+# Per-file write locks — threading.Lock() so sync trading_engine callers are safe.
+_write_json_lock    = threading.Lock()
+_scanner_state_lock = threading.Lock()
+_history_lock       = threading.Lock()
+_coin_perf_lock     = threading.Lock()
+_tier_acc_lock      = threading.Lock()
 
 COIN_CLASSES: dict[str, set] = {
     "A": {"BTC", "ETH", "BNB", "SOL", "XRP"},
@@ -166,11 +174,12 @@ def backup_file(path: Path) -> None:
 
 
 def write_json_safely(path: Path, data) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    backup_file(path)
-    temp_path = path.with_suffix(path.suffix + ".tmp")
-    temp_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
-    temp_path.replace(path)
+    with _write_json_lock:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        backup_file(path)
+        temp_path = path.with_suffix(path.suffix + ".tmp")
+        temp_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        temp_path.replace(path)
 
 
 def ensure_storage_files() -> None:
@@ -2272,13 +2281,14 @@ def get_evaluated_signals() -> dict:
 
 def save_scanner_state(signals: list, market_state: dict, stats: dict) -> None:
     """Write all scanner state to JSON files - signals, market_state, signal_stats, evaluated_signals."""
-    try:
-        write_json_safely(Path(MARKET_STATE_FILE), market_state)
-        write_json_safely(Path(SIGNAL_STATS_FILE), stats)
-        evaluated = [s for s in signals if s.get("evaluations")]
-        write_json_safely(Path(EVALUATED_SIGNALS_FILE), {"evaluated_signals": evaluated})
-    except Exception:
-        logger.exception("save_scanner_state: failed to write state files")
+    with _scanner_state_lock:
+        try:
+            write_json_safely(Path(MARKET_STATE_FILE), market_state)
+            write_json_safely(Path(SIGNAL_STATS_FILE), stats)
+            evaluated = [s for s in signals if s.get("evaluations")]
+            write_json_safely(Path(EVALUATED_SIGNALS_FILE), {"evaluated_signals": evaluated})
+        except Exception:
+            logger.exception("save_scanner_state: failed to write state files")
 
 
 # =============================================================================
@@ -2401,10 +2411,11 @@ def _read_history() -> list:
 
 def _write_history(signals: list) -> None:
     """Write the full history list back to disk."""
-    try:
-        write_json_safely(Path(SIGNAL_HISTORY_FILE), {"signals": signals})
-    except Exception:
-        logger.exception("signal_history: failed to write %s", SIGNAL_HISTORY_FILE)
+    with _history_lock:
+        try:
+            write_json_safely(Path(SIGNAL_HISTORY_FILE), {"signals": signals})
+        except Exception:
+            logger.exception("signal_history: failed to write %s", SIGNAL_HISTORY_FILE)
 
 
 def append_signal_history(entry: dict) -> bool:
@@ -2462,10 +2473,11 @@ def _read_coin_performance() -> dict:
 
 def _write_coin_performance(data: dict) -> None:
     """Write coin_performance.json atomically."""
-    try:
-        write_json_safely(Path(COIN_PERFORMANCE_FILE), data)
-    except Exception:
-        logger.exception("coin_performance: failed to write %s", COIN_PERFORMANCE_FILE)
+    with _coin_perf_lock:
+        try:
+            write_json_safely(Path(COIN_PERFORMANCE_FILE), data)
+        except Exception:
+            logger.exception("coin_performance: failed to write %s", COIN_PERFORMANCE_FILE)
 
 
 def update_coin_performance(entry: dict) -> None:
@@ -2590,10 +2602,11 @@ def _read_tier_accuracy() -> dict:
 
 def _write_tier_accuracy(data: dict) -> None:
     """Write tier_accuracy.json atomically."""
-    try:
-        write_json_safely(Path(TIER_ACCURACY_FILE), data)
-    except Exception:
-        logger.exception("tier_accuracy: failed to write %s", TIER_ACCURACY_FILE)
+    with _tier_acc_lock:
+        try:
+            write_json_safely(Path(TIER_ACCURACY_FILE), data)
+        except Exception:
+            logger.exception("tier_accuracy: failed to write %s", TIER_ACCURACY_FILE)
 
 
 def _normalize_tier(tier: str) -> str:

@@ -1,5 +1,7 @@
+import asyncio
 import json
 import os
+import time as _time
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.security import APIKeyHeader
@@ -152,6 +154,24 @@ else:
         return api_key
 
 
+# ═══════════════════════════════════════════════════════════════
+#  SNAPSHOT CACHE — 3-second TTL, asyncio.to_thread offloading
+# ═══════════════════════════════════════════════════════════════
+
+_SNAPSHOT_CACHE: dict[str, tuple[float, dict]] = {}
+_SNAPSHOT_TTL = 3.0
+
+
+async def _cached_snapshot(key: str, fn) -> dict:
+    """Return a cached snapshot, refreshing via asyncio.to_thread when stale."""
+    entry = _SNAPSHOT_CACHE.get(key)
+    if entry and (_time.monotonic() - entry[0]) < _SNAPSHOT_TTL:
+        return entry[1]
+    result: dict = await asyncio.to_thread(fn)
+    _SNAPSHOT_CACHE[key] = (_time.monotonic(), result)
+    return result
+
+
 @asynccontextmanager
 async def _app_lifespan(app: FastAPI):
     """Root dashboard lifespan — starts all bot background tasks."""
@@ -266,12 +286,12 @@ def _build_charts_payload(signals: list) -> dict:
     }
 
 
-def pull_state_payload():
+async def pull_state_payload():
 
     watchlist = get_watchlist()
     stats = get_stats()
-    mtb_state = mtb_snapshot()
-    pmb_state = pmb_snapshot()
+    mtb_state = await _cached_snapshot("mtb", mtb_snapshot)
+    pmb_state = await _cached_snapshot("pmb", pmb_snapshot)
     vgx_trade_amount = float(os.getenv("VGX_TRADE_AMOUNT", os.getenv("TRADE_AMOUNT", "110")))
     # Read live scan signals from live_signals.json (written each scan cycle by main.py)
     signal_data = get_live_signals()
@@ -349,9 +369,9 @@ def pull_state_payload():
         "mtb_daily_pnl": mtb_state["daily_pnl"],
         "mtb_trade_amount": mtb_state["trade_amount"],
         "mtb_overview": mtb_state,
-        "vgx_overview":  vgx_snapshot(),
+        "vgx_overview":  await _cached_snapshot("vgx", vgx_snapshot),
         "pmb_overview": pmb_state,
-        "risk_engine":  risk_snapshot(),
+        "risk_engine":  await _cached_snapshot("risk", risk_snapshot),
         "vgx_trade_amount": vgx_trade_amount,
 
         "scanner_overview": {
@@ -386,7 +406,7 @@ def pull_state_payload():
 
         "service_statuses": {
             "scanner":      "ONLINE",
-            "vgx":          vgx_snapshot().get("status", "OFFLINE"),
+            "vgx":          (await _cached_snapshot("vgx", vgx_snapshot)).get("status", "OFFLINE"),
             "mtb":          "ONLINE" if getattr(mtb_main, "_MTB_TASK", None) and not getattr(mtb_main, "_MTB_TASK").done() else "OFFLINE",
             "pmb":          "ONLINE" if getattr(pmb_main, "_PMB_TASK", None) and not getattr(pmb_main, "_PMB_TASK").done() else "OFFLINE",
             "telegram_bot": "ONLINE",
@@ -449,7 +469,7 @@ def pull_state_payload():
 @app.get("/", response_class=HTMLResponse, dependencies=[])
 async def viewport_router(request: Request):
 
-    state = pull_state_payload()
+    state = await pull_state_payload()
     signals = get_signals()
     stats = get_stats()
     watchlist = get_watchlist()
@@ -611,7 +631,7 @@ async def supported_coins_endpoint():
 @app.get("/api/v1/state", response_class=JSONResponse)
 async def unified_state_polling_endpoint():
     """Future production data hook. Live bots simply post metrics to rewrite state."""
-    return pull_state_payload()
+    return await pull_state_payload()
 
 if __name__ == "__main__":
     import uvicorn
@@ -623,10 +643,16 @@ if __name__ == "__main__":
 #  UNIFIED STATISTICS ENGINE
 # ═══════════════════════════════════════════════════════════════
 
-def _unified_stats() -> dict:
+def _unified_stats(
+    vgx: dict | None = None,
+    mtbs: dict | None = None,
+    pmbs: dict | None = None,
+) -> dict:
     """
     Single source of truth for all analytics across VGX, PMB, MTB.
     Win rate, best/worst signal, coin leaderboard — computed fresh each call.
+    Accepts pre-fetched snapshot dicts so async callers can supply them via
+    asyncio.to_thread instead of blocking here.
     """
     from bots.scanner_bot.scanner import get_signals as _get_signals
 
@@ -681,9 +707,12 @@ def _unified_stats() -> dict:
         n = entry["wins"] + entry["losses"]
         entry["win_rate"] = round(entry["wins"] / n * 100, 1) if n else 0.0
 
-    vgx  = vgx_snapshot()
-    mtbs = mtb_snapshot()
-    pmbs = pmb_snapshot()
+    if vgx is None:
+        vgx  = vgx_snapshot()
+    if mtbs is None:
+        mtbs = mtb_snapshot()
+    if pmbs is None:
+        pmbs = pmb_snapshot()
 
     return {
         "signals_total":     len(raw_signals),
@@ -707,7 +736,12 @@ def _unified_stats() -> dict:
 async def unified_statistics():
     """Unified statistics engine — win rate, best/worst signal, coin leaderboard."""
     try:
-        return _unified_stats()
+        vgx, mtbs, pmbs = await asyncio.gather(
+            _cached_snapshot("vgx", vgx_snapshot),
+            _cached_snapshot("mtb", mtb_snapshot),
+            _cached_snapshot("pmb", pmb_snapshot),
+        )
+        return _unified_stats(vgx=vgx, mtbs=mtbs, pmbs=pmbs)
     except Exception as exc:
         return JSONResponse(status_code=500, content={"error": str(exc)})
 
@@ -789,11 +823,13 @@ async def error_log_viewer(limit: int = 50):
 async def telegram_analytics():
     """Telegram-ready analytics summary — compact format for bot /stats command."""
     try:
-        stats = _unified_stats()
-        risk  = risk_snapshot()
-        vgx   = vgx_snapshot()
-        mtbs  = mtb_snapshot()
-        pmbs  = pmb_snapshot()
+        risk, vgx, mtbs, pmbs = await asyncio.gather(
+            _cached_snapshot("risk", risk_snapshot),
+            _cached_snapshot("vgx",  vgx_snapshot),
+            _cached_snapshot("mtb",  mtb_snapshot),
+            _cached_snapshot("pmb",  pmb_snapshot),
+        )
+        stats = _unified_stats(vgx=vgx, mtbs=mtbs, pmbs=pmbs)
 
         lines = [
             "📊 PROJECT-ALPHA ANALYTICS",
@@ -907,7 +943,7 @@ async def export_trades_csv():
         fieldnames = ["bot", "coin", "symbol", "action", "status", "price", "amount", "pnl", "timestamp"]
         writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
-        vgx_raw = vgx_snapshot()
+        vgx_raw = await _cached_snapshot("vgx", vgx_snapshot)
         for t in vgx_raw.get("open_positions", []):
             writer.writerow({"bot": "VGX", "coin": t.get("coin"), "action": "BUY",
                              "status": "OPEN", "price": t.get("buy_price"), "amount": t.get("amount")})
@@ -929,12 +965,18 @@ async def export_stats_json():
     """Download unified stats snapshot as JSON."""
     try:
         import json as _json
+        risk, vgx, mtbs, pmbs = await asyncio.gather(
+            _cached_snapshot("risk", risk_snapshot),
+            _cached_snapshot("vgx",  vgx_snapshot),
+            _cached_snapshot("mtb",  mtb_snapshot),
+            _cached_snapshot("pmb",  pmb_snapshot),
+        )
         payload = {
-            "unified":     _unified_stats(),
-            "risk":        risk_snapshot(),
-            "vgx":         vgx_snapshot(),
-            "mtb":         mtb_snapshot(),
-            "pmb":         pmb_snapshot(),
+            "unified":     _unified_stats(vgx=vgx, mtbs=mtbs, pmbs=pmbs),
+            "risk":        risk,
+            "vgx":         vgx,
+            "mtb":         mtbs,
+            "pmb":         pmbs,
             "exported_at": datetime.now(timezone.utc).isoformat(),
         }
         content = _json.dumps(payload, indent=2, ensure_ascii=False)
