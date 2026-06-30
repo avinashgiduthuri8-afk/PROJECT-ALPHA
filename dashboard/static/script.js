@@ -56,7 +56,32 @@ document.addEventListener("DOMContentLoaded", () => {
     // 1. Core Config State Payload Bridge Unpacking Pipeline
     const stateEngineData = JSON.parse(document.getElementById("dashboard-state-payload-json").textContent);
 
-    // 2. Multi-Module Navigation Tab Switch Engine (SPA View Layer Pipeline)
+    // 2. Sidebar Dropdown Menu Toggle Engine
+    const dropdownToggles = document.querySelectorAll(".nav-dropdown-toggle");
+    dropdownToggles.forEach(toggle => {
+        toggle.addEventListener("click", () => {
+            const menuId = "menu-" + toggle.getAttribute("data-menu");
+            const menu = document.getElementById(menuId);
+            const isHidden = menu.classList.contains("view-hidden");
+            // Close all other menus
+            document.querySelectorAll(".nav-dropdown-menu").forEach(m => {
+                if (m.id !== menuId) m.classList.add("view-hidden");
+            });
+            document.querySelectorAll(".nav-dropdown-toggle").forEach(t => {
+                if (t !== toggle) t.classList.remove("active");
+            });
+            // Toggle current
+            if (isHidden) {
+                menu.classList.remove("view-hidden");
+                toggle.classList.add("active");
+            } else {
+                menu.classList.add("view-hidden");
+                toggle.classList.remove("active");
+            }
+        });
+    });
+
+    // 3. Multi-Module Navigation Tab Switch Engine (SPA View Layer Pipeline)
     const sidebarAnchors = document.querySelectorAll(".nav-anchor");
     const layoutViews = document.querySelectorAll(".spa-view-layer");
 

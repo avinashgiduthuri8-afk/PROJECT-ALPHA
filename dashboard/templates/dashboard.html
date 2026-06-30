@@ -17,33 +17,51 @@
                 <h2>PROJECT-ALPHA <span class="pulse-core"></span></h2>
             </div>
             <nav class="navigation-links">
-                <div class="nav-header">Overview</div>
-                <a href="#" class="nav-anchor active" data-target="home-view">Dashboard Home</a>
-                <a href="#" class="nav-anchor" data-target="scanner-view">Scanner Center</a>
-                <a href="#" class="nav-anchor" data-target="portfolio-view">Portfolio Center</a>
-                
-                <div class="nav-header">Execution Logs</div>
-                <a href="#" class="nav-anchor" data-target="open-view">Open Positions</a>
-                <a href="#" class="nav-anchor" data-target="history-view">Trade History</a>
-
-                <div class="nav-header">Bot Control</div>
-                <a href="#" class="nav-anchor" data-target="vgx-view">VGX Bot</a>
-                <a href="#" class="nav-anchor" data-target="pmb-view">PMB Bot</a>
-                <a href="#" class="nav-anchor" data-target="mtb-view">MTB Bot</a>
-
-                <div class="nav-header">Analytics</div>
-                <a href="#" class="nav-anchor" data-target="performance-tracker">Signal Performance Tracker</a>
-
-                <a href="#" class="nav-anchor" data-target="signal-history">Signal History</a>
-                <a href="#" class="nav-anchor" data-target="coin-performance">Coin Performance</a>
-                <a href="#" class="nav-anchor" data-target="tier-accuracy">Tier Accuracy</a>
-
-                <div class="nav-header">Watchlist</div>
-                <a href="#" class="nav-anchor" data-target="watchlist-center">Scanner Watchlist</a>
-
-                <div class="nav-header">DevOps Engine</div>
-                <a href="#" class="nav-anchor" data-target="monitoring-view">System Health</a>
-                <a href="#" class="nav-anchor" data-target="settings-view">Settings Panel</a>
+                <div class="nav-dropdown-group">
+                    <button class="nav-dropdown-toggle active" data-menu="overview">Overview</button>
+                    <div class="nav-dropdown-menu" id="menu-overview">
+                        <a href="#" class="nav-anchor active" data-target="home-view">Dashboard Home</a>
+                        <a href="#" class="nav-anchor" data-target="scanner-view">Scanner Center</a>
+                        <a href="#" class="nav-anchor" data-target="portfolio-view">Portfolio Center</a>
+                    </div>
+                </div>
+                <div class="nav-dropdown-group">
+                    <button class="nav-dropdown-toggle" data-menu="logs">Execution Logs</button>
+                    <div class="nav-dropdown-menu view-hidden" id="menu-logs">
+                        <a href="#" class="nav-anchor" data-target="open-view">Open Positions</a>
+                        <a href="#" class="nav-anchor" data-target="history-view">Trade History</a>
+                    </div>
+                </div>
+                <div class="nav-dropdown-group">
+                    <button class="nav-dropdown-toggle" data-menu="bots">Bot Control</button>
+                    <div class="nav-dropdown-menu view-hidden" id="menu-bots">
+                        <a href="#" class="nav-anchor" data-target="vgx-view">VGX Bot</a>
+                        <a href="#" class="nav-anchor" data-target="pmb-view">PMB Bot</a>
+                        <a href="#" class="nav-anchor" data-target="mtb-view">MTB Bot</a>
+                    </div>
+                </div>
+                <div class="nav-dropdown-group">
+                    <button class="nav-dropdown-toggle" data-menu="analytics">Analytics</button>
+                    <div class="nav-dropdown-menu view-hidden" id="menu-analytics">
+                        <a href="#" class="nav-anchor" data-target="performance-tracker">Signal Performance</a>
+                        <a href="#" class="nav-anchor" data-target="signal-history">Signal History</a>
+                        <a href="#" class="nav-anchor" data-target="coin-performance">Coin Performance</a>
+                        <a href="#" class="nav-anchor" data-target="tier-accuracy">Tier Accuracy</a>
+                    </div>
+                </div>
+                <div class="nav-dropdown-group">
+                    <button class="nav-dropdown-toggle" data-menu="watchlist">Watchlist</button>
+                    <div class="nav-dropdown-menu view-hidden" id="menu-watchlist">
+                        <a href="#" class="nav-anchor" data-target="watchlist-center">Scanner Watchlist</a>
+                    </div>
+                </div>
+                <div class="nav-dropdown-group">
+                    <button class="nav-dropdown-toggle" data-menu="devops">DevOps</button>
+                    <div class="nav-dropdown-menu view-hidden" id="menu-devops">
+                        <a href="#" class="nav-anchor" data-target="monitoring-view">System Health</a>
+                        <a href="#" class="nav-anchor" data-target="settings-view">Settings Panel</a>
+                    </div>
+                </div>
             </nav>
         </aside>
 

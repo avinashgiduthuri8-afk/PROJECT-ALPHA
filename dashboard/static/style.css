@@ -85,32 +85,79 @@ body {
 .navigation-links {
     display: flex;
     flex-direction: column;
-    padding: 20px 12px;
-    gap: 4px;
+    padding: 16px 12px;
+    gap: 2px;
 }
 
-.nav-header {
-    font-size: 0.68rem;
+.nav-dropdown-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.nav-dropdown-toggle {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: var(--text-muted);
-    padding: 12px 16px 4px 16px;
-    font-weight: 700;
+    padding: 10px 16px 6px 16px;
+    cursor: pointer;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: color var(--transition-speed-core) linear;
+    position: relative;
+}
+
+.nav-dropdown-toggle::after {
+    content: "▼";
+    font-size: 0.6rem;
+    opacity: 0.6;
+    transition: transform var(--transition-speed-core) ease;
+}
+
+.nav-dropdown-toggle.active::after {
+    transform: rotate(180deg);
+}
+
+.nav-dropdown-toggle:hover {
+    color: var(--text-main);
+}
+
+.nav-dropdown-toggle.active {
+    color: var(--color-blue);
+}
+
+.nav-dropdown-menu {
+    display: flex;
+    flex-direction: column;
+    padding-left: 8px;
+    overflow: hidden;
+    transition: max-height var(--transition-speed-core) ease;
+}
+
+.nav-dropdown-menu.view-hidden {
+    display: none;
 }
 
 .nav-anchor {
     color: var(--text-muted);
     text-decoration: none;
-    font-size: 0.875rem;
+    font-size: 0.85rem;
     font-weight: 500;
-    padding: 10px 16px;
-    border-radius: 8px;
+    padding: 8px 16px 8px 20px;
+    border-radius: 6px;
     transition: all var(--transition-speed-core) linear;
+    border-left: 2px solid transparent;
 }
 
 .nav-anchor:hover, .nav-anchor.active {
     background-color: rgba(59, 130, 246, 0.08);
     color: var(--color-blue);
+    border-left-color: var(--color-blue);
 }
 
 /* Main Screen Presentation Body Viewport Wrapper */
