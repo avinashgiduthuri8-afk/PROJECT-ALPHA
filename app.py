@@ -13,6 +13,7 @@ from bots.scanner_bot.scanner import get_market_state, get_signal_stats, get_per
 from threading import Thread
 import time
 import bots.scanner_bot.main as scanner_main
+from bots.scanner_bot.main import scanner_router
 from bots.mtb_bot.storage import snapshot as mtb_snapshot
 from bots.pmb_bot.storage import snapshot as pmb_snapshot
 from bots.risk_engine.engine import snapshot as risk_snapshot
@@ -140,6 +141,8 @@ async def _app_lifespan(app: FastAPI):
 
 app = FastAPI(title="PROJECT-ALPHA ULTIMATE DASHBOARD Framework", lifespan=_app_lifespan)
 
+# Mount all /api/v1/scanner/* routes from the scanner bot into the dashboard app.
+app.include_router(scanner_router)
 
 app.mount(
     "/static",

@@ -43,7 +43,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import uvicorn
-from fastapi import FastAPI, Path, Query, Request
+from fastapi import APIRouter, FastAPI, Path, Query, Request
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.responses import JSONResponse
@@ -265,12 +265,16 @@ async def _lifespan(app: FastAPI):
 
 app = FastAPI(title="MTB Scanner API", version="2.0", lifespan=_lifespan)
 
+# All scanner HTTP routes are registered on this router so that the dashboard
+# app.py can include them directly without running a second FastAPI process.
+scanner_router = APIRouter()
+
 
 # ---------------------------------------------------------------------------
 # 1. Health endpoint
 # ---------------------------------------------------------------------------
 
-@app.get("/health")
+@scanner_router.get("/health")
 async def health():
     return {
         "status":  "healthy",
@@ -285,7 +289,7 @@ async def health():
 
 _MTB_PRIORITIES = {"Elite", "High", "Medium"}
 
-@app.get("/api/v1/scanner/signals")
+@scanner_router.get("/api/v1/scanner/signals")
 async def scanner_signals(strategy: str = Query(default="MTB")):
     """
     Returns MTB-ready signals filtered to Elite / High / Medium priority only.
@@ -337,7 +341,7 @@ async def scanner_signals(strategy: str = Query(default="MTB")):
 # 3. Market State endpoint
 # ---------------------------------------------------------------------------
 
-@app.get("/api/v1/scanner/market-state")
+@scanner_router.get("/api/v1/scanner/market-state")
 async def market_state():
     """
     Returns the current aggregate market state across all tracked coins.
@@ -362,7 +366,7 @@ async def market_state():
 # 4. Performance endpoint  [P2-SCN-V2.2]
 # ---------------------------------------------------------------------------
 
-@app.get("/api/v1/scanner/performance")
+@scanner_router.get("/api/v1/scanner/performance")
 async def scanner_performance():
     """
     Returns win-rate and return statistics computed from the signal log.
@@ -493,7 +497,7 @@ async def scanner_performance():
 # 5. Recent signals endpoint  [P2-SCN-V2.2]
 # ---------------------------------------------------------------------------
 
-@app.get("/api/v1/scanner/recent")
+@scanner_router.get("/api/v1/scanner/recent")
 async def scanner_recent(limit: int = Query(default=10, ge=1, le=200)):
     """
     Returns the most recently logged signals from the performance tracker.
@@ -528,7 +532,7 @@ async def scanner_recent(limit: int = Query(default=10, ge=1, le=200)):
 # 6. Storage endpoint  [P2-SCN-V2.3]
 # ---------------------------------------------------------------------------
 
-@app.get("/api/v1/scanner/storage")
+@scanner_router.get("/api/v1/scanner/storage")
 async def scanner_storage():
     """
     Returns filesystem status for the scanner's data directory.
@@ -594,7 +598,7 @@ async def scanner_storage():
 # 7. Coins endpoint  [P2-SCN-V2.3]
 # ---------------------------------------------------------------------------
 
-@app.get("/api/v1/scanner/coins")
+@scanner_router.get("/api/v1/scanner/coins")
 async def scanner_coins():
     """
     Returns per-coin history depth and readiness flags from the scanner's
@@ -642,7 +646,7 @@ async def scanner_coins():
 # 8. Watchlist GET  [P2-SCN-V2.5]
 # ---------------------------------------------------------------------------
 
-@app.get("/api/v1/scanner/watchlist")
+@scanner_router.get("/api/v1/scanner/watchlist")
 async def watchlist_get():
     """Return the current watchlist. HTTP 200 always."""
     try:
@@ -667,7 +671,7 @@ class _AddCoinBody(BaseModel):
     coin: str
 
 
-@app.post("/api/v1/scanner/watchlist")
+@scanner_router.post("/api/v1/scanner/watchlist")
 async def watchlist_add(body: _AddCoinBody):
     """
     Add a coin to the watchlist.
@@ -715,7 +719,7 @@ async def watchlist_add(body: _AddCoinBody):
 # 10. Watchlist DELETE  [P2-SCN-V2.5]
 # ---------------------------------------------------------------------------
 
-@app.delete("/api/v1/scanner/watchlist/{coin}")
+@scanner_router.delete("/api/v1/scanner/watchlist/{coin}")
 async def watchlist_remove(
     coin: str = Path(..., description="Coin symbol to remove, e.g. BTC"),
 ):
@@ -744,7 +748,7 @@ async def watchlist_remove(
 # 11. Status endpoint  [P2-SCN-V2.6]
 # ---------------------------------------------------------------------------
 
-@app.get("/api/v1/scanner/status")
+@scanner_router.get("/api/v1/scanner/status")
 async def scanner_status():
     """
     Runtime health snapshot — reads in-memory state only, no scanning.
@@ -807,7 +811,7 @@ async def scanner_status():
 # I-05: Dedicated health endpoint
 # ---------------------------------------------------------------------------
 
-@app.get("/api/v1/scanner/health")
+@scanner_router.get("/api/v1/scanner/health")
 async def scanner_health():
     """Return scanner health monitor metrics.
     HTTP 200 always — even if the scanner is offline.
@@ -826,7 +830,7 @@ async def scanner_health():
 # I-08: Manual refresh endpoint
 # ---------------------------------------------------------------------------
 
-@app.post("/api/v1/scanner/refresh")
+@scanner_router.post("/api/v1/scanner/refresh")
 async def scanner_refresh():
     """Trigger an immediate scan cycle.
     Sets the refresh event so the scanner loop breaks out of sleep immediately.
@@ -845,7 +849,7 @@ async def scanner_refresh():
 # 12. Metrics endpoint  [P2-SCN-V2.6]
 # ---------------------------------------------------------------------------
 
-@app.get("/api/v1/scanner/metrics")
+@scanner_router.get("/api/v1/scanner/metrics")
 async def scanner_metrics():
     """
     Aggregated signal metrics from the tracker — no calculations beyond
@@ -1167,6 +1171,11 @@ async def _scanner_loop() -> None:
             pass
         finally:
             _REFRESH_EVENT.clear()
+
+
+# Include all scanner routes into the standalone app so this module works
+# both as a standalone service and when embedded in the dashboard.
+app.include_router(scanner_router)
 
 
 # =============================================================================
