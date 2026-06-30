@@ -14,6 +14,9 @@ from threading import Thread
 import time
 import bots.scanner_bot.main as scanner_main
 from bots.scanner_bot.main import scanner_router
+import bots.mtb_bot.main as mtb_main
+import bots.pmb_bot.main as pmb_main
+import bots.volatile_gridX.main as vgx_main
 from bots.mtb_bot.storage import snapshot as mtb_snapshot
 from bots.pmb_bot.storage import snapshot as pmb_snapshot
 from bots.risk_engine.engine import snapshot as risk_snapshot
@@ -128,9 +131,16 @@ from datetime import datetime, timezone
 
 @asynccontextmanager
 async def _app_lifespan(app: FastAPI):
-    """Root dashboard lifespan — starts scanner background task."""
+    """Root dashboard lifespan — starts all bot background tasks."""
     await scanner_main.startup_event()
+    await mtb_main.startup_event()
+    await pmb_main.startup_event()
+    await vgx_main.startup_event()
     yield
+    await vgx_main.shutdown_event()
+    await pmb_main.shutdown_event()
+    await mtb_main.shutdown_event()
+    # scanner shutdown handled by its own _do_shutdown_save in scanner_main
 
 
 app = FastAPI(title="PROJECT-ALPHA ULTIMATE DASHBOARD Framework", lifespan=_app_lifespan)
@@ -350,6 +360,8 @@ def pull_state_payload():
         "service_statuses": {
             "scanner":      "ONLINE",
             "vgx":          vgx_snapshot().get("status", "OFFLINE"),
+            "mtb":          "ONLINE" if getattr(mtb_main, "_MTB_TASK", None) and not getattr(mtb_main, "_MTB_TASK").done() else "OFFLINE",
+            "pmb":          "ONLINE" if getattr(pmb_main, "_PMB_TASK", None) and not getattr(pmb_main, "_PMB_TASK").done() else "OFFLINE",
             "telegram_bot": "ONLINE",
         },
 

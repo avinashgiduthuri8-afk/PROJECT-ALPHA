@@ -3,7 +3,11 @@ PROJECT-ALPHA PMB Bot entrypoint.
 
 PMB = Price Movement Bot.
 Runs a background cycle loop and exposes Telegram controls.
-Starts DISABLED — set PMB_ENABLED=true to activate the cycle loop.
+Starts DISABLED by default — set PMB_ENABLED=true to activate the cycle loop.
+
+When run standalone (__main__): starts its own Telegram polling loop.
+When embedded in app.py: background_loop() is started as an asyncio task by
+startup_event() and cancelled by shutdown_event().
 """
 
 from __future__ import annotations
@@ -11,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from typing import Optional
 
 from . import storage
 from .config import POLL_INTERVAL_SECONDS, TELEGRAM_BOT_TOKEN
@@ -23,6 +28,9 @@ logging.basicConfig(
 logger = logging.getLogger("pmb_bot")
 
 PMB_ENABLED = os.getenv("PMB_ENABLED", "false").lower() == "true"
+
+# ── Embedded lifecycle (used when running inside app.py) ─────────────────────
+_PMB_TASK: Optional[asyncio.Task] = None
 
 
 async def background_loop() -> None:
@@ -38,6 +46,30 @@ async def background_loop() -> None:
             logger.exception("PMB background loop error; retrying")
         await asyncio.sleep(POLL_INTERVAL_SECONDS)
 
+
+async def startup_event() -> None:
+    """Idempotent startup for embedded use in app.py lifespan."""
+    global _PMB_TASK
+    storage.ensure_storage()
+    logger.info("PMB Bot starting (enabled=%s)", PMB_ENABLED)
+    if _PMB_TASK is None or _PMB_TASK.done():
+        _PMB_TASK = asyncio.create_task(background_loop())
+        logger.info("PMB background task created")
+
+
+async def shutdown_event() -> None:
+    """Graceful shutdown for embedded use in app.py lifespan."""
+    global _PMB_TASK
+    if _PMB_TASK is not None and not _PMB_TASK.done():
+        _PMB_TASK.cancel()
+        try:
+            await asyncio.wait_for(asyncio.shield(_PMB_TASK), timeout=3.0)
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            pass
+        logger.info("PMB background loop stopped")
+
+
+# ── Standalone lifecycle (used when run as __main__) ─────────────────────────
 
 async def post_init(app) -> None:
     app.create_task(background_loop())

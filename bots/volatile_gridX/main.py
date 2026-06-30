@@ -1,19 +1,22 @@
 """
-PROJECT-ALPHA Trading Bot
+PROJECT-ALPHA Trading Bot (VGX)
 Railway Production Main File
+
+When run standalone (__main__): starts its own Telegram polling loop.
+When embedded in app.py: background_loop() is started as an asyncio task by
+startup_event() and cancelled by shutdown_event().
 """
 
 import asyncio
 import atexit
+import logging
+import os
+from typing import Optional
 
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler
 )
-
-# ============================================================
-# CORE MODULES
-# ============================================================
 
 from .config import *
 from . import storage
@@ -46,110 +49,78 @@ from .alerts import auto_alerts
 
 from .exit_engine import auto_sell
 
+logging.basicConfig(
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    level=logging.INFO,
+)
+logger = logging.getLogger("vgx_bot")
 
-# NEST ASYNC
-# ============================================================
+VGX_ENABLED = os.getenv("VGX_ENABLED", "true").lower() == "true"
 
+# ── Embedded lifecycle (used when running inside app.py) ─────────────────────
+_VGX_TASK: Optional[asyncio.Task] = None
 
-
-# ============================================================
-# STARTUP
-# ============================================================
 
 def startup():
-
     print("================================")
-
     print("PROJECT-ALPHA STARTING")
-
     print("Loading Storage...")
-
     storage.load_data()
-
-    print(
-
-        f"Balance : ₹{storage.virtual_balance}"
-
-    )
-
-    print(
-
-
-    )
-
+    print(f"Balance : ₹{storage.virtual_balance}")
+    print()
     print("Startup Complete")
-
     print("================================")
 
-
-# ============================================================
-# BACKGROUND LOOP
-# ============================================================
 
 async def background_loop():
-
+    if not VGX_ENABLED:
+        logger.info("VGX background loop DISABLED (set VGX_ENABLED=true to activate)")
+        return
+    logger.info("VGX background loop started interval=%ss", STORAGE_SYNC_INTERVAL)
     print("Background Engine Started")
-
     while True:
-
         try:
-
-            # MARKET CACHE
-
             update_market_cache()
-
-            # ALERT ENGINE
-
             await auto_alerts()
-
-            # AUTO EXIT ENGINE
-
             auto_sell()
-
-            # UPDATE ANALYTICS
-
             update_stats()
-
-            # SAVE
-
             storage.save_data()
-
         except Exception as e:
-
-            print(
-
-                "[BACKGROUND ERROR]",
-
-                e
-
-            )
-
-        await asyncio.sleep(
-
-            STORAGE_SYNC_INTERVAL
-
-        )
+            print("[BACKGROUND ERROR]", e)
+        await asyncio.sleep(STORAGE_SYNC_INTERVAL)
 
 
-# ============================================================
-# POST INIT
-# ============================================================
+async def startup_event() -> None:
+    """Idempotent startup for embedded use in app.py lifespan."""
+    global _VGX_TASK
+    startup()
+    logger.info("VGX Bot starting (enabled=%s)", VGX_ENABLED)
+    if _VGX_TASK is None or _VGX_TASK.done():
+        _VGX_TASK = asyncio.create_task(background_loop())
+        logger.info("VGX background task created")
+
+
+async def shutdown_event() -> None:
+    """Graceful shutdown for embedded use in app.py lifespan."""
+    global _VGX_TASK
+    if _VGX_TASK is not None and not _VGX_TASK.done():
+        _VGX_TASK.cancel()
+        try:
+            await asyncio.wait_for(asyncio.shield(_VGX_TASK), timeout=3.0)
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            pass
+        logger.info("VGX background loop stopped")
+    storage.save_data()
+    logger.info("VGX storage saved on shutdown")
+
+
+# ── Standalone lifecycle (used when run as __main__) ─────────────────────────
 
 async def post_init(app):
+    asyncio.create_task(background_loop())
 
-    asyncio.create_task(
-
-        background_loop()
-
-    )
-
-
-# ============================================================
-# MAIN
-# ============================================================
 
 def main():
-
     if not BOT_TOKEN:
         print("[VGX] BOT_TOKEN not set — Telegram bot disabled")
         print("[VGX] Running headless (scanner + trading engine only)")
@@ -164,190 +135,25 @@ def main():
         .build()
     )
 
-
-    # ======================================
-    # COMMANDS
-    # ======================================
-
-    app.add_handler(
-
-        CommandHandler(
-
-            "start",
-
-            start_cmd
-
-        )
-
-    )
-
-    app.add_handler(
-
-        CommandHandler(
-
-            "status",
-
-            status_cmd
-
-        )
-
-    )
-
-    app.add_handler(
-
-        CommandHandler(
-
-            "help",
-
-            help_cmd
-
-        )
-
-    )
-
-    app.add_handler(
-
-        CommandHandler(
-
-            "buy",
-
-            buy_cmd
-
-        )
-
-    )
-
-    app.add_handler(
-
-        CommandHandler(
-
-            "sell",
-
-            sell_cmd
-
-        )
-
-    )
-
-    app.add_handler(
-
-        CommandHandler(
-
-            "tradeamount",
-
-            tradeamount_cmd
-
-        )
-
-    )
-
-    app.add_handler(
-
-        CommandHandler(
-
-            "mode",
-
-            mode_cmd
-
-        )
-
-    )
-
-    app.add_handler(
-
-        CommandHandler(
-
-            "setmode",
-
-            setmode_cmd
-
-        )
-
-    )
-
-    app.add_handler(
-
-        CommandHandler(
-
-            "threshold",
-
-            threshold_cmd
-
-        )
-
-    )
-
-    app.add_handler(
-
-        CommandHandler(
-
-            "setthreshold",
-
-            setthreshold_cmd
-
-        )
-
-    )
-
-    app.add_handler(
-
-        CommandHandler(
-
-            "stats",
-
-            stats_cmd
-
-        )
-
-    )
-
-    app.add_handler(
-
-        CommandHandler(
-
-            "history",
-
-            history_cmd
-
-        )
-
-    )
-
-    app.add_handler(
-
-        CommandHandler(
-
-            "analytics",
-
-            analytics_cmd
-
-        )
-
-    )
-
-
-    # SAVE ON EXIT
-
-    atexit.register(
-
-        storage.save_data
-
-    )
-
-
-    print(
-
-        "🚀 PROJECT-ALPHA LIVE"
-
-    )
-
+    app.add_handler(CommandHandler("start", start_cmd))
+    app.add_handler(CommandHandler("status", status_cmd))
+    app.add_handler(CommandHandler("help", help_cmd))
+    app.add_handler(CommandHandler("buy", buy_cmd))
+    app.add_handler(CommandHandler("sell", sell_cmd))
+    app.add_handler(CommandHandler("tradeamount", tradeamount_cmd))
+    app.add_handler(CommandHandler("mode", mode_cmd))
+    app.add_handler(CommandHandler("setmode", setmode_cmd))
+    app.add_handler(CommandHandler("threshold", threshold_cmd))
+    app.add_handler(CommandHandler("setthreshold", setthreshold_cmd))
+    app.add_handler(CommandHandler("stats", stats_cmd))
+    app.add_handler(CommandHandler("history", history_cmd))
+    app.add_handler(CommandHandler("analytics", analytics_cmd))
+
+    atexit.register(storage.save_data)
+
+    print("🚀 PROJECT-ALPHA LIVE")
     app.run_polling()
 
 
-# ============================================================
-# ENTRY POINT
-# ============================================================
-
 if __name__ == "__main__":
-
     main()

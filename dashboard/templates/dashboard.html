@@ -60,12 +60,12 @@
                         VGX: <span class="badge-label {% if data.service_statuses.vgx == 'ONLINE' %}text-green{% else %}text-gold{% endif %}">{{ data.service_statuses.vgx }}</span>
                     </div>
                     <div class="status-badge-item">
-                        <span class="status-dot {% if data.pmb_overview.status == 'INTEGRATED' %}green{% else %}gold{% endif %}"></span>
-                        PMB: <span class="badge-label {% if data.pmb_overview.status == 'INTEGRATED' %}text-green{% else %}text-gold{% endif %}">{{ data.pmb_overview.status }}</span>
+                        <span class="status-dot {% if data.service_statuses.pmb == 'ONLINE' %}green{% else %}gold{% endif %}"></span>
+                        PMB: <span class="badge-label {% if data.service_statuses.pmb == 'ONLINE' %}text-green{% else %}text-gold{% endif %}">{{ data.service_statuses.pmb }}</span>
                     </div>
                     <div class="status-badge-item">
-                        <span class="status-dot {% if data.mtb_overview.status == 'ONLINE' %}green{% else %}gold{% endif %}"></span>
-                        MTB: <span class="badge-label {% if data.mtb_overview.status == 'ONLINE' %}text-green{% else %}text-gold{% endif %}">{{ data.mtb_overview.status }}</span>
+                        <span class="status-dot {% if data.service_statuses.mtb == 'ONLINE' %}green{% else %}gold{% endif %}"></span>
+                        MTB: <span class="badge-label {% if data.service_statuses.mtb == 'ONLINE' %}text-green{% else %}text-gold{% endif %}">{{ data.service_statuses.mtb }}</span>
                     </div>
                     <div class="status-badge-item">
                         <span class="status-dot green"></span>
@@ -897,7 +897,7 @@
                             <h3 class="{% if data.pmb_overview.status == 'INTEGRATED' %}text-green{% else %}text-gold{% endif %}">
                                 {{ data.pmb_overview.status }}
                             </h3>
-                            <div class="card-footer-metric">Mode: PAPER · DISABLED</div>
+                            <div class="card-footer-metric">Mode: {{ data.pmb_overview.mode }} · {% if data.service_statuses.pmb == 'ONLINE' %}RUNNING{% else %}DISABLED{% endif %}</div>
                         </div>
                         <div class="metric-card span-3">
                             <h5>PMB Open Positions</h5>
@@ -1013,7 +1013,7 @@
                             <h3 class="{% if data.mtb_overview.status == 'ONLINE' %}text-green{% else %}text-gold{% endif %}">
                                 {{ data.mtb_overview.status }}
                             </h3>
-                            <div class="card-footer-metric">Mode: PAPER · DISABLED</div>
+                            <div class="card-footer-metric">Mode: {{ data.mtb_overview.mode }} · {% if data.service_statuses.mtb == 'ONLINE' %}RUNNING{% else %}DISABLED{% endif %}</div>
                         </div>
                         <div class="metric-card span-3">
                             <h5>MTB Open Positions</h5>
@@ -1147,8 +1147,8 @@
                             <p class="desc-text">Internal loop checks verifying independent bot processing handles.</p>
                             <div class="layout-matrix-inner-row">
                                 <div class="nested-status-well"><h6>Scanner Thread Matrix</h6><h4 class="text-green">ONLINE (100% Health)</h4></div>
-                                <div class="nested-status-well"><h6>PMB Price Movement Bot</h6><h4 class="text-green">INTEGRATED · DISABLED</h4></div>
-                                <div class="nested-status-well"><h6>MTB MACD Trend Bounce</h6><h4 class="text-green">INTEGRATED · DISABLED</h4></div>
+                                <div class="nested-status-well"><h6>PMB Price Movement Bot</h6><h4 class="{% if data.service_statuses.pmb == 'ONLINE' %}text-green{% else %}text-gold{% endif %}">{{ data.pmb_overview.status }} · {% if data.service_statuses.pmb == 'ONLINE' %}RUNNING{% else %}DISABLED{% endif %}</h4></div>
+                                <div class="nested-status-well"><h6>MTB MACD Trend Bounce</h6><h4 class="{% if data.service_statuses.mtb == 'ONLINE' %}text-green{% else %}text-gold{% endif %}">{{ data.mtb_overview.status }} · {% if data.service_statuses.mtb == 'ONLINE' %}RUNNING{% else %}DISABLED{% endif %}</h4></div>
                                 <div class="nested-status-well"><h6>Telegram Outbound Relay</h6><h4 class="text-green">ONLINE (100% Health)</h4></div>
                                 <div class="nested-status-well"><h6>FastAPI Render Worker</h6><h4 class="text-green">ONLINE (100% Health)</h4></div>
                             </div>

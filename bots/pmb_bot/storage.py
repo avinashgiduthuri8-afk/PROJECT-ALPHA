@@ -129,12 +129,14 @@ def get_closed_trades() -> list[dict]:
 
 
 def snapshot() -> dict:
+    from .config import BOT_MODE
     positions   = load_positions()
     trades      = load_trades()
     stats       = load_stats()
     open_pos    = [p for p in positions if str(p.get("status", "")).upper() == "OPEN"]
     return {
         "status":         "INTEGRATED",
+        "mode":           BOT_MODE,
         "open_positions": open_pos,
         "closed_trades":  trades[-50:],
         "daily_pnl":      round(float(stats.get("daily_pnl",     0.0)), 4),
