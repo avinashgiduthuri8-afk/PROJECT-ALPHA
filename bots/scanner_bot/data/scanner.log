@@ -2680,3 +2680,5 @@ ValueError: invalid candle data
 2026-06-30 10:20:14,501 WARNING scanner_bot: [Config] MTF_1H_WINDOW=30 is below recommended default 48
 2026-06-30 10:20:14,521 WARNING scanner_bot: [Config] MTF_5M_WINDOW=0 is below minimum 2 — clamping to 2
 2026-06-30 10:20:14,525 WARNING scanner_bot: [Config] MTF_15M_WINDOW=1 is below minimum 2 — clamping to 2
+2026-06-30 10:28:47,980 INFO scanner_bot: Storage ready: /home/runner/workspace/bots/scanner_bot/data
+2026-06-30 10:28:48,966 INFO scanner_bot: Bootstrap: fetching current tickers to build coin list...
