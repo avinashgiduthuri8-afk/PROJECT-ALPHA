@@ -230,9 +230,15 @@ class TestBotFilters:
             vgx_storage.positions.update(original_positions)
 
     def test_vgx_can_open_position_approves_valid(self):
-        """VGX can_open_position approves a valid signal."""
+        """VGX can_open_position approves a valid signal.
+        Patches analyze_coin so market_intelligence() returns BULL regardless
+        of available price history (tests the approval path, not the analyzer).
+        """
+        from unittest.mock import patch
         from bots.volatile_gridX.risk_engine import can_open_position
-        ok, reason = can_open_position("NEWCOIN", 80)
+        bull_result = {"score": 85, "trend": "bullish", "rsi": 60, "ema": "bullish"}
+        with patch("bots.volatile_gridX.risk_engine.analyze_coin", return_value=bull_result):
+            ok, reason = can_open_position("NEWCOIN", 80)
         assert ok
         assert "APPROVED" in reason
 

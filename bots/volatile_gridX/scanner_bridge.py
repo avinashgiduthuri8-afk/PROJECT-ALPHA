@@ -3,12 +3,19 @@ PROJECT-ALPHA Scanner Bridge
 Scanner Bot → Trading Bot Connector
 """
 
+import json
+import logging
+import os
 import time
+import urllib.error
+import urllib.request
 
 from .config import PHASE5
 from . import storage
 from .risk_engine import validate_signal
 from .trading_engine import paper_execute_signal
+
+logger = logging.getLogger("vgx.scanner_bridge")
 
 
 # ============================================================
@@ -242,6 +249,50 @@ def process_scanner_signal(signal):
         "reason": message
 
     }
+
+
+# ============================================================
+# SCANNER FEED — pull signals from in-process module or API
+# ============================================================
+
+def _signals_from_module() -> list[dict]:
+    """Read signals from the in-process scanner module (zero network cost)."""
+    try:
+        from bots.scanner_bot import main as scanner_main
+    except Exception:
+        return []
+    signals = getattr(scanner_main, "LATEST_SCANNER_SIGNALS", None)
+    if not signals:
+        signals = getattr(scanner_main, "LATEST_MTB_SIGNALS", []) or []
+    normalized = [normalize_signal(s) for s in signals if isinstance(s, dict)]
+    return [s for s in normalized if s is not None]
+
+
+def _signals_from_dashboard_api() -> list[dict]:
+    """Fallback: pull recent_signals from the dashboard /api/v1/state endpoint."""
+    url = os.getenv("SCANNER_API_URL", "http://localhost:5000")
+    timeout = int(os.getenv("SCANNER_TIMEOUT_SECONDS", "5"))
+    req = urllib.request.Request(
+        f"{url}/api/v1/state",
+        headers={"Accept": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+    except (OSError, urllib.error.URLError, json.JSONDecodeError) as exc:
+        logger.warning("VGX scanner API fetch failed: %s", exc)
+        return []
+    recent = payload.get("recent_signals", []) if isinstance(payload, dict) else []
+    normalized = [normalize_signal(s) for s in recent if isinstance(s, dict)]
+    return [s for s in normalized if s is not None]
+
+
+def get_signals() -> list[dict]:
+    """Return current scanner signals; in-process source takes priority."""
+    module_signals = _signals_from_module()
+    if module_signals:
+        return module_signals
+    return _signals_from_dashboard_api()
 
 
 # ============================================================

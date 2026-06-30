@@ -83,7 +83,8 @@ logger = logging.getLogger("scanner_api")
 # SHARED STATE  (written by scanner background task, read by endpoints)
 # =============================================================================
 
-LATEST_MTB_SIGNALS: list[dict] = []
+LATEST_SCANNER_SIGNALS: list[dict] = []
+LATEST_MTB_SIGNALS = LATEST_SCANNER_SIGNALS  # deprecated alias, remove in V2
 LATEST_MARKET_STATE: dict = {
     "market_state": "unknown",
     "timestamp":    datetime.now(timezone.utc).isoformat(),
@@ -948,9 +949,9 @@ async def _scanner_loop() -> None:
     Runs the Scanner indefinitely, refreshing LATEST_MTB_SIGNALS and
     LATEST_MARKET_STATE after every scan cycle.
     """
-    global LATEST_MTB_SIGNALS, LATEST_MARKET_STATE, _TRACKER, _SCANNER, \
-           _LAST_SCAN_TIME, _SCAN_CYCLES, _SIGNALS_GENERATED, _LAST_DISCOVERY_SCAN, \
-           _BOOTSTRAP_STATUS
+    global LATEST_SCANNER_SIGNALS, LATEST_MTB_SIGNALS, LATEST_MARKET_STATE, \
+           _TRACKER, _SCANNER, _LAST_SCAN_TIME, _SCAN_CYCLES, _SIGNALS_GENERATED, \
+           _LAST_DISCOVERY_SCAN, _BOOTSTRAP_STATUS
     logger.info("ENTERED _scanner_loop")
 
     # ── Pre-load persisted signals so dashboard is non-empty immediately ──────
@@ -961,7 +962,8 @@ async def _scanner_loop() -> None:
         with open(LIVE_SIGNALS_FILE, "r", encoding="utf-8") as _f:
             _pre = _json.load(_f).get("signals", [])
         if _pre:
-            LATEST_MTB_SIGNALS = _pre
+            LATEST_SCANNER_SIGNALS = _pre
+            LATEST_MTB_SIGNALS = LATEST_SCANNER_SIGNALS
             logger.info(
                 "Pre-loaded %d persisted signals from live_signals.json", len(_pre)
             )
@@ -1091,9 +1093,10 @@ async def _scanner_loop() -> None:
                     "timestamp":        sig.created_at.isoformat(),
                 })
 
-            LATEST_MTB_SIGNALS  = fresh
+            LATEST_SCANNER_SIGNALS = fresh
+            LATEST_MTB_SIGNALS     = LATEST_SCANNER_SIGNALS
             logger.info(
-                "LIVE SIGNALS:%d", len(LATEST_MTB_SIGNALS)
+                "LIVE SIGNALS:%d", len(LATEST_SCANNER_SIGNALS)
             )
             _SCAN_CYCLES       += 1
             _SIGNALS_GENERATED += len(fresh)
@@ -1111,7 +1114,8 @@ async def _scanner_loop() -> None:
                 from bots.scanner_bot.scanner import write_json_safely, Path
                 merged = _merge_live_signals(fresh)
                 write_json_safely(Path(LIVE_SIGNALS_FILE), {"signals": merged})
-                LATEST_MTB_SIGNALS = merged
+                LATEST_SCANNER_SIGNALS = merged
+                LATEST_MTB_SIGNALS     = LATEST_SCANNER_SIGNALS
                 logger.info(
                     "live_signals.json updated: fresh=%d merged=%d",
                     len(fresh), len(merged),
@@ -1394,7 +1398,7 @@ def _run_cleanup() -> dict:
     Preserves signal_history.json, coin_performance.json, tier_accuracy.json.
     Updates LATEST_MTB_SIGNALS and _CLEANUP_STATS in-process.
     """
-    global LATEST_MTB_SIGNALS, _CLEANUP_STATS
+    global LATEST_SCANNER_SIGNALS, LATEST_MTB_SIGNALS, _CLEANUP_STATS
     import json as _json
 
     now = datetime.now(timezone.utc)
@@ -1414,7 +1418,8 @@ def _run_cleanup() -> dict:
     try:
         from bots.scanner_bot.scanner import write_json_safely, Path
         write_json_safely(Path(LIVE_SIGNALS_FILE), {"signals": alive})
-        LATEST_MTB_SIGNALS = alive
+        LATEST_SCANNER_SIGNALS = alive
+        LATEST_MTB_SIGNALS     = LATEST_SCANNER_SIGNALS
     except Exception:
         logger.exception("Cleanup: failed to write live_signals.json")
 

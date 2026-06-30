@@ -6,9 +6,7 @@ import time
 
 from .config import PHASE5
 from . import storage
-# analyze_coin was in .market_data; using scanner_bot fallback
-def analyze_coin(coin: str, history=None) -> dict:
-    return {"score": 75, "trend": "neutral", "rsi": 50, "ema": "flat"}
+from .market_analysis import analyze_coin_simple as analyze_coin
 
 # ============================================================
 # COOLDOWN

@@ -4876,3 +4876,1739 @@ ValueError: invalid candle data
 2026-06-30 17:10:55,256 WARNING scanner_bot: Bootstrap: coin=DASH — all pairs failed, no history loaded
 2026-06-30 17:10:55,266 WARNING scanner_bot: Bootstrap: coin=XRP — all pairs failed, no history loaded
 2026-06-30 17:10:55,284 WARNING scanner_bot: Bootstrap: coin=ETH — all pairs failed, no history loaded
+2026-06-30 17:47:43,830 INFO scanner_bot: Storage ready: /home/runner/workspace/bots/scanner_bot/data
+2026-06-30 17:47:44,645 INFO scanner_bot: Bootstrap: fetching current tickers to build coin list...
+2026-06-30 17:47:44,780 INFO scanner_bot: Bootstrap: loading history for 80 coins
+2026-06-30 17:47:44,780 INFO scanner_bot: [Bootstrap] Starting — coins=80 concurrency=30 min_candles=21
+2026-06-30 17:47:44,893 WARNING scanner_bot: Bootstrap: coin=DASH — all pairs failed, no history loaded
+2026-06-30 17:47:44,897 WARNING scanner_bot: Bootstrap: coin=ETH — all pairs failed, no history loaded
+2026-06-30 17:47:44,918 WARNING scanner_bot: Bootstrap: coin=SOL — all pairs failed, no history loaded
+2026-06-30 17:47:44,924 WARNING scanner_bot: Bootstrap: coin=LTC — all pairs failed, no history loaded
+2026-06-30 17:47:44,926 WARNING scanner_bot: Bootstrap: coin=XRP — all pairs failed, no history loaded
+2026-06-30 17:47:44,931 WARNING scanner_bot: Bootstrap: coin=ADA — all pairs failed, no history loaded
+2026-06-30 17:47:45,000 WARNING scanner_bot: Bootstrap: coin=BTC — all pairs failed, no history loaded
+2026-06-30 17:47:45,005 WARNING scanner_bot: Bootstrap: coin=TRX — all pairs failed, no history loaded
+2026-06-30 17:47:45,006 WARNING scanner_bot: Bootstrap: coin=WBTC — all pairs failed, no history loaded
+2026-06-30 17:47:45,019 WARNING scanner_bot: Bootstrap: coin=MAVIA — all pairs failed, no history loaded
+2026-06-30 17:47:45,027 WARNING scanner_bot: Bootstrap: coin=SWCH — all pairs failed, no history loaded
+2026-06-30 17:47:45,034 WARNING scanner_bot: Bootstrap: coin=LAB — all pairs failed, no history loaded
+2026-06-30 17:47:45,089 WARNING scanner_bot: Bootstrap: coin=DOGE — all pairs failed, no history loaded
+2026-06-30 17:47:45,093 WARNING scanner_bot: Bootstrap: coin=FDUSD — all pairs failed, no history loaded
+2026-06-30 17:47:45,101 WARNING scanner_bot: Bootstrap: coin=SPX — all pairs failed, no history loaded
+2026-06-30 17:47:45,108 WARNING scanner_bot: Bootstrap: coin=PIEVERSE — all pairs failed, no history loaded
+2026-06-30 17:47:45,143 WARNING scanner_bot: Bootstrap: coin=RE — all pairs failed, no history loaded
+2026-06-30 17:47:45,182 WARNING scanner_bot: Bootstrap: coin=FARTCOIN — all pairs failed, no history loaded
+2026-06-30 17:47:45,192 WARNING scanner_bot: Bootstrap: coin=PENDLE — all pairs failed, no history loaded
+2026-06-30 17:47:45,196 WARNING scanner_bot: Bootstrap: coin=ICP — all pairs failed, no history loaded
+2026-06-30 17:47:45,200 WARNING scanner_bot: Bootstrap: coin=MANTA — all pairs failed, no history loaded
+2026-06-30 17:47:45,240 WARNING scanner_bot: Bootstrap: coin=USDT — all pairs failed, no history loaded
+2026-06-30 17:47:45,284 WARNING scanner_bot: Bootstrap: coin=BNB — all pairs failed, no history loaded
+2026-06-30 17:47:45,297 WARNING scanner_bot: Bootstrap: coin=U — all pairs failed, no history loaded
+2026-06-30 17:47:45,302 WARNING scanner_bot: Bootstrap: coin=AAVE — all pairs failed, no history loaded
+2026-06-30 17:47:45,309 WARNING scanner_bot: Bootstrap: coin=LINK — all pairs failed, no history loaded
+2026-06-30 17:47:45,343 WARNING scanner_bot: Bootstrap: coin=MORPHO — all pairs failed, no history loaded
+2026-06-30 17:47:45,376 WARNING scanner_bot: Bootstrap: coin=ZEN — all pairs failed, no history loaded
+2026-06-30 17:47:45,378 WARNING scanner_bot: Bootstrap: coin=DOT — all pairs failed, no history loaded
+2026-06-30 17:47:45,397 WARNING scanner_bot: Bootstrap: coin=TRUMP — all pairs failed, no history loaded
+2026-06-30 17:47:45,426 WARNING scanner_bot: Bootstrap: coin=KAS — all pairs failed, no history loaded
+2026-06-30 17:47:45,461 WARNING scanner_bot: Bootstrap: coin=RIF — all pairs failed, no history loaded
+2026-06-30 17:47:45,476 WARNING scanner_bot: Bootstrap: coin=HYPE — all pairs failed, no history loaded
+2026-06-30 17:47:45,481 WARNING scanner_bot: Bootstrap: coin=GIGGLE — all pairs failed, no history loaded
+2026-06-30 17:47:45,486 WARNING scanner_bot: Bootstrap: coin=USDE — all pairs failed, no history loaded
+2026-06-30 17:47:45,515 WARNING scanner_bot: Bootstrap: coin=LAYER — all pairs failed, no history loaded
+2026-06-30 17:47:45,556 WARNING scanner_bot: Bootstrap: coin=IN — all pairs failed, no history loaded
+2026-06-30 17:47:45,568 WARNING scanner_bot: Bootstrap: coin=PYTH — all pairs failed, no history loaded
+2026-06-30 17:47:45,575 WARNING scanner_bot: Bootstrap: coin=LIGHT — all pairs failed, no history loaded
+2026-06-30 17:47:45,581 WARNING scanner_bot: Bootstrap: coin=ONDO — all pairs failed, no history loaded
+2026-06-30 17:47:45,590 WARNING scanner_bot: Bootstrap: coin=ZEC — all pairs failed, no history loaded
+2026-06-30 17:47:45,636 WARNING scanner_bot: Bootstrap: coin=ONG — all pairs failed, no history loaded
+2026-06-30 17:47:45,657 WARNING scanner_bot: Bootstrap: coin=ENA — all pairs failed, no history loaded
+2026-06-30 17:47:45,660 WARNING scanner_bot: Bootstrap: coin=RENDER — all pairs failed, no history loaded
+2026-06-30 17:47:45,688 WARNING scanner_bot: Bootstrap: coin=VELVET — all pairs failed, no history loaded
+2026-06-30 17:47:45,711 WARNING scanner_bot: Bootstrap: coin=XLM — all pairs failed, no history loaded
+2026-06-30 17:47:45,718 WARNING scanner_bot: Bootstrap: coin=ALCX — all pairs failed, no history loaded
+2026-06-30 17:47:45,726 WARNING scanner_bot: Bootstrap: coin=AVAX — all pairs failed, no history loaded
+2026-06-30 17:47:45,760 WARNING scanner_bot: Bootstrap: coin=TAO — all pairs failed, no history loaded
+2026-06-30 17:47:45,775 WARNING scanner_bot: Bootstrap: coin=S — all pairs failed, no history loaded
+2026-06-30 17:47:45,806 WARNING scanner_bot: Bootstrap: coin=POL — all pairs failed, no history loaded
+2026-06-30 17:47:45,814 WARNING scanner_bot: Bootstrap: coin=WLD — all pairs failed, no history loaded
+2026-06-30 17:47:45,816 WARNING scanner_bot: Bootstrap: coin=XMR — all pairs failed, no history loaded
+2026-06-30 17:47:45,852 WARNING scanner_bot: Bootstrap: coin=NEAR — all pairs failed, no history loaded
+2026-06-30 17:47:45,866 WARNING scanner_bot: Bootstrap: coin=ACT — all pairs failed, no history loaded
+2026-06-30 17:47:45,913 WARNING scanner_bot: Bootstrap: coin=XUSD — all pairs failed, no history loaded
+2026-06-30 17:47:45,915 WARNING scanner_bot: Bootstrap: coin=AI — all pairs failed, no history loaded
+2026-06-30 17:47:45,925 WARNING scanner_bot: Bootstrap: coin=PHA — all pairs failed, no history loaded
+2026-06-30 17:47:45,948 WARNING scanner_bot: Bootstrap: coin=KCS — all pairs failed, no history loaded
+2026-06-30 17:47:45,967 WARNING scanner_bot: Bootstrap: coin=VVV — all pairs failed, no history loaded
+2026-06-30 17:47:46,010 WARNING scanner_bot: Bootstrap: coin=HEI — all pairs failed, no history loaded
+2026-06-30 17:47:46,028 WARNING scanner_bot: Bootstrap: coin=RLUSD — all pairs failed, no history loaded
+2026-06-30 17:47:46,036 WARNING scanner_bot: Bootstrap: coin=ORDI — all pairs failed, no history loaded
+2026-06-30 17:47:46,041 WARNING scanner_bot: Bootstrap: coin=EURI — all pairs failed, no history loaded
+2026-06-30 17:47:46,075 WARNING scanner_bot: Bootstrap: coin=O — all pairs failed, no history loaded
+2026-06-30 17:47:46,101 WARNING scanner_bot: Bootstrap: coin=DEXE — all pairs failed, no history loaded
+2026-06-30 17:47:46,130 WARNING scanner_bot: Bootstrap: coin=INJ — all pairs failed, no history loaded
+2026-06-30 17:47:46,139 WARNING scanner_bot: Bootstrap: coin=BIO — all pairs failed, no history loaded
+2026-06-30 17:47:46,145 WARNING scanner_bot: Bootstrap: coin=SUI — all pairs failed, no history loaded
+2026-06-30 17:47:46,150 WARNING scanner_bot: Bootstrap: coin=USDC — all pairs failed, no history loaded
+2026-06-30 17:47:46,167 WARNING scanner_bot: Bootstrap: coin=ASTER — all pairs failed, no history loaded
+2026-06-30 17:47:46,205 WARNING scanner_bot: Bootstrap: coin=SYN — all pairs failed, no history loaded
+2026-06-30 17:47:46,236 WARNING scanner_bot: Bootstrap: coin=AIGENSYN — all pairs failed, no history loaded
+2026-06-30 17:47:46,240 WARNING scanner_bot: Bootstrap: coin=SIREN — all pairs failed, no history loaded
+2026-06-30 17:47:46,266 WARNING scanner_bot: Bootstrap: coin=JTO — all pairs failed, no history loaded
+2026-06-30 17:47:46,271 WARNING scanner_bot: Bootstrap: coin=LIT — all pairs failed, no history loaded
+2026-06-30 17:47:46,286 WARNING scanner_bot: Bootstrap: coin=ATM — all pairs failed, no history loaded
+2026-06-30 17:47:46,293 WARNING scanner_bot: Bootstrap: coin=XPL — all pairs failed, no history loaded
+2026-06-30 17:47:46,313 WARNING scanner_bot: Bootstrap: coin=USD1 — all pairs failed, no history loaded
+2026-06-30 17:47:46,338 WARNING scanner_bot: Bootstrap: coin=HBAR — all pairs failed, no history loaded
+2026-06-30 17:47:46,339 WARNING scanner_bot: [Bootstrap] 80 coin(s) failed to load: DASH, ETH, SOL, LTC, XRP, ADA, BTC, TRX, WBTC, MAVIA, SWCH, LAB, DOGE, FDUSD, SPX, PIEVERSE, RE, FARTCOIN, PENDLE, ICP …
+2026-06-30 17:47:46,339 INFO scanner_bot: [Bootstrap] Startup history pre-load complete
+2026-06-30 17:47:46,339 INFO scanner_bot:   Coins attempted  : 80
+2026-06-30 17:47:46,339 INFO scanner_bot:   Loaded           : 0
+2026-06-30 17:47:46,339 INFO scanner_bot:   Skipped (cached) : 0
+2026-06-30 17:47:46,339 INFO scanner_bot:   Failed           : 80 (80 coins)
+2026-06-30 17:47:46,339 INFO scanner_bot:   Avg history len  : 0.0 ticks
+2026-06-30 17:47:46,339 INFO scanner_bot:   Min history len  : 0 ticks
+2026-06-30 17:47:46,339 INFO scanner_bot:   Ready for EMA    : NO (need 21)
+2026-06-30 17:47:46,339 INFO scanner_bot:   Ready for MTF    : NO (need 48)
+2026-06-30 17:47:46,339 INFO scanner_bot:   Ready for Phase5 : NO (need 20)
+2026-06-30 17:47:46,339 INFO scanner_bot:   Duration         : 1.6s
+2026-06-30 17:53:11,460 WARNING scanner_bot: Bootstrap: coin=BTC — all pairs failed, no history loaded
+2026-06-30 17:53:11,465 WARNING scanner_bot: Bootstrap: coin=DOGE pair=B-DOGE_INR returned only 20 candles (need 21) — skipping pair
+2026-06-30 17:53:11,465 WARNING scanner_bot: Bootstrap: coin=DOGE pair=B-DOGE_USDT returned only 20 candles (need 21) — skipping pair
+2026-06-30 17:53:11,465 WARNING scanner_bot: Bootstrap: coin=DOGE — all pairs failed, no history loaded
+2026-06-30 17:53:11,477 WARNING scanner_bot: Bootstrap: coin=SOL pair=B-SOL_INR timeout on attempt 1/3
+2026-06-30 17:53:11,483 WARNING scanner_bot: Bootstrap: coin=XYZ pair=B-XYZ_INR timeout on attempt 1/3
+2026-06-30 17:53:11,484 WARNING scanner_bot: Bootstrap: coin=XYZ pair=B-XYZ_INR timeout on attempt 2/3
+2026-06-30 17:53:11,484 WARNING scanner_bot: Bootstrap: coin=XYZ pair=B-XYZ_INR timeout on attempt 3/3
+2026-06-30 17:53:11,484 WARNING scanner_bot: Bootstrap: coin=XYZ pair=B-XYZ_USDT timeout on attempt 1/3
+2026-06-30 17:53:11,485 WARNING scanner_bot: Bootstrap: coin=XYZ pair=B-XYZ_USDT timeout on attempt 2/3
+2026-06-30 17:53:11,485 WARNING scanner_bot: Bootstrap: coin=XYZ pair=B-XYZ_USDT timeout on attempt 3/3
+2026-06-30 17:53:11,485 WARNING scanner_bot: Bootstrap: coin=XYZ — all pairs failed, no history loaded
+2026-06-30 17:53:11,495 WARNING scanner_bot: Bootstrap: coin=BNB pair=B-BNB_INR connection error on attempt 1/3: refused
+2026-06-30 17:53:11,534 WARNING scanner_bot: [Bootstrap] 1 coin(s) failed to load: BTC
+2026-06-30 17:53:11,540 WARNING scanner_bot: [Bootstrap] coin=ETH: history too short after conversion (1 ticks, need 21) — treating as failed
+2026-06-30 17:53:11,541 WARNING scanner_bot: [Bootstrap] 1 coin(s) failed to load: ETH
+2026-06-30 17:53:11,548 ERROR scanner_bot: [Bootstrap] coin=FAIL: unexpected task exception: simulated network crash
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 831, in _fetch_one
+    candles = await asyncio.to_thread(_fetch_bootstrap_candles, coin)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1204, in _execute_mock_call
+    result = effect(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/tests/test_sp1_1_bootstrap.py", line 348, in _fetch
+    raise RuntimeError("simulated network crash")
+RuntimeError: simulated network crash
+2026-06-30 17:53:11,557 WARNING scanner_bot: [Bootstrap] 1 coin(s) failed to load: FAIL
+2026-06-30 17:53:11,570 WARNING scanner_bot: [Bootstrap] 1 coin(s) failed to load: FAIL
+2026-06-30 17:53:11,582 WARNING scanner_bot: [Bootstrap] 1 coin(s) failed to load: BTC
+2026-06-30 17:53:11,592 WARNING scanner_bot: [Bootstrap] 3 coin(s) failed to load: AAA, BBB, CCC
+2026-06-30 17:53:11,599 WARNING scanner_bot: [Bootstrap] 1 coin(s) failed to load: FAIL
+2026-06-30 17:53:11,624 WARNING scanner_bot: Bootstrap: ticker fetch failed; skipping bootstrap
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1884, in run_bootstrap
+    tickers = await self.get_tickers(force=True)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 2291, in _execute_mock_call
+    raise effect
+RuntimeError: network down
+2026-06-30 17:53:11,643 WARNING scanner_bot: [Ticker] non-retryable error: Ticker API returned empty list
+2026-06-30 17:53:11,645 WARNING scanner_bot: [Ticker] non-retryable error: Ticker API returned unexpected type dict (expected list)
+2026-06-30 17:53:11,647 WARNING scanner_bot: [Ticker] non-retryable error: Ticker API returned non-JSON body: not json
+2026-06-30 17:53:11,649 WARNING scanner_bot: [Ticker] network error on attempt 1/3: 
+2026-06-30 17:53:11,651 WARNING scanner_bot: [Ticker] network error on attempt 1/3: 
+2026-06-30 17:53:11,651 WARNING scanner_bot: [Ticker] network error on attempt 2/3: 
+2026-06-30 17:53:11,651 WARNING scanner_bot: [Ticker] network error on attempt 3/3: 
+2026-06-30 17:53:11,651 ERROR scanner_bot: [Ticker] all 3 retries failed — last error: 
+2026-06-30 17:53:11,653 WARNING scanner_bot: [Ticker] network error on attempt 1/3: refused
+2026-06-30 17:53:11,655 WARNING scanner_bot: [Ticker] non-retryable error: 
+2026-06-30 17:53:11,657 WARNING scanner_bot: [Ticker] non-retryable error: Ticker API response has no valid market entries (first entry: {'price': '100'})
+2026-06-30 17:53:11,690 WARNING scanner_bot: [Ticker] fetch failed — returning stale cache (1 tickers, age=486s)
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+Exception: network down
+2026-06-30 17:53:11,700 WARNING scanner_bot: [Ticker] fetch failed — returning stale cache (1 tickers, age=486s)
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+ValueError: empty list
+2026-06-30 17:53:11,710 ERROR scanner_bot: [Ticker] fetch failed and no cache available — raising
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+Exception: down
+2026-06-30 17:53:11,720 WARNING scanner_bot: [Ticker] fetch failed — returning stale cache (1 tickers, age=486s)
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+Exception: down
+2026-06-30 17:53:11,730 WARNING scanner_bot: [Ticker] fetch failed — returning stale cache (1 tickers, age=486s)
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+ValueError: empty list
+2026-06-30 17:53:11,832 WARNING scanner_bot: [Ticker] fetch failed — returning stale cache (1 tickers, age=486s)
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+Exception: network down
+2026-06-30 17:53:11,844 WARNING scanner_bot: [Ticker] fetch failed — returning stale cache (1 tickers, age=486s)
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+Exception: down
+2026-06-30 17:53:11,846 WARNING scanner_bot: [Ticker] fetch failed — returning stale cache (1 tickers, age=486s)
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+Exception: down
+2026-06-30 17:53:11,848 WARNING scanner_bot: [Ticker] fetch failed — returning stale cache (1 tickers, age=486s)
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+Exception: down
+2026-06-30 17:53:11,850 WARNING scanner_bot: [Ticker] fetch failed — returning stale cache (1 tickers, age=486s)
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+Exception: down
+2026-06-30 17:53:11,852 WARNING scanner_bot: [Ticker] fetch failed — returning stale cache (1 tickers, age=486s)
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+Exception: down
+2026-06-30 17:53:12,182 ERROR scanner_bot: [HistScore] coin=BTC exception_type=RuntimeError message=network down — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+RuntimeError: network down
+2026-06-30 17:53:12,189 ERROR scanner_bot: [HistScore] coin=BTC exception_type=ZeroDivisionError message=float division by zero — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+ZeroDivisionError: float division by zero
+2026-06-30 17:53:12,195 ERROR scanner_bot: [HistScore] coin=BTC exception_type=ValueError message=bad candle data — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+ValueError: bad candle data
+2026-06-30 17:53:12,200 ERROR scanner_bot: [HistScore] coin=BTC exception_type=TypeError message=unexpected type — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+TypeError: unexpected type
+2026-06-30 17:53:12,205 ERROR scanner_bot: [HistScore] coin=BTC exception_type=KeyError message='close' — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+KeyError: 'close'
+2026-06-30 17:53:12,210 ERROR scanner_bot: [HistScore] coin=BTC exception_type=AttributeError message=NoneType — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+AttributeError: NoneType
+2026-06-30 17:53:12,218 ERROR scanner_bot: [HistScore] coin=BTC exception_type=Exception message=unknown failure — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+Exception: unknown failure
+2026-06-30 17:53:12,223 ERROR scanner_bot: [HistScore] coin=BTC exception_type=RuntimeError message=test — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+RuntimeError: test
+2026-06-30 17:53:12,224 ERROR scanner_bot: [HistScore] coin=BTC exception_type=ValueError message=test — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+ValueError: test
+2026-06-30 17:53:12,225 ERROR scanner_bot: [HistScore] coin=BTC exception_type=ZeroDivisionError message=test — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+ZeroDivisionError: test
+2026-06-30 17:53:12,226 ERROR scanner_bot: [HistScore] coin=BTC exception_type=TypeError message=test — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+TypeError: test
+2026-06-30 17:53:12,226 ERROR scanner_bot: [HistScore] coin=BTC exception_type=KeyError message='test' — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+KeyError: 'test'
+2026-06-30 17:53:12,227 ERROR scanner_bot: [HistScore] coin=BTC exception_type=AttributeError message=test — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+AttributeError: test
+2026-06-30 17:53:12,228 ERROR scanner_bot: [HistScore] coin=BTC exception_type=Exception message=test — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+Exception: test
+2026-06-30 17:53:12,233 ERROR scanner_bot: [HistScore] coin=ETH exception_type=RuntimeError message=down — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+RuntimeError: down
+2026-06-30 17:53:12,238 ERROR scanner_bot: [HistScore] coin=SOL exception_type=RuntimeError message=down — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+RuntimeError: down
+2026-06-30 17:53:12,244 ERROR scanner_bot: [HistScore] coin=DOGE exception_type=RuntimeError message=down — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+RuntimeError: down
+2026-06-30 17:53:12,250 ERROR scanner_bot: [HistScore] coin=BTC exception_type=ZeroDivisionError message=division by zero — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+ZeroDivisionError: division by zero
+2026-06-30 17:53:12,255 ERROR scanner_bot: [HistScore] coin=ETH exception_type=RuntimeError message=specific error detail — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+RuntimeError: specific error detail
+2026-06-30 17:53:12,260 ERROR scanner_bot: [HistScore] coin=BTC exception_type=RuntimeError message=down — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+RuntimeError: down
+2026-06-30 17:53:12,271 ERROR scanner_bot: [HistScore] coin=BTC exception_type=ValueError message=bad data — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+ValueError: bad data
+2026-06-30 17:53:12,465 ERROR scanner_bot: [Scan] coin=FAIL source=watchlist exception_type=RuntimeError message=simulated crash
+Traceback (most recent call last):
+  File "/home/runner/workspace/tests/test_sp1_3_bug22.py", line 97, in _patched
+    raise effect
+RuntimeError: simulated crash
+2026-06-30 17:53:12,499 ERROR scanner_bot: [Scan] coin=B source=watchlist exception_type=ValueError message=bad data
+Traceback (most recent call last):
+  File "/home/runner/workspace/tests/test_sp1_3_bug22.py", line 97, in _patched
+    raise effect
+ValueError: bad data
+2026-06-30 17:53:12,500 ERROR scanner_bot: [Scan] coin=C source=watchlist exception_type=ZeroDivisionError message=div by zero
+Traceback (most recent call last):
+  File "/home/runner/workspace/tests/test_sp1_3_bug22.py", line 97, in _patched
+    raise effect
+ZeroDivisionError: div by zero
+2026-06-30 17:53:12,517 ERROR scanner_bot: [Scan] coin=FAIL source=watchlist exception_type=RuntimeError message=network down
+Traceback (most recent call last):
+  File "/home/runner/workspace/tests/test_sp1_3_bug22.py", line 97, in _patched
+    raise effect
+RuntimeError: network down
+2026-06-30 17:53:12,527 ERROR scanner_bot: [Scan] coin=FAIL source=watchlist exception_type=ZeroDivisionError message=division by zero
+Traceback (most recent call last):
+  File "/home/runner/workspace/tests/test_sp1_3_bug22.py", line 97, in _patched
+    raise effect
+ZeroDivisionError: division by zero
+2026-06-30 17:53:12,535 ERROR scanner_bot: [Scan] coin=FAIL source=watchlist exception_type=RuntimeError message=specific error detail
+Traceback (most recent call last):
+  File "/home/runner/workspace/tests/test_sp1_3_bug22.py", line 97, in _patched
+    raise effect
+RuntimeError: specific error detail
+2026-06-30 17:53:12,565 ERROR scanner_bot: [Scan] coin=FAIL source=watchlist exception_type=Exception message=total failure
+Traceback (most recent call last):
+  File "/home/runner/workspace/tests/test_sp1_3_bug22.py", line 97, in _patched
+    raise effect
+Exception: total failure
+2026-06-30 17:53:12,575 ERROR scanner_bot: [Scan] coin=A source=watchlist exception_type=RuntimeError message=fail A
+Traceback (most recent call last):
+  File "/home/runner/workspace/tests/test_sp1_3_bug22.py", line 97, in _patched
+    raise effect
+RuntimeError: fail A
+2026-06-30 17:53:12,576 ERROR scanner_bot: [Scan] coin=B source=watchlist exception_type=RuntimeError message=fail B
+Traceback (most recent call last):
+  File "/home/runner/workspace/tests/test_sp1_3_bug22.py", line 97, in _patched
+    raise effect
+RuntimeError: fail B
+2026-06-30 17:53:12,584 ERROR scanner_bot: [Scan] coin=FAIL source=watchlist exception_type=RuntimeError message=crash
+Traceback (most recent call last):
+  File "/home/runner/workspace/tests/test_sp1_3_bug22.py", line 97, in _patched
+    raise effect
+RuntimeError: crash
+2026-06-30 17:53:12,608 ERROR scanner_bot: [Scan] coin=FAIL source=watchlist exception_type=ZeroDivisionError message=float division by zero
+Traceback (most recent call last):
+  File "/home/runner/workspace/tests/test_sp1_3_bug22.py", line 97, in _patched
+    raise effect
+ZeroDivisionError: float division by zero
+2026-06-30 17:53:12,617 ERROR scanner_bot: [Scan] coin=FAIL source=watchlist exception_type=ValueError message=invalid candle data
+Traceback (most recent call last):
+  File "/home/runner/workspace/tests/test_sp1_3_bug22.py", line 97, in _patched
+    raise effect
+ValueError: invalid candle data
+2026-06-30 17:53:12,636 WARNING scanner_bot: [Config] MTF_5M_WINDOW=0 is below minimum 2 — clamping to 2
+2026-06-30 17:53:12,641 WARNING scanner_bot: [Config] MTF_5M_WINDOW=1 is below minimum 2 — clamping to 2
+2026-06-30 17:53:12,646 WARNING scanner_bot: [Config] MTF_5M_WINDOW=-5 is below minimum 2 — clamping to 2
+2026-06-30 17:53:12,651 WARNING scanner_bot: [Config] MTF_5M_WINDOW=5 is below recommended default 10
+2026-06-30 17:53:12,656 WARNING scanner_bot: [Config] MTF_15M_WINDOW=2 is below recommended default 24
+2026-06-30 17:53:12,663 WARNING scanner_bot: [Config] MTF_1H_WINDOW=47 is below recommended default 48
+2026-06-30 17:53:12,700 WARNING scanner_bot: [Config] MTF_5M_WINDOW=0 is below minimum 2 — clamping to 2
+2026-06-30 17:53:12,711 WARNING scanner_bot: [Config] MTF_5M_WINDOW=0 is below minimum 2 — clamping to 2
+2026-06-30 17:53:12,717 WARNING scanner_bot: [Config] MTF_15M_WINDOW=1 is below minimum 2 — clamping to 2
+2026-06-30 17:53:12,722 WARNING scanner_bot: [Config] MTF_5M_WINDOW=5 is below recommended default 10
+2026-06-30 17:53:12,728 WARNING scanner_bot: [Config] MTF_1H_WINDOW=30 is below recommended default 48
+2026-06-30 17:53:12,749 WARNING scanner_bot: [Config] MTF_5M_WINDOW=0 is below minimum 2 — clamping to 2
+2026-06-30 17:53:12,755 WARNING scanner_bot: [Config] MTF_15M_WINDOW=1 is below minimum 2 — clamping to 2
+2026-06-30 17:54:04,801 WARNING scanner_bot: Bootstrap: coin=BTC — all pairs failed, no history loaded
+2026-06-30 17:54:04,808 WARNING scanner_bot: Bootstrap: coin=DOGE pair=B-DOGE_INR returned only 20 candles (need 21) — skipping pair
+2026-06-30 17:54:04,808 WARNING scanner_bot: Bootstrap: coin=DOGE pair=B-DOGE_USDT returned only 20 candles (need 21) — skipping pair
+2026-06-30 17:54:04,808 WARNING scanner_bot: Bootstrap: coin=DOGE — all pairs failed, no history loaded
+2026-06-30 17:54:04,818 WARNING scanner_bot: Bootstrap: coin=SOL pair=B-SOL_INR timeout on attempt 1/3
+2026-06-30 17:54:04,823 WARNING scanner_bot: Bootstrap: coin=XYZ pair=B-XYZ_INR timeout on attempt 1/3
+2026-06-30 17:54:04,824 WARNING scanner_bot: Bootstrap: coin=XYZ pair=B-XYZ_INR timeout on attempt 2/3
+2026-06-30 17:54:04,824 WARNING scanner_bot: Bootstrap: coin=XYZ pair=B-XYZ_INR timeout on attempt 3/3
+2026-06-30 17:54:04,825 WARNING scanner_bot: Bootstrap: coin=XYZ pair=B-XYZ_USDT timeout on attempt 1/3
+2026-06-30 17:54:04,825 WARNING scanner_bot: Bootstrap: coin=XYZ pair=B-XYZ_USDT timeout on attempt 2/3
+2026-06-30 17:54:04,825 WARNING scanner_bot: Bootstrap: coin=XYZ pair=B-XYZ_USDT timeout on attempt 3/3
+2026-06-30 17:54:04,826 WARNING scanner_bot: Bootstrap: coin=XYZ — all pairs failed, no history loaded
+2026-06-30 17:54:04,837 WARNING scanner_bot: Bootstrap: coin=BNB pair=B-BNB_INR connection error on attempt 1/3: refused
+2026-06-30 17:54:04,873 WARNING scanner_bot: [Bootstrap] 1 coin(s) failed to load: BTC
+2026-06-30 17:54:04,879 WARNING scanner_bot: [Bootstrap] coin=ETH: history too short after conversion (1 ticks, need 21) — treating as failed
+2026-06-30 17:54:04,880 WARNING scanner_bot: [Bootstrap] 1 coin(s) failed to load: ETH
+2026-06-30 17:54:04,888 ERROR scanner_bot: [Bootstrap] coin=FAIL: unexpected task exception: simulated network crash
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 831, in _fetch_one
+    candles = await asyncio.to_thread(_fetch_bootstrap_candles, coin)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1204, in _execute_mock_call
+    result = effect(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/tests/test_sp1_1_bootstrap.py", line 348, in _fetch
+    raise RuntimeError("simulated network crash")
+RuntimeError: simulated network crash
+2026-06-30 17:54:04,895 WARNING scanner_bot: [Bootstrap] 1 coin(s) failed to load: FAIL
+2026-06-30 17:54:04,909 WARNING scanner_bot: [Bootstrap] 1 coin(s) failed to load: FAIL
+2026-06-30 17:54:04,921 WARNING scanner_bot: [Bootstrap] 1 coin(s) failed to load: BTC
+2026-06-30 17:54:04,939 WARNING scanner_bot: [Bootstrap] 3 coin(s) failed to load: AAA, BBB, CCC
+2026-06-30 17:54:04,946 WARNING scanner_bot: [Bootstrap] 1 coin(s) failed to load: FAIL
+2026-06-30 17:54:04,955 WARNING scanner_bot: Bootstrap: ticker fetch failed; skipping bootstrap
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1884, in run_bootstrap
+    tickers = await self.get_tickers(force=True)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 2291, in _execute_mock_call
+    raise effect
+RuntimeError: network down
+2026-06-30 17:54:04,969 WARNING scanner_bot: [Ticker] non-retryable error: Ticker API returned empty list
+2026-06-30 17:54:04,971 WARNING scanner_bot: [Ticker] non-retryable error: Ticker API returned unexpected type dict (expected list)
+2026-06-30 17:54:04,973 WARNING scanner_bot: [Ticker] non-retryable error: Ticker API returned non-JSON body: not json
+2026-06-30 17:54:04,975 WARNING scanner_bot: [Ticker] network error on attempt 1/3: 
+2026-06-30 17:54:04,977 WARNING scanner_bot: [Ticker] network error on attempt 1/3: 
+2026-06-30 17:54:04,977 WARNING scanner_bot: [Ticker] network error on attempt 2/3: 
+2026-06-30 17:54:04,977 WARNING scanner_bot: [Ticker] network error on attempt 3/3: 
+2026-06-30 17:54:04,978 ERROR scanner_bot: [Ticker] all 3 retries failed — last error: 
+2026-06-30 17:54:04,980 WARNING scanner_bot: [Ticker] network error on attempt 1/3: refused
+2026-06-30 17:54:04,982 WARNING scanner_bot: [Ticker] non-retryable error: 
+2026-06-30 17:54:04,984 WARNING scanner_bot: [Ticker] non-retryable error: Ticker API response has no valid market entries (first entry: {'price': '100'})
+2026-06-30 17:54:05,016 WARNING scanner_bot: [Ticker] fetch failed — returning stale cache (1 tickers, age=539s)
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+Exception: network down
+2026-06-30 17:54:05,026 WARNING scanner_bot: [Ticker] fetch failed — returning stale cache (1 tickers, age=539s)
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+ValueError: empty list
+2026-06-30 17:54:05,037 ERROR scanner_bot: [Ticker] fetch failed and no cache available — raising
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+Exception: down
+2026-06-30 17:54:05,047 WARNING scanner_bot: [Ticker] fetch failed — returning stale cache (1 tickers, age=539s)
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+Exception: down
+2026-06-30 17:54:05,057 WARNING scanner_bot: [Ticker] fetch failed — returning stale cache (1 tickers, age=539s)
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+ValueError: empty list
+2026-06-30 17:54:05,152 WARNING scanner_bot: [Ticker] fetch failed — returning stale cache (1 tickers, age=539s)
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+Exception: network down
+2026-06-30 17:54:05,163 WARNING scanner_bot: [Ticker] fetch failed — returning stale cache (1 tickers, age=539s)
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+Exception: down
+2026-06-30 17:54:05,165 WARNING scanner_bot: [Ticker] fetch failed — returning stale cache (1 tickers, age=539s)
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+Exception: down
+2026-06-30 17:54:05,167 WARNING scanner_bot: [Ticker] fetch failed — returning stale cache (1 tickers, age=539s)
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+Exception: down
+2026-06-30 17:54:05,170 WARNING scanner_bot: [Ticker] fetch failed — returning stale cache (1 tickers, age=539s)
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+Exception: down
+2026-06-30 17:54:05,173 WARNING scanner_bot: [Ticker] fetch failed — returning stale cache (1 tickers, age=539s)
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 1959, in get_tickers
+    tickers = await asyncio.to_thread(self.client.fetch_tickers)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+Exception: down
+2026-06-30 17:54:05,496 ERROR scanner_bot: [HistScore] coin=BTC exception_type=RuntimeError message=network down — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+RuntimeError: network down
+2026-06-30 17:54:05,502 ERROR scanner_bot: [HistScore] coin=BTC exception_type=ZeroDivisionError message=float division by zero — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+ZeroDivisionError: float division by zero
+2026-06-30 17:54:05,508 ERROR scanner_bot: [HistScore] coin=BTC exception_type=ValueError message=bad candle data — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+ValueError: bad candle data
+2026-06-30 17:54:05,514 ERROR scanner_bot: [HistScore] coin=BTC exception_type=TypeError message=unexpected type — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+TypeError: unexpected type
+2026-06-30 17:54:05,519 ERROR scanner_bot: [HistScore] coin=BTC exception_type=KeyError message='close' — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+KeyError: 'close'
+2026-06-30 17:54:05,525 ERROR scanner_bot: [HistScore] coin=BTC exception_type=AttributeError message=NoneType — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+AttributeError: NoneType
+2026-06-30 17:54:05,530 ERROR scanner_bot: [HistScore] coin=BTC exception_type=Exception message=unknown failure — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+Exception: unknown failure
+2026-06-30 17:54:05,535 ERROR scanner_bot: [HistScore] coin=BTC exception_type=RuntimeError message=test — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+RuntimeError: test
+2026-06-30 17:54:05,536 ERROR scanner_bot: [HistScore] coin=BTC exception_type=ValueError message=test — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+ValueError: test
+2026-06-30 17:54:05,537 ERROR scanner_bot: [HistScore] coin=BTC exception_type=ZeroDivisionError message=test — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+ZeroDivisionError: test
+2026-06-30 17:54:05,538 ERROR scanner_bot: [HistScore] coin=BTC exception_type=TypeError message=test — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+TypeError: test
+2026-06-30 17:54:05,539 ERROR scanner_bot: [HistScore] coin=BTC exception_type=KeyError message='test' — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+KeyError: 'test'
+2026-06-30 17:54:05,539 ERROR scanner_bot: [HistScore] coin=BTC exception_type=AttributeError message=test — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+AttributeError: test
+2026-06-30 17:54:05,540 ERROR scanner_bot: [HistScore] coin=BTC exception_type=Exception message=test — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+Exception: test
+2026-06-30 17:54:05,545 ERROR scanner_bot: [HistScore] coin=ETH exception_type=RuntimeError message=down — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+RuntimeError: down
+2026-06-30 17:54:05,550 ERROR scanner_bot: [HistScore] coin=SOL exception_type=RuntimeError message=down — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+RuntimeError: down
+2026-06-30 17:54:05,557 ERROR scanner_bot: [HistScore] coin=DOGE exception_type=RuntimeError message=down — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+RuntimeError: down
+2026-06-30 17:54:05,564 ERROR scanner_bot: [HistScore] coin=BTC exception_type=ZeroDivisionError message=division by zero — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+ZeroDivisionError: division by zero
+2026-06-30 17:54:05,570 ERROR scanner_bot: [HistScore] coin=ETH exception_type=RuntimeError message=specific error detail — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+RuntimeError: specific error detail
+2026-06-30 17:54:05,575 ERROR scanner_bot: [HistScore] coin=BTC exception_type=RuntimeError message=down — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+RuntimeError: down
+2026-06-30 17:54:05,585 ERROR scanner_bot: [HistScore] coin=BTC exception_type=ValueError message=bad data — returning neutral score
+Traceback (most recent call last):
+  File "/home/runner/workspace/bots/scanner_bot/scanner.py", line 523, in historical_pattern_score
+    candles = _fetch_daily_candles(pair, days=95)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1139, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1143, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/iizfzmqjdfvbyx82gqw92glb5zl6m4my-python3-3.12.12/lib/python3.12/unittest/mock.py", line 1198, in _execute_mock_call
+    raise effect
+ValueError: bad data
+2026-06-30 17:54:05,789 ERROR scanner_bot: [Scan] coin=FAIL source=watchlist exception_type=RuntimeError message=simulated crash
+Traceback (most recent call last):
+  File "/home/runner/workspace/tests/test_sp1_3_bug22.py", line 97, in _patched
+    raise effect
+RuntimeError: simulated crash
+2026-06-30 17:54:05,847 ERROR scanner_bot: [Scan] coin=B source=watchlist exception_type=ValueError message=bad data
+Traceback (most recent call last):
+  File "/home/runner/workspace/tests/test_sp1_3_bug22.py", line 97, in _patched
+    raise effect
+ValueError: bad data
+2026-06-30 17:54:05,848 ERROR scanner_bot: [Scan] coin=C source=watchlist exception_type=ZeroDivisionError message=div by zero
+Traceback (most recent call last):
+  File "/home/runner/workspace/tests/test_sp1_3_bug22.py", line 97, in _patched
+    raise effect
+ZeroDivisionError: div by zero
+2026-06-30 17:54:05,868 ERROR scanner_bot: [Scan] coin=FAIL source=watchlist exception_type=RuntimeError message=network down
+Traceback (most recent call last):
+  File "/home/runner/workspace/tests/test_sp1_3_bug22.py", line 97, in _patched
+    raise effect
+RuntimeError: network down
+2026-06-30 17:54:05,879 ERROR scanner_bot: [Scan] coin=FAIL source=watchlist exception_type=ZeroDivisionError message=division by zero
+Traceback (most recent call last):
+  File "/home/runner/workspace/tests/test_sp1_3_bug22.py", line 97, in _patched
+    raise effect
+ZeroDivisionError: division by zero
+2026-06-30 17:54:05,890 ERROR scanner_bot: [Scan] coin=FAIL source=watchlist exception_type=RuntimeError message=specific error detail
+Traceback (most recent call last):
+  File "/home/runner/workspace/tests/test_sp1_3_bug22.py", line 97, in _patched
+    raise effect
+RuntimeError: specific error detail
+2026-06-30 17:54:05,899 ERROR scanner_bot: [Scan] coin=FAIL source=watchlist exception_type=Exception message=total failure
+Traceback (most recent call last):
+  File "/home/runner/workspace/tests/test_sp1_3_bug22.py", line 97, in _patched
+    raise effect
+Exception: total failure
+2026-06-30 17:54:05,908 ERROR scanner_bot: [Scan] coin=A source=watchlist exception_type=RuntimeError message=fail A
+Traceback (most recent call last):
+  File "/home/runner/workspace/tests/test_sp1_3_bug22.py", line 97, in _patched
+    raise effect
+RuntimeError: fail A
+2026-06-30 17:54:05,909 ERROR scanner_bot: [Scan] coin=B source=watchlist exception_type=RuntimeError message=fail B
+Traceback (most recent call last):
+  File "/home/runner/workspace/tests/test_sp1_3_bug22.py", line 97, in _patched
+    raise effect
+RuntimeError: fail B
+2026-06-30 17:54:05,916 ERROR scanner_bot: [Scan] coin=FAIL source=watchlist exception_type=RuntimeError message=crash
+Traceback (most recent call last):
+  File "/home/runner/workspace/tests/test_sp1_3_bug22.py", line 97, in _patched
+    raise effect
+RuntimeError: crash
+2026-06-30 17:54:05,942 ERROR scanner_bot: [Scan] coin=FAIL source=watchlist exception_type=ZeroDivisionError message=float division by zero
+Traceback (most recent call last):
+  File "/home/runner/workspace/tests/test_sp1_3_bug22.py", line 97, in _patched
+    raise effect
+ZeroDivisionError: float division by zero
+2026-06-30 17:54:05,951 ERROR scanner_bot: [Scan] coin=FAIL source=watchlist exception_type=ValueError message=invalid candle data
+Traceback (most recent call last):
+  File "/home/runner/workspace/tests/test_sp1_3_bug22.py", line 97, in _patched
+    raise effect
+ValueError: invalid candle data
+2026-06-30 17:54:05,974 WARNING scanner_bot: [Config] MTF_5M_WINDOW=0 is below minimum 2 — clamping to 2
+2026-06-30 17:54:05,984 WARNING scanner_bot: [Config] MTF_5M_WINDOW=1 is below minimum 2 — clamping to 2
+2026-06-30 17:54:05,989 WARNING scanner_bot: [Config] MTF_5M_WINDOW=-5 is below minimum 2 — clamping to 2
+2026-06-30 17:54:05,994 WARNING scanner_bot: [Config] MTF_5M_WINDOW=5 is below recommended default 10
+2026-06-30 17:54:06,000 WARNING scanner_bot: [Config] MTF_15M_WINDOW=2 is below recommended default 24
+2026-06-30 17:54:06,006 WARNING scanner_bot: [Config] MTF_1H_WINDOW=47 is below recommended default 48
+2026-06-30 17:54:06,045 WARNING scanner_bot: [Config] MTF_5M_WINDOW=0 is below minimum 2 — clamping to 2
+2026-06-30 17:54:06,051 WARNING scanner_bot: [Config] MTF_5M_WINDOW=0 is below minimum 2 — clamping to 2
+2026-06-30 17:54:06,056 WARNING scanner_bot: [Config] MTF_15M_WINDOW=1 is below minimum 2 — clamping to 2
+2026-06-30 17:54:06,063 WARNING scanner_bot: [Config] MTF_5M_WINDOW=5 is below recommended default 10
+2026-06-30 17:54:06,071 WARNING scanner_bot: [Config] MTF_1H_WINDOW=30 is below recommended default 48
+2026-06-30 17:54:06,095 WARNING scanner_bot: [Config] MTF_5M_WINDOW=0 is below minimum 2 — clamping to 2
+2026-06-30 17:54:06,101 WARNING scanner_bot: [Config] MTF_15M_WINDOW=1 is below minimum 2 — clamping to 2

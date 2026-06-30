@@ -81,6 +81,12 @@ async def background_loop():
     while True:
         try:
             update_market_cache()
+            try:
+                from . import scanner_bridge as _sb
+                for _sig in _sb.get_signals():
+                    _sb.process_scanner_signal(_sig)
+            except Exception as _e:
+                logger.warning("VGX scanner bridge step failed: %s", _e)
             await auto_alerts()
             auto_sell()
             update_stats()
