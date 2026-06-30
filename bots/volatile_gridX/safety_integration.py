@@ -259,7 +259,7 @@ async def trigger_emergency_stop(reason: str) -> Dict[str, Any]:
     
     # Close all positions
     try:
-        from .trading_engine_v2 import emergency_close_all
+        from .trading_engine import emergency_close_all
         close_results = emergency_close_all(f"EMERGENCY: {reason}")
         results["actions"].append(f"Closed {close_results['closed']} positions")
         results["positions_closed"] = close_results

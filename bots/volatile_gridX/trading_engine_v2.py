@@ -10,6 +10,9 @@ Original issues fixed:
 - BUG-001: Race condition in position creation
 - Concurrent order execution vulnerability
 - Balance corruption risk
+
+NOTE (SP2.5): This module is NOT wired into the live trading path. The live path
+uses trading_engine.py (v1). This file is kept for reference / potential future use.
 """
 
 import time

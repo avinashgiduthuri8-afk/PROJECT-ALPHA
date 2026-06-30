@@ -80,10 +80,12 @@ def buy_position(
         logger.debug("buy_position: lock acquired for %s", pos_key)
 
         # ── All checks inside the lock ────────────────────────
-        if pos_key in storage.positions:
+        # Duplicate check by coin (not pos_key) so the same coin cannot be
+        # bought twice under different sources, double-counting capital.
+        if any(p["coin"] == coin for p in storage.positions.values()):
             logger.info(
-                "Duplicate position prevented: %s already exists (lock held)",
-                pos_key,
+                "Duplicate position prevented: %s already has an open position (lock held)",
+                coin,
             )
             return False
 
@@ -149,6 +151,70 @@ def close_position(
 # ============================================================
 # PAPER EXECUTION
 # ============================================================
+
+def emergency_close_all(reason: str = "EMERGENCY") -> dict:
+    """
+    Close every open position using the existing _TRADE_LOCK via close_position().
+    Safe for concurrent calls with buy_position() / close_position() because each
+    close_position() acquires the lock independently — do NOT hold _TRADE_LOCK
+    across the whole loop (that would deadlock against close_position's own acquire).
+
+    Returns a summary dict with the same shape as trading_engine_v2.emergency_close_all
+    for compatibility with anything reading the result.
+    """
+    logger.critical("emergency_close_all triggered: %s", reason)
+    closed = 0
+    failed = 0
+    total_pnl = 0.0
+    details: list = []
+
+    # Snapshot current keys atomically so the loop doesn't iterate a mutating dict.
+    with _TRADE_LOCK:
+        pos_keys = list(storage.positions.keys())
+
+    for pos_key in pos_keys:
+        try:
+            # Read position data without the lock; close_position() will handle
+            # the "already gone" case safely (returns (0, 0, None)).
+            pos = storage.positions.get(pos_key)
+            if pos is None:
+                continue  # closed by a concurrent call between snapshot and here
+
+            coin = pos["coin"]
+            price = get_cached_price_safe(coin)
+            if price <= 0:
+                # Conservative fallback: same assumption as trading_engine_v2
+                price = pos["buy_price"] * 0.95
+
+            receive_amount, pnl, source = close_position(pos_key, price)
+            if source is not None:  # None only when pos was already gone
+                closed += 1
+                total_pnl += pnl
+                details.append({
+                    "pos_key": pos_key,
+                    "coin":    coin,
+                    "pnl":     round(pnl, 4),
+                    "price":   round(price, 4),
+                    "source":  source,
+                })
+        except Exception as exc:
+            logger.error("emergency_close_all: failed to close %s: %s", pos_key, exc)
+            failed += 1
+            details.append({"pos_key": pos_key, "error": str(exc)})
+
+    storage.save_data()
+    logger.critical(
+        "emergency_close_all complete: closed=%d failed=%d total_pnl=%.4f reason=%s",
+        closed, failed, total_pnl, reason,
+    )
+    return {
+        "closed":    closed,
+        "failed":    failed,
+        "total_pnl": round(total_pnl, 4),
+        "reason":    reason,
+        "details":   details,
+    }
+
 
 def paper_execute_signal(signal: dict) -> tuple:
     if signal["action"] != "BUY":
