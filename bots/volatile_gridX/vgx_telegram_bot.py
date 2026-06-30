@@ -24,10 +24,30 @@ from telegram.ext import (
 from . import storage
 from .config import TRADE_AMOUNT, BOT_TOKEN
 from .circuit_breaker import get_breaker_status
-from .risk_engine import get_risk_status
+from .risk_engine import check_cooldown, market_intelligence
+import bots.volatile_gridX.risk_engine as _risk_engine_mod
 from .market_data import get_cached_price_safe
 
 logger = logging.getLogger("vgx_telegram_bot")
+
+
+def _get_risk_status() -> dict:
+    """
+    Assemble a risk-status dict from the real risk_engine primitives.
+    Provides the same shape that safety_cmd() reads so its display logic
+    needs no changes.
+    """
+    cd_active, _ = check_cooldown()
+    market = market_intelligence()
+    return {
+        "market_regime":   market.get("regime", "UNKNOWN"),
+        "trading_allowed": not cd_active,
+        "cooldown": {
+            "active":      cd_active,
+            "loss_streak": _risk_engine_mod.loss_streak,
+        },
+    }
+
 
 # ============================================================
 # CONFIGURATION
@@ -253,7 +273,7 @@ async def safety_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     """
     try:
         breaker = get_breaker_status()
-        risk = get_risk_status()
+        risk = _get_risk_status()
         
         # Kill switches
         trading_enabled = os.getenv("TRADING_ENABLED", "true").lower() == "true"
@@ -352,6 +372,36 @@ async def run_vgx_bot():
     # Keep running
     while True:
         await asyncio.sleep(3600)
+
+
+# ============================================================
+# LIFESPAN HOOKS — used by app.py alongside scanner/mtb/pmb bots
+# ============================================================
+
+_VGX_TG_TASK = None
+_VGX_TG_APP = None
+
+
+async def startup_event() -> None:
+    global _VGX_TG_TASK
+    app = create_vgx_bot()
+    if app is None:
+        logger.warning("VGX Telegram bot not started — no token")
+        return
+    await app.initialize()
+    await app.start()
+    await app.updater.start_polling(drop_pending_updates=True)
+    globals()["_VGX_TG_APP"] = app
+    logger.info("VGX Telegram bot started")
+
+
+async def shutdown_event() -> None:
+    app = globals().get("_VGX_TG_APP")
+    if app is not None:
+        await app.updater.stop()
+        await app.stop()
+        await app.shutdown()
+        logger.info("VGX Telegram bot stopped")
 
 
 # ============================================================
