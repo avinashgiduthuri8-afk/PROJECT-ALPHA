@@ -1,20 +1,6 @@
 {
   "signals": [
     {
-      "coin": "LUMIA",
-      "market_state": "breakout",
-      "opportunity_type": "momentum_trade",
-      "priority": "Medium",
-      "score": 70,
-      "confidence": 63,
-      "tier": "PREMIUM",
-      "final_score": 65,
-      "risk_level": "high",
-      "price": 12.541,
-      "coin_class": "C",
-      "timestamp": "2026-06-23T11:49:52.911855+00:00"
-    },
-    {
       "coin": "LAYER",
       "market": "INR",
       "market_state": "breakout",
