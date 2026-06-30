@@ -284,6 +284,17 @@ def close_position(symbol: str, exit_price: float, reason: str = "MANUAL") -> di
     logger.info("Position closed: MTB %s %s @ %.6f  pnl=%.4f  return=%.2f%%",
                 reason, symbol, exit_price, pnl, return_pct)
     logger.debug("close_position: lock released for %s", symbol)
+
+    # Notify outside the lock (I/O, never blocks state)
+    pnl_emoji = "🟢" if pnl >= 0 else "🔴"
+    _send_tg(
+        f"{pnl_emoji} <b>MTB {reason}</b>\n"
+        f"Coin: <b>{target.get('coin', symbol.replace('USDT', ''))}</b>\n"
+        f"Exit: {exit_price:,.2f}  Entry: {float(target.get('entry_price', 0)):,.2f}\n"
+        f"PnL: ₹{pnl:,.2f}  Return: {return_pct:,.2f}%\n"
+        f"Qty: {qty:,.6f}"
+    )
+
     return {"ok": True, "position": target}
 
 

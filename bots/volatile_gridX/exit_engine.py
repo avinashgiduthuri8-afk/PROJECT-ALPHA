@@ -8,6 +8,7 @@ from datetime import datetime
 from .config import PHASE5
 from . import storage
 from .market_data import get_cached_price_safe
+from .alerts import dispatch_alert_payload, format_telegram_alert
 
 
 # ============================================================
@@ -253,6 +254,20 @@ def auto_sell():
             trade_entry
 
         )
+
+        # Telegram alert outside any lock (I/O, never blocks state)
+        pnl_emoji = "🟢" if pnl >= 0 else "🔴"
+        alert_msg = format_telegram_alert(
+            f"VGX AUTO SELL — {reason}",
+            coin,
+            "WARNING" if pnl < 0 else "INFO",
+            (
+                f"Exit: {current_price:,.2f}  Entry: {float(pos.get('buy_price', 0)):,.2f}\n"
+                f"PnL: ₹{pnl:,.2f}  Return: {((pnl / invested) * 100):,.2f}%\n"
+                f"Qty: {qty:,.6f}  Source: {source}"
+            )
+        )
+        dispatch_alert_payload(alert_msg)
 
     storage.save_data()
 

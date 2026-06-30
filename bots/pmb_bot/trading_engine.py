@@ -327,6 +327,17 @@ def execute_partial_sell(position: dict, current_price: float) -> dict:
 
     logger.info("PMB PARTIAL_SELL #%d: %s @ %.6f  pnl=%.4f", sell_count, position["coin"], current_price, pnl)
     logger.debug("execute_partial_sell: lock released for %s", position.get("coin", "?"))
+
+    # Notify outside the lock (I/O, never blocks state)
+    pnl_emoji = "🟢" if pnl >= 0 else "🔴"
+    _send_tg(
+        f"{pnl_emoji} <b>PMB PARTIAL SELL #{sell_count}</b>\n"
+        f"Coin: <b>{position['coin']}</b>\n"
+        f"Price: {current_price:,.2f}  Sold Qty: {qty_to_sell:,.6f}\n"
+        f"PnL: ₹{pnl:,.2f}  Remaining Qty: {new_qty:,.6f}\n"
+        f"Status: {'CLOSED' if new_qty <= 0 else 'OPEN'}"
+    )
+
     return {"ok": True, "position": position, "pnl": pnl}
 
 
@@ -384,6 +395,17 @@ def execute_stop_loss(position: dict, current_price: float) -> dict:
 
     logger.warning("PMB STOP_LOSS: %s @ %.6f  pnl=%.4f", position["coin"], current_price, pnl)
     logger.debug("execute_stop_loss: lock released for %s", position.get("coin", "?"))
+
+    # Notify outside the lock (I/O, never blocks state)
+    pnl_emoji = "🟢" if pnl >= 0 else "🔴"
+    _send_tg(
+        f"{pnl_emoji} <b>PMB STOP LOSS</b>\n"
+        f"Coin: <b>{position['coin']}</b>\n"
+        f"Exit: {current_price:,.2f}  Avg Entry: {float(position.get('avg_entry_price', 0)):,.2f}\n"
+        f"PnL: ₹{pnl:,.2f}  Invested: ₹{cost:,.2f}\n"
+        f"Qty: {qty:,.6f}"
+    )
+
     return {"ok": True, "position": position, "pnl": pnl}
 
 
