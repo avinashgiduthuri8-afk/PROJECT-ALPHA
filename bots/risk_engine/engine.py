@@ -42,7 +42,8 @@ def _load_bot_positions(bot: str) -> list[dict]:
             from bots.mtb_bot.storage import get_open_positions
             return get_open_positions()
         if bot == "VGX":
-            return []
+            from bots.volatile_gridX.storage import get_open_positions
+            return get_open_positions()
     except Exception as exc:
         logger.warning("Risk engine could not load %s positions: %s", bot, exc)
     return []
@@ -89,7 +90,7 @@ def check_trade_allowed(bot: str, amount: float) -> RiskDecision:
 
     bot_positions    = _load_bot_positions(bot)
     bot_deployed     = _deployed_capital(bot_positions)
-    bot_limit        = BOT_CAPITAL_LIMIT.get(bot, TOTAL_CAPITAL_LIMIT)
+    bot_limit        = BOT_CAPITAL_LIMIT.get(bot, 0)
     if bot_deployed + amount > bot_limit:
         return RiskDecision(False, "BOT_CAPITAL_LIMIT_EXCEEDED",
                             f"{bot} deployed={bot_deployed:.0f} + {amount:.0f} "

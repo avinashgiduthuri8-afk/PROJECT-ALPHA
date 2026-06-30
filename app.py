@@ -1,7 +1,8 @@
 import json
 import os
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.security import APIKeyHeader
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -127,6 +128,30 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 
+# ═══════════════════════════════════════════════════════════════
+#  API KEY AUTH — fail-closed
+# ═══════════════════════════════════════════════════════════════
+
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+DASHBOARD_API_KEY = os.getenv("DASHBOARD_API_KEY")
+
+if not DASHBOARD_API_KEY:
+    async def require_api_key(api_key: str = Depends(api_key_header)) -> str:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="DASHBOARD_API_KEY environment variable is not set",
+        )
+else:
+    async def require_api_key(api_key: str = Depends(api_key_header)) -> str:
+        if api_key != DASHBOARD_API_KEY:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Invalid or missing X-API-Key header",
+            )
+        return api_key
+
+
 @asynccontextmanager
 async def _app_lifespan(app: FastAPI):
     """Root dashboard lifespan — starts all bot background tasks."""
@@ -141,7 +166,11 @@ async def _app_lifespan(app: FastAPI):
     # scanner shutdown handled by its own _do_shutdown_save in scanner_main
 
 
-app = FastAPI(title="PROJECT-ALPHA ULTIMATE DASHBOARD Framework", lifespan=_app_lifespan)
+app = FastAPI(
+    title="PROJECT-ALPHA ULTIMATE DASHBOARD Framework",
+    lifespan=_app_lifespan,
+    dependencies=[Depends(require_api_key)],
+)
 
 # Mount all /api/v1/scanner/* routes from the scanner bot into the dashboard app.
 app.include_router(scanner_router)
@@ -417,7 +446,7 @@ def pull_state_payload():
         },
     }
   
-@app.get("/", response_class=HTMLResponse)
+@app.get("/", response_class=HTMLResponse, dependencies=[])
 async def viewport_router(request: Request):
 
     state = pull_state_payload()

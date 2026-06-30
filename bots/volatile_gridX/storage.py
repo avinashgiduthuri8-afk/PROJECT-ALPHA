@@ -219,3 +219,37 @@ def save_data():
     storage_state["last_sync"] = time.time()
 
     storage_state["sync_count"] += 1
+
+
+def get_open_positions() -> list[dict]:
+    """Return current open VGX positions as list[dict] for risk-engine deployed-capital checks.
+
+    Each dict carries at least one of the keys _deployed_capital() expects:
+    ('total_invested', 'total_cost', 'amount', 'trade_amount').
+    """
+    data: dict = {}
+    try:
+        if _verify_file(STORAGE_FILE):
+            with open(STORAGE_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        pass
+
+    positions_dict = data.get("positions", {})
+    if not isinstance(positions_dict, dict):
+        return []
+
+    result = []
+    for key, p in positions_dict.items():
+        if not isinstance(p, dict):
+            continue
+        entry = {
+            "coin":            p.get("coin", key.split("_")[0] if "_" in key else key),
+            "buy_price":       p.get("buy_price", 0),
+            "qty":             p.get("qty", 0),
+            "amount":          p.get("amount", 0),
+            "trade_amount":    p.get("amount", 0),
+            "trailing_active": p.get("trailing_active", False),
+        }
+        result.append(entry)
+    return result

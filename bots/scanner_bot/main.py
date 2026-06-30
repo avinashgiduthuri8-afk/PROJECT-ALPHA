@@ -274,7 +274,7 @@ scanner_router = APIRouter()
 # 1. Health endpoint
 # ---------------------------------------------------------------------------
 
-@scanner_router.get("/health")
+@scanner_router.get("/health", dependencies=[])
 async def health():
     return {
         "status":  "healthy",
@@ -289,7 +289,7 @@ async def health():
 
 _MTB_PRIORITIES = {"Elite", "High", "Medium"}
 
-@scanner_router.get("/api/v1/scanner/signals")
+@scanner_router.get("/api/v1/scanner/signals", dependencies=[])
 async def scanner_signals(strategy: str = Query(default="MTB")):
     """
     Returns MTB-ready signals filtered to Elite / High / Medium priority only.
