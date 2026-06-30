@@ -72,13 +72,13 @@ async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     """
     try:
         stats = get_stats() or {}
-        signals = get_signals() or []
-        live_signals = get_live_signals() or []
+        signals = get_signals() or {}
+        live_signals = get_live_signals() or {}
         watchlist = get_watchlist() or {}
-        
-        # Determine status
-        total_signals = len(signals)
-        live_count = len(live_signals)
+
+        # Determine status — unwrap wrapped dict {"signals": [...]}
+        total_signals = len(signals.get("signals", []))
+        live_count = len(live_signals.get("signals", []))
         coins_watching = len(watchlist.get("coins", []))
         last_scan = stats.get("last_scan_time", "Unknown")
         total_scans = stats.get("total_scans", 0)
@@ -112,9 +112,9 @@ async def signals_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     Show current active signals.
     """
     try:
-        signals = get_signals() or []
-        live_signals = get_live_signals() or []
-        
+        signals = (get_signals() or {}).get("signals", [])
+        live_signals = (get_live_signals() or {}).get("signals", [])
+
         if not signals and not live_signals:
             await update.message.reply_text("📭 No active signals at the moment.")
             return
@@ -182,9 +182,9 @@ async def health_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         market_coins = len(market_state) if isinstance(market_state, dict) else 0
         
         # Signal breakdown
-        elite_count = signal_stats.get("elite", 0)
-        high_count = signal_stats.get("high", 0)
-        medium_count = signal_stats.get("medium", 0)
+        elite_count = signal_stats.get("elite_signals", 0)
+        high_count = signal_stats.get("high_signals", 0)
+        medium_count = signal_stats.get("medium_signals", 0)
         
         # Health score
         health_score = min(100, int(success_rate))
@@ -230,15 +230,10 @@ async def refresh_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     """
     try:
         await update.message.reply_text("🔄 Refreshing scanner data...")
-        
-        # Trigger scanner refresh by re-fetching data
-        import bots.scanner_bot.main as scanner_main
-        
-        # Get fresh data
-        signals = scanner_main.get_signals()
-        stats = scanner_main.get_stats()
-        
-        signal_count = len(signals) if signals else 0
+
+        signals = (get_signals() or {}).get("signals", [])
+        stats = get_stats() or {}
+        signal_count = len(signals)
         
         await update.message.reply_text(
             f"✅ *Scanner Refreshed*\n\n"
@@ -301,6 +296,36 @@ async def run_scanner_bot():
     # Keep running
     while True:
         await asyncio.sleep(3600)
+
+
+# ============================================================
+# LIFESPAN HOOKS — used by app.py alongside vgx/mtb/pmb bots
+# ============================================================
+
+_SCANNER_TG_TASK = None
+_SCANNER_TG_APP = None
+
+
+async def startup_event() -> None:
+    global _SCANNER_TG_TASK
+    app = create_scanner_bot()
+    if app is None:
+        logger.warning("Scanner Telegram bot not started — no token")
+        return
+    await app.initialize()
+    await app.start()
+    await app.updater.start_polling(drop_pending_updates=True)
+    globals()["_SCANNER_TG_APP"] = app
+    logger.info("Scanner Telegram bot started")
+
+
+async def shutdown_event() -> None:
+    app = globals().get("_SCANNER_TG_APP")
+    if app is not None:
+        await app.updater.stop()
+        await app.stop()
+        await app.shutdown()
+        logger.info("Scanner Telegram bot stopped")
 
 
 # ============================================================

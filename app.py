@@ -18,6 +18,7 @@ from bots.scanner_bot.main import scanner_router
 import bots.mtb_bot.main as mtb_main
 import bots.pmb_bot.main as pmb_main
 import bots.volatile_gridX.main as vgx_main
+import bots.scanner_bot.telegram_bot as scanner_tg
 from bots.mtb_bot.storage import snapshot as mtb_snapshot
 from bots.pmb_bot.storage import snapshot as pmb_snapshot
 from bots.risk_engine.engine import snapshot as risk_snapshot
@@ -179,7 +180,9 @@ async def _app_lifespan(app: FastAPI):
     await mtb_main.startup_event()
     await pmb_main.startup_event()
     await vgx_main.startup_event()
+    await scanner_tg.startup_event()
     yield
+    await scanner_tg.shutdown_event()
     await vgx_main.shutdown_event()
     await pmb_main.shutdown_event()
     await mtb_main.shutdown_event()
@@ -409,7 +412,7 @@ async def pull_state_payload():
             "vgx":          (await _cached_snapshot("vgx", vgx_snapshot)).get("status", "OFFLINE"),
             "mtb":          "ONLINE" if getattr(mtb_main, "_MTB_TASK", None) and not getattr(mtb_main, "_MTB_TASK").done() else "OFFLINE",
             "pmb":          "ONLINE" if getattr(pmb_main, "_PMB_TASK", None) and not getattr(pmb_main, "_PMB_TASK").done() else "OFFLINE",
-            "telegram_bot": "ONLINE",
+            "telegram_bot": "ONLINE" if scanner_tg._SCANNER_TG_APP is not None else "OFFLINE",
         },
 
         "railway_monitoring": {
