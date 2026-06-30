@@ -2687,3 +2687,13 @@ ValueError: invalid candle data
 2026-06-30 10:39:17,040 INFO scanner_bot: Updated 3 signal performance checkpoints
 2026-06-30 10:39:37,697 INFO scanner_bot: Storage ready: /home/runner/workspace/bots/scanner_bot/data
 2026-06-30 10:39:38,485 INFO scanner_bot: Bootstrap: fetching current tickers to build coin list...
+2026-06-30 10:48:08,997 INFO scanner_bot: Storage ready: /home/runner/workspace/bots/scanner_bot/data
+2026-06-30 10:48:09,792 INFO scanner_bot: Bootstrap: fetching current tickers to build coin list...
+2026-06-30 10:48:09,879 INFO scanner_bot: Bootstrap: loading history for 78 coins
+2026-06-30 10:48:09,879 INFO scanner_bot: [Bootstrap] Starting — coins=78 concurrency=30 min_candles=21
+2026-06-30 10:48:09,971 WARNING scanner_bot: Bootstrap: coin=ETH — all pairs failed, no history loaded
+2026-06-30 10:48:09,972 WARNING scanner_bot: Bootstrap: coin=DASH — all pairs failed, no history loaded
+2026-06-30 10:48:09,980 WARNING scanner_bot: Bootstrap: coin=SOL — all pairs failed, no history loaded
+2026-06-30 10:48:09,985 WARNING scanner_bot: Bootstrap: coin=ADA — all pairs failed, no history loaded
+2026-06-30 10:48:09,987 WARNING scanner_bot: Bootstrap: coin=LTC — all pairs failed, no history loaded
+2026-06-30 10:48:09,991 WARNING scanner_bot: Bootstrap: coin=XRP — all pairs failed, no history loaded
