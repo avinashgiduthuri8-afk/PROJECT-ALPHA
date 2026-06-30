@@ -8245,6 +8245,117 @@
           "change_percent": -15.46321400247146
         }
       }
+    },
+    {
+      "id": "BTC-1782812314-candidate",
+      "timestamp": "2026-06-30T09:38:34.517436+00:00",
+      "coin": "BTC",
+      "category": "Candidate",
+      "score": 65,
+      "signal_price": 50000.0,
+      "reasons": [
+        "EMA crossover",
+        "Volume spike"
+      ],
+      "model_version": "vTest",
+      "phase5": {
+        "trend_quality": 10,
+        "pullback_quality": 5,
+        "momentum": 8,
+        "risk_reward": 12,
+        "total": 35
+      },
+      "final_score": 55,
+      "coin_class": "A",
+      "market_state": "bull_trend",
+      "opportunity_type": "continuation",
+      "opp_confidence": 75,
+      "opportunity_score": 72,
+      "priority": "High",
+      "risk_level": "low",
+      "historical_score": {
+        "trend_7d": 12,
+        "trend_30d": 12,
+        "trend_90d": 12,
+        "sr_quality": 12,
+        "hist_vol": 12,
+        "total": 60
+      },
+      "evaluations": {}
+    },
+    {
+      "id": "ETH-1782812314-candidate",
+      "timestamp": "2026-06-30T09:38:34.517458+00:00",
+      "coin": "ETH",
+      "category": "Candidate",
+      "score": 65,
+      "signal_price": 50000.0,
+      "reasons": [
+        "EMA crossover",
+        "Volume spike"
+      ],
+      "model_version": "vTest",
+      "phase5": {
+        "trend_quality": 10,
+        "pullback_quality": 5,
+        "momentum": 8,
+        "risk_reward": 12,
+        "total": 35
+      },
+      "final_score": 55,
+      "coin_class": "A",
+      "market_state": "bull_trend",
+      "opportunity_type": "continuation",
+      "opp_confidence": 75,
+      "opportunity_score": 72,
+      "priority": "High",
+      "risk_level": "low",
+      "historical_score": {
+        "trend_7d": 12,
+        "trend_30d": 12,
+        "trend_90d": 12,
+        "sr_quality": 12,
+        "hist_vol": 12,
+        "total": 60
+      },
+      "evaluations": {}
+    },
+    {
+      "id": "A-1782812314-candidate",
+      "timestamp": "2026-06-30T09:38:34.548951+00:00",
+      "coin": "A",
+      "category": "Candidate",
+      "score": 65,
+      "signal_price": 50000.0,
+      "reasons": [
+        "EMA crossover",
+        "Volume spike"
+      ],
+      "model_version": "vTest",
+      "phase5": {
+        "trend_quality": 10,
+        "pullback_quality": 5,
+        "momentum": 8,
+        "risk_reward": 12,
+        "total": 35
+      },
+      "final_score": 55,
+      "coin_class": "A",
+      "market_state": "bull_trend",
+      "opportunity_type": "continuation",
+      "opp_confidence": 75,
+      "opportunity_score": 72,
+      "priority": "High",
+      "risk_level": "low",
+      "historical_score": {
+        "trend_7d": 12,
+        "trend_30d": 12,
+        "trend_90d": 12,
+        "sr_quality": 12,
+        "hist_vol": 12,
+        "total": 60
+      },
+      "evaluations": {}
     }
   ]
 }

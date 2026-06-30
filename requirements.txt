@@ -16,3 +16,5 @@ python-telegram-bot
 requests
 uvicorn
 yfinance
+httpx
+pytest
