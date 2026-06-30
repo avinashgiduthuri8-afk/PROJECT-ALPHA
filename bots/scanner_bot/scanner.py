@@ -11,7 +11,9 @@ import asyncio
 import json
 import logging
 import os
+import re
 import shutil
+import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -89,15 +91,43 @@ EMA_FAST_PERIOD     = 9
 EMA_SLOW_PERIOD     = 21
 PRICE_HISTORY_LIMIT = 120
 
-MTF_5M_WINDOW  = int(os.getenv("MTF_5M_WINDOW",  "10"))
-MTF_15M_WINDOW = int(os.getenv("MTF_15M_WINDOW", "24"))
-MTF_1H_WINDOW  = int(os.getenv("MTF_1H_WINDOW",  "48"))
+# BUG-23: MTF window env vars are read and validated here.
+# A value of 0 causes prices[-0:] to return the full list (not an empty slice),
+# making all three timeframes identical and producing silent incorrect behaviour.
+# A value of 1 makes _frame_bullish's len(slice_prices) < 2 guard always fire.
+# Minimum valid window is 2. Values below their defaults are warned at startup.
+_MTF_5M_WINDOW_MIN  = 2
+_MTF_15M_WINDOW_MIN = 2
+_MTF_1H_WINDOW_MIN  = 2
+
+def _validated_mtf_window(env_var: str, default: int, minimum: int) -> int:
+    raw = int(os.getenv(env_var, str(default)))
+    if raw < minimum:
+        logger.warning(
+            "[Config] %s=%d is below minimum %d — clamping to %d",
+            env_var, raw, minimum, minimum,
+        )
+        return minimum
+    if raw < default:
+        logger.warning(
+            "[Config] %s=%d is below recommended default %d",
+            env_var, raw, default,
+        )
+    return raw
+
+MTF_5M_WINDOW  = _validated_mtf_window("MTF_5M_WINDOW",  10, _MTF_5M_WINDOW_MIN)
+MTF_15M_WINDOW = _validated_mtf_window("MTF_15M_WINDOW", 24, _MTF_15M_WINDOW_MIN)
+MTF_1H_WINDOW  = _validated_mtf_window("MTF_1H_WINDOW",  48, _MTF_1H_WINDOW_MIN)
 
 MOMENTUM_THRESHOLD_PERCENT = 3.0
 VOLUME_SPIKE_MULTIPLIER    = 2.0
 VOLUME_AVERAGE_PERIOD      = 20
 VOLATILITY_LOOKBACK        = 20
 VOLATILITY_SPIKE_MULTIPLIER = 1.8
+# BUG-19: minimum history needed for a reliable volatility baseline.
+# baseline window = prices[-(VOLATILITY_LOOKBACK*2+1):-VOLATILITY_LOOKBACK]
+# requires at least VOLATILITY_LOOKBACK*2+1 ticks to be non-degenerate.
+VOLATILITY_MIN_HISTORY = VOLATILITY_LOOKBACK * 2 + 1  # 41
 
 EVALUATION_HORIZONS = {
     "1h":  60 * 60,
@@ -189,6 +219,40 @@ ensure_storage_files()
 # =============================================================================
 # WATCHLIST STORAGE
 # =============================================================================
+
+# BUG-25/26/30: centralized coin-symbol validation, shared by the watchlist
+# API endpoint (main.py) and anything else that needs to validate a coin
+# symbol before it reaches WatchlistStore.add(). Single source of truth so
+# validation rules cannot drift or be duplicated across call sites.
+COIN_SYMBOL_MAX_LENGTH = 10
+_COIN_SYMBOL_RE = re.compile(r"^[A-Z0-9]+$")
+
+
+def validate_coin_symbol(raw: str) -> tuple[bool, str, str]:
+    """
+    Normalize and validate a coin symbol.
+
+    Returns (is_valid, normalized_symbol, reason).
+    - is_valid=True  → normalized_symbol is safe to store; reason=""
+    - is_valid=False → normalized_symbol is the best-effort normalized form
+      (for error reporting); reason explains why it was rejected.
+
+    Rules:
+    - Trimmed and uppercased before validation.
+    - Must be non-empty after trimming (BUG-25).
+    - Must contain only A-Z and 0-9 (BUG-26/30) — rejects '/', '-', ';',
+      '$', '@', internal spaces, and any other punctuation.
+    - Must be at most COIN_SYMBOL_MAX_LENGTH characters (BUG-26).
+    """
+    normalized = raw.strip().upper()
+    if not normalized:
+        return False, "", "invalid_coin"
+    if len(normalized) > COIN_SYMBOL_MAX_LENGTH:
+        return False, normalized, "invalid_coin"
+    if not _COIN_SYMBOL_RE.match(normalized):
+        return False, normalized, "invalid_coin"
+    return True, normalized, ""
+
 
 class WatchlistStore:
     def __init__(self, path: str = WATCHLIST_FILE):
@@ -319,8 +383,14 @@ def volatility(prices: list) -> float:
 
 
 def trend_summary(history: list) -> dict:
-    if len(history) < 2:
-        return {"trend": "warming up", "move_percent": 0.0}
+    # BUG-24: the original gate (< 2) allowed EMA(9) and EMA(21) to run on as
+    # few as 2 ticks. Both EMAs seed from prices[0] and the faster multiplier
+    # always diverges upward first on any rising pair, producing a spurious
+    # 'uptrend' result. Use ANALYZE_MIN_HISTORY (EMA_SLOW_PERIOD + 1 = 22) so
+    # the EMA has enough data to be meaningful before reporting a direction.
+    # Return 'neutral' (not 'warming up') to signal insufficient history clearly.
+    if len(history) < ANALYZE_MIN_HISTORY:
+        return {"trend": "neutral", "move_percent": 0.0}
     prices = [item["price"] for item in history]
     lookback = min(10, len(prices) - 1)
     move = percent_change(prices[-lookback - 1], prices[-1])
@@ -390,6 +460,8 @@ def _sr_quality_score(closes: list, current_price: float, max_pts: int = 25) -> 
     band = 0.015
     levels: list = []
     for ref in closes:
+        if ref <= 0:          # BUG-17: skip zero/negative closes — would cause ZeroDivisionError
+            continue
         touches = sum(1 for c in closes if abs(c - ref) / ref <= band)
         if touches >= 3 and not any(abs(ref - lv) / ref <= band for lv in levels):
             levels.append(ref)
@@ -432,29 +504,50 @@ class HistoricalPatternScore:
 
 
 def historical_pattern_score(coin: str, current_price: float) -> HistoricalPatternScore:
-    candles: list = []
-    for pair in _coin_to_pair(coin):
-        candles = _fetch_daily_candles(pair, days=95)
-        if candles:
-            break
-    if not candles:
-        return HistoricalPatternScore(12, 12, 12, 12, 12, 60)
-    candles = sorted(candles, key=lambda c: c.get("time", 0))
-    closes  = [float(c.get("close", c.get("c", 0))) for c in candles if c.get("close", c.get("c", 0))]
-    if len(closes) < 5:
-        return HistoricalPatternScore(12, 12, 12, 12, 12, 60)
-    trend_7d   = _trend_score_from_closes(closes[-7:]  if len(closes) >= 7  else closes)
-    trend_30d  = _trend_score_from_closes(closes[-30:] if len(closes) >= 30 else closes)
-    trend_90d  = _trend_score_from_closes(closes[-90:] if len(closes) >= 90 else closes)
-    sr_quality = _sr_quality_score(closes, current_price)
-    hist_vol   = _hist_vol_score(closes[-90:] if len(closes) >= 90 else closes)
-    t7  = int(_clamp(trend_7d,   0, 25))
-    t30 = int(_clamp(trend_30d,  0, 25))
-    t90 = int(_clamp(trend_90d,  0, 25))
-    sr  = int(_clamp(sr_quality, 0, 25))
-    hv  = int(_clamp(hist_vol,   0, 25))
-    total = int(_clamp(t7 + t30 + t90 + sr + hv, 0, 100))
-    return HistoricalPatternScore(trend_7d=t7, trend_30d=t30, trend_90d=t90, sr_quality=sr, hist_vol=hv, total=total)
+    # BUG-20: wrap the entire computation in a try/except so that any unexpected
+    # exception (e.g. malformed candle data, future API changes) cannot propagate
+    # into analyze_coin → _scan_ticker → _scan_many. Log clearly and return neutral.
+    _NEUTRAL = HistoricalPatternScore(12, 12, 12, 12, 12, 60)
+    try:
+        candles: list = []
+        for pair in _coin_to_pair(coin):
+            candles = _fetch_daily_candles(pair, days=95)
+            if candles:
+                break
+        if not candles:
+            return _NEUTRAL
+        candles = sorted(candles, key=lambda c: c.get("time", 0))
+        # BUG-17: explicitly exclude <= 0 after float conversion — string '0.0' is truthy
+        # but becomes 0.0 after float(), which causes ZeroDivisionError in _sr_quality_score
+        closes  = [
+            v for c in candles
+            if (v := float(c.get("close", c.get("c", 0)) or 0)) > 0
+        ]
+        if len(closes) < 5:
+            return _NEUTRAL
+        trend_7d   = _trend_score_from_closes(closes[-7:]  if len(closes) >= 7  else closes)
+        trend_30d  = _trend_score_from_closes(closes[-30:] if len(closes) >= 30 else closes)
+        trend_90d  = _trend_score_from_closes(closes[-90:] if len(closes) >= 90 else closes)
+        sr_quality = _sr_quality_score(closes, current_price)
+        hist_vol   = _hist_vol_score(closes[-90:] if len(closes) >= 90 else closes)
+        t7  = int(_clamp(trend_7d,   0, 25))
+        t30 = int(_clamp(trend_30d,  0, 25))
+        t90 = int(_clamp(trend_90d,  0, 25))
+        sr  = int(_clamp(sr_quality, 0, 25))
+        hv  = int(_clamp(hist_vol,   0, 25))
+        total = int(_clamp(t7 + t30 + t90 + sr + hv, 0, 100))
+        return HistoricalPatternScore(trend_7d=t7, trend_30d=t30, trend_90d=t90, sr_quality=sr, hist_vol=hv, total=total)
+    except Exception as exc:
+        # BUG-20: log coin, actual exception type, and message explicitly
+        # so diagnostics are visible even when traceback output is suppressed.
+        logger.error(
+            "[HistScore] coin=%s exception_type=%s message=%s — returning neutral score",
+            coin,
+            type(exc).__name__,
+            exc,
+            exc_info=True,
+        )
+        return _NEUTRAL
 
 
 def get_historical_performance(coin: str) -> dict:
@@ -490,31 +583,69 @@ def get_historical_performance(coin: str) -> dict:
 
 
 # =============================================================================
-# BOOTSTRAP
+# BOOTSTRAP  (SP1.1 — Historical Data Bootstrap & Recovery)
 # =============================================================================
 
 BOOTSTRAP_CANDLES_URL = COINDCX_CANDLES_URL
 BOOTSTRAP_INTERVAL    = "5m"
 BOOTSTRAP_LIMIT       = PRICE_HISTORY_LIMIT
 
-_READY_EMA    = EMA_SLOW_PERIOD
-_READY_MTF_5M = MTF_5M_WINDOW
-_READY_MTF_15 = MTF_15M_WINDOW
-_READY_MTF_1H = MTF_1H_WINDOW
+_READY_EMA    = EMA_SLOW_PERIOD       # 21 — minimum ticks for EMA calculation
+_READY_MTF_5M = MTF_5M_WINDOW         # 10
+_READY_MTF_15 = MTF_15M_WINDOW        # 24
+_READY_MTF_1H = MTF_1H_WINDOW         # 48
 _READY_P5     = 20
+
+# BUG-18: minimum history required before phase5_score() may run EMA calculations.
+# EMA(21) needs at least EMA_SLOW_PERIOD ticks to produce a meaningful value.
+PHASE5_MIN_HISTORY = EMA_SLOW_PERIOD  # 21
+
+# BUG-16: minimum history required before analyze_coin() may produce signals.
+# EMA(21) needs EMA_SLOW_PERIOD ticks + 1 to allow a crossover comparison
+# (needs fast[-2]/slow[-2] vs fast[-1]/slow[-1]), and the volume baseline
+# needs VOLUME_AVERAGE_PERIOD + 1 ticks (21). EMA_SLOW_PERIOD + 1 = 22
+# satisfies both.
+ANALYZE_MIN_HISTORY = EMA_SLOW_PERIOD + 1  # 22
+
+# Minimum useful candle count: must be enough for at least EMA gate.
+# Histories shorter than this are treated as failed downloads.
+_BOOTSTRAP_MIN_CANDLES = _READY_EMA   # 21
+
+# Per-coin retry policy for bootstrap candle downloads.
+_BOOTSTRAP_MAX_RETRIES    = 3
+_BOOTSTRAP_RETRY_DELAY_S  = 2.0       # seconds between retries
 
 
 @dataclass
 class BootstrapResult:
+    """
+    Summary produced by bootstrap_price_history().
+
+    Fields
+    ------
+    coins_attempted : total coins fed into the bootstrap
+    coins_loaded    : coins with history >= _BOOTSTRAP_MIN_CANDLES after bootstrap
+    coins_failed    : coins that returned no usable history
+    coins_skipped   : coins already had sufficient history (skipped re-download)
+    avg_history_len : mean candle count across loaded coins
+    min_history_len : minimum candle count across loaded coins
+    ema_ready       : True if min_history_len >= _READY_EMA
+    mtf_ready       : True if min_history_len >= _READY_MTF_1H
+    phase5_ready    : True if min_history_len >= _READY_P5
+    duration_s      : wall-clock seconds for the full bootstrap
+    failed_coins    : list[str] of coins that could not be loaded
+    """
     coins_attempted: int = 0
     coins_loaded:    int = 0
     coins_failed:    int = 0
+    coins_skipped:   int = 0
     avg_history_len: float = 0.0
+    min_history_len: int   = 0
     ema_ready:       bool = False
     mtf_ready:       bool = False
     phase5_ready:    bool = False
     duration_s:      float = 0.0
-    failed_coins:    list = None
+    failed_coins:    list = None   # list[str]
 
     def __post_init__(self):
         if self.failed_coins is None:
@@ -523,14 +654,16 @@ class BootstrapResult:
     def summary_lines(self) -> list:
         return [
             "[Bootstrap] Startup history pre-load complete",
-            f"  Coins attempted : {self.coins_attempted}",
-            f"  Successfully loaded : {self.coins_loaded}",
-            f"  Failed          : {self.coins_failed}",
-            f"  Avg history len : {self.avg_history_len:.1f} ticks",
-            f"  Ready for EMA   : {'YES' if self.ema_ready else 'NO'}",
-            f"  Ready for MTF   : {'YES' if self.mtf_ready else 'NO'}",
-            f"  Ready for Phase5: {'YES' if self.phase5_ready else 'NO'}",
-            f"  Duration        : {self.duration_s:.1f}s",
+            f"  Coins attempted  : {self.coins_attempted}",
+            f"  Loaded           : {self.coins_loaded}",
+            f"  Skipped (cached) : {self.coins_skipped}",
+            f"  Failed           : {self.coins_failed} ({len(self.failed_coins)} coins)",
+            f"  Avg history len  : {self.avg_history_len:.1f} ticks",
+            f"  Min history len  : {self.min_history_len} ticks",
+            f"  Ready for EMA    : {'YES' if self.ema_ready else 'NO'} (need {_READY_EMA})",
+            f"  Ready for MTF    : {'YES' if self.mtf_ready else 'NO'} (need {_READY_MTF_1H})",
+            f"  Ready for Phase5 : {'YES' if self.phase5_ready else 'NO'} (need {_READY_P5})",
+            f"  Duration         : {self.duration_s:.1f}s",
         ]
 
 
@@ -540,25 +673,98 @@ def _bootstrap_pair_candidates(coin: str) -> list:
 
 
 def _fetch_bootstrap_candles(coin: str) -> list:
+    """
+    Download bootstrap candles for *coin*, trying INR then USDT pairs.
+
+    SP1.1 fixes applied:
+    - Retries each pair up to _BOOTSTRAP_MAX_RETRIES times on network/timeout errors.
+    - Logs each retry attempt with attempt number and error.
+    - Accepts only data with >= _BOOTSTRAP_MIN_CANDLES entries (not just >= 2).
+    - Distinguishes between empty-response (API OK, no data) and network errors.
+    - Returns [] only after all pairs and all retries are exhausted.
+    """
     for pair, _quote in _bootstrap_pair_candidates(coin):
-        try:
-            resp = requests.get(
-                BOOTSTRAP_CANDLES_URL,
-                params={"pair": pair, "interval": BOOTSTRAP_INTERVAL, "limit": BOOTSTRAP_LIMIT},
-                timeout=REQUEST_TIMEOUT_SECONDS,
-            )
-            if resp.status_code != 200:
-                continue
-            data = resp.json()
-            if isinstance(data, list) and len(data) >= 2:
+        for attempt in range(1, _BOOTSTRAP_MAX_RETRIES + 1):
+            try:
+                resp = requests.get(
+                    BOOTSTRAP_CANDLES_URL,
+                    params={
+                        "pair":     pair,
+                        "interval": BOOTSTRAP_INTERVAL,
+                        "limit":    BOOTSTRAP_LIMIT,
+                    },
+                    timeout=REQUEST_TIMEOUT_SECONDS,
+                )
+                # Non-200: log and try next pair immediately (not a retryable error)
+                if resp.status_code != 200:
+                    logger.debug(
+                        "Bootstrap: coin=%s pair=%s HTTP %d — skipping pair",
+                        coin, pair, resp.status_code,
+                    )
+                    break
+
+                data = resp.json()
+
+                # Empty or non-list response: API is up but has no data for this pair
+                if not isinstance(data, list) or len(data) == 0:
+                    logger.debug(
+                        "Bootstrap: coin=%s pair=%s empty response — skipping pair",
+                        coin, pair,
+                    )
+                    break
+
+                # Partial data: fewer candles than the minimum required for indicators
+                if len(data) < _BOOTSTRAP_MIN_CANDLES:
+                    logger.warning(
+                        "Bootstrap: coin=%s pair=%s returned only %d candles "
+                        "(need %d) — skipping pair",
+                        coin, pair, len(data), _BOOTSTRAP_MIN_CANDLES,
+                    )
+                    break
+
+                # Success
+                logger.debug(
+                    "Bootstrap: coin=%s pair=%s loaded %d candles (attempt %d/%d)",
+                    coin, pair, len(data), attempt, _BOOTSTRAP_MAX_RETRIES,
+                )
                 return data
-        except Exception:
-            logger.debug("Bootstrap candle fetch failed: coin=%s pair=%s", coin, pair, exc_info=True)
+
+            except requests.exceptions.Timeout:
+                logger.warning(
+                    "Bootstrap: coin=%s pair=%s timeout on attempt %d/%d",
+                    coin, pair, attempt, _BOOTSTRAP_MAX_RETRIES,
+                )
+            except requests.exceptions.ConnectionError as exc:
+                logger.warning(
+                    "Bootstrap: coin=%s pair=%s connection error on attempt %d/%d: %s",
+                    coin, pair, attempt, _BOOTSTRAP_MAX_RETRIES, exc,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Bootstrap: coin=%s pair=%s unexpected error on attempt %d/%d: %s",
+                    coin, pair, attempt, _BOOTSTRAP_MAX_RETRIES, exc,
+                )
+
+            # Delay before retry (not after the last attempt)
+            if attempt < _BOOTSTRAP_MAX_RETRIES:
+                time.sleep(_BOOTSTRAP_RETRY_DELAY_S)
+
+    # All pairs and retries exhausted
+    logger.warning("Bootstrap: coin=%s — all pairs failed, no history loaded", coin)
     return []
 
 
 def _candles_to_history(candles: list) -> list:
-    result = []
+    """
+    Convert raw CoinDCX candle dicts to the internal price-history format.
+
+    SP1.1 fixes applied:
+    - Deduplicates by timestamp (keeps last entry per timestamp — handles API glitches
+      where the same candle appears twice in a response).
+    - Validates close > 0 and ts_ms > 0 before inclusion (unchanged).
+    - Sorts by time and caps at PRICE_HISTORY_LIMIT (unchanged).
+    """
+    seen_ts: dict[int, dict] = {}   # ts_ms → entry; last write wins (dedup)
     for c in candles:
         try:
             close  = float(c.get("close",  c.get("c", 0)) or 0)
@@ -566,43 +772,105 @@ def _candles_to_history(candles: list) -> list:
             ts_ms  = int(c.get("time",     c.get("t", 0)) or 0)
             if close <= 0 or ts_ms <= 0:
                 continue
-            result.append({
+            seen_ts[ts_ms] = {
                 "time":   datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc),
                 "price":  close,
                 "volume": volume,
-            })
+            }
         except (TypeError, ValueError, KeyError):
             continue
-    result.sort(key=lambda x: x["time"])
+
+    result = sorted(seen_ts.values(), key=lambda x: x["time"])
     return result[-PRICE_HISTORY_LIMIT:]
 
 
-async def bootstrap_price_history(coins: list, price_history: dict, concurrency: int = BOOTSTRAP_CONCURRENCY) -> BootstrapResult:
+async def bootstrap_price_history(
+    coins: list,
+    price_history: dict,
+    concurrency: int = BOOTSTRAP_CONCURRENCY,
+) -> BootstrapResult:
+    """
+    Download 5-minute candle history for every coin in *coins* and populate
+    *price_history* in-place.
+
+    SP1.1 fixes applied:
+    - return_exceptions=True: a single coin failure no longer aborts all others.
+    - Per-coin exceptions are caught and that coin is added to failed_coins.
+    - Coins already holding >= _READY_EMA ticks are skipped (counted separately).
+    - Only histories with >= _BOOTSTRAP_MIN_CANDLES ticks are accepted as loaded.
+    - Structured log lines emitted at each stage.
+    - BootstrapResult now includes coins_skipped and min_history_len.
+    """
     import time as _time
+
     t_start = _time.monotonic()
     sem     = asyncio.Semaphore(concurrency)
-    results = {}
+    results: dict[str, list | None] = {}    # coin → history list, or None on failure
+
+    logger.info(
+        "[Bootstrap] Starting — coins=%d concurrency=%d min_candles=%d",
+        len(coins), concurrency, _BOOTSTRAP_MIN_CANDLES,
+    )
 
     async def _fetch_one(coin: str) -> None:
-        if len(price_history.get(coin, [])) >= _READY_EMA:
-            results[coin] = price_history[coin]
+        # SP1.1: coins with sufficient history are skipped (no re-download)
+        existing = price_history.get(coin, [])
+        if len(existing) >= _READY_EMA:
+            results[coin] = existing
             return
         async with sem:
             candles = await asyncio.to_thread(_fetch_bootstrap_candles, coin)
-        results[coin] = _candles_to_history(candles) if candles else None
+        history = _candles_to_history(candles) if candles else None
+        # SP1.1: reject partial histories that can't feed the EMA gate
+        if history is not None and len(history) < _BOOTSTRAP_MIN_CANDLES:
+            logger.warning(
+                "[Bootstrap] coin=%s: history too short after conversion (%d ticks, need %d) — treating as failed",
+                coin, len(history), _BOOTSTRAP_MIN_CANDLES,
+            )
+            history = None
+        results[coin] = history
 
-    await asyncio.gather(*[_fetch_one(c) for c in coins], return_exceptions=False)
+    # SP1.1: return_exceptions=True — one coin failing does NOT abort all others
+    tasks = [_fetch_one(c) for c in coins]
+    outcomes = await asyncio.gather(*tasks, return_exceptions=True)
 
-    loaded = 0; failed_coins = []; hist_lens = []
+    # Absorb any task-level exceptions (shouldn't happen since _fetch_one is
+    # guarded, but belt-and-suspenders)
+    for coin, outcome in zip(coins, outcomes):
+        if isinstance(outcome, Exception):
+            logger.error(
+                "[Bootstrap] coin=%s: unexpected task exception: %s",
+                coin, outcome, exc_info=outcome,
+            )
+            results.setdefault(coin, None)
+
+    # Tally results
+    loaded       = 0
+    failed_coins: list[str] = []
+    skipped      = 0
+    hist_lens:   list[int]  = []
+
     for coin, history in results.items():
-        if history:
+        existing_len = len(price_history.get(coin, []))
+        if history is not None and history is price_history.get(coin):
+            # Was a skip (already had enough history)
+            skipped += 1
+            hist_lens.append(existing_len)
+        elif history:
             price_history[coin] = history
             loaded += 1
             hist_lens.append(len(history))
+            logger.debug("[Bootstrap] coin=%s loaded %d ticks", coin, len(history))
         else:
             failed_coins.append(coin)
-            if len(failed_coins) <= 5:
-                logger.warning("Bootstrap failed for coin=%s", coin)
+
+    # Log failed coins (all of them, not just the first 5)
+    if failed_coins:
+        logger.warning(
+            "[Bootstrap] %d coin(s) failed to load: %s",
+            len(failed_coins),
+            ", ".join(failed_coins[:20]) + (" …" if len(failed_coins) > 20 else ""),
+        )
 
     total   = len(coins)
     avg_len = sum(hist_lens) / len(hist_lens) if hist_lens else 0.0
@@ -612,8 +880,10 @@ async def bootstrap_price_history(coins: list, price_history: dict, concurrency:
     result = BootstrapResult(
         coins_attempted = total,
         coins_loaded    = loaded,
-        coins_failed    = total - loaded,
+        coins_failed    = total - loaded - skipped,
+        coins_skipped   = skipped,
         avg_history_len = avg_len,
+        min_history_len = min_len,
         ema_ready       = min_len >= _READY_EMA,
         mtf_ready       = min_len >= _READY_MTF_1H,
         phase5_ready    = min_len >= _READY_P5,
@@ -622,7 +892,6 @@ async def bootstrap_price_history(coins: list, price_history: dict, concurrency:
     )
     for line in result.summary_lines():
         logger.info(line)
-    print("\n".join(result.summary_lines()))
     return result
 
 
@@ -642,7 +911,11 @@ class Phase5Score:
 def phase5_score(history: list) -> Phase5Score:
     prices  = [item["price"]  for item in history]
     volumes = [item["volume"] for item in history]
-    if len(prices) < 6:
+    # BUG-18: EMA(21) is computed below for trend_quality; it requires at least
+    # PHASE5_MIN_HISTORY ticks to produce a reliable value. With fewer ticks the
+    # EMA warm-up effect causes ema_sep to be noisy, inflating trend_quality and
+    # therefore final_score. Return a zero Phase5Score to prevent warm-up signals.
+    if len(prices) < PHASE5_MIN_HISTORY:
         return Phase5Score(0, 0, 0, 0, 0)
 
     window = prices[-20:] if len(prices) >= 20 else prices
@@ -732,9 +1005,14 @@ def _frame_bullish(all_prices: list, window: int) -> bool:
 
 def multi_timeframe_check(history: list) -> dict:
     prices = [item["price"] for item in history]
-    tf_5m  = _frame_bullish(prices, MTF_5M_WINDOW)
-    tf_15m = _frame_bullish(prices, MTF_15M_WINDOW)
-    tf_1h  = _frame_bullish(prices, MTF_1H_WINDOW)
+    n = len(prices)
+    # BUG-21: gate each timeframe against its own window size.
+    # _frame_bullish falls back to prices[-1] > prices[0] when len < EMA_SLOW_PERIOD,
+    # which is not a meaningful 15m or 1h check on 2-23 ticks. A timeframe is only
+    # trusted when the history is at least as long as its window.
+    tf_5m  = _frame_bullish(prices, MTF_5M_WINDOW)  if n >= MTF_5M_WINDOW  else False
+    tf_15m = _frame_bullish(prices, MTF_15M_WINDOW) if n >= MTF_15M_WINDOW else False
+    tf_1h  = _frame_bullish(prices, MTF_1H_WINDOW)  if n >= MTF_1H_WINDOW  else False
 
     _mtf_debug["coins_checked"] = _mtf_debug.get("coins_checked", 0) + 1
     if len(prices) < MTF_5M_WINDOW:
@@ -1080,7 +1358,12 @@ def format_percent(value: Optional[float]) -> str:
 # =============================================================================
 
 def analyze_coin(coin: str, history: list, market: str = "INR") -> list:
-    if len(history) < 2:
+    # BUG-16: the original gate (< 2) allowed indicator calculations on as few
+    # as 2 ticks. EMA crossover, volume baseline, and MTF checks all require
+    # significantly more history to produce reliable values. With fewer than
+    # ANALYZE_MIN_HISTORY ticks the EMA warm-up effect generates false crossovers
+    # and 1-sample volume baselines trigger spurious volume spikes.
+    if len(history) < ANALYZE_MIN_HISTORY:
         return []
 
     mtf = multi_timeframe_check(history)
@@ -1135,7 +1418,10 @@ def analyze_coin(coin: str, history: list, market: str = "INR") -> list:
         score += 15
         reasons.append("Positive momentum")
 
-    if len(prices) > VOLATILITY_LOOKBACK + 1:
+    # BUG-19: the baseline window needs VOLATILITY_LOOKBACK*2+1 ticks (41) to be
+    # non-degenerate. With 22-40 ticks the slice resolves to as few as 2 items,
+    # making the baseline meaningless and firing false breakout signals.
+    if len(prices) >= VOLATILITY_MIN_HISTORY:
         current_volatility = volatility(prices[-(VOLATILITY_LOOKBACK + 1):])
         baseline = volatility(prices[-(VOLATILITY_LOOKBACK * 2 + 1):-VOLATILITY_LOOKBACK])
         if baseline and current_volatility > baseline * VOLATILITY_SPIKE_MULTIPLIER:
@@ -1245,10 +1531,80 @@ def analyze_coin(coin: str, history: list, market: str = "INR") -> list:
 # =============================================================================
 
 class CoinDCXPublicClient:
+    """
+    Thin HTTP client for CoinDCX public endpoints.
+
+    SP1.2 fixes applied:
+    - fetch_tickers retries up to _TICKER_MAX_RETRIES times on transient
+      network errors (Timeout, ConnectionError) before raising.
+    - Response is validated: must be a non-empty list of dicts.
+    - JSONDecodeError on malformed responses is caught and re-raised as
+      ValueError so callers can treat it uniformly.
+    """
+
+    _TICKER_MAX_RETRIES   = 3
+    _TICKER_RETRY_DELAY_S = 5.0
+
     def fetch_tickers(self) -> list:
-        response = requests.get(COINDCX_TICKER_URL, timeout=REQUEST_TIMEOUT_SECONDS)
-        response.raise_for_status()
-        return response.json()
+        last_exc: Exception | None = None
+        for attempt in range(1, self._TICKER_MAX_RETRIES + 1):
+            try:
+                response = requests.get(
+                    COINDCX_TICKER_URL,
+                    timeout=REQUEST_TIMEOUT_SECONDS,
+                )
+                response.raise_for_status()
+
+                try:
+                    data = response.json()
+                except Exception as exc:
+                    raise ValueError(
+                        f"Ticker API returned non-JSON body: {response.text[:200]}"
+                    ) from exc
+
+                # Validate structure
+                if not isinstance(data, list):
+                    raise ValueError(
+                        f"Ticker API returned unexpected type {type(data).__name__} (expected list)"
+                    )
+                if len(data) == 0:
+                    raise ValueError("Ticker API returned empty list")
+
+                # Validate at least one entry is a dict with 'market'
+                has_valid_entry = any(
+                    isinstance(t, dict) and t.get("market") for t in data[:10]
+                )
+                if not has_valid_entry:
+                    raise ValueError(
+                        f"Ticker API response has no valid market entries (first entry: {data[0] if data else 'N/A'})"
+                    )
+
+                logger.debug(
+                    "[Ticker] fetched %d tickers (attempt %d/%d)",
+                    len(data), attempt, self._TICKER_MAX_RETRIES,
+                )
+                return data
+
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as exc:
+                last_exc = exc
+                logger.warning(
+                    "[Ticker] network error on attempt %d/%d: %s",
+                    attempt, self._TICKER_MAX_RETRIES, exc,
+                )
+                if attempt < self._TICKER_MAX_RETRIES:
+                    time.sleep(self._TICKER_RETRY_DELAY_S)
+
+            except (requests.exceptions.HTTPError, ValueError) as exc:
+                # HTTP errors (4xx/5xx) and validation errors are not retried
+                logger.warning("[Ticker] non-retryable error: %s", exc)
+                raise
+
+        # All retries exhausted
+        logger.error(
+            "[Ticker] all %d retries failed — last error: %s",
+            self._TICKER_MAX_RETRIES, last_exc,
+        )
+        raise last_exc
 
 
 # =============================================================================
@@ -1571,6 +1927,17 @@ class Scanner:
             await asyncio.sleep(max(5, SCAN_INTERVAL_SECONDS - elapsed))
 
     async def get_tickers(self, force: bool = False) -> list:
+        """
+        Return the current ticker list, using an in-memory cache.
+
+        SP1.2 fixes applied:
+        - Catches ALL exceptions from fetch_tickers (not just RequestException|ValueError),
+          ensuring JSONDecodeError and unexpected errors also fall back to stale cache.
+        - Validates the fresh response is a non-empty list before caching it.
+        - Returns stale cache when available regardless of how old it is
+          (better than crashing the scan loop on transient API outages).
+        - Raises only when no cache exists at all (first-ever fetch failure).
+        """
         async with self._ticker_lock:
             now = asyncio.get_running_loop().time()
             cache_fresh = (
@@ -1581,10 +1948,22 @@ class Scanner:
                 return self._ticker_cache or []
             try:
                 tickers = await asyncio.to_thread(self.client.fetch_tickers)
-            except (requests.RequestException, ValueError):
+                # SP1.2: validate before caching (fetch_tickers already validates,
+                # but guard here too in case client is overridden in tests/subclasses)
+                if not isinstance(tickers, list) or len(tickers) == 0:
+                    raise ValueError(
+                        f"fetch_tickers returned invalid data: {type(tickers).__name__} len={len(tickers) if isinstance(tickers, list) else 'N/A'}"
+                    )
+            except Exception:
                 if self._ticker_cache is not None:
-                    logger.warning("Ticker fetch failed; using cached data", exc_info=True)
+                    logger.warning(
+                        "[Ticker] fetch failed — returning stale cache (%d tickers, age=%.0fs)",
+                        len(self._ticker_cache),
+                        now - self._ticker_cache_at,
+                        exc_info=True,
+                    )
                     return self._ticker_cache
+                logger.error("[Ticker] fetch failed and no cache available — raising", exc_info=True)
                 raise
             self._ticker_cache    = tickers
             self._ticker_cache_at = asyncio.get_running_loop().time()
@@ -1645,7 +2024,16 @@ class Scanner:
         signals: list[Signal] = []
         for coin, result in zip(coins, results):
             if isinstance(result, Exception):
-                logger.error("Coin scan failed: coin=%s source=%s", coin, source, exc_info=(type(result), result, result.__traceback__))
+                # BUG-22: log coin, exception type, and message as explicit structured fields
+                # so diagnostics are visible even when traceback formatting is suppressed (e.g. Railway)
+                logger.error(
+                    "[Scan] coin=%s source=%s exception_type=%s message=%s",
+                    coin,
+                    source,
+                    type(result).__name__,
+                    result,
+                    exc_info=(type(result), result, result.__traceback__),
+                )
                 continue
             signals.extend(result)
 
@@ -1704,11 +2092,22 @@ class Scanner:
             logger.info("Alert sent: coin=%s kind=%s source=%s score=%s", signal.coin, signal.kind, source, signal.score)
 
     def _append_history(self, coin: str, price: float, volume: float) -> None:
+        """
+        Append a live tick to the coin's price history.
+
+        SP1.2 fix: reject ticks with price <= 0 or non-finite values to prevent
+        poisoning EMA and indicator calculations with bad data.
+        """
+        if not (isinstance(price, (int, float)) and price > 0 and price == price and price != float("inf")):
+            logger.debug(
+                "[Feed] rejected invalid tick: coin=%s price=%s", coin, price
+            )
+            return
         history = self.price_history[coin]
         history.append({
             "time":   datetime.now(timezone.utc),
-            "price":  price,
-            "volume": volume,
+            "price":  float(price),
+            "volume": max(float(volume), 0.0),
         })
         del history[:-PRICE_HISTORY_LIMIT]
 

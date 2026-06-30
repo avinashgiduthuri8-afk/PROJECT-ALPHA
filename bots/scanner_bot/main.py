@@ -68,9 +68,13 @@ from .scanner import (
     COIN_PERFORMANCE_FILE,
     TIER_ACCURACY_FILE,
     SETTINGS_FILE,
-    EMA_SLOW_PERIOD,
+    # BUG-28: use the canonical gate constants so /coins flags always
+    # match the thresholds enforced by analyze_coin and phase5_score.
+    ANALYZE_MIN_HISTORY,
+    PHASE5_MIN_HISTORY,
     MTF_1H_WINDOW,
-    _READY_P5,
+    # BUG-25/26/30: centralized coin-symbol validation
+    validate_coin_symbol,
 )
 
 logger = logging.getLogger("scanner_api")
@@ -204,6 +208,24 @@ _RECOVERY_STATS: dict = {
     "recovery_status":     "SUCCESS",
 }
 
+# SP1.1: Bootstrap status — written by _scanner_loop, read by /status
+_BOOTSTRAP_STATUS: dict = {
+    "state":            "pending",   # pending | running | complete | failed | disabled
+    "started_at":       None,        # ISO string
+    "completed_at":     None,        # ISO string
+    "duration_s":       None,        # float
+    "coins_attempted":  0,
+    "coins_loaded":     0,
+    "coins_failed":     0,
+    "coins_skipped":    0,
+    "avg_history_len":  0.0,
+    "min_history_len":  0,
+    "ema_ready":        False,
+    "mtf_ready":        False,
+    "phase5_ready":     False,
+    "failed_coins":     [],
+}
+
 # I-08: Manual refresh event — triggers immediate scan
 _REFRESH_EVENT: asyncio.Event = asyncio.Event()
 
@@ -271,7 +293,9 @@ async def scanner_signals(strategy: str = Query(default="MTB")):
     Newest first.
     """
 
-    if strategy.upper() != "MTB":
+    # BUG-27: strip before normalizing so callers using "mtb" or " MTB " are
+    # treated the same as "MTB" — previously only exact-case "MTB" matched.
+    if strategy.strip().upper() != "MTB":
         return JSONResponse(content=[])
 
     try:
@@ -318,8 +342,20 @@ async def market_state():
     """
     Returns the current aggregate market state across all tracked coins.
     Always returns a dict — never None.
+
+    BUG-29: wrapped in try/except matching every other endpoint's "HTTP 200
+    always" contract. LATEST_MARKET_STATE is normally a plain dict written
+    by _scanner_loop, but if it were ever to contain a non-JSON-serialisable
+    value, JSONResponse would raise and this previously had no fallback.
     """
-    return JSONResponse(content=LATEST_MARKET_STATE)
+    try:
+        return JSONResponse(content=LATEST_MARKET_STATE)
+    except Exception:
+        logger.exception("/market-state: unexpected error — returning safe default")
+        return JSONResponse(content={
+            "market_state": "unknown",
+            "timestamp":    datetime.now(timezone.utc).isoformat(),
+        })
 
 
 # ---------------------------------------------------------------------------
@@ -573,9 +609,11 @@ async def scanner_coins():
         result = []
         for coin, history in sc.price_history.items():
             n = len(history)
-            ema_ready    = n >= EMA_SLOW_PERIOD   # 21 ticks
-            mtf_ready    = n >= MTF_1H_WINDOW     # 48 ticks
-            phase5_ready = n >= _READY_P5         # 20 ticks
+            # BUG-28: flags now derived from the same constants used by
+            # analyze_coin() and phase5_score() so they cannot drift apart.
+            analyze_ready = n >= ANALYZE_MIN_HISTORY   # 22 — analyze_coin gate
+            phase5_ready  = n >= PHASE5_MIN_HISTORY    # 21 — phase5_score gate
+            mtf_ready     = n >= MTF_1H_WINDOW         # 48 — full 1h window
 
             try:
                 ms: Optional[str] = detect_market_state(history) if n >= 6 else None
@@ -583,12 +621,12 @@ async def scanner_coins():
                 ms = None
 
             result.append({
-                "coin":         coin,
-                "history_len":  n,
-                "ema_ready":    ema_ready,
-                "mtf_ready":    mtf_ready,
-                "phase5_ready": phase5_ready,
-                "market_state": ms,
+                "coin":          coin,
+                "history_len":   n,
+                "analyze_ready": analyze_ready,
+                "phase5_ready":  phase5_ready,
+                "mtf_ready":     mtf_ready,
+                "market_state":  ms,
             })
 
         # sort: longest history first so callers see the most data-rich coins up top
@@ -633,15 +671,36 @@ class _AddCoinBody(BaseModel):
 async def watchlist_add(body: _AddCoinBody):
     """
     Add a coin to the watchlist.
-    Duplicates are silently ignored.  Coin symbol is uppercased.
+
+    BUG-25/26/30: the raw input is validated via validate_coin_symbol()
+    before it reaches WatchlistStore.add(). Invalid symbols (empty,
+    too long, or containing characters other than A-Z/0-9) are rejected
+    with status="rejected" rather than being silently accepted as
+    status="success". Duplicates are reported as status="already_exists"
+    rather than being silently treated as success.
     HTTP 200 always.
     """
     try:
-        symbol = body.coin.strip().upper()
+        is_valid, symbol, reason = validate_coin_symbol(body.coin)
+        if not is_valid:
+            return JSONResponse(content={
+                "status": "rejected",
+                "reason": reason,
+                "coin":   symbol,
+            })
+
         sc = _SCANNER
         store = sc.watchlist_store if sc is not None else WatchlistStore()
-        store.add(symbol)          # no-op + no error if duplicate
+        added = store.add(symbol)   # True if newly added, False if duplicate
         coins = store.all()
+
+        if not added:
+            return JSONResponse(content={
+                "status": "already_exists",
+                "coin":   symbol,
+                "count":  len(coins),
+            })
+
         return JSONResponse(content={
             "status": "success",
             "coin":   symbol,
@@ -721,6 +780,8 @@ async def scanner_status():
             # I-05 / I-07: attach health and recovery stats
             "health":            _HEALTH_STATS,
             "recovery":          _RECOVERY_STATS,
+            # SP1.1: bootstrap status
+            "bootstrap":         _BOOTSTRAP_STATUS,
         })
     except Exception:
         logger.exception("/status: unexpected error — returning safe defaults")
@@ -738,6 +799,7 @@ async def scanner_status():
             "railway":           True,
             "health":            {},
             "recovery":          {},
+            "bootstrap":         _BOOTSTRAP_STATUS,
         })
 
 
@@ -883,7 +945,8 @@ async def _scanner_loop() -> None:
     LATEST_MARKET_STATE after every scan cycle.
     """
     global LATEST_MTB_SIGNALS, LATEST_MARKET_STATE, _TRACKER, _SCANNER, \
-           _LAST_SCAN_TIME, _SCAN_CYCLES, _SIGNALS_GENERATED, _LAST_DISCOVERY_SCAN
+           _LAST_SCAN_TIME, _SCAN_CYCLES, _SIGNALS_GENERATED, _LAST_DISCOVERY_SCAN, \
+           _BOOTSTRAP_STATUS
     logger.info("ENTERED _scanner_loop")
 
     # ── Pre-load persisted signals so dashboard is non-empty immediately ──────
@@ -913,10 +976,39 @@ async def _scanner_loop() -> None:
 
     logger.info("MTB Scanner API: starting bootstrap...")
     try:
-        await scanner.run_bootstrap()
-        logger.info("MTB Scanner API: bootstrap complete")
+        # SP1.1: mark bootstrap as running before starting
+        _BOOTSTRAP_STATUS["state"]      = "running"
+        _BOOTSTRAP_STATUS["started_at"] = datetime.now(timezone.utc).isoformat()
+        logger.info("[Bootstrap] state=running")
+
+        result = await scanner.run_bootstrap()
+
+        # SP1.1: populate status from BootstrapResult
+        _BOOTSTRAP_STATUS.update({
+            "state":           "complete",
+            "completed_at":    datetime.now(timezone.utc).isoformat(),
+            "duration_s":      result.duration_s,
+            "coins_attempted": result.coins_attempted,
+            "coins_loaded":    result.coins_loaded,
+            "coins_failed":    result.coins_failed,
+            "coins_skipped":   result.coins_skipped,
+            "avg_history_len": result.avg_history_len,
+            "min_history_len": result.min_history_len,
+            "ema_ready":       result.ema_ready,
+            "mtf_ready":       result.mtf_ready,
+            "phase5_ready":    result.phase5_ready,
+            "failed_coins":    result.failed_coins,
+        })
+        logger.info(
+            "[Bootstrap] state=complete loaded=%d failed=%d skipped=%d duration=%.1fs",
+            result.coins_loaded, result.coins_failed, result.coins_skipped, result.duration_s,
+        )
     except Exception:
-        logger.exception("MTB Scanner API: bootstrap failed — continuing without pre-loaded history")
+        _BOOTSTRAP_STATUS["state"]        = "failed"
+        _BOOTSTRAP_STATUS["completed_at"] = datetime.now(timezone.utc).isoformat()
+        logger.exception(
+            "[Bootstrap] state=failed — continuing without pre-loaded history"
+        )
 
     # I-07: Verify recovery — count how many signals were pre-loaded
     recovered = len(LATEST_MTB_SIGNALS)
@@ -926,7 +1018,7 @@ async def _scanner_loop() -> None:
     # First scan immediately after bootstrap
     logger.info("MTB Scanner API: starting scan loop")
     while True:
-        scan_start_ms = asyncio.get_event_loop().time() * 1000
+        scan_start_ms = asyncio.get_running_loop().time() * 1000
         try:
             # I-05: Retry get_tickers up to 5 times with 10s delay
             tickers: list = []
@@ -951,7 +1043,7 @@ async def _scanner_loop() -> None:
             watchlist_sigs = await scanner.scan_watchlist(tickers)
 
             _discovery_interval = int(os.getenv("DISCOVERY_INTERVAL_SECONDS", "900"))
-            _now = asyncio.get_event_loop().time()
+            _now = asyncio.get_running_loop().time()
             if _now - _LAST_DISCOVERY_SCAN >= _discovery_interval:
                 discovery_sigs       = await scanner.scan_market(tickers)
                 _LAST_DISCOVERY_SCAN = _now
@@ -1036,7 +1128,7 @@ async def _scanner_loop() -> None:
                 logger.exception("Failed to persist scanner state files")
 
             # I-05: Health stats — SUCCESS
-            scan_dur = int(asyncio.get_event_loop().time() * 1000 - scan_start_ms)
+            scan_dur = int(asyncio.get_running_loop().time() * 1000 - scan_start_ms)
             _HEALTH_STATS["api_status"]           = "ONLINE"
             _HEALTH_STATS["last_successful_scan"] = datetime.now(timezone.utc).isoformat()
             _HEALTH_STATS["total_scans"]          = _SCAN_CYCLES
@@ -1270,7 +1362,7 @@ async def _do_backup(*, label: str = "Backup") -> None:
         try:
             src = _Path(src_path)
             data = src.read_bytes() if src.is_file() else b"[]"
-            await asyncio.get_event_loop().run_in_executor(
+            await asyncio.get_running_loop().run_in_executor(
                 None, lambda d=data, t=tmp, f=dst: (t.write_bytes(d), t.replace(f))
             )
             results[short] = True
