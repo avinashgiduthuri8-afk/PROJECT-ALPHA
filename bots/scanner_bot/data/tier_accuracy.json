@@ -6,5 +6,13 @@
     "losing_signals": 211,
     "win_rate_pct": 30.8,
     "avg_return_pct": -1.2
+  },
+  "MEDIUM": {
+    "tier": "MEDIUM",
+    "total_signals": 3,
+    "winning_signals": 2,
+    "losing_signals": 1,
+    "win_rate_pct": 66.7,
+    "avg_return_pct": 4045.99
   }
 }

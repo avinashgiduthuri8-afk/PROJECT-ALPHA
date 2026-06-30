@@ -2243,6 +2243,57 @@
       "return_pct": -2.13,
       "result": "LOSS",
       "evaluated_at": "2026-06-28T07:20:32.968608+00:00"
+    },
+    {
+      "id": "WLD-1782265027-premium",
+      "coin": "WLD",
+      "timestamp": "2026-06-24T01:37:07.304716+00:00",
+      "score": 90,
+      "tier": "Premium",
+      "signal_price": 54.219,
+      "market_state": "recovery",
+      "1h_pct": -15.46,
+      "4h_pct": -15.46,
+      "24h_pct": -15.46,
+      "3d_pct": -15.46,
+      "7d_pct": 0,
+      "return_pct": -15.46,
+      "result": "LOSS",
+      "evaluated_at": "2026-06-28T07:20:32.968608+00:00"
+    },
+    {
+      "id": "BTC-1782812314-candidate",
+      "coin": "BTC",
+      "timestamp": "2026-06-30T09:38:34.517436+00:00",
+      "score": 65,
+      "tier": "Candidate",
+      "signal_price": 50000.0,
+      "market_state": "bull_trend",
+      "1h_pct": 12014.65,
+      "4h_pct": 0,
+      "24h_pct": 0,
+      "3d_pct": 0,
+      "7d_pct": 0,
+      "return_pct": 12014.65,
+      "result": "WIN",
+      "evaluated_at": "2026-06-30T10:39:16.882076+00:00"
+    },
+    {
+      "id": "ETH-1782812314-candidate",
+      "coin": "ETH",
+      "timestamp": "2026-06-30T09:38:34.517458+00:00",
+      "score": 65,
+      "tier": "Candidate",
+      "signal_price": 50000.0,
+      "market_state": "bull_trend",
+      "1h_pct": 223.32,
+      "4h_pct": 0,
+      "24h_pct": 0,
+      "3d_pct": 0,
+      "7d_pct": 0,
+      "return_pct": 223.32,
+      "result": "WIN",
+      "evaluated_at": "2026-06-30T10:39:16.882076+00:00"
     }
   ]
 }

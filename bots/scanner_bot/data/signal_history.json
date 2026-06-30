@@ -2260,6 +2260,57 @@
       "return_pct": -15.46,
       "result": "LOSS",
       "evaluated_at": "2026-06-28T07:20:32.968608+00:00"
+    },
+    {
+      "id": "BTC-1782812314-candidate",
+      "coin": "BTC",
+      "timestamp": "2026-06-30T09:38:34.517436+00:00",
+      "score": 65,
+      "tier": "Candidate",
+      "signal_price": 50000.0,
+      "market_state": "bull_trend",
+      "1h_pct": 12014.65,
+      "4h_pct": 0,
+      "24h_pct": 0,
+      "3d_pct": 0,
+      "7d_pct": 0,
+      "return_pct": 12014.65,
+      "result": "WIN",
+      "evaluated_at": "2026-06-30T10:39:16.882076+00:00"
+    },
+    {
+      "id": "ETH-1782812314-candidate",
+      "coin": "ETH",
+      "timestamp": "2026-06-30T09:38:34.517458+00:00",
+      "score": 65,
+      "tier": "Candidate",
+      "signal_price": 50000.0,
+      "market_state": "bull_trend",
+      "1h_pct": 223.32,
+      "4h_pct": 0,
+      "24h_pct": 0,
+      "3d_pct": 0,
+      "7d_pct": 0,
+      "return_pct": 223.32,
+      "result": "WIN",
+      "evaluated_at": "2026-06-30T10:39:16.882076+00:00"
+    },
+    {
+      "id": "A-1782812314-candidate",
+      "coin": "A",
+      "timestamp": "2026-06-30T09:38:34.548951+00:00",
+      "score": 65,
+      "tier": "Candidate",
+      "signal_price": 50000.0,
+      "market_state": "bull_trend",
+      "1h_pct": -99.99,
+      "4h_pct": 0,
+      "24h_pct": 0,
+      "3d_pct": 0,
+      "7d_pct": 0,
+      "return_pct": -99.99,
+      "result": "LOSS",
+      "evaluated_at": "2026-06-30T10:39:16.882076+00:00"
     }
   ]
 }
