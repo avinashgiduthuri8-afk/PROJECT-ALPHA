@@ -76,13 +76,13 @@ def update_market_cache():
 
                     }
 
-                except:
+                except Exception:
 
                     pass
 
         return True
 
-    except:
+    except Exception:
 
         return False
 

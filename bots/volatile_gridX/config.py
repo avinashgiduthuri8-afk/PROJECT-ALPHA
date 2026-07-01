@@ -13,6 +13,10 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 API_KEY = os.getenv("API_KEY", "")
 SECRET_KEY = os.getenv("SECRET_KEY", "")
 
+# Paper / live trading mode.  Always defaults to PAPER — set VGX_BOT_MODE=LIVE
+# explicitly to enable real order execution.
+BOT_MODE = os.getenv("VGX_BOT_MODE", "PAPER")
+
 PROJECT_NAME = "TradingBotCrypto"
 
 TRADE_AMOUNT = float(os.getenv("VGX_TRADE_AMOUNT", os.getenv("TRADE_AMOUNT", "110")))

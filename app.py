@@ -677,10 +677,10 @@ async def add_coin_to_scanner_watchlist(req: WatchlistRequest):
         elif coin in usdt_coins:
             market = "USDT"
         else:
-            return JSONResponse({
-                "success": False,
-                "error": "Invalid Coin - Not Available on CoinDCX",
-            })
+            return JSONResponse(
+                {"success": False, "error": "Invalid Coin - Not Available on CoinDCX"},
+                status_code=400,
+            )
     else:
         market = "INR"
 
@@ -870,6 +870,115 @@ async def coin_leaderboard():
     try:
         stats = _unified_stats()
         return {"leaderboard": stats["coin_leaderboard"], "timestamp": stats["timestamp"]}
+    except Exception as exc:
+        return JSONResponse(status_code=500, content={"error": str(exc)})
+
+
+# ═══════════════════════════════════════════════════════════════
+#  PHASE 7 — V1 FREEZE: 14-DAY PAPER TRADING VALIDATION STATUS
+# ═══════════════════════════════════════════════════════════════
+
+@app.get("/api/v1/validation/status", response_class=JSONResponse)
+async def paper_trading_validation_status():
+    """Phase 7 — V1 Freeze: 14-day paper trading validation tracker.
+
+    Set PAPER_TRADING_START to an ISO-8601 UTC datetime (e.g. 2026-07-01T00:00:00Z)
+    to begin counting the validation window.  Before that env var is set,
+    days_elapsed / days_remaining are null and validation_complete is false.
+    """
+    try:
+        now = datetime.now(timezone.utc)
+        validation_period_days = 14
+
+        # ── Parse start date ────────────────────────────────────────────────
+        start_str = os.getenv("PAPER_TRADING_START")
+        start_dt: datetime | None = None
+        if start_str:
+            try:
+                start_dt = datetime.fromisoformat(start_str.replace("Z", "+00:00"))
+                if start_dt.tzinfo is None:
+                    start_dt = start_dt.replace(tzinfo=timezone.utc)
+            except ValueError:
+                start_dt = None
+
+        if start_dt is not None:
+            # Clamp to 0 so a future start_date never yields negative elapsed days.
+            elapsed_s      = max(0.0, (now - start_dt).total_seconds())
+            days_elapsed   = round(elapsed_s / 86400, 2)
+            days_remaining = round(max(0.0, validation_period_days - days_elapsed), 2)
+            is_complete    = days_elapsed >= validation_period_days
+        else:
+            days_elapsed = days_remaining = None
+            is_complete  = False
+
+        # ── Bot snapshots ───────────────────────────────────────────────────
+        vgx, mtbs, pmbs = await asyncio.gather(
+            _cached_snapshot("vgx", vgx_snapshot),
+            _cached_snapshot("mtb", mtb_snapshot),
+            _cached_snapshot("pmb", pmb_snapshot),
+        )
+
+        vgx_mode = str(vgx.get("status", "UNKNOWN")).upper()
+        mtb_mode = str(mtbs.get("mode",   "UNKNOWN")).upper()
+        pmb_mode = str(pmbs.get("mode",   "UNKNOWN")).upper()
+        all_paper = all(m == "PAPER" for m in (vgx_mode, mtb_mode, pmb_mode))
+
+        # ── Circuit-breaker state (read persisted JSON; no live instance) ───
+        cb_state  = "UNKNOWN"
+        cb_breaks = 0
+        try:
+            from bots.volatile_gridX.circuit_breaker import CIRCUIT_BREAKER_FILE
+            import json as _json
+            if CIRCUIT_BREAKER_FILE.exists():
+                with open(CIRCUIT_BREAKER_FILE) as _f:
+                    _cb = _json.load(_f)
+                cb_state  = _cb.get("trading_state", "UNKNOWN")
+                cb_breaks = int(_cb.get("circuit_breaks_count", 0))
+            else:
+                cb_state = "ACTIVE"
+        except Exception:
+            pass
+
+        return {
+            "phase":                   "Phase 7 — V1 Freeze",
+            "validation_period_days":  validation_period_days,
+            "start_date":              start_str or None,
+            "days_elapsed":            days_elapsed,
+            "days_remaining":          days_remaining,
+            "validation_complete":     is_complete,
+            "all_bots_in_paper_mode":  all_paper,
+            "bots": {
+                "vgx": {
+                    "mode":           vgx_mode,
+                    "daily_pnl":      vgx.get("daily_pnl",    0),
+                    "total_pnl":      vgx.get("total_pnl",    0),
+                    "open_positions": len(vgx.get("open_positions", [])),
+                    "paper_trades":   vgx.get("paper_trades",  0),
+                    "win_rate":       vgx.get("win_rate",       0),
+                },
+                "mtb": {
+                    "mode":           mtb_mode,
+                    "daily_pnl":      mtbs.get("daily_pnl",    0),
+                    "total_pnl":      mtbs.get("total_pnl",    0),
+                    "open_positions": len(mtbs.get("open_positions", [])),
+                    "closed_trades":  len(mtbs.get("closed_trades",  [])),
+                    "cash_balance":   mtbs.get("cash_balance",  0),
+                },
+                "pmb": {
+                    "mode":           pmb_mode,
+                    "daily_pnl":      pmbs.get("daily_pnl",    0),
+                    "total_pnl":      pmbs.get("total_pnl",    0),
+                    "open_positions": len(pmbs.get("open_positions", [])),
+                    "closed_trades":  len(pmbs.get("closed_trades",  [])),
+                    "cash_balance":   pmbs.get("cash_balance",  0),
+                },
+            },
+            "circuit_breaker": {
+                "state":        cb_state,
+                "total_breaks": cb_breaks,
+            },
+            "timestamp": now.isoformat(),
+        }
     except Exception as exc:
         return JSONResponse(status_code=500, content={"error": str(exc)})
 

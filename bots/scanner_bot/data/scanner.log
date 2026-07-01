@@ -15824,3 +15824,5 @@ ValueError: invalid candle data
 2026-07-01 02:39:09,838 WARNING scanner_bot: [Config] MTF_15M_WINDOW=1 is below minimum 2 — clamping to 2
 2026-07-01 03:11:57,109 INFO scanner_bot: Storage ready: /home/runner/workspace/bots/scanner_bot/data
 2026-07-01 03:11:58,020 INFO scanner_bot: Updated 9 signal performance checkpoints
+2026-07-01 03:21:58,261 INFO scanner_bot: Updated 3 signal performance checkpoints
+2026-07-01 03:26:58,407 INFO scanner_bot: Updated 3 signal performance checkpoints

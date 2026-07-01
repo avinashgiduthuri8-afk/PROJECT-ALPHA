@@ -72,7 +72,7 @@ def _verify_file(path):
 
         return True
 
-    except:
+    except Exception:
 
         return False
 

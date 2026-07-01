@@ -101,6 +101,7 @@ async def startup_event() -> None:
     global _VGX_TASK
     startup()
     logger.info("VGX Bot starting (enabled=%s)", VGX_ENABLED)
+    logger.info("VGX BOT_MODE=%s", os.getenv("VGX_BOT_MODE", "PAPER"))
     if _VGX_TASK is None or _VGX_TASK.done():
         _VGX_TASK = asyncio.create_task(background_loop())
         logger.info("VGX background task created")

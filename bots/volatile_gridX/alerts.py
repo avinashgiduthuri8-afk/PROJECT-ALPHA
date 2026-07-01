@@ -112,7 +112,7 @@ def dispatch_alert_payload(
 
         )
 
-    except:
+    except Exception:
 
         pass
 

@@ -60,6 +60,7 @@ async def startup_event() -> None:
     global _MTB_TASK
     storage.ensure_storage()
     logger.info("MTB Bot starting (enabled=%s)", MTB_ENABLED)
+    logger.info("MTB BOT_MODE=%s", os.getenv("MTB_BOT_MODE", "PAPER"))
     if _MTB_TASK is None or _MTB_TASK.done():
         _MTB_TASK = asyncio.create_task(background_loop())
         logger.info("MTB background task created")

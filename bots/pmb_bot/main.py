@@ -52,6 +52,7 @@ async def startup_event() -> None:
     global _PMB_TASK
     storage.ensure_storage()
     logger.info("PMB Bot starting (enabled=%s)", PMB_ENABLED)
+    logger.info("PMB BOT_MODE=%s", os.getenv("PMB_BOT_MODE", "PAPER"))
     if _PMB_TASK is None or _PMB_TASK.done():
         _PMB_TASK = asyncio.create_task(background_loop())
         logger.info("PMB background task created")

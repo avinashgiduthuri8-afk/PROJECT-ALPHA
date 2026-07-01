@@ -10341,7 +10341,13 @@
         "hist_vol": 12,
         "total": 60
       },
-      "evaluations": {}
+      "evaluations": {
+        "1h": {
+          "timestamp": "2026-07-01T03:21:58.162242+00:00",
+          "price": 5980480.9,
+          "change_percent": 11860.961800000001
+        }
+      }
     },
     {
       "id": "ETH-1782872231-candidate",
@@ -10378,7 +10384,13 @@
         "hist_vol": 12,
         "total": 60
       },
-      "evaluations": {}
+      "evaluations": {
+        "1h": {
+          "timestamp": "2026-07-01T03:21:58.162242+00:00",
+          "price": 160702.2,
+          "change_percent": 221.40440000000004
+        }
+      }
     },
     {
       "id": "A-1782872231-candidate",
@@ -10415,7 +10427,13 @@
         "hist_vol": 12,
         "total": 60
       },
-      "evaluations": {}
+      "evaluations": {
+        "1h": {
+          "timestamp": "2026-07-01T03:21:58.162242+00:00",
+          "price": 6.255,
+          "change_percent": -99.98749000000001
+        }
+      }
     },
     {
       "id": "BTC-1782872545-candidate",
@@ -10452,7 +10470,13 @@
         "hist_vol": 12,
         "total": 60
       },
-      "evaluations": {}
+      "evaluations": {
+        "1h": {
+          "timestamp": "2026-07-01T03:26:58.322670+00:00",
+          "price": 5978096.4,
+          "change_percent": 11856.1928
+        }
+      }
     },
     {
       "id": "ETH-1782872545-candidate",
@@ -10489,7 +10513,13 @@
         "hist_vol": 12,
         "total": 60
       },
-      "evaluations": {}
+      "evaluations": {
+        "1h": {
+          "timestamp": "2026-07-01T03:26:58.322670+00:00",
+          "price": 160697.1,
+          "change_percent": 221.39420000000004
+        }
+      }
     },
     {
       "id": "A-1782872546-candidate",
@@ -10526,7 +10556,13 @@
         "hist_vol": 12,
         "total": 60
       },
-      "evaluations": {}
+      "evaluations": {
+        "1h": {
+          "timestamp": "2026-07-01T03:26:58.322670+00:00",
+          "price": 6.255,
+          "change_percent": -99.98749000000001
+        }
+      }
     },
     {
       "id": "BTC-1782873060-candidate",
