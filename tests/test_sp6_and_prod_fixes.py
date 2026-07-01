@@ -432,6 +432,42 @@ class TestCheckCandlesConnectivity:
 # FIX 6 — SCANNER_API_URL defaults to port 8080
 # =============================================================================
 
+class TestCircuitBreakerCleanStartup:
+    """Verify circuit breaker initialises to ACTIVE when no state file is present."""
+
+    def test_default_startup_state_is_active(self, tmp_path):
+        """Fresh CircuitBreaker (no state file) must start in ACTIVE trading state."""
+        import pathlib
+        import bots.volatile_gridX.circuit_breaker as cb_mod
+
+        # Point to a guaranteed-absent file
+        cb_mod.CIRCUIT_BREAKER_FILE = tmp_path / "cb_clean.json"
+        cb_mod._alert_manager = None
+
+        from bots.volatile_gridX.circuit_breaker import CircuitBreaker, TradingState
+        breaker = CircuitBreaker(initial_capital=1_000_000)
+
+        assert breaker.state.trading_state == TradingState.ACTIVE.value, (
+            f"Expected ACTIVE on clean startup, got {breaker.state.trading_state}"
+        )
+
+    def test_committed_state_file_does_not_pre_trip_breaker(self, tmp_path):
+        """A missing or empty state file path must not leave the breaker in a halted state."""
+        import bots.volatile_gridX.circuit_breaker as cb_mod
+
+        # Simulate the gitignored file being absent (fresh Railway deployment)
+        cb_mod.CIRCUIT_BREAKER_FILE = tmp_path / "nonexistent_cb.json"
+        cb_mod._alert_manager = None
+
+        from bots.volatile_gridX.circuit_breaker import CircuitBreaker, TradingState
+        breaker = CircuitBreaker(initial_capital=1_000_000)
+
+        can_trade, reason = breaker.can_trade()
+        assert can_trade, (
+            f"Expected trading to be allowed on fresh startup; reason: {reason}"
+        )
+
+
 class TestScannerApiUrlDefault:
     """FIX 6: MTB and PMB configs default to port 8080, not 5000."""
 

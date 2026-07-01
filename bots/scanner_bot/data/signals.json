@@ -9954,7 +9954,13 @@
         "hist_vol": 12,
         "total": 60
       },
-      "evaluations": {}
+      "evaluations": {
+        "1h": {
+          "timestamp": "2026-07-01T03:11:57.908277+00:00",
+          "price": 5992222.9,
+          "change_percent": 11884.4458
+        }
+      }
     },
     {
       "id": "ETH-1782871360-candidate",
@@ -9991,7 +9997,13 @@
         "hist_vol": 12,
         "total": 60
       },
-      "evaluations": {}
+      "evaluations": {
+        "1h": {
+          "timestamp": "2026-07-01T03:11:57.908277+00:00",
+          "price": 161043.3,
+          "change_percent": 222.08659999999995
+        }
+      }
     },
     {
       "id": "A-1782871360-candidate",
@@ -10028,7 +10040,13 @@
         "hist_vol": 12,
         "total": 60
       },
-      "evaluations": {}
+      "evaluations": {
+        "1h": {
+          "timestamp": "2026-07-01T03:11:57.908277+00:00",
+          "price": 6.255,
+          "change_percent": -99.98749000000001
+        }
+      }
     },
     {
       "id": "BTC-1782871664-candidate",
@@ -10065,7 +10083,13 @@
         "hist_vol": 12,
         "total": 60
       },
-      "evaluations": {}
+      "evaluations": {
+        "1h": {
+          "timestamp": "2026-07-01T03:11:57.908277+00:00",
+          "price": 5992222.9,
+          "change_percent": 11884.4458
+        }
+      }
     },
     {
       "id": "ETH-1782871664-candidate",
@@ -10102,7 +10126,13 @@
         "hist_vol": 12,
         "total": 60
       },
-      "evaluations": {}
+      "evaluations": {
+        "1h": {
+          "timestamp": "2026-07-01T03:11:57.908277+00:00",
+          "price": 161043.3,
+          "change_percent": 222.08659999999995
+        }
+      }
     },
     {
       "id": "A-1782871664-candidate",
@@ -10139,7 +10169,13 @@
         "hist_vol": 12,
         "total": 60
       },
-      "evaluations": {}
+      "evaluations": {
+        "1h": {
+          "timestamp": "2026-07-01T03:11:57.908277+00:00",
+          "price": 6.255,
+          "change_percent": -99.98749000000001
+        }
+      }
     },
     {
       "id": "BTC-1782871870-candidate",
@@ -10176,7 +10212,13 @@
         "hist_vol": 12,
         "total": 60
       },
-      "evaluations": {}
+      "evaluations": {
+        "1h": {
+          "timestamp": "2026-07-01T03:11:57.908277+00:00",
+          "price": 5992222.9,
+          "change_percent": 11884.4458
+        }
+      }
     },
     {
       "id": "ETH-1782871870-candidate",
@@ -10213,7 +10255,13 @@
         "hist_vol": 12,
         "total": 60
       },
-      "evaluations": {}
+      "evaluations": {
+        "1h": {
+          "timestamp": "2026-07-01T03:11:57.908277+00:00",
+          "price": 161043.3,
+          "change_percent": 222.08659999999995
+        }
+      }
     },
     {
       "id": "A-1782871870-candidate",
@@ -10250,7 +10298,13 @@
         "hist_vol": 12,
         "total": 60
       },
-      "evaluations": {}
+      "evaluations": {
+        "1h": {
+          "timestamp": "2026-07-01T03:11:57.908277+00:00",
+          "price": 6.255,
+          "change_percent": -99.98749000000001
+        }
+      }
     },
     {
       "id": "BTC-1782872231-candidate",

@@ -605,7 +605,10 @@ class MetricsCollector:
                 open_files = 0
 
             try:
-                network_connections = len(process.connections())
+                # net_connections() introduced in psutil 6.0; fall back to
+                # the deprecated connections() on older installations.
+                _conn_fn = getattr(process, "net_connections", None) or process.connections
+                network_connections = len(_conn_fn())
             except Exception:
                 network_connections = 0
 
