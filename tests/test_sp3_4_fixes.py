@@ -205,6 +205,6 @@ class TestBug45LifespanHooks:
         import inspect
         import app as main_app
         src = inspect.getsource(main_app.pull_state_payload)
-        assert "mtb_tg._MTB_TG_APP" in src, (
+        assert "_MTB_TG_APP" in src, (
             "mtb_telegram_bot status missing or not using _MTB_TG_APP check"
         )

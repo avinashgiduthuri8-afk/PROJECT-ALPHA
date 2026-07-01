@@ -259,6 +259,6 @@ class TestBug42LifespanHooks:
         import inspect
         import app as main_app
         src = inspect.getsource(main_app.pull_state_payload)
-        assert "vgx_tg._VGX_TG_APP" in src, (
+        assert "_VGX_TG_APP" in src, (
             "vgx_telegram_bot status is missing or still hardcoded"
         )

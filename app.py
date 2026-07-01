@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import os
 import time as _time
 from fastapi import Depends, FastAPI, HTTPException, Request, status
@@ -133,6 +134,9 @@ def vgx_snapshot() -> dict:
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
+logger = logging.getLogger("app")
+_APP_START_TIME = _time.time()
+
 
 # ═══════════════════════════════════════════════════════════════
 #  API KEY AUTH — fail-closed
@@ -183,10 +187,22 @@ async def _app_lifespan(app: FastAPI):
     await mtb_main.startup_event()
     await pmb_main.startup_event()
     await vgx_main.startup_event()
-    await scanner_tg.startup_event()
-    await vgx_tg.startup_event()
-    await pmb_tg.startup_event()
-    await mtb_tg.startup_event()
+    try:
+        await scanner_tg.startup_event()
+    except Exception as e:
+        logger.warning("Scanner Telegram bot failed to start: %s", e)
+    try:
+        await vgx_tg.startup_event()
+    except Exception as e:
+        logger.warning("VGX Telegram bot failed to start: %s", e)
+    try:
+        await pmb_tg.startup_event()
+    except Exception as e:
+        logger.warning("PMB Telegram bot failed to start: %s", e)
+    try:
+        await mtb_tg.startup_event()
+    except Exception as e:
+        logger.warning("MTB Telegram bot failed to start: %s", e)
     yield
     await mtb_tg.shutdown_event()
     await pmb_tg.shutdown_event()
@@ -213,6 +229,48 @@ app.mount(
     name="static"
 )
 templates = Jinja2Templates(directory="dashboard/templates")
+
+def _get_uptime() -> str:
+    seconds = int(_time.time() - _APP_START_TIME)
+    days, rem = divmod(seconds, 86400)
+    hours, rem = divmod(rem, 3600)
+    minutes = rem // 60
+    return f"{days}d {hours}h {minutes}m"
+
+
+def _get_cpu_usage() -> str:
+    try:
+        import psutil
+        return f"{psutil.cpu_percent(interval=None):.1f}%"
+    except Exception:
+        return "N/A"
+
+
+def _get_memory_usage() -> str:
+    try:
+        import psutil
+        mem = psutil.virtual_memory()
+        return f"{mem.used // (1024 * 1024)}MB"
+    except Exception:
+        return "N/A"
+
+
+def _get_health_pct() -> int:
+    try:
+        scanner_ok = (
+            getattr(scanner_main, "_SCANNER_TASK", None) is not None
+            and not getattr(scanner_main, "_SCANNER_TASK").done()
+        )
+        tg_ok = any([
+            getattr(scanner_tg, "_SCANNER_TG_APP", None),
+            getattr(vgx_tg, "_VGX_TG_APP", None),
+            getattr(pmb_tg, "_PMB_TG_APP", None),
+            getattr(mtb_tg, "_MTB_TG_APP", None),
+        ])
+        return 100 if (scanner_ok and tg_ok) else 50
+    except Exception:
+        return 0
+
 
 def _compute_market_strength(signals: list) -> int:
     """Return a 0-100 integer gauge value derived from live signal confidence scores."""
@@ -417,28 +475,55 @@ async def pull_state_payload():
         },
 
         "service_statuses": {
-            "scanner":      "ONLINE",
-            "vgx":          (await _cached_snapshot("vgx", vgx_snapshot)).get("status", "OFFLINE"),
-            "mtb":          "ONLINE" if getattr(mtb_main, "_MTB_TASK", None) and not getattr(mtb_main, "_MTB_TASK").done() else "OFFLINE",
-            "pmb":          "ONLINE" if getattr(pmb_main, "_PMB_TASK", None) and not getattr(pmb_main, "_PMB_TASK").done() else "OFFLINE",
-            "telegram_bot":     "ONLINE" if scanner_tg._SCANNER_TG_APP is not None else "OFFLINE",
-            "vgx_telegram_bot": "ONLINE" if vgx_tg._VGX_TG_APP is not None else "OFFLINE",
-            "pmb_telegram_bot": "ONLINE" if pmb_tg._PMB_TG_APP is not None else "OFFLINE",
-            "mtb_telegram_bot": "ONLINE" if mtb_tg._MTB_TG_APP is not None else "OFFLINE",
+            "scanner": (
+                "ONLINE"
+                if getattr(scanner_main, "_SCANNER_TASK", None)
+                and not getattr(scanner_main, "_SCANNER_TASK").done()
+                else "OFFLINE"
+            ),
+            "vgx": (await _cached_snapshot("vgx", vgx_snapshot)).get("status", "OFFLINE"),
+            "mtb": (
+                "ONLINE"
+                if getattr(mtb_main, "_MTB_TASK", None)
+                and not getattr(mtb_main, "_MTB_TASK").done()
+                else "OFFLINE"
+            ),
+            "pmb": (
+                "ONLINE"
+                if getattr(pmb_main, "_PMB_TASK", None)
+                and not getattr(pmb_main, "_PMB_TASK").done()
+                else "OFFLINE"
+            ),
+            "scanner_telegram": (
+                "ONLINE" if getattr(scanner_tg, "_SCANNER_TG_APP", None) is not None
+                else "OFFLINE"
+            ),
+            "vgx_telegram": (
+                "ONLINE" if getattr(vgx_tg, "_VGX_TG_APP", None) is not None
+                else "OFFLINE"
+            ),
+            "pmb_telegram": (
+                "ONLINE" if getattr(pmb_tg, "_PMB_TG_APP", None) is not None
+                else "OFFLINE"
+            ),
+            "mtb_telegram": (
+                "ONLINE" if getattr(mtb_tg, "_MTB_TG_APP", None) is not None
+                else "OFFLINE"
+            ),
         },
 
         "railway_monitoring": {
             "status":        "ACTIVE",
-            "cpu_usage":     "5%",
-            "memory_usage":  "128MB",
-            "restart_count": 0,
+            "cpu_usage":     _get_cpu_usage(),
+            "memory_usage":  _get_memory_usage(),
+            "restart_count": int(os.getenv("RAILWAY_RESTART_COUNT", "0")),
         },
 
         "system_meta": {
-            "uptime":             "0 Days",
+            "uptime":             _get_uptime(),
             "version":            "v1.0",
-            "environment":        "PRODUCTION",
-            "overall_health_pct": 100,
+            "environment":        os.getenv("RAILWAY_ENVIRONMENT", "PRODUCTION"),
+            "overall_health_pct": _get_health_pct(),
         },
 
         "recent_signals": recent_signals,

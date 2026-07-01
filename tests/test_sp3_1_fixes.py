@@ -330,6 +330,6 @@ class TestBug39LifespanHooks:
         import inspect
         import app as main_app
         src = inspect.getsource(main_app.pull_state_payload)
-        assert "scanner_tg._SCANNER_TG_APP" in src, (
+        assert "_SCANNER_TG_APP" in src, (
             "Hardcoded 'ONLINE' string not replaced with real _SCANNER_TG_APP check"
         )

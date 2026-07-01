@@ -207,6 +207,6 @@ class TestBug43LifespanHooks:
         import inspect
         import app as main_app
         src = inspect.getsource(main_app.pull_state_payload)
-        assert "pmb_tg._PMB_TG_APP" in src, (
+        assert "_PMB_TG_APP" in src, (
             "pmb_telegram_bot status missing or not using _PMB_TG_APP check"
         )
