@@ -609,7 +609,29 @@ def historical_pattern_score(coin: str, current_price: float) -> HistoricalPatte
         except Exception:
             pass  # keep neutral 10 on any ta failure
 
-        raw_total = t7 + t30 + t90 + sr + hv + rsi_score
+        # Bollinger Band Width score (ta library) — 0 to 15 bonus pts
+        # Narrow bands = coiling before breakout (high score).
+        # Very wide bands = already moved / risky entry (low score).
+        bb_score = 8  # neutral default
+        try:
+            if len(closes) >= 21:
+                _closes_s = _pd.Series(closes, dtype=float)
+                _bb = _ta.volatility.BollingerBands(_closes_s, window=20, window_dev=2, fillna=True)
+                _bbw = float(_bb.bollinger_wband().iloc[-1])  # bandwidth as % of SMA
+                if _bbw < 5:
+                    bb_score = 15   # tight squeeze — breakout coiling
+                elif _bbw < 10:
+                    bb_score = 12   # moderate squeeze — building momentum
+                elif _bbw < 20:
+                    bb_score = 8    # normal — neutral
+                elif _bbw < 35:
+                    bb_score = 4    # wide — momentum already in motion
+                else:
+                    bb_score = 1    # extremely wide — volatile/risky entry
+        except Exception:
+            pass  # keep neutral 8 on any ta failure
+
+        raw_total = t7 + t30 + t90 + sr + hv + rsi_score + bb_score
         total = int(_clamp(raw_total, 0, 100))
         return HistoricalPatternScore(trend_7d=t7, trend_30d=t30, trend_90d=t90, sr_quality=sr, hist_vol=hv, total=total)
     except Exception as exc:
