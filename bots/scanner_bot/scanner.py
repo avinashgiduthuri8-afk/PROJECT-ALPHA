@@ -22,6 +22,29 @@ from pathlib import Path
 from typing import Callable, Optional
 
 import requests
+import pandas as _pd
+import ta as _ta
+
+
+# =============================================================================
+# RATE LIMITER — 8 req/s hard cap to prevent CoinDCX/Binance API bans
+# Token-bucket: enforces a minimum gap between outbound HTTP calls.
+# =============================================================================
+
+_RATE_LOCK        = threading.Lock()
+_RATE_LAST_CALL   = [0.0]          # mutable container so inner fn can write
+_RATE_MIN_GAP_S   = 1.0 / 8        # 8 req/s → 125 ms between calls
+
+
+def _limited_get(url: str, **kwargs):
+    """Drop-in for requests.get() with built-in rate limiting (8 req/s max)."""
+    with _RATE_LOCK:
+        now = time.monotonic()
+        wait = _RATE_MIN_GAP_S - (now - _RATE_LAST_CALL[0])
+        if wait > 0:
+            time.sleep(wait)
+        _RATE_LAST_CALL[0] = time.monotonic()
+    return requests.get(url, **kwargs)
 
 
 # =============================================================================
@@ -104,7 +127,7 @@ def _check_candles_connectivity() -> bool:
     """
     try:
         import time as _t
-        resp = requests.get(
+        resp = _limited_get(
             COINDCX_CANDLES_URL,
             params={
                 "pair": "B-BTC_INR",
@@ -455,7 +478,7 @@ def _fetch_daily_candles(market_pair: str, days: int = 95) -> list:
     to_ts   = int(now)
     from_ts = to_ts - days * 86400
     try:
-        resp = requests.get(
+        resp = _limited_get(
             COINDCX_CANDLES_URL,
             params={"pair": market_pair, "resolution": "1D", "from": from_ts, "to": to_ts},
             timeout=REQUEST_TIMEOUT_SECONDS,
@@ -568,7 +591,26 @@ def historical_pattern_score(coin: str, current_price: float) -> HistoricalPatte
         t90 = int(_clamp(trend_90d,  0, 25))
         sr  = int(_clamp(sr_quality, 0, 25))
         hv  = int(_clamp(hist_vol,   0, 25))
-        total = int(_clamp(t7 + t30 + t90 + sr + hv, 0, 100))
+
+        # RSI-14 momentum quality score (ta library) — 0 to 20 bonus pts
+        rsi_score = 10  # neutral default
+        try:
+            if len(closes) >= 15:
+                _closes_s = _pd.Series(closes, dtype=float)
+                _rsi_val  = float(_ta.momentum.rsi(_closes_s, window=14, fillna=True).iloc[-1])
+                if 45 <= _rsi_val <= 65:
+                    rsi_score = 20   # ideal bullish momentum
+                elif 35 <= _rsi_val < 45 or 65 < _rsi_val <= 72:
+                    rsi_score = 14   # recovering or mild overbought
+                elif _rsi_val < 35:
+                    rsi_score = 8    # oversold — caution but may bounce
+                else:
+                    rsi_score = 4    # overbought (>72) — high reversal risk
+        except Exception:
+            pass  # keep neutral 10 on any ta failure
+
+        raw_total = t7 + t30 + t90 + sr + hv + rsi_score
+        total = int(_clamp(raw_total, 0, 100))
         return HistoricalPatternScore(trend_7d=t7, trend_30d=t30, trend_90d=t90, sr_quality=sr, hist_vol=hv, total=total)
     except Exception as exc:
         # BUG-20: log coin, actual exception type, and message explicitly
@@ -719,7 +761,7 @@ def _fetch_bootstrap_candles(coin: str) -> list:
     for pair, _quote in _bootstrap_pair_candidates(coin):
         for attempt in range(1, _BOOTSTRAP_MAX_RETRIES + 1):
             try:
-                resp = requests.get(
+                resp = _limited_get(
                     BOOTSTRAP_CANDLES_URL,
                     params={
                         "pair":     pair,
@@ -1582,7 +1624,7 @@ class CoinDCXPublicClient:
         last_exc: Exception | None = None
         for attempt in range(1, self._TICKER_MAX_RETRIES + 1):
             try:
-                response = requests.get(
+                response = _limited_get(
                     COINDCX_TICKER_URL,
                     timeout=REQUEST_TIMEOUT_SECONDS,
                 )
