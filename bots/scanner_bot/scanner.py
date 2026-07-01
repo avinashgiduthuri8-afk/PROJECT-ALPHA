@@ -39,7 +39,10 @@ STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 DEFAULT_WATCHLIST = ["BTC", "SOL", "ETH", "ZEC", "XRP", "BNB"]
 
 COINDCX_TICKER_URL  = "https://api.coindcx.com/exchange/ticker"
-COINDCX_CANDLES_URL = "https://public.coindcx.com/market_data/candles"
+COINDCX_CANDLES_URL = os.getenv(
+    "COINDCX_CANDLES_URL",
+    "https://public.coindcx.com/market_data/candles"
+)
 REQUEST_TIMEOUT_SECONDS = 10
 TICKER_CACHE_TTL_SECONDS = int(os.getenv("TICKER_CACHE_TTL_SECONDS", "20"))
 
@@ -93,6 +96,27 @@ def get_coin_class(symbol: str) -> str:
     if sym in COIN_CLASSES["B"]:
         return "B"
     return "C"
+
+
+def _check_candles_connectivity() -> bool:
+    """Quick probe to COINDCX_CANDLES_URL before bootstrap.
+    Returns True if reachable, False otherwise.
+    """
+    try:
+        import time as _t
+        resp = requests.get(
+            COINDCX_CANDLES_URL,
+            params={
+                "pair": "B-BTC_INR",
+                "resolution": "1D",
+                "from": int(_t.time()) - 86400,
+                "to": int(_t.time()),
+            },
+            timeout=5,
+        )
+        return resp.status_code == 200
+    except Exception:
+        return False
 
 
 EMA_FAST_PERIOD     = 9

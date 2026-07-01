@@ -9,3 +9,5 @@ __pycache__/
 *.pyc
 *.json.bak
 bots/scanner_bot/attached_assets/*.ipynb
+# Runtime state files — never commit; regenerated at startup
+bots/volatile_gridX/data/circuit_breaker.json

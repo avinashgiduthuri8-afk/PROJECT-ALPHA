@@ -609,7 +609,7 @@ class HealthChecker:
         """Run all health checks and generate comprehensive report."""
         start = time.time()
         checks: List[HealthCheckResult] = []
-        
+
         with self._check_lock:
             # Storage checks
             storage_files = [
@@ -623,6 +623,44 @@ class HealthChecker:
                 result = self.check_storage_file(filename)
                 checks.append(result)
                 self._trigger_alerts(result)
+
+            # MTB storage checks
+            try:
+                from bots.mtb_bot.config import POSITIONS_FILE as MTB_POS, \
+                    TRADES_FILE as MTB_TRD, STATS_FILE as MTB_STA
+                for path, label in [(MTB_POS, "mtb_positions.json"),
+                                    (MTB_TRD, "mtb_trades.json"),
+                                    (MTB_STA, "mtb_stats.json")]:
+                    result = self.check_storage_file(label, path)
+                    checks.append(result)
+                    self._trigger_alerts(result)
+            except Exception:
+                checks.append(HealthCheckResult(
+                    name="mtb_config",
+                    status=HealthStatus.DEGRADED,
+                    severity=CheckSeverity.WARNING,
+                    message="MTB config unavailable",
+                    checked_at=datetime.now(timezone.utc),
+                ))
+
+            # PMB storage checks
+            try:
+                from bots.pmb_bot.config import POSITIONS_FILE as PMB_POS, \
+                    TRADES_FILE as PMB_TRD, STATS_FILE as PMB_STA
+                for path, label in [(PMB_POS, "pmb_positions.json"),
+                                    (PMB_TRD, "pmb_trades.json"),
+                                    (PMB_STA, "pmb_stats.json")]:
+                    result = self.check_storage_file(label, path)
+                    checks.append(result)
+                    self._trigger_alerts(result)
+            except Exception:
+                checks.append(HealthCheckResult(
+                    name="pmb_config",
+                    status=HealthStatus.DEGRADED,
+                    severity=CheckSeverity.WARNING,
+                    message="PMB config unavailable",
+                    checked_at=datetime.now(timezone.utc),
+                ))
             
             # Safety checks
             checks.append(self.check_circuit_breaker())

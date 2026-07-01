@@ -18,7 +18,7 @@ BOT_MODE    = os.getenv("MTB_BOT_MODE", "PAPER")
 TELEGRAM_BOT_TOKEN = os.getenv("MTB_BOT_TOKEN") or os.getenv("BOT_TOKEN", "")
 TELEGRAM_CHAT_ID   = os.getenv("MTB_CHAT_ID")   or os.getenv("TELEGRAM_CHAT_ID", "")
 
-SCANNER_API_URL         = os.getenv("SCANNER_API_URL", "http://127.0.0.1:5000").rstrip("/")
+SCANNER_API_URL         = os.getenv("SCANNER_API_URL", "http://127.0.0.1:8080").rstrip("/")
 SCANNER_TIMEOUT_SECONDS = float(os.getenv("SCANNER_TIMEOUT_SECONDS", "12"))
 
 POLL_INTERVAL_SECONDS  = int(os.getenv("MTB_POLL_INTERVAL_SECONDS",  "60"))

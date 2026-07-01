@@ -17,7 +17,6 @@ import hashlib
 import json
 import logging
 import os
-import psutil
 import threading
 import time
 from collections import defaultdict
@@ -580,43 +579,43 @@ class MetricsCollector:
     def collect_system_metrics(self) -> SystemMetrics:
         """Collect current system resource metrics."""
         try:
-            process = psutil.Process()
-            
+            import psutil
             # CPU
-            cpu_percent = psutil.cpu_percent(interval=0.1)
+            cpu_percent = psutil.cpu_percent(interval=None)
             cpu_count = psutil.cpu_count()
-            
+
             # Memory
             memory = psutil.virtual_memory()
             memory_percent = memory.percent
             memory_used_mb = memory.used / (1024 * 1024)
             memory_total_mb = memory.total / (1024 * 1024)
-            
+
             # Disk
             disk = psutil.disk_usage("/")
             disk_percent = disk.percent
             disk_used_gb = disk.used / (1024 * 1024 * 1024)
             disk_total_gb = disk.total / (1024 * 1024 * 1024)
-            
+
             # Process-specific
+            process = psutil.Process()
             thread_count = process.num_threads()
             try:
                 open_files = len(process.open_files())
-            except (psutil.AccessDenied, psutil.NoSuchProcess):
+            except Exception:
                 open_files = 0
-            
+
             try:
                 network_connections = len(process.connections())
-            except (psutil.AccessDenied, psutil.NoSuchProcess):
+            except Exception:
                 network_connections = 0
-            
+
             # Uptime
             uptime_seconds = time.time() - self._start_time
             days, remainder = divmod(int(uptime_seconds), 86400)
             hours, remainder = divmod(remainder, 3600)
             minutes, seconds = divmod(remainder, 60)
             uptime_formatted = f"{days}d {hours}h {minutes}m {seconds}s"
-            
+
             with self._data_lock:
                 self._system_metrics = SystemMetrics(
                     cpu_percent=round(cpu_percent, 1),
@@ -636,10 +635,9 @@ class MetricsCollector:
                     last_measured=datetime.now(timezone.utc),
                 )
                 return SystemMetrics(**self._system_metrics.__dict__)
-        
-        except Exception as e:
-            logger.error("Failed to collect system metrics: %s", e, exc_info=True)
-            return self._system_metrics
+
+        except Exception:
+            return SystemMetrics()
     
     def update_api_latency(self, latency_ms: float) -> None:
         """Update API latency measurement."""

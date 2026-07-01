@@ -147,13 +147,17 @@ api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 DASHBOARD_API_KEY = os.getenv("DASHBOARD_API_KEY")
 
 if not DASHBOARD_API_KEY:
-    async def require_api_key(api_key: str = Depends(api_key_header)) -> str:
+    async def require_api_key(request: Request, api_key: str = Depends(api_key_header)) -> str:
+        if request.url.path in ("/health", "/"):
+            return ""
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="DASHBOARD_API_KEY environment variable is not set",
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="DASHBOARD_API_KEY not configured",
         )
 else:
-    async def require_api_key(api_key: str = Depends(api_key_header)) -> str:
+    async def require_api_key(request: Request, api_key: str = Depends(api_key_header)) -> str:
+        if request.url.path in ("/health", "/"):
+            return ""
         if api_key != DASHBOARD_API_KEY:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -203,6 +207,14 @@ async def _app_lifespan(app: FastAPI):
         await mtb_tg.startup_event()
     except Exception as e:
         logger.warning("MTB Telegram bot failed to start: %s", e)
+    # AlertManager smoke-check
+    try:
+        from monitoring.telegram_alerts import AlertManager
+        _am = AlertManager()
+        logger.info("AlertManager ready — ALERT_BOT_TOKEN=%s",
+                    "SET" if _am._telegram._bot_token else "UNSET")
+    except Exception as e:
+        logger.warning("AlertManager not available: %s", e)
     yield
     await mtb_tg.shutdown_event()
     await pmb_tg.shutdown_event()
@@ -219,6 +231,12 @@ app = FastAPI(
     lifespan=_app_lifespan,
     dependencies=[Depends(require_api_key)],
 )
+
+
+@app.get("/health", include_in_schema=False)
+async def health_probe():
+    return {"status": "ok"}
+
 
 # Mount all /api/v1/scanner/* routes from the scanner bot into the dashboard app.
 app.include_router(scanner_router)
@@ -735,7 +753,7 @@ async def unified_state_polling_endpoint():
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("PORT", "5000"))
+    port = int(os.getenv("PORT", "8080"))
     uvicorn.run(app, host="0.0.0.0", port=port)
   
 

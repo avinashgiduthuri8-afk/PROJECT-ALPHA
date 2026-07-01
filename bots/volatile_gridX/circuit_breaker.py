@@ -23,6 +23,24 @@ from enum import Enum
 logger = logging.getLogger("circuit_breaker")
 
 # ============================================================
+# LAZY ALERT MANAGER
+# ============================================================
+
+_alert_manager = None
+
+
+def _get_alert_manager():
+    """Lazy getter for AlertManager — fails silently so it never affects circuit breaker logic."""
+    global _alert_manager
+    if _alert_manager is None:
+        try:
+            from monitoring.telegram_alerts import AlertManager
+            _alert_manager = AlertManager()
+        except Exception:
+            pass
+    return _alert_manager
+
+# ============================================================
 # CONFIGURATION
 # ============================================================
 
@@ -271,6 +289,13 @@ class CircuitBreaker:
                 "CIRCUIT_BREAKER: EMERGENCY STOP - Drawdown %.2f%% >= %.2f%%",
                 drawdown_pct, MAX_DRAWDOWN_PCT
             )
+            try:
+                am = _get_alert_manager()
+                if am:
+                    am.alert_circuit_breaker_activated(
+                        "EMERGENCY_STOP", {"drawdown_pct": drawdown_pct})
+            except Exception:
+                pass
             return TradingState.EMERGENCY_STOP
         
         # 2. Check monthly limit
@@ -301,6 +326,12 @@ class CircuitBreaker:
                 "CIRCUIT_BREAKER: Daily limit hit - Loss %.2f%% >= %.2f%%",
                 daily_loss_pct, DAILY_LOSS_LIMIT_PCT
             )
+            try:
+                am = _get_alert_manager()
+                if am:
+                    am.alert_daily_loss_limit(daily_loss_pct, DAILY_LOSS_LIMIT_PCT)
+            except Exception:
+                pass
             return TradingState.DAILY_LIMIT_HIT
         
         return TradingState.ACTIVE
@@ -378,6 +409,12 @@ class CircuitBreaker:
         
         self._save_state()
         logger.info("CIRCUIT_BREAKER: Manual reset complete - trading resumed")
+        try:
+            am = _get_alert_manager()
+            if am:
+                am.alert_circuit_breaker_reset()
+        except Exception:
+            pass
         return True
     
     def get_status(self) -> dict:

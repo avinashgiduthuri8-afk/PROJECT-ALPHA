@@ -987,28 +987,38 @@ async def _scanner_loop() -> None:
         _BOOTSTRAP_STATUS["started_at"] = datetime.now(timezone.utc).isoformat()
         logger.info("[Bootstrap] state=running")
 
-        result = await scanner.run_bootstrap()
+        if not scanner._check_candles_connectivity():
+            logger.critical(
+                "BOOTSTRAP SKIPPED: public.coindcx.com is unreachable. "
+                "Set COINDCX_CANDLES_URL env var to override, or check "
+                "Railway network egress. Scanner will run without "
+                "historical data — 0 signals until resolved."
+            )
+            _BOOTSTRAP_STATUS["state"] = "skipped"
+            _BOOTSTRAP_STATUS["completed_at"] = datetime.now(timezone.utc).isoformat()
+        else:
+            result = await scanner.run_bootstrap()
 
-        # SP1.1: populate status from BootstrapResult
-        _BOOTSTRAP_STATUS.update({
-            "state":           "complete",
-            "completed_at":    datetime.now(timezone.utc).isoformat(),
-            "duration_s":      result.duration_s,
-            "coins_attempted": result.coins_attempted,
-            "coins_loaded":    result.coins_loaded,
-            "coins_failed":    result.coins_failed,
-            "coins_skipped":   result.coins_skipped,
-            "avg_history_len": result.avg_history_len,
-            "min_history_len": result.min_history_len,
-            "ema_ready":       result.ema_ready,
-            "mtf_ready":       result.mtf_ready,
-            "phase5_ready":    result.phase5_ready,
-            "failed_coins":    result.failed_coins,
-        })
-        logger.info(
-            "[Bootstrap] state=complete loaded=%d failed=%d skipped=%d duration=%.1fs",
-            result.coins_loaded, result.coins_failed, result.coins_skipped, result.duration_s,
-        )
+            # SP1.1: populate status from BootstrapResult
+            _BOOTSTRAP_STATUS.update({
+                "state":           "complete",
+                "completed_at":    datetime.now(timezone.utc).isoformat(),
+                "duration_s":      result.duration_s,
+                "coins_attempted": result.coins_attempted,
+                "coins_loaded":    result.coins_loaded,
+                "coins_failed":    result.coins_failed,
+                "coins_skipped":   result.coins_skipped,
+                "avg_history_len": result.avg_history_len,
+                "min_history_len": result.min_history_len,
+                "ema_ready":       result.ema_ready,
+                "mtf_ready":       result.mtf_ready,
+                "phase5_ready":    result.phase5_ready,
+                "failed_coins":    result.failed_coins,
+            })
+            logger.info(
+                "[Bootstrap] state=complete loaded=%d failed=%d skipped=%d duration=%.1fs",
+                result.coins_loaded, result.coins_failed, result.coins_skipped, result.duration_s,
+            )
     except Exception:
         _BOOTSTRAP_STATUS["state"]        = "failed"
         _BOOTSTRAP_STATUS["completed_at"] = datetime.now(timezone.utc).isoformat()
