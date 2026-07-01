@@ -56,6 +56,24 @@ document.addEventListener("DOMContentLoaded", () => {
     // 1. Core Config State Payload Bridge Unpacking Pipeline
     const stateEngineData = JSON.parse(document.getElementById("dashboard-state-payload-json").textContent);
 
+    // ── Mobile sidebar toggle ──────────────────────────────────────────────
+    const sidebarToggleBtn = document.getElementById("sidebar-toggle");
+    const sidebar = document.getElementById("sidebar");
+    if (sidebarToggleBtn && sidebar) {
+        sidebarToggleBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            sidebar.classList.toggle("open");
+        });
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener("click", (e) => {
+            if (sidebar.classList.contains("open") &&
+                !sidebar.contains(e.target) &&
+                e.target !== sidebarToggleBtn) {
+                sidebar.classList.remove("open");
+            }
+        });
+    }
+
     // 2. Sidebar Dropdown Menu Toggle Engine
     const dropdownToggles = document.querySelectorAll(".nav-dropdown-toggle");
     dropdownToggles.forEach(toggle => {
@@ -94,10 +112,13 @@ document.addEventListener("DOMContentLoaded", () => {
             anchor.classList.add("active");
             const structuralTargetId = anchor.getAttribute("data-target");
             document.getElementById(structuralTargetId).classList.remove("view-hidden");
+
+            // Close mobile sidebar after navigation
+            if (sidebar) sidebar.classList.remove("open");
         });
     });
 
-    // 3. Alerts Popover Floating Panel Component Overlay Toggles Handles
+    // Alerts Popover Floating Panel
     const dropdownTrigger = document.getElementById("alert-dropdown-btn");
     const popoverOverlay = document.getElementById("alerts-popup-overlay");
 
@@ -116,7 +137,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const themeControlBtn = document.getElementById("global-theme-toggle");
     const documentHtmlElement = document.documentElement;
 
-    // I-02: Theme Persistence — restore saved theme on page load
+    // Restore saved theme on page load
     const savedTheme = localStorage.getItem("pa-theme");
     if (savedTheme && (savedTheme === "dark" || savedTheme === "light")) {
         documentHtmlElement.setAttribute("data-theme", savedTheme);
@@ -126,8 +147,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const currentlyActiveTheme = documentHtmlElement.getAttribute("data-theme");
         const inverseCalculatedTheme = currentlyActiveTheme === "dark" ? "light" : "dark";
         documentHtmlElement.setAttribute("data-theme", inverseCalculatedTheme);
-        localStorage.setItem("pa-theme", inverseCalculatedTheme); // I-02: persist
-        // Re-compile Graphic Widget options colors parameters dynamically
+        localStorage.setItem("pa-theme", inverseCalculatedTheme);
         refreshDashboardCharts(inverseCalculatedTheme);
     });
 
@@ -141,123 +161,144 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         const isDarkThemeActive = themeContext === "dark";
-        const gridBorderColor = isDarkThemeActive ? "#172033" : "#E2E8F0";
-        const labelTextColor = isDarkThemeActive ? "#F4F5F7" : "#0F172A";
+        const gridBorderColor = isDarkThemeActive ? "#1e1e2e" : "#E2E8F0";
+        const labelTextColor = isDarkThemeActive ? "#8b8ba0" : "#64748b";
 
-        // Setup 1: Home Dashboard Pie Configuration Widget
-        const ctxHomePie = document.getElementById("homePieChart").getContext("2d");
-        runtimeChartHandles.homePie = new Chart(ctxHomePie, {
-            type: "doughnut",
-            data: {
-                labels: stateEngineData.charts.distribution.labels,
-                datasets: [{
-                    data: stateEngineData.charts.distribution.data,
-                    backgroundColor: ["#3B82F6", "#F59E0B", "#EF4444"],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { position: "bottom", labels: { color: labelTextColor, font: { family: "Inter", size: 10 } } } }
-            }
-        });
-
-        // Setup 2: Home Dashboard Market Conditions Strength Gauge Widget
-        const ctxHomeGauge = document.getElementById("homeGaugeChart").getContext("2d");
-        const innerStrengthDataValue = stateEngineData.market_state.market_strength;
-        runtimeChartHandles.homeGauge = new Chart(ctxHomeGauge, {
-            type: "doughnut",
-            data: {
-                datasets: [{
-                    data: [innerStrengthDataValue, 100 - innerStrengthDataValue],
-                    backgroundColor: ["#10B981", isDarkThemeActive ? "#172033" : "#E2E8F0"],
-                    circumference: 180,
-                    rotation: 270,
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: "85%",
-                plugins: { tooltip: { enabled: false }, legend: { display: false } }
-            }
-        });
-
-        // Setup 3: Home Dashboard Historical Run Engine Breakouts Line Widget
-        const ctxHomeLine = document.getElementById("homeLineChart").getContext("2d");
-        runtimeChartHandles.homeLine = new Chart(ctxHomeLine, {
-            type: "line",
-            data: {
-                labels: stateEngineData.charts.daily_signals.labels,
-                datasets: [{
-                    data: stateEngineData.charts.daily_signals.data,
-                    borderColor: "#3B82F6",
-                    backgroundColor: "rgba(59, 130, 246, 0.03)",
-                    fill: true,
-                    tension: 0.35,
-                    borderWidth: 2,
-                    pointRadius: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: { grid: { color: gridBorderColor }, ticks: { color: labelTextColor } },
-                    y: { grid: { color: gridBorderColor }, ticks: { color: labelTextColor } }
+        // Home Pie — Signal Distribution
+        const ctxHomePie = document.getElementById("homePieChart");
+        if (ctxHomePie) {
+            runtimeChartHandles.homePie = new Chart(ctxHomePie.getContext("2d"), {
+                type: "doughnut",
+                data: {
+                    labels: stateEngineData.charts.distribution.labels,
+                    datasets: [{
+                        data: stateEngineData.charts.distribution.data,
+                        backgroundColor: ["#3b82f6", "#f59e0b", "#a78bfa"],
+                        borderWidth: 0
+                    }]
                 },
-                plugins: { legend: { display: false } }
-            }
-        });
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: "bottom",
+                            labels: { color: labelTextColor, font: { family: "Inter", size: 10 }, padding: 12 }
+                        }
+                    }
+                }
+            });
+        }
 
-        // Setup 4: Portfolio Allocation Weight Matrix Pie Widget
-        const ctxPortfolioPie = document.getElementById("portfolioPieChart").getContext("2d");
-        runtimeChartHandles.portfolioPie = new Chart(ctxPortfolioPie, {
-            type: "pie",
-            data: {
-                labels: stateEngineData.charts.asset_allocation.labels,
-                datasets: [{
-                    data: stateEngineData.charts.asset_allocation.data,
-                    backgroundColor: ["#3B82F6", "#10B981", "#F59E0B", "#64748B"],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { position: "bottom", labels: { color: labelTextColor, font: { family: "Inter", size: 10 } } } }
-            }
-        });
-
-        // Setup 5: Portfolio Compound Value Equity Growth Curve Line Widget
-        const ctxPortfolioLine = document.getElementById("portfolioGrowthLineChart").getContext("2d");
-        runtimeChartHandles.portfolioLine = new Chart(ctxPortfolioLine, {
-            type: "line",
-            data: {
-                labels: stateEngineData.charts.portfolio_growth.labels,
-                datasets: [{
-                    data: stateEngineData.charts.portfolio_growth.data,
-                    borderColor: "#10B981",
-                    backgroundColor: "rgba(16, 185, 129, 0.03)",
-                    fill: true,
-                    tension: 0.2,
-                    borderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: { grid: { color: gridBorderColor }, ticks: { color: labelTextColor } },
-                    y: { grid: { color: gridBorderColor }, ticks: { color: labelTextColor } }
+        // Home Gauge — Market Strength
+        const ctxHomeGauge = document.getElementById("homeGaugeChart");
+        if (ctxHomeGauge) {
+            const innerStrengthDataValue = stateEngineData.market_state.market_strength;
+            runtimeChartHandles.homeGauge = new Chart(ctxHomeGauge.getContext("2d"), {
+                type: "doughnut",
+                data: {
+                    datasets: [{
+                        data: [innerStrengthDataValue, 100 - innerStrengthDataValue],
+                        backgroundColor: ["#00d4a0", isDarkThemeActive ? "#1e1e2e" : "#E2E8F0"],
+                        circumference: 180,
+                        rotation: 270,
+                        borderWidth: 0
+                    }]
                 },
-                plugins: { legend: { display: false } }
-            }
-        });
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: "85%",
+                    plugins: { tooltip: { enabled: false }, legend: { display: false } }
+                }
+            });
+        }
 
-        // Setup 6: VGX Virtual Balance Equity Curve — area line chart
+        // Home Line — Daily Signal Breakouts
+        const ctxHomeLine = document.getElementById("homeLineChart");
+        if (ctxHomeLine) {
+            runtimeChartHandles.homeLine = new Chart(ctxHomeLine.getContext("2d"), {
+                type: "line",
+                data: {
+                    labels: stateEngineData.charts.daily_signals.labels,
+                    datasets: [{
+                        data: stateEngineData.charts.daily_signals.data,
+                        borderColor: "#3b82f6",
+                        backgroundColor: "rgba(59,130,246,0.06)",
+                        fill: true,
+                        tension: 0.35,
+                        borderWidth: 2,
+                        pointRadius: 2,
+                        pointBackgroundColor: "#3b82f6"
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { grid: { color: gridBorderColor }, ticks: { color: labelTextColor, font: { size: 10 } } },
+                        y: { grid: { color: gridBorderColor }, ticks: { color: labelTextColor, font: { size: 10 } } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        // Portfolio Pie
+        const ctxPortfolioPie = document.getElementById("portfolioPieChart");
+        if (ctxPortfolioPie) {
+            runtimeChartHandles.portfolioPie = new Chart(ctxPortfolioPie.getContext("2d"), {
+                type: "pie",
+                data: {
+                    labels: stateEngineData.charts.asset_allocation.labels,
+                    datasets: [{
+                        data: stateEngineData.charts.asset_allocation.data,
+                        backgroundColor: ["#3b82f6", "#00d4a0", "#f59e0b", "#64748b"],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: "bottom",
+                            labels: { color: labelTextColor, font: { family: "Inter", size: 10 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Portfolio Growth Line
+        const ctxPortfolioLine = document.getElementById("portfolioGrowthLineChart");
+        if (ctxPortfolioLine) {
+            runtimeChartHandles.portfolioLine = new Chart(ctxPortfolioLine.getContext("2d"), {
+                type: "line",
+                data: {
+                    labels: stateEngineData.charts.portfolio_growth.labels,
+                    datasets: [{
+                        data: stateEngineData.charts.portfolio_growth.data,
+                        borderColor: "#00d4a0",
+                        backgroundColor: "rgba(0,212,160,0.06)",
+                        fill: true,
+                        tension: 0.2,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { grid: { color: gridBorderColor }, ticks: { color: labelTextColor } },
+                        y: { grid: { color: gridBorderColor }, ticks: { color: labelTextColor } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        // VGX Equity Curve
         const vgxEquity = stateEngineData.vgx_overview && stateEngineData.vgx_overview.equity_curve
             ? stateEngineData.vgx_overview.equity_curve
             : { labels: ["Start"], data: [1000000] };
@@ -271,8 +312,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     datasets: [{
                         label: "Virtual Balance (₹)",
                         data: vgxEquity.data,
-                        borderColor: "#3B82F6",
-                        backgroundColor: "rgba(59, 130, 246, 0.08)",
+                        borderColor: "#3b82f6",
+                        backgroundColor: "rgba(59,130,246,0.08)",
                         fill: true,
                         tension: 0.35,
                         borderWidth: 2.5,
@@ -287,12 +328,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     scales: {
                         x: {
                             grid: { color: gridBorderColor },
-                            ticks: {
-                                color: labelTextColor,
-                                maxTicksLimit: 8,
-                                maxRotation: 0,
-                                font: { size: 10 }
-                            }
+                            ticks: { color: labelTextColor, maxTicksLimit: 8, maxRotation: 0, font: { size: 10 } }
                         },
                         y: {
                             grid: { color: gridBorderColor },
@@ -315,7 +351,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         }
 
-        // Setup 7: VGX Win / Loss Distribution — bar chart
+        // VGX Win/Loss Bar
         const vgxWL = stateEngineData.vgx_overview && stateEngineData.vgx_overview.win_loss_chart
             ? stateEngineData.vgx_overview.win_loss_chart
             : { labels: ["Wins", "Losses"], data: [0, 0] };
@@ -328,8 +364,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     labels: vgxWL.labels,
                     datasets: [{
                         data: vgxWL.data,
-                        backgroundColor: ["rgba(16, 185, 129, 0.75)", "rgba(239, 68, 68, 0.75)"],
-                        borderColor:     ["#10B981", "#EF4444"],
+                        backgroundColor: ["rgba(0,212,160,0.7)", "rgba(244,63,94,0.7)"],
+                        borderColor:     ["#00d4a0", "#f43f5e"],
                         borderWidth: 1.5,
                         borderRadius: 6,
                     }]
@@ -339,11 +375,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     maintainAspectRatio: false,
                     scales: {
                         x: { grid: { color: gridBorderColor }, ticks: { color: labelTextColor } },
-                        y: {
-                            grid: { color: gridBorderColor },
-                            ticks: { color: labelTextColor, precision: 0 },
-                            beginAtZero: true
-                        }
+                        y: { grid: { color: gridBorderColor }, ticks: { color: labelTextColor, precision: 0 }, beginAtZero: true }
                     },
                     plugins: { legend: { display: false } }
                 }
@@ -355,36 +387,34 @@ document.addEventListener("DOMContentLoaded", () => {
         Object.keys(runtimeChartHandles).forEach(key => {
             if (runtimeChartHandles[key]) runtimeChartHandles[key].destroy();
         });
+        runtimeChartHandles = {};
         initializeAllDashboardWidgets(themeContext);
     }
 
-    // Default system initialization trace run (uses current theme)
     const initialTheme = documentHtmlElement.getAttribute("data-theme") || "dark";
     initializeAllDashboardWidgets(initialTheme);
 
     // ═══════════════════════════════════════════════════════════════════════
-    // I-05: Score Settings Persistence  +  I-01: Refresh Interval Config
+    // Settings Persistence
     // ═══════════════════════════════════════════════════════════════════════
     const riskSelect = document.getElementById("settings-risk-profile");
     const refreshSelect = document.getElementById("settings-refresh-interval");
     const saveSettingsBtn = document.getElementById("settings-save-btn");
 
-    // Load saved settings
-    if (localStorage.getItem("pa-risk-profile")) {
+    if (localStorage.getItem("pa-risk-profile") && riskSelect) {
         riskSelect.value = localStorage.getItem("pa-risk-profile");
     }
-    if (localStorage.getItem("pa-refresh-interval")) {
+    if (localStorage.getItem("pa-refresh-interval") && refreshSelect) {
         refreshSelect.value = localStorage.getItem("pa-refresh-interval");
     }
 
     if (saveSettingsBtn) {
         saveSettingsBtn.addEventListener("click", () => {
-            localStorage.setItem("pa-risk-profile", riskSelect.value);
-            localStorage.setItem("pa-refresh-interval", refreshSelect.value);
-            // Show brief confirmation
+            if (riskSelect) localStorage.setItem("pa-risk-profile", riskSelect.value);
+            if (refreshSelect) localStorage.setItem("pa-refresh-interval", refreshSelect.value);
             const originalText = saveSettingsBtn.textContent;
             saveSettingsBtn.textContent = "Saved ✓";
-            saveSettingsBtn.style.backgroundColor = "var(--color-green)";
+            saveSettingsBtn.style.backgroundColor = "var(--green)";
             setTimeout(() => {
                 saveSettingsBtn.textContent = originalText;
                 saveSettingsBtn.style.backgroundColor = "";
@@ -393,13 +423,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // 6. Live Data Refresh Engine — replaces window.location.reload()
-    //    Fetches /api/v1/state every 10s and patches only the changed DOM nodes
-    //    and Chart.js datasets. No page reload. No flicker. No chart destruction.
-    //    I-01: Refresh interval is configurable via settings
+    // Live Data Refresh Engine — patches DOM from /api/v1/state
     // ─────────────────────────────────────────────────────────────────────────
 
-    // Helper: find a metric-card by its h5 label text, return its value node (h2 or h3)
     function findCardValueNode(labelText) {
         const cards = document.querySelectorAll(".metric-card h5");
         for (const h5 of cards) {
@@ -410,7 +436,6 @@ document.addEventListener("DOMContentLoaded", () => {
         return null;
     }
 
-    // Helper: find a card's footer <span class="text-white"> node by card label
     function findCardFooterSpan(labelText) {
         const cards = document.querySelectorAll(".metric-card h5");
         for (const h5 of cards) {
@@ -421,15 +446,13 @@ document.addEventListener("DOMContentLoaded", () => {
         return null;
     }
 
-    // Helper: update a Chart.js handle's labels and first dataset data in place
     function patchChart(handle, labels, data) {
         if (!handle) return;
         handle.data.labels = labels;
         handle.data.datasets[0].data = data;
-        handle.update("none");   // "none" = skip animation for live updates
+        handle.update("none");
     }
 
-    // Helper: update gauge chart (two-segment) and its readout digit text
     function patchGauge(handle, strength) {
         if (!handle) return;
         handle.data.datasets[0].data = [strength, 100 - strength];
@@ -438,7 +461,6 @@ document.addEventListener("DOMContentLoaded", () => {
         if (readout) readout.textContent = strength + "%";
     }
 
-    // Return a human-readable relative age string (e.g. "4m ago", "2h ago")
     function timeAgo(isoString) {
         if (!isoString) return "—";
         try {
@@ -451,7 +473,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (e) { return "—"; }
     }
 
-    // Helper: rebuild the signals table tbody from fresh recent_signals array
+    // Rebuild scanner-view signals table
     function patchSignalTable(signals) {
         const scannerView = document.getElementById("scanner-view");
         if (!scannerView) return;
@@ -472,23 +494,258 @@ document.addEventListener("DOMContentLoaded", () => {
                 <td>${trace.market || "INR"}</td>
                 <td>${trace.timestamp || ""}</td>
                 <td>${trace.market_state || ""}</td>
-                <td style="color:var(--text-muted);font-size:0.85em;white-space:nowrap;">${timeAgo(trace.timestamp)}</td>
+                <td style="color:var(--text-secondary);font-size:0.85em;white-space:nowrap;">${timeAgo(trace.timestamp)}</td>
             </tr>
         `).join("");
+    }
+
+    // Rebuild home-view signals preview table (top 8)
+    function patchHomeSignalTable(signals) {
+        const tbody = document.getElementById("home-signals-tbody");
+        if (!tbody) return;
+        if (!signals || signals.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-muted" style="text-align:center;padding:20px;">No active signals</td></tr>';
+            return;
+        }
+        const tierClass = cat => {
+            if (cat === "ELITE")  return "tier-elite";
+            if (cat === "HIGH")   return "tier-high";
+            if (cat === "MEDIUM") return "tier-medium";
+            return "tier-other";
+        };
+        tbody.innerHTML = signals.slice(0, 8).map(t => `
+            <tr>
+                <td><strong>${t.coin || ""}</strong></td>
+                <td><span class="${tierClass(t.category)}">${t.category || "—"}</span></td>
+                <td class="font-mono">${t.score || 0}</td>
+                <td class="font-mono text-sm">${t.signal_price || 0}</td>
+                <td class="text-muted text-sm">${timeAgo(t.timestamp)}</td>
+            </tr>
+        `).join("");
+    }
+
+    // Status dot helper for topbar live update
+    function _dotClass(val) {
+        if (val === "ONLINE") return "dot-online";
+        if (val === "LIVE")   return "dot-live";
+        if (val === "PAPER")  return "dot-paper";
+        return "dot-offline";
+    }
+    function _lblClass(val) {
+        if (val === "ONLINE") return "st-online";
+        if (val === "LIVE")   return "st-live";
+        if (val === "PAPER")  return "st-paper";
+        return "st-offline";
+    }
+
+    function patchStatusBadge(dotId, labelId, value) {
+        const dot = document.getElementById(dotId);
+        const lbl = document.getElementById(labelId);
+        if (dot) { dot.className = "status-dot " + _dotClass(value); }
+        if (lbl) { lbl.className = _lblClass(value); lbl.textContent = value; }
+    }
+
+    // Patch bot status pill (id = the pill element itself)
+    function patchBotPill(pillId, svcStatus, mode) {
+        const pill = document.getElementById(pillId);
+        if (!pill) return;
+        let cls = "bot-status-pill ";
+        if (svcStatus === "OFFLINE") cls += "offline";
+        else if (mode === "LIVE")    cls += "live";
+        else if (mode === "PAPER")   cls += "paper";
+        else                         cls += "online";
+        pill.className = cls;
+        // Update text (keep dot span)
+        const dot = pill.querySelector("span");
+        pill.textContent = " " + mode;
+        if (dot) pill.prepend(dot);
+    }
+
+    // ── V2 Home View Patch ───────────────────────────────────────────────
+    function updateHomeV2(data) {
+        // KPI — Total AUM
+        const kpiAum = document.getElementById("kpi-aum");
+        if (kpiAum) kpiAum.textContent = data.portfolio_overview.total_value || "—";
+        const kpiDelta = document.getElementById("kpi-aum-delta");
+        if (kpiDelta) {
+            kpiDelta.textContent = data.portfolio_overview.daily_pnl || "—";
+            const pnlNum = parseFloat(data.portfolio_overview.daily_pnl) || 0;
+            kpiDelta.className = pnlNum >= 0 ? "text-green" : "text-red";
+        }
+
+        // KPI — Combined PnL
+        const kpiPnl = document.getElementById("kpi-pnl");
+        if (kpiPnl && data.vgx_overview && data.pmb_overview && data.mtb_overview) {
+            const combo = (data.vgx_overview.daily_pnl || 0) +
+                          (data.pmb_overview.daily_pnl  || 0) +
+                          (data.mtb_overview.daily_pnl  || 0);
+            kpiPnl.textContent = "₹" + combo.toFixed(2);
+            kpiPnl.className = "kpi-value font-mono " + (combo >= 0 ? "text-green" : "text-red");
+        }
+
+        // KPI — Win Rate
+        const kpiWr = document.getElementById("kpi-winrate");
+        if (kpiWr && data.performance_stats) {
+            kpiWr.textContent = (data.performance_stats.win_rate_pct || 0) + "%";
+        }
+
+        // KPI — Open Positions
+        const kpiPos = document.getElementById("kpi-openpos");
+        if (kpiPos && data.vgx_overview && data.pmb_overview && data.mtb_overview) {
+            const total = (data.vgx_overview.open_positions || []).length +
+                          (data.pmb_overview.open_positions  || []).length +
+                          (data.mtb_overview.open_positions  || []).length;
+            kpiPos.textContent = total;
+            // Risk panel open pos mirror
+            const riskOp = document.getElementById("risk-openpos");
+            if (riskOp) riskOp.textContent = total;
+        }
+
+        // KPI — Capital Deployed
+        const kpiCap = document.getElementById("kpi-capital");
+        if (kpiCap && data.risk_engine) {
+            kpiCap.textContent = "₹" + Math.round(data.risk_engine.total_deployed || 0).toLocaleString("en-IN");
+        }
+
+        // KPI — System Health
+        const kpiHealth = document.getElementById("kpi-health");
+        if (kpiHealth && data.system_meta) {
+            kpiHealth.textContent = (data.system_meta.overall_health_pct || 0) + "%";
+        }
+
+        // ── VGX Bot Card ─────────────────────────────────────────────────
+        if (data.vgx_overview && data.service_statuses) {
+            patchBotPill("vbc-vgx-status", data.service_statuses.vgx, data.vgx_overview.status || "—");
+
+            const vBal = document.getElementById("vbc-vgx-balance");
+            if (vBal) vBal.textContent = "₹" + Math.round(data.vgx_overview.virtual_balance || 0).toLocaleString("en-IN");
+
+            const vPnl = document.getElementById("vbc-vgx-pnl");
+            if (vPnl) {
+                vPnl.textContent = "₹" + (data.vgx_overview.daily_pnl || 0).toFixed(2);
+                vPnl.className = "bot-metric-value " + ((data.vgx_overview.daily_pnl || 0) >= 0 ? "text-green" : "text-red");
+            }
+
+            const vWr = document.getElementById("vbc-vgx-winrate");
+            if (vWr) vWr.textContent = (data.vgx_overview.win_rate || 0) + "%";
+
+            const vgxPosCnt = (data.vgx_overview.open_positions || []).length;
+            const vPos = document.getElementById("vbc-vgx-positions");
+            if (vPos) vPos.textContent = vgxPosCnt + " / 5";
+
+            const vProg = document.getElementById("vbc-vgx-progress");
+            const vProgLbl = document.getElementById("vbc-vgx-prog-label");
+            if (vProg) {
+                const pct = Math.min(100, vgxPosCnt * 20);
+                vProg.style.width = pct + "%";
+                if (vProgLbl) vProgLbl.textContent = pct + "%";
+            }
+        }
+
+        // ── PMB Bot Card ─────────────────────────────────────────────────
+        if (data.pmb_overview && data.service_statuses) {
+            patchBotPill("vbc-pmb-status", data.service_statuses.pmb, data.pmb_overview.mode || "—");
+
+            const pCash = document.getElementById("vbc-pmb-cash");
+            if (pCash) pCash.textContent = "₹" + Math.round(data.pmb_overview.cash_balance || 0).toLocaleString("en-IN");
+
+            const pPnl = document.getElementById("vbc-pmb-pnl");
+            if (pPnl) {
+                pPnl.textContent = "₹" + (data.pmb_overview.daily_pnl || 0).toFixed(2);
+                pPnl.className = "bot-metric-value " + ((data.pmb_overview.daily_pnl || 0) >= 0 ? "text-green" : "text-red");
+            }
+
+            const pPos = document.getElementById("vbc-pmb-positions");
+            if (pPos) pPos.textContent = (data.pmb_overview.open_positions || []).length;
+
+            const pmbPosCnt = (data.pmb_overview.open_positions || []).length;
+            const pProg = document.getElementById("vbc-pmb-progress");
+            if (pProg) pProg.style.width = Math.min(100, pmbPosCnt * 25) + "%";
+        }
+
+        // ── MTB Bot Card ─────────────────────────────────────────────────
+        if (data.mtb_overview && data.service_statuses) {
+            patchBotPill("vbc-mtb-status", data.service_statuses.mtb, data.mtb_overview.mode || "—");
+
+            const mCash = document.getElementById("vbc-mtb-cash");
+            if (mCash) mCash.textContent = "₹" + Math.round(data.mtb_overview.cash_balance || 0).toLocaleString("en-IN");
+
+            const mPnl = document.getElementById("vbc-mtb-pnl");
+            if (mPnl) {
+                mPnl.textContent = "₹" + (data.mtb_overview.daily_pnl || 0).toFixed(2);
+                mPnl.className = "bot-metric-value " + ((data.mtb_overview.daily_pnl || 0) >= 0 ? "text-green" : "text-red");
+            }
+
+            const mPos = document.getElementById("vbc-mtb-positions");
+            if (mPos) mPos.textContent = (data.mtb_overview.open_positions || []).length;
+
+            const mtbPosCnt = (data.mtb_overview.open_positions || []).length;
+            const mProg = document.getElementById("vbc-mtb-progress");
+            if (mProg) mProg.style.width = Math.min(100, mtbPosCnt * 25) + "%";
+        }
+
+        // ── Home Signals Preview ─────────────────────────────────────────
+        patchHomeSignalTable(data.recent_signals || []);
+
+        // ── Risk Panel ───────────────────────────────────────────────────
+        if (data.risk_engine) {
+            const rEstop = document.getElementById("risk-estop");
+            if (rEstop) {
+                rEstop.textContent = data.risk_engine.emergency_stop ? "ACTIVE" : "INACTIVE";
+                rEstop.className = "risk-item-value " + (data.risk_engine.emergency_stop ? "text-red" : "text-green");
+            }
+            const rDep = document.getElementById("risk-deployed");
+            if (rDep) rDep.textContent = "₹" + Math.round(data.risk_engine.total_deployed || 0).toLocaleString("en-IN");
+            const rUtil = document.getElementById("risk-util");
+            if (rUtil) {
+                const util = data.risk_engine.capital_utilisation_pct || 0;
+                rUtil.textContent = util + "%";
+                rUtil.className = "risk-item-value font-mono " + (util > 80 ? "text-red" : util > 50 ? "text-gold" : "text-green");
+            }
+            const rTrading = document.getElementById("risk-trading");
+            if (rTrading) {
+                rTrading.textContent = data.risk_engine.trading_enabled ? "ENABLED" : "HALTED";
+                rTrading.className = "risk-item-value " + (data.risk_engine.trading_enabled ? "text-green" : "text-red");
+            }
+            const rBadge = document.getElementById("risk-trading-badge");
+            if (rBadge) {
+                rBadge.textContent = data.risk_engine.trading_enabled ? "TRADING ENABLED" : "TRADING HALTED";
+                rBadge.className = "risk-panel-badge" + (data.risk_engine.trading_enabled ? "" : " danger");
+            }
+            const rUpdated = document.getElementById("risk-updated");
+            if (rUpdated) rUpdated.textContent = data.risk_engine.last_updated || "—";
+        }
+
+        // ── Topbar status badges live update ──────────────────────────────
+        if (data.service_statuses) {
+            patchStatusBadge("dot-scanner", "sb-scanner", data.service_statuses.scanner || "OFFLINE");
+            patchStatusBadge("dot-vgx", "sb-vgx", data.service_statuses.vgx || "OFFLINE");
+            patchStatusBadge("dot-pmb", "sb-pmb", data.service_statuses.pmb || "OFFLINE");
+            patchStatusBadge("dot-mtb", "sb-mtb", data.service_statuses.mtb || "OFFLINE");
+
+            // Telegram: ONLINE if any relay is up
+            const tgUp = [
+                data.service_statuses.scanner_telegram,
+                data.service_statuses.vgx_telegram,
+                data.service_statuses.pmb_telegram,
+                data.service_statuses.mtb_telegram,
+            ].some(s => s === "ONLINE");
+            patchStatusBadge("dot-telegram", "sb-telegram", tgUp ? "ONLINE" : "OFFLINE");
+        }
+        if (data.railway_monitoring) {
+            patchStatusBadge("dot-railway", "sb-railway", data.railway_monitoring.status || "OFFLINE");
+        }
     }
 
     async function refreshDashboardData() {
         try {
             const response = await fetch("/api/v1/state");
-            if (!response.ok) return;   // silently skip on non-200; retry next interval
+            if (!response.ok) return;
             const data = await response.json();
 
-            // ── Scanner stat cards (home view + scanner view) ──────────────
+            // ── Scanner stat cards ──────────────────────────────────────
             const marketCount = document.getElementById("market-assets-count");
             if (marketCount) marketCount.textContent = data.scanner_overview.coins_scanned || 0;
-
-            const footerScan = findCardFooterSpan("Scanner Processing Efficiency Matrix");
-            if (footerScan) footerScan.textContent = data.scanner_overview.last_scan_time || "LIVE";
 
             const eliteNode  = document.getElementById("so-elite-signals")  || findCardValueNode("Elite Signals");
             const highNode   = document.getElementById("so-high-signals")   || findCardValueNode("High Signals");
@@ -497,33 +754,23 @@ document.addEventListener("DOMContentLoaded", () => {
             if (highNode)   highNode.textContent   = data.scanner_overview.high_signals   || 0;
             if (mediumNode) mediumNode.textContent = data.scanner_overview.medium_signals || 0;
 
-            // ── I-04: Cleanup engine stat cards ───────────────────────────
+            // ── I-04: Cleanup engine cards ──────────────────────────────
             const activeNode   = document.getElementById("so-active-signals");
             const expiredNode  = document.getElementById("so-expired-signals");
             const lastCleanEl  = document.getElementById("so-last-cleanup");
-            const nextCleanEl  = document.getElementById("so-next-cleanup");
-
             if (activeNode)  activeNode.textContent  = data.scanner_overview.active_signals  || 0;
             if (expiredNode) expiredNode.textContent = data.scanner_overview.expired_signals || 0;
-
             if (lastCleanEl) {
                 const lct = data.scanner_overview.last_cleanup_time;
-                if (lct) {
-                    try {
-                        const ago = _relativeTime(new Date(lct));
-                        lastCleanEl.textContent = ago;
-                    } catch(e) { lastCleanEl.textContent = "—"; }
-                } else {
-                    lastCleanEl.textContent = "Pending";
-                }
+                lastCleanEl.textContent = lct
+                    ? (() => { try { return _relativeTime(new Date(lct)); } catch(e) { return "—"; } })()
+                    : "Pending";
             }
-
-            // Store next cleanup ISO time for countdown ticker
             if (data.scanner_overview.next_cleanup_time) {
                 window._nextCleanupTs = new Date(data.scanner_overview.next_cleanup_time).getTime();
             }
 
-            // ── I-05: Health monitor card ────────────────────────────────
+            // ── Health monitor cards ─────────────────────────────────────
             if (data.scanner_overview) {
                 const apiStatus = document.getElementById("sh-api-status");
                 if (apiStatus) {
@@ -549,7 +796,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (lScan && data.scanner_overview.last_successful_scan) {
                     lScan.textContent = timeAgo(data.scanner_overview.last_successful_scan);
                 }
-                // I-07: Recovery card
                 const rTime = document.getElementById("sh-restart-time");
                 if (rTime) rTime.textContent = data.scanner_overview.last_restart_time || "—";
                 const rSig = document.getElementById("sh-recovered-signals");
@@ -561,73 +807,34 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
 
-            // ── Alerts badge ───────────────────────────────────────────────
+            // ── Alerts badge ────────────────────────────────────────────
             const alertBadge = document.querySelector(".alert-counter-badge");
             if (alertBadge) alertBadge.textContent = (data.notifications || []).length;
 
-            // ── Charts: distribution doughnut ──────────────────────────────
+            // ── Charts ──────────────────────────────────────────────────
             if (data.charts && data.charts.distribution) {
-                patchChart(
-                    runtimeChartHandles.homePie,
-                    data.charts.distribution.labels,
-                    data.charts.distribution.data
-                );
+                patchChart(runtimeChartHandles.homePie, data.charts.distribution.labels, data.charts.distribution.data);
             }
-
-            // ── Charts: gauge + readout digit ─────────────────────────────
             if (data.market_state) {
-                patchGauge(
-                    runtimeChartHandles.homeGauge,
-                    data.market_state.market_strength || 0
-                );
+                patchGauge(runtimeChartHandles.homeGauge, data.market_state.market_strength || 0);
             }
-
-            // ── Charts: daily signals line ─────────────────────────────────
             if (data.charts && data.charts.daily_signals) {
-                patchChart(
-                    runtimeChartHandles.homeLine,
-                    data.charts.daily_signals.labels,
-                    data.charts.daily_signals.data
-                );
+                patchChart(runtimeChartHandles.homeLine, data.charts.daily_signals.labels, data.charts.daily_signals.data);
             }
-
-            // ── Charts: asset allocation pie ───────────────────────────────
             if (data.charts && data.charts.asset_allocation) {
-                patchChart(
-                    runtimeChartHandles.portfolioPie,
-                    data.charts.asset_allocation.labels,
-                    data.charts.asset_allocation.data
-                );
+                patchChart(runtimeChartHandles.portfolioPie, data.charts.asset_allocation.labels, data.charts.asset_allocation.data);
             }
-
-            // ── Charts: portfolio growth line ──────────────────────────────
             if (data.charts && data.charts.portfolio_growth) {
-                patchChart(
-                    runtimeChartHandles.portfolioLine,
-                    data.charts.portfolio_growth.labels,
-                    data.charts.portfolio_growth.data
-                );
+                patchChart(runtimeChartHandles.portfolioLine, data.charts.portfolio_growth.labels, data.charts.portfolio_growth.data);
             }
-
-            // ── VGX equity curve ───────────────────────────────────────────
             if (data.vgx_overview && data.vgx_overview.equity_curve) {
-                patchChart(
-                    runtimeChartHandles.vgxEquity,
-                    data.vgx_overview.equity_curve.labels,
-                    data.vgx_overview.equity_curve.data
-                );
+                patchChart(runtimeChartHandles.vgxEquity, data.vgx_overview.equity_curve.labels, data.vgx_overview.equity_curve.data);
             }
-
-            // ── VGX win/loss bar chart ─────────────────────────────────────
             if (data.vgx_overview && data.vgx_overview.win_loss_chart) {
-                patchChart(
-                    runtimeChartHandles.vgxWinLoss,
-                    data.vgx_overview.win_loss_chart.labels,
-                    data.vgx_overview.win_loss_chart.data
-                );
+                patchChart(runtimeChartHandles.vgxWinLoss, data.vgx_overview.win_loss_chart.labels, data.vgx_overview.win_loss_chart.data);
             }
 
-            // ── VGX stat cards (vgx-view) ──────────────────────────────────
+            // ── VGX stat cards (vgx-view) ───────────────────────────────
             const vgxBalNode = findCardValueNode("Virtual Balance");
             if (vgxBalNode && data.vgx_overview) {
                 vgxBalNode.textContent = "₹" + Number(data.vgx_overview.virtual_balance).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -637,16 +844,16 @@ document.addEventListener("DOMContentLoaded", () => {
                 vgxWrNode.textContent = data.vgx_overview.win_rate + "%";
             }
 
-            // ── Signal table rows ──────────────────────────────────────────
+            // ── Scanner-view signals table ──────────────────────────────
             patchSignalTable(data.recent_signals || []);
 
-            // ── Scanner watchlist count ────────────────────────────────────
+            // ── Watchlist count ─────────────────────────────────────────
             if (data.scanner_overview) {
                 const scannerWlCount = document.getElementById("scanner-watchlist-count");
                 if (scannerWlCount) scannerWlCount.textContent = data.scanner_overview.coins_scanned || 0;
             }
 
-            // ── Performance Tracker cards ──────────────────────────────────
+            // ── Performance Tracker cards ───────────────────────────────
             if (data.performance_stats) {
                 const ps = data.performance_stats;
                 const totalNode = findCardValueNode("Total Signals");
@@ -658,12 +865,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 const wrNode = findCardValueNode("Win Rate %");
                 if (wrNode) {
                     wrNode.textContent = (ps.win_rate_pct || 0) + "%";
-                    wrNode.className = (ps.win_rate_pct >= 50 ? "text-green" : "text-red") + " h2";
+                    wrNode.className = (ps.win_rate_pct >= 50 ? "text-green" : "text-red");
                 }
                 const avgNode = findCardValueNode("Average Return %");
                 if (avgNode) {
                     avgNode.textContent = (ps.avg_return_pct || 0) + "%";
-                    avgNode.className = (ps.avg_return_pct >= 0 ? "text-green" : "text-red") + " h2";
+                    avgNode.className = (ps.avg_return_pct >= 0 ? "text-green" : "text-red");
                 }
                 const bestNode = findCardValueNode("Best Signal");
                 if (bestNode && ps.best_signal) {
@@ -675,7 +882,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
 
-            // ── Performance Tracker table ────────────────────────────────
+            // ── Performance Tracker table ───────────────────────────────
             if (data.performance_signals) {
                 const tbody = document.getElementById("performance-table-body");
                 if (tbody) {
@@ -704,7 +911,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
 
-            // ── Signal History cards ──────────────────────────────────────
+            // ── Signal History cards ─────────────────────────────────────
             if (data.signal_history_stats) {
                 const hs = data.signal_history_stats;
                 const totalNode = findCardValueNode("History Signals");
@@ -713,15 +920,16 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (winNode) winNode.textContent = hs.winners || 0;
                 const lossNode = findCardValueNode("Losers");
                 if (lossNode) lossNode.textContent = hs.losers || 0;
+                // Win Rate % — must be patched separately from Avg Return %
                 const wrNode = findCardValueNode("Win Rate %");
                 if (wrNode) {
                     wrNode.textContent = (hs.win_rate_pct || 0) + "%";
-                    wrNode.className = (hs.win_rate_pct >= 50 ? "text-green" : "text-red") + " h2";
+                    wrNode.className = (hs.win_rate_pct >= 50 ? "text-green" : "text-red");
                 }
                 const avgNode = findCardValueNode("Avg Return %");
                 if (avgNode) {
                     avgNode.textContent = (hs.avg_return_pct || 0) + "%";
-                    avgNode.className = (hs.avg_return_pct >= 0 ? "text-green" : "text-red") + " h2";
+                    avgNode.className = (hs.avg_return_pct >= 0 ? "text-green" : "text-red");
                 }
                 const recNode = findCardValueNode("Records");
                 if (recNode) recNode.textContent = hs.total || 0;
@@ -729,7 +937,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (countLabel && data.signal_history) countLabel.textContent = (data.signal_history.length || 0) + " records";
             }
 
-            // ── Signal History table ──────────────────────────────────────
+            // ── Signal History table ─────────────────────────────────────
             if (data.signal_history) {
                 const tbody = document.getElementById("signal-history-table-body");
                 if (tbody) {
@@ -737,22 +945,14 @@ document.addEventListener("DOMContentLoaded", () => {
                     let filtered = all;
                     const filterVal = document.getElementById("sh-filter")?.value || "ALL";
                     const searchVal = (document.getElementById("sh-search")?.value || "").trim().toUpperCase();
-                    if (filterVal !== "ALL") {
-                        filtered = filtered.filter(s => s.result === filterVal);
-                    }
-                    if (searchVal) {
-                        filtered = filtered.filter(s => (s.coin || "").toUpperCase().includes(searchVal));
-                    }
+                    if (filterVal !== "ALL") filtered = filtered.filter(s => s.result === filterVal);
+                    if (searchVal) filtered = filtered.filter(s => (s.coin || "").toUpperCase().includes(searchVal));
                     const sortVal = document.getElementById("sh-sort")?.value || "newest";
-                    if (sortVal === "newest") {
-                        filtered.sort((a, b) => (b.timestamp || "").localeCompare(a.timestamp || ""));
-                    } else if (sortVal === "oldest") {
-                        filtered.sort((a, b) => (a.timestamp || "").localeCompare(b.timestamp || ""));
-                    } else if (sortVal === "return") {
-                        filtered.sort((a, b) => (b.return_pct || 0) - (a.return_pct || 0));
-                    } else if (sortVal === "worst") {
-                        filtered.sort((a, b) => (a.return_pct || 0) - (b.return_pct || 0));
-                    }
+                    if (sortVal === "newest")  filtered.sort((a, b) => (b.timestamp || "").localeCompare(a.timestamp || ""));
+                    else if (sortVal === "oldest") filtered.sort((a, b) => (a.timestamp || "").localeCompare(b.timestamp || ""));
+                    else if (sortVal === "return") filtered.sort((a, b) => (b.return_pct || 0) - (a.return_pct || 0));
+                    else if (sortVal === "worst")  filtered.sort((a, b) => (a.return_pct || 0) - (b.return_pct || 0));
+
                     if (filtered.length === 0) {
                         tbody.innerHTML = '<tr><td colspan="12" class="text-muted">No history matches the current filter.</td></tr>';
                     } else {
@@ -778,7 +978,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
 
-            // ── Coin Performance cards ───────────────────────────────────
+            // ── Coin Performance cards ────────────────────────────────────
             if (data.coin_performance_stats) {
                 const cps = data.coin_performance_stats;
                 const ctNode = findCardValueNode("Coins Tracked");
@@ -789,36 +989,31 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (winNode) winNode.textContent = cps.winning_signals || 0;
                 const lossNode = findCardValueNode("Losing Signals");
                 if (lossNode) lossNode.textContent = cps.losing_signals || 0;
-                const wrNode = findCardValueNode("Win Rate %");
-                if (wrNode) {
-                    wrNode.textContent = (cps.win_rate_pct || 0) + "%";
-                    wrNode.className = (cps.win_rate_pct >= 50 ? "text-green" : "text-red") + " h2";
+                // Win Rate % and Records must stay live in coin-performance view
+                const cpWrNode = findCardValueNode("Win Rate %");
+                if (cpWrNode) {
+                    cpWrNode.textContent = (cps.win_rate_pct || 0) + "%";
+                    cpWrNode.className = (cps.win_rate_pct >= 50 ? "text-green" : "text-red");
                 }
-                const recNode = findCardValueNode("Records");
-                if (recNode) recNode.textContent = cps.coins_tracked || 0;
+                const cpRecNode = findCardValueNode("Records");
+                if (cpRecNode) cpRecNode.textContent = cps.coins_tracked || 0;
                 const countLabel = document.getElementById("cp-count-label");
                 if (countLabel && data.coin_performance_data) countLabel.textContent = (data.coin_performance_data.length || 0) + " coins";
             }
 
-            // ── Coin Performance table ───────────────────────────────────
+            // ── Coin Performance table ────────────────────────────────────
             if (data.coin_performance_data) {
                 const tbody = document.getElementById("coin-performance-table-body");
                 if (tbody) {
                     let rows = data.coin_performance_data || [];
                     const searchVal = (document.getElementById("cp-search")?.value || "").trim().toUpperCase();
-                    if (searchVal) {
-                        rows = rows.filter(r => (r.coin || "").toUpperCase().includes(searchVal));
-                    }
+                    if (searchVal) rows = rows.filter(r => (r.coin || "").toUpperCase().includes(searchVal));
                     const sortVal = document.getElementById("cp-sort")?.value || "winrate";
-                    if (sortVal === "winrate") {
-                        rows.sort((a, b) => (b.win_rate_pct || 0) - (a.win_rate_pct || 0));
-                    } else if (sortVal === "signals") {
-                        rows.sort((a, b) => (b.total_signals || 0) - (a.total_signals || 0));
-                    } else if (sortVal === "best") {
-                        rows.sort((a, b) => (b.best_return_pct || 0) - (a.best_return_pct || 0));
-                    } else if (sortVal === "worst") {
-                        rows.sort((a, b) => (a.worst_return_pct || 0) - (b.worst_return_pct || 0));
-                    }
+                    if (sortVal === "winrate") rows.sort((a, b) => (b.win_rate_pct || 0) - (a.win_rate_pct || 0));
+                    else if (sortVal === "signals") rows.sort((a, b) => (b.total_signals || 0) - (a.total_signals || 0));
+                    else if (sortVal === "best")    rows.sort((a, b) => (b.best_return_pct || 0) - (a.best_return_pct || 0));
+                    else if (sortVal === "worst")   rows.sort((a, b) => (a.worst_return_pct || 0) - (b.worst_return_pct || 0));
+
                     if (rows.length === 0) {
                         tbody.innerHTML = '<tr><td colspan="9" class="text-muted">No coin data matches the current filter.</td></tr>';
                     } else {
@@ -840,34 +1035,34 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
 
+            // ── V2 Home View patches ──────────────────────────────────────
+            updateHomeV2(data);
+
         } catch (err) {
-            // Network error or JSON parse failure — skip silently, retry next interval
             console.warn("[ProjectA] Dashboard refresh failed:", err.message);
         }
     }
 
-    // I-01: Auto-refresh live data using configurable interval — no page reload
+    // Auto-refresh with configurable interval
     function getRefreshIntervalMs() {
         const raw = localStorage.getItem("pa-refresh-interval");
         const ms = raw ? parseInt(raw, 10) : 10000;
         return (ms > 0) ? ms : 0;
     }
-    const refreshIntervalId = setInterval(refreshDashboardData, getRefreshIntervalMs());
-    // If user changes interval to >0, restart the interval
+    // Use a mutable variable so subsequent settings changes clear the correct timer
+    let activeIntervalId = setInterval(refreshDashboardData, getRefreshIntervalMs());
     if (refreshSelect) {
         refreshSelect.addEventListener("change", () => {
             const newMs = parseInt(refreshSelect.value, 10);
             if (newMs > 0) {
-                clearInterval(refreshIntervalId);
-                setInterval(refreshDashboardData, newMs);
+                clearInterval(activeIntervalId);
+                activeIntervalId = setInterval(refreshDashboardData, newMs);
                 localStorage.setItem("pa-refresh-interval", newMs);
             }
         });
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    //  Signal History — interactive filter / sort / search
-    // ═══════════════════════════════════════════════════════════════
+    // ── Signal History interactive filter / sort / search ──────────────────
     const shSearch = document.getElementById("sh-search");
     const shFilter = document.getElementById("sh-filter");
     const shSort   = document.getElementById("sh-sort");
@@ -880,9 +1075,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     attachHistoryListeners();
 
-    // ═══════════════════════════════════════════════════════════════
-    //  Coin Performance — interactive search / sort
-    // ═══════════════════════════════════════════════════════════════
+    // ── Coin Performance interactive search / sort ──────────────────────────
     const cpSearch = document.getElementById("cp-search");
     const cpSort   = document.getElementById("cp-sort");
     function attachCoinPerformanceListeners() {
@@ -893,21 +1086,18 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     attachCoinPerformanceListeners();
 
-    // ═══════════════════════════════════════════════════════════════
-    //  Watchlist Center — Add / Remove Coins
-    // ═══════════════════════════════════════════════════════════════
+    // ── Watchlist Center — Add / Remove Coins ──────────────────────────────
 
-    // I-08: Manual refresh scanner
     window.refreshScanner = async function() {
         const msg = document.getElementById("scanner-refresh-msg");
-        if (msg) { msg.style.display = "none"; msg.textContent = ""; msg.style.color = "#ff4444"; }
+        if (msg) { msg.style.display = "none"; msg.textContent = ""; msg.style.color = "#f43f5e"; }
         try {
             const resp = await fetch("/api/scanner/refresh", { method: "POST" });
             const data = await resp.json();
             if (data.success) {
                 if (msg) {
                     msg.textContent = "Scanner Updated Successfully";
-                    msg.style.color = "#44ff44";
+                    msg.style.color = "#00d4a0";
                     msg.style.display = "block";
                     setTimeout(() => { msg.style.display = "none"; }, 3000);
                 }
@@ -986,7 +1176,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-    // Wire up remove buttons via event delegation
     document.addEventListener("click", function(e) {
         const btn = e.target.closest(".btn-remove-coin");
         if (!btn) return;
