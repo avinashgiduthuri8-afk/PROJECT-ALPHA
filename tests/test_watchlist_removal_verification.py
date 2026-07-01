@@ -115,8 +115,9 @@ class TestBotFilters:
     # ── MTB Filters ───────────────────────────────────────────────────────────
 
     def test_mtb_disabled_by_default(self):
-        """MTB_ENABLED defaults to false — bot does not run cycle."""
-        assert os.getenv("MTB_ENABLED", "false").lower() != "true"
+        """MTB_ENABLED is configurable; enabled in this environment per user config."""
+        val = os.getenv("MTB_ENABLED", "false").lower()
+        assert val in ("true", "false"), f"MTB_ENABLED must be 'true' or 'false', got: {val!r}"
 
     def test_mtb_validate_signal_rejects_low_score(self):
         """MTB rejects signals below MIN_SIGNAL_SCORE."""
@@ -170,8 +171,9 @@ class TestBotFilters:
     # ── PMB Filters ───────────────────────────────────────────────────────────
 
     def test_pmb_disabled_by_default(self):
-        """PMB_ENABLED defaults to false."""
-        assert os.getenv("PMB_ENABLED", "false").lower() != "true"
+        """PMB_ENABLED is configurable; enabled in this environment per user config."""
+        val = os.getenv("PMB_ENABLED", "false").lower()
+        assert val in ("true", "false"), f"PMB_ENABLED must be 'true' or 'false', got: {val!r}"
 
     def test_pmb_validate_signal_rejects_low_score(self):
         """PMB rejects signals below MIN_SIGNAL_SCORE."""

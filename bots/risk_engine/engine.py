@@ -24,6 +24,12 @@ from .config import (
 
 logger = logging.getLogger("risk_engine")
 
+# ── Startup validation log ────────────────────────────────────────────────────
+logger.info("Risk engine init: TRADING_ENABLED=%s  EMERGENCY_STOP=%s",
+            TRADING_ENABLED, EMERGENCY_STOP)
+for _bot, _mode in BOT_MODE.items():
+    logger.info("Risk engine init: %s BOT_MODE resolved to %s", _bot, _mode)
+
 
 @dataclass(frozen=True)
 class RiskDecision:

@@ -7,11 +7,15 @@ and the global TRADING_ENABLED / EMERGENCY_STOP kill-switches.
 
 from __future__ import annotations
 
+import logging
 import os
 
+_cfg_logger = logging.getLogger("risk_engine.config")
+
 # ── Global kill-switches ──────────────────────────────────────────────────────
-# Set TRADING_ENABLED=false to halt ALL bots (VGX, PMB, MTB).
-TRADING_ENABLED: bool = os.getenv("TRADING_ENABLED", "true").lower() == "true"
+# SEC-02: Default is "false" — trading is DENIED when the env var is absent.
+# Set TRADING_ENABLED=true explicitly to allow bots to trade.
+TRADING_ENABLED: bool = os.getenv("TRADING_ENABLED", "false").lower() == "true"
 
 # Set EMERGENCY_STOP=true to immediately block any new trade across all bots.
 EMERGENCY_STOP: bool = os.getenv("EMERGENCY_STOP", "false").lower() == "true"
@@ -40,9 +44,29 @@ MAX_POSITIONS: dict[str, int] = {
     "MTB": int(os.getenv("MTB_MAX_POSITIONS", "3")),
 }
 
+# ── SEC-03: BOT_MODE validation ───────────────────────────────────────────────
+# Allowed values (case-sensitive after normalisation to upper-case).
+# Any value not in this set is clamped to "DISABLED" and a WARNING is emitted.
+_ALLOWED_MODES: frozenset[str] = frozenset({"LIVE", "PAPER", "DISABLED", "PAUSED"})
+
+_BOT_MODE_ENV: dict[str, str] = {
+    "VGX": ("VGX_BOT_MODE", os.getenv("VGX_BOT_MODE", "PAPER")),
+    "PMB": ("PMB_BOT_MODE", os.getenv("PMB_BOT_MODE", "PAPER")),
+    "MTB": ("MTB_BOT_MODE", os.getenv("MTB_BOT_MODE", "PAPER")),
+}
+
+def _validate_mode(bot: str, env_var: str, raw: str) -> str:
+    normalised = raw.strip().upper()
+    if normalised in _ALLOWED_MODES:
+        return normalised
+    _cfg_logger.warning(
+        "SEC-03 [%s] invalid BOT_MODE: env var %s=%r is not in %s — clamping to DISABLED.",
+        bot, env_var, raw, sorted(_ALLOWED_MODES),
+    )
+    return "DISABLED"
+
 # Paper-mode label for each bot (LIVE / PAPER / DISABLED / PAUSED).
 BOT_MODE: dict[str, str] = {
-    "VGX": os.getenv("VGX_BOT_MODE", "PAPER"),
-    "PMB": os.getenv("PMB_BOT_MODE", "PAPER"),
-    "MTB": os.getenv("MTB_BOT_MODE", "PAPER"),
+    bot: _validate_mode(bot, env_var, raw)
+    for bot, (env_var, raw) in _BOT_MODE_ENV.items()
 }
