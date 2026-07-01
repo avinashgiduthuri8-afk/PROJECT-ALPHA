@@ -73,8 +73,13 @@ def _signals_from_module() -> list[dict]:
 
 
 def _signals_from_dashboard_api() -> list[dict]:
+    import os
     url = f"{SCANNER_API_URL}/api/v1/state"
-    request = urllib.request.Request(url, headers={"Accept": "application/json"})
+    headers = {"Accept": "application/json"}
+    api_key = os.getenv("DASHBOARD_API_KEY", "")
+    if api_key:
+        headers["X-API-Key"] = api_key
+    request = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(request, timeout=SCANNER_TIMEOUT_SECONDS) as response:
             payload = json.loads(response.read().decode("utf-8"))

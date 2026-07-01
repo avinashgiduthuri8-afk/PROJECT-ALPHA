@@ -317,9 +317,13 @@ def _signals_from_dashboard_api() -> list[dict]:
     """Fallback: pull recent_signals from the dashboard /api/v1/state endpoint."""
     url = os.getenv("SCANNER_API_URL", "http://localhost:5000")
     timeout = int(os.getenv("SCANNER_TIMEOUT_SECONDS", "5"))
+    api_key = os.getenv("DASHBOARD_API_KEY", "")
+    vgx_headers = {"Accept": "application/json"}
+    if api_key:
+        vgx_headers["X-API-Key"] = api_key
     req = urllib.request.Request(
         f"{url}/api/v1/state",
-        headers={"Accept": "application/json"},
+        headers=vgx_headers,
     )
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
