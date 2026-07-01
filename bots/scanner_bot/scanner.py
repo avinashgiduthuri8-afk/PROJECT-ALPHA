@@ -631,7 +631,36 @@ def historical_pattern_score(coin: str, current_price: float) -> HistoricalPatte
         except Exception:
             pass  # keep neutral 8 on any ta failure
 
-        raw_total = t7 + t30 + t90 + sr + hv + rsi_score + bb_score
+        # MACD crossover score (ta library) — 0 to 15 bonus pts
+        # Fresh bullish crossover = highest score; bearish crossover = lowest.
+        # Needs 35+ candles for MACD(12,26) + signal(9) to be meaningful.
+        macd_score = 7  # neutral default
+        try:
+            if len(closes) >= 35:
+                _closes_s   = _pd.Series(closes, dtype=float)
+                _macd_ind   = _ta.trend.MACD(_closes_s, window_slow=26, window_fast=12,
+                                              window_sign=9, fillna=True)
+                _hist       = _macd_ind.macd_diff()   # histogram = MACD - Signal
+                _curr_hist  = float(_hist.iloc[-1])
+                _prev_hist  = float(_hist.iloc[-2])
+                _macd_val   = float(_macd_ind.macd().iloc[-1])
+
+                if _prev_hist < 0 and _curr_hist > 0:
+                    macd_score = 15   # fresh bullish crossover — strongest entry signal
+                elif _curr_hist > 0 and _macd_val > 0:
+                    macd_score = 12   # MACD above signal & zero line — confirmed uptrend
+                elif _curr_hist > 0 and _macd_val <= 0:
+                    macd_score = 10   # bullish cross below zero — early recovery
+                elif _prev_hist > 0 and _curr_hist < 0:
+                    macd_score = 2    # fresh bearish crossover — avoid
+                elif _curr_hist < 0 and _macd_val < 0:
+                    macd_score = 3    # MACD below signal & zero — bearish
+                else:
+                    macd_score = 5    # weakening momentum above zero
+        except Exception:
+            pass  # keep neutral 7 on any ta failure
+
+        raw_total = t7 + t30 + t90 + sr + hv + rsi_score + bb_score + macd_score
         total = int(_clamp(raw_total, 0, 100))
         return HistoricalPatternScore(trend_7d=t7, trend_30d=t30, trend_90d=t90, sr_quality=sr, hist_vol=hv, total=total)
     except Exception as exc:

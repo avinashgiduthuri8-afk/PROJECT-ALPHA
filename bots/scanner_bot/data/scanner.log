@@ -15837,3 +15837,4 @@ ValueError: invalid candle data
 2026-07-01 18:11:00,958 INFO scanner_bot: Updated 3 signal performance checkpoints
 2026-07-01 18:13:02,026 INFO scanner_bot: Storage ready: /home/runner/workspace/bots/scanner_bot/data
 2026-07-01 18:14:56,769 INFO scanner_bot: Storage ready: /home/runner/workspace/bots/scanner_bot/data
+2026-07-01 18:16:35,704 INFO scanner_bot: Storage ready: /home/runner/workspace/bots/scanner_bot/data
