@@ -9,13 +9,31 @@ import os
 import time
 import urllib.error
 import urllib.request
+from datetime import datetime, timezone
 
-from .config import PHASE5
+from .config import PHASE5, VGX_MAX_SIGNAL_AGE_SECONDS
 from . import storage
 from .risk_engine import validate_signal
 from .trading_engine import paper_execute_signal
 
 logger = logging.getLogger("vgx.scanner_bridge")
+
+
+# ============================================================
+# SIGNAL AGE UTILITY
+# ============================================================
+
+def signal_age_seconds(signal: dict) -> float | None:
+    ts_str = signal.get("timestamp")
+    if not ts_str:
+        return None
+    try:
+        ts = datetime.fromisoformat(ts_str)
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        return (datetime.now(timezone.utc) - ts).total_seconds()
+    except Exception:
+        return None
 
 
 # ============================================================
@@ -158,6 +176,33 @@ def process_scanner_signal(signal):
             "Only BUY Signals Allowed"
 
         )
+
+        scanner_rejections.append({
+
+            "coin": coin,
+
+            "reason": reason,
+
+            "time": time.time()
+
+        })
+
+        return {
+
+            "result": "REJECTED",
+
+            "reason": reason
+
+        }
+
+
+    # STALENESS CHECK
+
+    age = signal_age_seconds(signal)
+
+    if age is not None and age > VGX_MAX_SIGNAL_AGE_SECONDS:
+
+        reason = f"Signal too old ({age:.0f}s > {VGX_MAX_SIGNAL_AGE_SECONDS}s)"
 
         scanner_rejections.append({
 

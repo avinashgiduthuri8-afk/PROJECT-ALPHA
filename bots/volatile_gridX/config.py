@@ -99,3 +99,7 @@ STORAGE_BACKUP = os.path.join(
 )
 
 STORAGE_SYNC_INTERVAL = 30
+
+VGX_MAX_SIGNAL_AGE_SECONDS = int(
+    os.getenv("VGX_MAX_SIGNAL_AGE_SECONDS", "300")
+)
