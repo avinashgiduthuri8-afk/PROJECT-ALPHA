@@ -9,10 +9,10 @@
   },
   "MEDIUM": {
     "tier": "MEDIUM",
-    "total_signals": 9,
-    "winning_signals": 6,
-    "losing_signals": 3,
+    "total_signals": 21,
+    "winning_signals": 14,
+    "losing_signals": 7,
     "win_rate_pct": 66.7,
-    "avg_return_pct": 4012.08
+    "avg_return_pct": 4012.67
   }
 }
