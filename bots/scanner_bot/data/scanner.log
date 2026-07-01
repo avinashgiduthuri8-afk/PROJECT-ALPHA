@@ -17471,3 +17471,4 @@ ValueError: invalid candle data
 2026-07-01 17:43:58,019 WARNING scanner_bot: [Config] MTF_1H_WINDOW=30 is below recommended default 48
 2026-07-01 17:43:58,041 WARNING scanner_bot: [Config] MTF_5M_WINDOW=0 is below minimum 2 — clamping to 2
 2026-07-01 17:43:58,048 WARNING scanner_bot: [Config] MTF_15M_WINDOW=1 is below minimum 2 — clamping to 2
+2026-07-01 17:54:08,713 INFO scanner_bot: Updated 6 signal performance checkpoints
