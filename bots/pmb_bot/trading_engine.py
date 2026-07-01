@@ -287,7 +287,7 @@ def execute_partial_sell(position: dict, current_price: float) -> dict:
             "partial_sell_count": sell_count,
             "next_sell_price":    new_sell_price,
         })
-        if new_qty <= 0:
+        if new_qty <= 0 or max(0, new_invested) <= 0:
             position["status"]    = "CLOSED"
             position["exit_time"] = utc_now()
 

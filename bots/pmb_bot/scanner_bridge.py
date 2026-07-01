@@ -96,9 +96,33 @@ def get_signals() -> list[dict]:
 
 
 def get_current_prices() -> dict[str, float]:
-    """Return {coin: current_price} from latest scanner signals."""
+    """Return {coin: current_price} using the freshest available price.
+
+    Priority:
+    1. 'price' from LATEST_SCANNER_SIGNALS (set from live ticker at
+       scan time — more current than entry_price).
+    2. 'entry_price' from normalized signals as fallback.
+    """
+    try:
+        from bots.scanner_bot import main as scanner_main
+        raw = getattr(scanner_main, "LATEST_SCANNER_SIGNALS", []) or []
+        if raw:
+            return {
+                s["coin"]: float(s.get("price") or s.get("entry_price", 0))
+                for s in raw
+                if isinstance(s, dict)
+                and s.get("coin")
+                and float(s.get("price") or s.get("entry_price", 0)) > 0
+            }
+    except Exception:
+        pass
+    # Fallback: use normalized signals (entry_price)
     signals = get_signals()
-    return {s["coin"]: float(s["entry_price"]) for s in signals if s.get("entry_price", 0) > 0}
+    return {
+        s["coin"]: float(s.get("price") or s.get("entry_price", 0))
+        for s in signals
+        if float(s.get("price") or s.get("entry_price", 0)) > 0
+    }
 
 
 def get_market_state() -> str:
