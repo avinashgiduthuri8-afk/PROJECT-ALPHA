@@ -469,10 +469,10 @@ class TestCircuitBreakerCleanStartup:
 
 
 class TestScannerApiUrlDefault:
-    """MTB and PMB configs default to port 5000 (Replit environment)."""
+    """FIX 6: MTB and PMB configs default to port 8080, not 5000."""
 
-    def test_mtb_scanner_api_url_defaults_to_5000(self):
-        """MTB config SCANNER_API_URL default port must be 5000."""
+    def test_mtb_scanner_api_url_defaults_to_8080(self):
+        """MTB config SCANNER_API_URL default port must be 8080."""
         import os
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop("SCANNER_API_URL", None)
@@ -480,13 +480,13 @@ class TestScannerApiUrlDefault:
             import bots.mtb_bot.config as mtb_cfg
             importlib.reload(mtb_cfg)
 
-        assert "5000" in mtb_cfg.SCANNER_API_URL, \
-            f"Expected port 5000 in MTB SCANNER_API_URL, got: {mtb_cfg.SCANNER_API_URL}"
-        assert "8080" not in mtb_cfg.SCANNER_API_URL, \
-            f"MTB SCANNER_API_URL must not contain old port 8080: {mtb_cfg.SCANNER_API_URL}"
+        assert "8080" in mtb_cfg.SCANNER_API_URL, \
+            f"Expected port 8080 in MTB SCANNER_API_URL, got: {mtb_cfg.SCANNER_API_URL}"
+        assert "5000" not in mtb_cfg.SCANNER_API_URL, \
+            f"MTB SCANNER_API_URL still contains 5000: {mtb_cfg.SCANNER_API_URL}"
 
-    def test_pmb_scanner_api_url_defaults_to_5000(self):
-        """PMB config SCANNER_API_URL default port must be 5000."""
+    def test_pmb_scanner_api_url_defaults_to_8080(self):
+        """PMB config SCANNER_API_URL default port must be 8080."""
         import os
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop("SCANNER_API_URL", None)
@@ -494,7 +494,7 @@ class TestScannerApiUrlDefault:
             import bots.pmb_bot.config as pmb_cfg
             importlib.reload(pmb_cfg)
 
-        assert "5000" in pmb_cfg.SCANNER_API_URL, \
-            f"Expected port 5000 in PMB SCANNER_API_URL, got: {pmb_cfg.SCANNER_API_URL}"
-        assert "8080" not in pmb_cfg.SCANNER_API_URL, \
-            f"PMB SCANNER_API_URL must not contain old port 8080: {pmb_cfg.SCANNER_API_URL}"
+        assert "8080" in pmb_cfg.SCANNER_API_URL, \
+            f"Expected port 8080 in PMB SCANNER_API_URL, got: {pmb_cfg.SCANNER_API_URL}"
+        assert "5000" not in pmb_cfg.SCANNER_API_URL, \
+            f"PMB SCANNER_API_URL still contains 5000: {pmb_cfg.SCANNER_API_URL}"
