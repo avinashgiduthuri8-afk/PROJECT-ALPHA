@@ -103,7 +103,7 @@ async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             f"├ Total Trades: `{len(closed_trades)}`\n"
             f"├ Base Buy: `₹{BASE_BUY:.0f}`\n"
             f"├ Dip Buy: `₹{DIP_BUY:.0f}`\n"
-            f"├ Watchlist: `{len(watchlist)} coins`\n"
+            f"├ Scanner Coins: `{len(watchlist)}`\n"
             f"└ Cash Balance: `₹{cash_balance:,.2f}`\n\n"
             f"{pnl_emoji} *Performance*\n"
             f"├ Today's P&L: `₹{daily_pnl:,.2f}`\n"
@@ -300,6 +300,36 @@ async def run_pmb_bot():
     
     while True:
         await asyncio.sleep(3600)
+
+
+# ============================================================
+# LIFESPAN HOOKS — used by app.py alongside scanner/vgx bots
+# ============================================================
+
+_PMB_TG_APP = None
+
+
+async def startup_event() -> None:
+    global _PMB_TG_APP
+    app = create_pmb_bot()
+    if app is None:
+        logger.warning("PMB Telegram bot not started — no token")
+        return
+    await app.initialize()
+    await app.start()
+    await app.updater.start_polling(drop_pending_updates=True)
+    _PMB_TG_APP = app
+    logger.info("PMB Telegram bot started")
+
+
+async def shutdown_event() -> None:
+    global _PMB_TG_APP
+    if _PMB_TG_APP is not None:
+        await _PMB_TG_APP.updater.stop()
+        await _PMB_TG_APP.stop()
+        await _PMB_TG_APP.shutdown()
+        _PMB_TG_APP = None
+        logger.info("PMB Telegram bot stopped")
 
 
 # ============================================================
