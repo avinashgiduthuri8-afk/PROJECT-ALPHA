@@ -42,3 +42,18 @@ externalPort = 8080
 [deployment]
 deploymentTarget = "autoscale"
 run = ["python", "app.py"]
+
+[userenv]
+
+[userenv.shared]
+VGX_ENABLED = "true"
+PMB_ENABLED = "true"
+MTB_ENABLED = "true"
+EMERGENCY_STOP = "false"
+SCANNER_CHAT_ID = "476738400"
+VGX_CHAT_ID = "476738400"
+PMB_CHAT_ID = "476738400"
+MTB_CHAT_ID = "476738400"
+ALERT_CHAT_ID = "476738400"
+TELEGRAM_ADMIN_IDS = "@rajkiran118"
+TELEGRAM_ALLOWED_IDS = "@rajkiran118"
