@@ -94,7 +94,7 @@ async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             f"├ Open Positions: `{len(open_positions)}`\n"
             f"├ Total Trades: `{len(closed_trades)}`\n"
             f"├ Trade Amount: `₹{trade_amount:.0f}`\n"
-            f"├ Watchlist: `{len(watchlist)} coins`\n"
+            f"├ Scanner Coins: `{len(watchlist)}`\n"
             f"└ Cash Balance: `₹{cash_balance:,.2f}`\n\n"
             f"{pnl_emoji} *Performance*\n"
             f"├ Today's P&L: `₹{daily_pnl:,.2f}`\n"
@@ -282,6 +282,36 @@ async def run_mtb_bot():
     
     while True:
         await asyncio.sleep(3600)
+
+
+# ============================================================
+# LIFESPAN HOOKS — used by app.py alongside scanner/vgx/pmb bots
+# ============================================================
+
+_MTB_TG_APP = None
+
+
+async def startup_event() -> None:
+    global _MTB_TG_APP
+    app = create_mtb_bot()
+    if app is None:
+        logger.warning("MTB Telegram bot not started — no token")
+        return
+    await app.initialize()
+    await app.start()
+    await app.updater.start_polling(drop_pending_updates=True)
+    _MTB_TG_APP = app
+    logger.info("MTB Telegram bot started")
+
+
+async def shutdown_event() -> None:
+    global _MTB_TG_APP
+    if _MTB_TG_APP is not None:
+        await _MTB_TG_APP.updater.stop()
+        await _MTB_TG_APP.stop()
+        await _MTB_TG_APP.shutdown()
+        _MTB_TG_APP = None
+        logger.info("MTB Telegram bot stopped")
 
 
 # ============================================================
