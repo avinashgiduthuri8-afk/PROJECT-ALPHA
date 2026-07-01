@@ -66,7 +66,7 @@ def _verify_file(path):
 
     try:
 
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf-8") as f:
 
             json.load(f)
 
@@ -136,39 +136,37 @@ def load_data():
 
     global metrics_summary
 
+    with _storage_lock:
 
-    if not _verify_file(STORAGE_FILE):
+        if not _verify_file(STORAGE_FILE):
 
-        os.makedirs(STORAGE_DIR, exist_ok=True)
+            os.makedirs(STORAGE_DIR, exist_ok=True)
 
-        save_data()
+            # Release lock before calling save_data() which also acquires it
+            pass
 
-        return
+        else:
 
+            with open(STORAGE_FILE, "r", encoding="utf-8") as f:
 
-    with open(STORAGE_FILE, "r") as f:
+                data = json.load(f)
 
-        data = json.load(f)
+            data = _normalise(data)
 
-    data = _normalise(data)
+            virtual_balance    = data["virtual_balance"]
+            positions          = data["positions"]
+            trade_log          = data["trade_log"]
+            price_history      = data["price_history"]
+            market_cache       = data["market_cache"]
+            portfolio_history  = data["portfolio_history"]
+            trade_history      = data["trade_history"]
+            error_logs         = data["error_logs"]
+            metrics_summary    = data["metrics_summary"]
+            return
 
-    virtual_balance = data["virtual_balance"]
-
-    positions = data["positions"]
-
-    trade_log = data["trade_log"]
-
-    price_history = data["price_history"]
-
-    market_cache = data["market_cache"]
-
-    portfolio_history = data["portfolio_history"]
-
-    trade_history = data["trade_history"]
-
-    error_logs = data["error_logs"]
-
-    metrics_summary = data["metrics_summary"]
+    # File missing or corrupt — initialise with defaults and persist
+    os.makedirs(STORAGE_DIR, exist_ok=True)
+    save_data()
 
 
 # ============================================================
@@ -204,7 +202,7 @@ def save_data():
 
         temp_file = STORAGE_FILE + ".tmp"
 
-        with open(temp_file, "w") as f:
+        with open(temp_file, "w", encoding="utf-8") as f:
 
             json.dump(payload, f, indent=4)
 

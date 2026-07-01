@@ -80,7 +80,11 @@ async def background_loop():
     print("Background Engine Started")
     while True:
         try:
-            update_market_cache()
+            # Offload only the network-bound market-data fetch so the event loop
+            # is not blocked during the HTTP call.  All state-mutating operations
+            # (auto_sell, update_stats, save_data) stay on the event-loop thread
+            # so they execute sequentially and never race against each other.
+            await asyncio.to_thread(update_market_cache)
             try:
                 from . import scanner_bridge as _sb
                 for _sig in _sb.get_signals():
@@ -92,7 +96,7 @@ async def background_loop():
             update_stats()
             storage.save_data()
         except Exception as e:
-            print("[BACKGROUND ERROR]", e)
+            logger.error("[BACKGROUND ERROR] %s", e)
         await asyncio.sleep(STORAGE_SYNC_INTERVAL)
 
 

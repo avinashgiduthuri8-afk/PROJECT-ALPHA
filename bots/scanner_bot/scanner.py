@@ -466,15 +466,17 @@ def trend_summary(history: list) -> dict:
 # =============================================================================
 
 _candle_cache: dict[str, tuple[float, list]] = {}
+_candle_cache_lock = threading.Lock()
 CANDLE_CACHE_TTL = 3600
 
 
 def _fetch_daily_candles(market_pair: str, days: int = 95) -> list:
     import time as _time
     now = _time.time()
-    cached = _candle_cache.get(market_pair)
-    if cached and now - cached[0] < CANDLE_CACHE_TTL:
-        return cached[1]
+    with _candle_cache_lock:
+        cached = _candle_cache.get(market_pair)
+        if cached and now - cached[0] < CANDLE_CACHE_TTL:
+            return cached[1]
     to_ts   = int(now)
     from_ts = to_ts - days * 86400
     try:
@@ -486,7 +488,8 @@ def _fetch_daily_candles(market_pair: str, days: int = 95) -> list:
         resp.raise_for_status()
         data = resp.json()
         if isinstance(data, list) and data:
-            _candle_cache[market_pair] = (now, data)
+            with _candle_cache_lock:
+                _candle_cache[market_pair] = (now, data)
             return data
     except Exception:
         logger.debug("Candle fetch failed for %s", market_pair, exc_info=True)

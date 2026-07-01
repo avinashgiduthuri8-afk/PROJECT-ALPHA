@@ -58,8 +58,8 @@ def _send_tg(text: str) -> None:
         body = _json.dumps({"chat_id": TELEGRAM_CHAT_ID, "text": text, "parse_mode": "HTML"}).encode()
         req = _ur.Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
         _ur.urlopen(req, timeout=5)
-    except Exception:
-        pass
+    except Exception as _tg_err:
+        logger.debug("_send_tg failed: %s", _tg_err)
 
 
 @dataclass(frozen=True)
