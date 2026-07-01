@@ -78,7 +78,7 @@ def normalize_signal(signal):
 
                     "action",
 
-                    ""
+                    "BUY"
 
                 )
 
