@@ -210,12 +210,24 @@ logger.addHandler(_log_handler)
 # STORAGE HELPERS
 # =============================================================================
 
+# OPT-4: Minimum gap between backups of the same file (5 minutes).
+# backup_file() is called on every write_json_safely(); without throttling
+# every scan-cycle disk write triggers an extra copy operation.
+_BACKUP_MIN_INTERVAL = 300.0   # seconds
+_backup_last_at: dict = {}     # path-str → monotonic timestamp of last backup
+
+
 def backup_file(path: Path) -> None:
     if not path.exists():
         return
+    now = time.monotonic()
+    key = str(path)
+    if now - _backup_last_at.get(key, 0.0) < _BACKUP_MIN_INTERVAL:
+        return  # throttled — too soon since last backup
     backup_path = path.with_suffix(path.suffix + ".bak")
     try:
         shutil.copy2(path, backup_path)
+        _backup_last_at[key] = now
     except OSError:
         pass
 
@@ -311,9 +323,16 @@ def validate_coin_symbol(raw: str) -> tuple[bool, str, str]:
 
 
 class WatchlistStore:
+    # OPT-2: 30-second TTL avoids a disk read on every scan-cycle call to all().
+    # The I-11 guarantee (seeing external writes) still holds within one TTL window.
+    # add() and remove() always force-expire the cache so callers see changes immediately.
+    _CACHE_TTL = 30.0  # seconds
+
     def __init__(self, path: str = WATCHLIST_FILE):
         self.path = Path(path)
         self._coins = self._load()
+        self._cache_time: float = 0.0
+        self._cache_value: list = list(self._coins)
 
     def _load(self) -> list[str]:
         if not self.path.exists():
@@ -340,10 +359,15 @@ class WatchlistStore:
         write_json_safely(self.path, {"coins": self._coins})
 
     def all(self) -> list[str]:
-        # I-11: Always reload from disk so scanner sees the latest
-        # synced universe when watchlist_manager.py writes it.
+        # I-11: reload from disk so scanner sees writes from watchlist_manager.py.
+        # OPT-2: throttled to once per _CACHE_TTL to avoid per-scan disk reads.
+        now = time.monotonic()
+        if now - self._cache_time < self._CACHE_TTL:
+            return list(self._cache_value)
         self._coins = self._load()
-        return list(self._coins)
+        self._cache_value = list(self._coins)
+        self._cache_time = now
+        return list(self._cache_value)
 
     def add(self, coin: str) -> bool:
         normalized = coin.upper().strip()
@@ -351,6 +375,7 @@ class WatchlistStore:
             return False
         self._coins.append(normalized)
         self.save()
+        self._cache_time = 0.0   # force cache expiry so next all() re-reads
         return True
 
     def remove(self, coin: str) -> bool:
@@ -359,6 +384,7 @@ class WatchlistStore:
             return False
         self._coins.remove(normalized)
         self.save()
+        self._cache_time = 0.0   # force cache expiry so next all() re-reads
         return True
 
 
@@ -501,6 +527,40 @@ def _coin_to_pair(coin: str) -> list:
     return [f"B-{coin}_INR", f"B-{coin}_USDT", f"B-{coin}_BTC"]
 
 
+def _fetch_coin_closes(coin: str) -> list:
+    """OPT-1: Fetch and parse daily candle closes for a coin in one place.
+
+    Tries each pair in QUOTE_PRIORITY order (INR → USDT → BTC) and returns
+    the closes from the **first pair that has a non-empty candle response**,
+    applying the BUG-17 zero/negative close filter.  Returns [] when no pair
+    has any candle data.
+
+    Pair-selection semantics deliberately match historical_pattern_score():
+    "first pair with any candle payload wins" — the count check is left to each
+    consumer (≥5 for hist score, ≥2 for perf data).  This ensures shared-closes
+    produce identical scores to the pre-OPT-1 per-function fetches.
+
+    Call once per analyze_coin() invocation; pass the result to both
+    historical_pattern_score() and get_historical_performance() to eliminate
+    the duplicate candle API call that previously occurred for every coin that
+    passed the EMA + volume gates.
+    """
+    for pair in _coin_to_pair(coin):
+        candles = _fetch_daily_candles(pair, days=95)
+        if not candles:
+            continue
+        candles_sorted = sorted(candles, key=lambda c: c.get("time", 0))
+        closes = [
+            v for c in candles_sorted
+            if (v := float(c.get("close", c.get("c", 0)) or 0)) > 0
+        ]
+        # Return on first non-empty candle response regardless of close count.
+        # Each consumer enforces its own minimum: historical_pattern_score(≥5),
+        # get_historical_performance(≥2).
+        return closes
+    return []
+
+
 def _trend_score_from_closes(closes: list, max_pts: int = 25) -> int:
     if len(closes) < 2:
         return 0
@@ -562,26 +622,28 @@ class HistoricalPatternScore:
     total:      int
 
 
-def historical_pattern_score(coin: str, current_price: float) -> HistoricalPatternScore:
+def historical_pattern_score(coin: str, current_price: float, closes: Optional[list] = None) -> HistoricalPatternScore:
     # BUG-20: wrap the entire computation in a try/except so that any unexpected
     # exception (e.g. malformed candle data, future API changes) cannot propagate
     # into analyze_coin → _scan_ticker → _scan_many. Log clearly and return neutral.
     _NEUTRAL = HistoricalPatternScore(12, 12, 12, 12, 12, 60)
     try:
-        candles: list = []
-        for pair in _coin_to_pair(coin):
-            candles = _fetch_daily_candles(pair, days=95)
-            if candles:
-                break
-        if not candles:
-            return _NEUTRAL
-        candles = sorted(candles, key=lambda c: c.get("time", 0))
-        # BUG-17: explicitly exclude <= 0 after float conversion — string '0.0' is truthy
-        # but becomes 0.0 after float(), which causes ZeroDivisionError in _sr_quality_score
-        closes  = [
-            v for c in candles
-            if (v := float(c.get("close", c.get("c", 0)) or 0)) > 0
-        ]
+        if closes is None:
+            # OPT-1 fallback: fetch closes when not pre-supplied by analyze_coin()
+            candles: list = []
+            for pair in _coin_to_pair(coin):
+                candles = _fetch_daily_candles(pair, days=95)
+                if candles:
+                    break
+            if not candles:
+                return _NEUTRAL
+            candles = sorted(candles, key=lambda c: c.get("time", 0))
+            # BUG-17: explicitly exclude <= 0 after float conversion — string '0.0' is truthy
+            # but becomes 0.0 after float(), which causes ZeroDivisionError in _sr_quality_score
+            closes  = [
+                v for c in candles
+                if (v := float(c.get("close", c.get("c", 0)) or 0)) > 0
+            ]
         if len(closes) < 5:
             return _NEUTRAL
         trend_7d   = _trend_score_from_closes(closes[-7:]  if len(closes) >= 7  else closes)
@@ -679,13 +741,31 @@ def historical_pattern_score(coin: str, current_price: float) -> HistoricalPatte
         return _NEUTRAL
 
 
-def get_historical_performance(coin: str) -> dict:
+def get_historical_performance(coin: str, closes: Optional[list] = None) -> dict:
     def _pct(closes, n):
         window = closes[-(n + 1):]
         if len(window) < 2:
             return None
         o = window[0]; c = window[-1]
         return round((c - o) / o * 100, 4) if o > 0 else None
+
+    # OPT-1: use pre-fetched closes when supplied by analyze_coin().
+    # Fall through to the per-pair loop only when closes is None (standalone
+    # call) or has fewer than 2 valid values (rare corrupt-data edge case that
+    # preserves original retry-next-pair behaviour for perf data).
+    if closes is not None and len(closes) >= 2:
+        return {
+            "coin":     coin,
+            "perf_7d":  _pct(closes, 7),
+            "perf_14d": _pct(closes, 14),
+            "perf_30d": _pct(closes, 30),
+            "perf_90d": _pct(closes, 90),
+            "source":   "pre-fetched",
+            "error":    None,
+        }
+    if closes is not None:
+        # Pre-fetched but insufficient — no candle data available for this coin
+        return {"coin": coin, "perf_7d": None, "perf_14d": None, "perf_30d": None, "perf_90d": None, "source": None, "error": "no candle data available"}
 
     for pair in _coin_to_pair(coin):
         candles = _fetch_daily_candles(pair, days=95)
@@ -1584,7 +1664,10 @@ def analyze_coin(coin: str, history: list, market: str = "INR") -> list:
     coin_class   = get_coin_class(coin)
     market_state = detect_market_state(history)
     p5           = phase5_score(history)
-    hist         = historical_pattern_score(coin, current_price)
+    # OPT-1: fetch daily closes once; reuse for both historical_pattern_score
+    # and get_historical_performance to eliminate the duplicate candle API call.
+    _daily_closes = _fetch_coin_closes(coin)
+    hist         = historical_pattern_score(coin, current_price, closes=_daily_closes)
 
     scanner_norm = min(score, 100)
     final_score  = int(round(scanner_norm * 0.40 + p5.total * 0.40 + hist.total * 0.20))
@@ -1612,8 +1695,8 @@ def analyze_coin(coin: str, history: list, market: str = "INR") -> list:
         confidence=opp_confidence,
     )
 
-    # Fetch 90-day exchange performance to populate the fixed field
-    perf_data    = get_historical_performance(coin)
+    # Fetch 90-day exchange performance — reuses pre-fetched closes (OPT-1)
+    perf_data    = get_historical_performance(coin, closes=_daily_closes)
     exch_perf_90d = perf_data.get("perf_90d")
 
     return [
@@ -2034,12 +2117,15 @@ class Scanner:
             started = asyncio.get_running_loop().time()
             try:
                 tickers = await self.get_tickers(force=True)
-                self.evaluate_signal_performance(tickers)
-                watchlist_signals = await self.scan_watchlist(tickers)
+                # OPT-3: build the ticker_map once per scan cycle and pass it
+                # to all consumers so _ticker_map()'s O(N) loop runs only once.
+                ticker_map = self._ticker_map(tickers)
+                self.evaluate_signal_performance(tickers, ticker_map=ticker_map)
+                watchlist_signals = await self.scan_watchlist(tickers, ticker_map=ticker_map)
 
                 now = asyncio.get_running_loop().time()
                 if now >= discovery_due:
-                    discovery_signals = await self.scan_market(tickers)
+                    discovery_signals = await self.scan_market(tickers, ticker_map=ticker_map)
                     discovery_due = now + DISCOVERY_INTERVAL_SECONDS
                 else:
                     discovery_signals = []
@@ -2098,8 +2184,9 @@ class Scanner:
             self._ticker_cache_at = asyncio.get_running_loop().time()
             return tickers
 
-    def evaluate_signal_performance(self, tickers: list) -> None:
-        ticker_map = self._ticker_map(tickers)
+    def evaluate_signal_performance(self, tickers: list, ticker_map: Optional[dict] = None) -> None:
+        # OPT-3: accept pre-built ticker_map from run_forever() to avoid rebuilding it
+        ticker_map = ticker_map or self._ticker_map(tickers)
         prices = {
             coin: self._extract_price_volume(ticker)[0]
             for coin, ticker in ticker_map.items()
@@ -2108,15 +2195,17 @@ class Scanner:
         if updated:
             logger.info("Updated %s signal performance checkpoints", updated)
 
-    async def scan_watchlist(self, tickers: Optional[list] = None) -> list:
+    async def scan_watchlist(self, tickers: Optional[list] = None, ticker_map: Optional[dict] = None) -> list:
+        # OPT-3: accept pre-built ticker_map from run_forever() to avoid rebuilding it
         tickers    = tickers or await self.get_tickers()
-        ticker_map = self._ticker_map(tickers)
+        ticker_map = ticker_map or self._ticker_map(tickers)
         coins      = [coin for coin in self.watchlist_store.all() if coin in ticker_map]
         return await self._scan_many(coins, ticker_map, source="watchlist")
 
-    async def scan_market(self, tickers: Optional[list] = None) -> list:
+    async def scan_market(self, tickers: Optional[list] = None, ticker_map: Optional[dict] = None) -> list:
+        # OPT-3: accept pre-built ticker_map from run_forever() to avoid rebuilding it
         tickers    = tickers or await self.get_tickers()
-        ticker_map = self._ticker_map(tickers)
+        ticker_map = ticker_map or self._ticker_map(tickers)
         watchlist  = set(self.watchlist_store.all())
         coins = [
             coin for coin, ticker in ticker_map.items()
@@ -2515,27 +2604,55 @@ def get_per_coin_performance(coin: str) -> dict:
 # SIGNAL HISTORY — Append-only permanent record
 # =============================================================================
 
+# OPT-5: Cache signal history reads to avoid repeated disk I/O on every
+# dashboard poll.  _write_history() updates the cache in-place so the next
+# read is guaranteed to be consistent without a round-trip to disk.
+_HISTORY_CACHE_TTL = 60.0                     # seconds between disk re-reads
+_history_cache: Optional[tuple] = None        # (monotonic_time, signals_list)
+
+
 def _read_history() -> list:
-    """Read the signal history file; return empty list if missing."""
+    """Read the signal history file; return empty list if missing.
+
+    OPT-5: results are cached for _HISTORY_CACHE_TTL seconds to eliminate
+    repeated disk reads when get_performance_stats(), get_signal_history_stats(),
+    update_coin_performance(), and update_tier_accuracy() are called in the
+    same dashboard poll cycle.
+    """
+    global _history_cache
+    now = time.monotonic()
+    if _history_cache is not None and now - _history_cache[0] < _HISTORY_CACHE_TTL:
+        return list(_history_cache[1])
     try:
         with open(SIGNAL_HISTORY_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
         if isinstance(data, dict):
-            return data.get("signals", [])
-        if isinstance(data, list):
-            return data
-        return []
+            result = data.get("signals", [])
+        elif isinstance(data, list):
+            result = data
+        else:
+            result = []
     except (FileNotFoundError, json.JSONDecodeError, OSError):
-        return []
+        result = []
+    _history_cache = (now, result)
+    return list(result)
 
 
 def _write_history(signals: list) -> None:
-    """Write the full history list back to disk."""
+    """Write the full history list back to disk.
+
+    OPT-5: update the in-memory cache immediately after a successful write so
+    subsequent _read_history() calls within the TTL window see the new data
+    without a disk round-trip.
+    """
+    global _history_cache
     with _history_lock:
         try:
             write_json_safely(Path(SIGNAL_HISTORY_FILE), {"signals": signals})
+            _history_cache = (time.monotonic(), list(signals))  # keep cache fresh
         except Exception:
             logger.exception("signal_history: failed to write %s", SIGNAL_HISTORY_FILE)
+            _history_cache = None  # invalidate on write failure so next read retries
 
 
 def append_signal_history(entry: dict) -> bool:
