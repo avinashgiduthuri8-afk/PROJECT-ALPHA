@@ -15840,3 +15840,5 @@ ValueError: invalid candle data
 2026-07-01 18:16:35,704 INFO scanner_bot: Storage ready: /home/runner/workspace/bots/scanner_bot/data
 2026-07-01 18:39:55,687 INFO scanner_bot: Storage ready: /home/runner/workspace/bots/scanner_bot/data
 2026-07-01 18:40:01,035 INFO scanner_bot: Storage ready: /home/runner/workspace/bots/scanner_bot/data
+2026-07-01 19:41:09,720 INFO scanner_bot: Storage ready: /home/runner/workspace/bots/scanner_bot/data
+2026-07-02 00:53:27,509 INFO scanner_bot: Storage ready: /home/runner/workspace/bots/scanner_bot/data
