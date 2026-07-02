@@ -75,6 +75,7 @@ from .scanner import (
     MTF_1H_WINDOW,
     # BUG-25/26/30: centralized coin-symbol validation
     validate_coin_symbol,
+    _check_candles_connectivity,
 )
 
 logger = logging.getLogger("scanner_api")
@@ -987,7 +988,7 @@ async def _scanner_loop() -> None:
         _BOOTSTRAP_STATUS["started_at"] = datetime.now(timezone.utc).isoformat()
         logger.info("[Bootstrap] state=running")
 
-        if not scanner._check_candles_connectivity():
+        if not _check_candles_connectivity():
             logger.critical(
                 "BOOTSTRAP SKIPPED: public.coindcx.com is unreachable. "
                 "Set COINDCX_CANDLES_URL env var to override, or check "
