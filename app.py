@@ -11,7 +11,7 @@ from fastapi.templating import Jinja2Templates
 
 from bots.scanner_bot.scanner import get_signals, get_live_signals
 
-from bots.scanner_bot.scanner import get_watchlist
+from bots.scanner_bot.scanner import get_watchlist, WatchlistStore
 from bots.scanner_bot.scanner import get_stats
 from bots.scanner_bot.scanner import get_market_state, get_signal_stats, get_performance_stats, get_performance_signals, get_per_coin_performance, get_signal_history, get_signal_history_stats, get_coin_performance_data, get_coin_performance_stats, get_tier_accuracy_data, get_tier_accuracy_stats
 import bots.scanner_bot.main as scanner_main
@@ -146,9 +146,29 @@ api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 DASHBOARD_API_KEY = os.getenv("DASHBOARD_API_KEY")
 
+# Routes that the dashboard JS calls directly from the browser — exempt from
+# API key auth so the browser does not need to store or expose the key.
+#
+# Mutation exemptions (/add, /remove, /refresh): these change benign state
+# (scanner coin universe, refresh trigger) and are not more dangerous than
+# the dashboard page itself which is already fully public at "/".
+#
+# Read exemptions (/api/watchlist, /api/supported-coins): called by
+# refreshWatchlistTable() and the coin autocomplete loader without auth
+# headers.  Both return only non-sensitive public coin/watchlist data.
+_DASHBOARD_EXEMPT_PATHS = frozenset({
+    "/health",
+    "/",
+    "/api/scanner/refresh",
+    "/api/watchlist",
+    "/api/watchlist/add",
+    "/api/watchlist/remove",
+    "/api/supported-coins",
+})
+
 if not DASHBOARD_API_KEY:
     async def require_api_key(request: Request, api_key: str = Depends(api_key_header)) -> str:
-        if request.url.path in ("/health", "/"):
+        if request.url.path in _DASHBOARD_EXEMPT_PATHS:
             return ""
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -156,7 +176,7 @@ if not DASHBOARD_API_KEY:
         )
 else:
     async def require_api_key(request: Request, api_key: str = Depends(api_key_header)) -> str:
-        if request.url.path in ("/health", "/"):
+        if request.url.path in _DASHBOARD_EXEMPT_PATHS:
             return ""
         if api_key != DASHBOARD_API_KEY:
             raise HTTPException(
@@ -602,7 +622,7 @@ async def viewport_router(request: Request):
             "data": state,
             "signals": signals,
             "stats": stats,
-            "watchlist": watchlist
+            "watchlist": watchlist,
         }
     )
    
@@ -667,7 +687,15 @@ async def get_scanner_watchlist():
 
 @app.post("/api/watchlist/add", response_class=JSONResponse)
 async def add_coin_to_scanner_watchlist(req: WatchlistRequest):
-    """Add a coin to the unified scanner watchlist."""
+    """Add a coin to the unified scanner watchlist.
+
+    Uses _SCANNER.watchlist_store (single source of truth) so the scanner's
+    in-memory coin list is updated immediately without waiting for a disk
+    re-read or cache expiry.  Falls back to a fresh WatchlistStore() only
+    when the scanner has not yet initialised (early startup window).
+    Also wakes the scanner's refresh event so the new coin is picked up in
+    the next scan cycle right away.
+    """
     coin = req.coin.strip().upper()
     inr_coins, usdt_coins = await _get_coin_markets()
 
@@ -685,10 +713,18 @@ async def add_coin_to_scanner_watchlist(req: WatchlistRequest):
         market = "INR"
 
     try:
-        from bots.scanner_bot.scanner import WatchlistStore
-        store = WatchlistStore()
+        # Single source of truth: always mutate the scanner's own store so its
+        # in-memory coin list reflects the change immediately.
+        sc = getattr(scanner_main, "_SCANNER", None)
+        store = sc.watchlist_store if sc is not None else WatchlistStore()
         store.add(coin)
         coins = store.all()
+        # Wake the scanner so it picks up the new coin without waiting for the
+        # next scheduled cycle.
+        try:
+            scanner_main._REFRESH_EVENT.set()
+        except Exception:
+            pass
         return {
             "success": True,
             "coin": coin,
@@ -704,15 +740,25 @@ async def add_coin_to_scanner_watchlist(req: WatchlistRequest):
 
 @app.post("/api/watchlist/remove", response_class=JSONResponse)
 async def remove_coin_from_scanner_watchlist(req: WatchlistRequest):
-    """Remove a coin from the unified scanner watchlist."""
+    """Remove a coin from the unified scanner watchlist.
+
+    Uses _SCANNER.watchlist_store (single source of truth) for the same
+    reason as add — avoids stale in-memory state on the scanner side.
+    """
     try:
-        from bots.scanner_bot.scanner import WatchlistStore
-        store = WatchlistStore()
-        store.remove(req.coin.strip().upper())
+        coin = req.coin.strip().upper()
+        sc = getattr(scanner_main, "_SCANNER", None)
+        store = sc.watchlist_store if sc is not None else WatchlistStore()
+        store.remove(coin)
         coins = store.all()
+        # Wake scanner so removal is reflected in the next cycle immediately.
+        try:
+            scanner_main._REFRESH_EVENT.set()
+        except Exception:
+            pass
         return {
             "success": True,
-            "coin": req.coin.upper(),
+            "coin": coin,
             "watchlist": coins,
         }
     except Exception as e:
