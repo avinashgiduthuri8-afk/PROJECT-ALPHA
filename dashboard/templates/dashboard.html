@@ -579,6 +579,111 @@
                             </div>
                         </div>
 
+                        <!-- ═══════════════════════════════════════════════ -->
+                        <!-- SCANNER CENTER V2 — MONITORING (additive, read-only) -->
+                        <!-- ═══════════════════════════════════════════════ -->
+
+                        <!-- Signal Funnel -->
+                        <div class="metric-card span-12 accordion-section">
+                            <div class="accordion-header" onclick="toggleAccordion('funnel-body')">
+                                <h5>Signal Funnel</h5>
+                                <span class="accordion-caret" id="funnel-body-caret">▾</span>
+                            </div>
+                            <div class="accordion-body" id="funnel-body">
+                                <div class="funnel-waterfall" id="funnel-waterfall">
+                                    <div class="funnel-stage" data-stage="coins_scanned">
+                                        <div class="funnel-label"><span>Coins Scanned</span><span class="funnel-count" id="funnel-coins_scanned">0</span></div>
+                                        <div class="funnel-bar-track"><div class="funnel-bar-fill" id="funnel-bar-coins_scanned" style="width:100%;"></div></div>
+                                    </div>
+                                    <div class="funnel-stage" data-stage="passed_volume">
+                                        <div class="funnel-label"><span>Passed Volume Filter</span><span class="funnel-count" id="funnel-passed_volume">0</span></div>
+                                        <div class="funnel-bar-track"><div class="funnel-bar-fill" id="funnel-bar-passed_volume" style="width:0%;"></div></div>
+                                    </div>
+                                    <div class="funnel-stage" data-stage="passed_trend">
+                                        <div class="funnel-label"><span>Passed Trend Filter</span><span class="funnel-count" id="funnel-passed_trend">0</span></div>
+                                        <div class="funnel-bar-track"><div class="funnel-bar-fill" id="funnel-bar-passed_trend" style="width:0%;"></div></div>
+                                    </div>
+                                    <div class="funnel-stage" data-stage="passed_score">
+                                        <div class="funnel-label"><span>Passed Score Threshold</span><span class="funnel-count" id="funnel-passed_score">0</span></div>
+                                        <div class="funnel-bar-track"><div class="funnel-bar-fill" id="funnel-bar-passed_score" style="width:0%;"></div></div>
+                                    </div>
+                                    <div class="funnel-stage" data-stage="signals_generated">
+                                        <div class="funnel-label"><span>Signals Generated</span><span class="funnel-count" id="funnel-signals_generated">0</span></div>
+                                        <div class="funnel-bar-track"><div class="funnel-bar-fill funnel-bar-final" id="funnel-bar-signals_generated" style="width:0%;"></div></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- API + Cache Monitoring -->
+                        <div class="metric-card span-6 accordion-section">
+                            <div class="accordion-header" onclick="toggleAccordion('api-mon-body')">
+                                <h5>API Monitoring</h5>
+                                <span class="accordion-caret" id="api-mon-body-caret">▾</span>
+                            </div>
+                            <div class="accordion-body compact-stat-grid" id="api-mon-body">
+                                <div class="compact-stat"><span class="compact-stat-label">Total Calls</span><span class="compact-stat-value" id="api-total-calls">0</span></div>
+                                <div class="compact-stat"><span class="compact-stat-label">Calls / min</span><span class="compact-stat-value" id="api-calls-per-min">0</span></div>
+                                <div class="compact-stat"><span class="compact-stat-label">Success</span><span class="compact-stat-value text-green" id="api-success">0</span></div>
+                                <div class="compact-stat"><span class="compact-stat-label">429 Errors</span><span class="compact-stat-value text-red" id="api-429">0</span></div>
+                                <div class="compact-stat"><span class="compact-stat-label">Retries</span><span class="compact-stat-value text-gold" id="api-retries">0</span></div>
+                                <div class="compact-stat"><span class="compact-stat-label">Fallbacks</span><span class="compact-stat-value" id="api-fallbacks">0</span></div>
+                            </div>
+                        </div>
+
+                        <div class="metric-card span-6 accordion-section">
+                            <div class="accordion-header" onclick="toggleAccordion('cache-mon-body')">
+                                <h5>Cache Monitoring</h5>
+                                <span class="accordion-caret" id="cache-mon-body-caret">▾</span>
+                            </div>
+                            <div class="accordion-body" id="cache-mon-body">
+                                <div class="cache-row">
+                                    <span class="cache-row-label">Ticker Cache</span>
+                                    <div class="funnel-bar-track cache-bar-track"><div class="funnel-bar-fill" id="cache-bar-ticker" style="width:0%;"></div></div>
+                                    <span class="cache-row-ratio" id="cache-ratio-ticker">0%</span>
+                                </div>
+                                <div class="cache-row">
+                                    <span class="cache-row-label">Candle Cache</span>
+                                    <div class="funnel-bar-track cache-bar-track"><div class="funnel-bar-fill" id="cache-bar-candle" style="width:0%;"></div></div>
+                                    <span class="cache-row-ratio" id="cache-ratio-candle">0%</span>
+                                </div>
+                                <div class="cache-row">
+                                    <span class="cache-row-label">Watchlist Cache</span>
+                                    <div class="funnel-bar-track cache-bar-track"><div class="funnel-bar-fill" id="cache-bar-watchlist" style="width:0%;"></div></div>
+                                    <span class="cache-row-ratio" id="cache-ratio-watchlist">0%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Performance Monitoring -->
+                        <div class="metric-card span-12 accordion-section">
+                            <div class="accordion-header" onclick="toggleAccordion('perf-mon-body')">
+                                <h5>Performance Monitoring</h5>
+                                <span class="accordion-caret" id="perf-mon-body-caret">▾</span>
+                            </div>
+                            <div class="accordion-body compact-stat-grid" id="perf-mon-body">
+                                <div class="compact-stat"><span class="compact-stat-label">Avg Cycle</span><span class="compact-stat-value" id="perf-avg-ms">0 ms</span></div>
+                                <div class="compact-stat"><span class="compact-stat-label">Max Cycle</span><span class="compact-stat-value" id="perf-max-ms">0 ms</span></div>
+                                <div class="compact-stat"><span class="compact-stat-label">Min Cycle</span><span class="compact-stat-value" id="perf-min-ms">0 ms</span></div>
+                                <div class="compact-stat"><span class="compact-stat-label">Slowest Coin</span><span class="compact-stat-value" id="perf-slowest-coin">—</span></div>
+                                <div class="compact-stat"><span class="compact-stat-label">Fastest Coin</span><span class="compact-stat-value" id="perf-fastest-coin">—</span></div>
+                                <div class="compact-stat"><span class="compact-stat-label">Last Error</span><span class="compact-stat-value text-red" id="perf-last-error">None</span></div>
+                            </div>
+                        </div>
+
+                        <!-- Event Log -->
+                        <div class="metric-card span-12 accordion-section">
+                            <div class="accordion-header" onclick="toggleAccordion('event-log-body')">
+                                <h5>Scanner Event Log</h5>
+                                <span class="accordion-caret" id="event-log-body-caret">▾</span>
+                            </div>
+                            <div class="accordion-body" id="event-log-body">
+                                <div class="event-log-scroller" id="event-log-scroller">
+                                    <div class="event-log-empty" id="event-log-empty">No events yet.</div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="metric-card span-3"><h5>Coins Scanned</h5><h2 id="so-coins-scanned">{{ data.scanner_overview.coins_scanned }}</h2></div>
                         <div class="metric-card span-3"><h5>Elite Signals</h5><h2 class="text-blue" id="so-elite-signals">{{ data.scanner_overview.elite_signals }}</h2></div>
                         <div class="metric-card span-3"><h5>High Signals</h5><h2 class="text-gold" id="so-high-signals">{{ data.scanner_overview.high_signals }}</h2></div>

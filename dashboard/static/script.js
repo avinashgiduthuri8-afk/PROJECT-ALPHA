@@ -473,6 +473,103 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (e) { return "—"; }
     }
 
+    // ── Scanner Center V2 — Monitoring panel (additive, read-only) ──────────
+    // Polls GET /api/v1/scanner/monitoring on its own cycle. A failure here
+    // is fully isolated — it never touches refreshDashboardData()/state and
+    // can never affect the scanner loop or any existing endpoint.
+    window.toggleAccordion = function(bodyId) {
+        const body = document.getElementById(bodyId);
+        const caret = document.getElementById(bodyId + "-caret");
+        if (!body) return;
+        body.classList.toggle("collapsed");
+        if (caret) caret.classList.toggle("collapsed");
+    };
+
+    function setFunnelStage(key, value, maxValue) {
+        const countEl = document.getElementById("funnel-" + key);
+        const barEl   = document.getElementById("funnel-bar-" + key);
+        if (countEl) countEl.textContent = value || 0;
+        if (barEl) {
+            const pct = maxValue > 0 ? Math.min(100, (value / maxValue) * 100) : 0;
+            barEl.style.width = pct + "%";
+        }
+    }
+
+    function setCacheRow(kind, hits, misses) {
+        const total = (hits || 0) + (misses || 0);
+        const ratio = total > 0 ? Math.round((hits / total) * 100) : 0;
+        const bar   = document.getElementById("cache-bar-" + kind);
+        const label = document.getElementById("cache-ratio-" + kind);
+        if (bar) bar.style.width = ratio + "%";
+        if (label) label.textContent = ratio + "% (" + (hits || 0) + "/" + total + ")";
+    }
+
+    function renderEventLog(events) {
+        const scroller = document.getElementById("event-log-scroller");
+        if (!scroller) return;
+        if (!events || events.length === 0) {
+            scroller.innerHTML = '<div class="event-log-empty">No events yet.</div>';
+            return;
+        }
+        // column-reverse container: render oldest-first in markup so newest visually stays at bottom
+        const ordered = events.slice().reverse();
+        scroller.innerHTML = ordered.map(ev => `
+            <div class="event-log-row level-${ev.level || 'info'}">
+                <span class="event-log-time">${ev.time || ''}</span>
+                <span class="event-log-text">${ev.text || ''}</span>
+            </div>
+        `).join("");
+    }
+
+    async function refreshMonitoringPanel() {
+        const scannerView = document.getElementById("scanner-view");
+        if (!scannerView || scannerView.classList.contains("view-hidden")) return;
+        try {
+            const resp = await fetch("/api/v1/scanner/monitoring");
+            if (!resp.ok) return;
+            const data = await resp.json();
+
+            // Signal funnel
+            const funnel = data.funnel || {};
+            const maxVal = funnel.coins_scanned || 0;
+            setFunnelStage("coins_scanned", funnel.coins_scanned, maxVal);
+            setFunnelStage("passed_volume", funnel.passed_volume, maxVal);
+            setFunnelStage("passed_trend", funnel.passed_trend, maxVal);
+            setFunnelStage("passed_score", funnel.passed_score, maxVal);
+            setFunnelStage("signals_generated", funnel.signals_generated, maxVal);
+
+            // API monitoring
+            const api = data.api || {};
+            const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+            setText("api-total-calls", api.total_calls || 0);
+            setText("api-calls-per-min", api.calls_per_minute || 0);
+            setText("api-success", api.success || 0);
+            setText("api-429", api.errors_429 || 0);
+            setText("api-retries", api.retries || 0);
+            setText("api-fallbacks", api.fallbacks || 0);
+
+            // Cache monitoring
+            const cache = data.cache || {};
+            setCacheRow("ticker", cache.ticker_hits, cache.ticker_misses);
+            setCacheRow("candle", cache.candle_hits, cache.candle_misses);
+            setCacheRow("watchlist", cache.watchlist_hits, cache.watchlist_misses);
+
+            // Performance monitoring
+            const cycles = data.cycles || {};
+            setText("perf-avg-ms", (cycles.avg_ms || 0) + " ms");
+            setText("perf-max-ms", (cycles.max_ms || 0) + " ms");
+            setText("perf-min-ms", (cycles.min_ms || 0) + " ms");
+            setText("perf-slowest-coin", cycles.slowest_coin ? (cycles.slowest_coin.coin + " (" + cycles.slowest_coin.ms + "ms)") : "—");
+            setText("perf-fastest-coin", cycles.fastest_coin ? (cycles.fastest_coin.coin + " (" + cycles.fastest_coin.ms + "ms)") : "—");
+            setText("perf-last-error", cycles.last_error ? cycles.last_error.message : "None");
+
+            // Event log
+            renderEventLog(data.event_log || []);
+        } catch (err) {
+            console.warn("[ProjectA] Monitoring panel refresh failed (isolated, scanner unaffected):", err.message);
+        }
+    }
+
     // Rebuild scanner-view signals table
     function patchSignalTable(signals) {
         const scannerView = document.getElementById("scanner-view");
@@ -1058,6 +1155,21 @@ document.addEventListener("DOMContentLoaded", () => {
                 clearInterval(activeIntervalId);
                 activeIntervalId = setInterval(refreshDashboardData, newMs);
                 localStorage.setItem("pa-refresh-interval", newMs);
+            }
+        });
+    }
+
+    // Scanner Center V2 monitoring panel — independent polling loop.
+    // Deliberately decoupled from refreshDashboardData()/state so a slow or
+    // failing monitoring endpoint can never delay or break the main dashboard.
+    refreshMonitoringPanel();
+    let monitoringIntervalId = setInterval(refreshMonitoringPanel, getRefreshIntervalMs() || 10000);
+    if (refreshSelect) {
+        refreshSelect.addEventListener("change", () => {
+            const newMs = parseInt(refreshSelect.value, 10);
+            if (newMs > 0) {
+                clearInterval(monitoringIntervalId);
+                monitoringIntervalId = setInterval(refreshMonitoringPanel, newMs);
             }
         });
     }

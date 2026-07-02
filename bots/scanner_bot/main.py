@@ -1037,6 +1037,11 @@ async def _scanner_loop() -> None:
     while True:
         scan_start_ms = asyncio.get_running_loop().time() * 1000
         try:
+            from . import monitoring_metrics as _mm
+            _mm.log_event("Scan started")
+        except Exception:
+            pass
+        try:
             # I-05: Retry get_tickers up to 5 times with 10s delay
             tickers: list = []
             for attempt in range(1, 6):
@@ -1048,12 +1053,22 @@ async def _scanner_loop() -> None:
                         "Ticker fetch attempt %d/5 failed: %s",
                         attempt, str(e)
                     )
+                    try:
+                        from . import monitoring_metrics as _mm
+                        _mm.record_api_call(success=False, retry=True)
+                    except Exception:
+                        pass
                     if attempt < 5:
                         await asyncio.sleep(10)
                     else:
                         raise
 
             logger.info("Tickers Downloaded=%d", len(tickers))
+            try:
+                from . import monitoring_metrics as _mm
+                _mm.log_event(f"Tickers downloaded: {len(tickers)}")
+            except Exception:
+                pass
 
             scanner.evaluate_signal_performance(tickers)
 
@@ -1161,6 +1176,12 @@ async def _scanner_loop() -> None:
                 "Scan done: %d signals, market_state=%s",
                 len(fresh), state,
             )
+            try:
+                from . import monitoring_metrics as _mm
+                _mm.record_cycle_complete(duration_ms=scan_dur)
+                _mm.log_event(f"Scan completed: {len(fresh)} signals, market={state}")
+            except Exception:
+                pass
 
         except Exception as e:
             # I-05: Health stats — FAILURE
@@ -1175,6 +1196,13 @@ async def _scanner_loop() -> None:
                 _HEALTH_STATS["health_score"] = max(0, 100 - (fails * 30))
                 _HEALTH_STATS["health_color"] = "yellow"
             logger.exception("Scanner loop error — retrying after interval")
+            try:
+                from . import monitoring_metrics as _mm
+                _err_dur = asyncio.get_running_loop().time() * 1000 - scan_start_ms
+                _mm.record_cycle_complete(duration_ms=_err_dur, error=str(e))
+                _mm.log_event(f"Scan error: {str(e)[:150]}", level="error")
+            except Exception:
+                pass
 
         # I-08: Use refresh_event for sleep so manual refresh triggers immediately
         try:
@@ -1186,6 +1214,58 @@ async def _scanner_loop() -> None:
             pass
         finally:
             _REFRESH_EVENT.clear()
+
+
+# ---------------------------------------------------------------------------
+# Scanner Center V2 — additive, read-only monitoring endpoint.
+# Purely observability: exposes in-memory counters collected by
+# monitoring_metrics.py. Never touches scanning/signal/trading state and
+# cannot affect any existing endpoint's response shape. HTTP 200 always —
+# a failure here can never stop the scanner loop or any other route.
+# ---------------------------------------------------------------------------
+
+_MONITORING_SAFE_DEFAULT = {
+    "health":    {},
+    "funnel":    {"coins_scanned": 0, "passed_volume": 0, "passed_trend": 0,
+                   "passed_score": 0, "signals_generated": 0},
+    "api":       {},
+    "cache":     {},
+    "cycles":    {},
+    "event_log": [],
+}
+
+
+@scanner_router.get("/api/v1/scanner/monitoring")
+async def scanner_monitoring():
+    """
+    Scanner Center V2 — aggregated observability snapshot.
+    Additive-only: does not modify or read from any existing endpoint's
+    state, and its own failure is fully isolated (safe defaults returned).
+    """
+    try:
+        from . import monitoring_metrics as _mm
+        snap = _mm.snapshot()
+
+        health = dict(_HEALTH_STATS)
+        health["uptime_seconds"] = int(
+            (datetime.now(timezone.utc) - _SERVICE_START).total_seconds()
+        )
+        health["scan_cycles"] = _SCAN_CYCLES
+        health["signals_generated"] = _SIGNALS_GENERATED
+        health["last_restart_time"] = _RECOVERY_STATS.get("last_restart_time")
+        health["recovered_signals"] = _RECOVERY_STATS.get("recovered_signals")
+
+        return JSONResponse(content={
+            "health":    health,
+            "funnel":    snap.get("funnel", _MONITORING_SAFE_DEFAULT["funnel"]),
+            "api":       snap.get("api", {}),
+            "cache":     snap.get("cache", {}),
+            "cycles":    snap.get("cycles", {}),
+            "event_log": snap.get("event_log", []),
+        })
+    except Exception:
+        logger.exception("/monitoring: unexpected error — returning safe default")
+        return JSONResponse(content=_MONITORING_SAFE_DEFAULT)
 
 
 # Include all scanner routes into the standalone app so this module works

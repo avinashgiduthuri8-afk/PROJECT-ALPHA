@@ -890,6 +890,125 @@ body {
 .span-8  { grid-column: span 8; }
 .span-12 { grid-column: span 12; }
 
+/* ══════════════════════════════════════════════════════════════
+   SCANNER CENTER V2 — monitoring widgets (additive, no logic ties)
+══════════════════════════════════════════════════════════════ */
+.accordion-section { grid-column: span 12; }
+.accordion-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+}
+.accordion-caret {
+    color: var(--text-secondary);
+    transition: transform 0.2s ease;
+    font-size: 0.8rem;
+}
+.accordion-caret.collapsed { transform: rotate(-90deg); }
+.accordion-body {
+    margin-top: 12px;
+    overflow: hidden;
+    max-height: 2000px;
+    transition: max-height 0.25s ease, opacity 0.2s ease, margin-top 0.2s ease;
+    opacity: 1;
+}
+.accordion-body.collapsed {
+    max-height: 0;
+    opacity: 0;
+    margin-top: 0;
+}
+
+/* Signal funnel */
+.funnel-waterfall { display: flex; flex-direction: column; gap: 10px; }
+.funnel-stage { width: 100%; }
+.funnel-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+.funnel-count { font-family: var(--font-mono); color: var(--text-primary); font-weight: 600; }
+.funnel-bar-track {
+    width: 100%;
+    height: 10px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.04);
+    overflow: hidden;
+}
+.funnel-bar-fill {
+    height: 100%;
+    border-radius: 6px;
+    background: linear-gradient(90deg, var(--blue), var(--purple));
+    transition: width 0.4s ease;
+}
+.funnel-bar-final { background: linear-gradient(90deg, var(--green), #00ffb0); }
+
+/* Compact stat grid (API / performance monitoring) */
+.compact-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+}
+.compact-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 12px;
+    background: rgba(255,255,255,0.03);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+}
+.compact-stat-label {
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+}
+.compact-stat-value {
+    font-family: var(--font-mono);
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+/* Cache monitoring rows */
+.cache-row {
+    display: grid;
+    grid-template-columns: 120px 1fr 50px;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.cache-row:last-child { margin-bottom: 0; }
+.cache-row-label { font-size: 0.75rem; color: var(--text-secondary); }
+.cache-bar-track { height: 8px; }
+.cache-row-ratio { font-family: var(--font-mono); font-size: 0.75rem; text-align: right; }
+
+/* Event log */
+.event-log-scroller {
+    max-height: 260px;
+    overflow-y: auto;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 4px;
+    padding-right: 4px;
+}
+.event-log-row {
+    display: flex;
+    gap: 10px;
+    padding: 3px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.event-log-time { color: var(--text-dim); flex-shrink: 0; }
+.event-log-text { color: var(--text-primary); word-break: break-word; }
+.event-log-row.level-warn .event-log-text { color: var(--amber); }
+.event-log-row.level-error .event-log-text { color: var(--red); }
+.event-log-empty { color: var(--text-dim); font-size: 0.8rem; padding: 8px 0; }
+
 /* Canvas holders */
 .canvas-wrapper-box { min-height: 240px; }
 .canvas-holder { position: relative; width: 100%; height: 160px; margin-top: auto; }
@@ -1075,9 +1194,23 @@ tr:last-child td { border-bottom: none; }
 
     .layout-matrix-inner-row { grid-template-columns: 1fr; }
     .alerts-overlay-card { width: calc(100vw - 24px); right: 12px; }
+
+    /* Scanner Center V2 — 2-col compact grid, tighter cache rows */
+    .compact-stat-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .compact-stat { padding: 8px 10px; }
+    .compact-stat-value { font-size: 0.95rem; }
+    .cache-row { grid-template-columns: 90px 1fr 42px; gap: 6px; margin-bottom: 8px; }
+    .cache-row-label { font-size: 0.68rem; }
+    .cache-row-ratio { font-size: 0.68rem; }
+    .funnel-label { font-size: 0.68rem; }
+    .event-log-scroller { max-height: 200px; font-size: 0.7rem; }
+    .accordion-body { margin-top: 8px; }
 }
 
 @media (max-width: 480px) {
     .kpi-row { grid-template-columns: 1fr 1fr; }
     .kpi-value { font-size: 1.05rem; }
+
+    .compact-stat-grid { grid-template-columns: repeat(2, 1fr); }
+    .cache-row { grid-template-columns: 80px 1fr 36px; }
 }

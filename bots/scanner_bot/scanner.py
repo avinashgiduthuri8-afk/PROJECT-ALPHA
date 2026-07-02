@@ -44,7 +44,13 @@ def _limited_get(url: str, **kwargs):
         if wait > 0:
             time.sleep(wait)
         _RATE_LAST_CALL[0] = time.monotonic()
-    return requests.get(url, **kwargs)
+    resp = requests.get(url, **kwargs)
+    try:
+        from . import monitoring_metrics as _mm
+        _mm.record_api_call(success=resp.ok, status_code=resp.status_code)
+    except Exception:
+        pass
+    return resp
 
 
 # =============================================================================
@@ -363,7 +369,17 @@ class WatchlistStore:
         # OPT-2: throttled to once per _CACHE_TTL to avoid per-scan disk reads.
         now = time.monotonic()
         if now - self._cache_time < self._CACHE_TTL:
+            try:
+                from . import monitoring_metrics as _mm
+                _mm.record_cache("watchlist", hit=True)
+            except Exception:
+                pass
             return list(self._cache_value)
+        try:
+            from . import monitoring_metrics as _mm
+            _mm.record_cache("watchlist", hit=False)
+        except Exception:
+            pass
         self._coins = self._load()
         self._cache_value = list(self._coins)
         self._cache_time = now
@@ -502,7 +518,17 @@ def _fetch_daily_candles(market_pair: str, days: int = 95) -> list:
     with _candle_cache_lock:
         cached = _candle_cache.get(market_pair)
         if cached and now - cached[0] < CANDLE_CACHE_TTL:
+            try:
+                from . import monitoring_metrics as _mm
+                _mm.record_cache("candle", hit=True)
+            except Exception:
+                pass
             return cached[1]
+    try:
+        from . import monitoring_metrics as _mm
+        _mm.record_cache("candle", hit=False)
+    except Exception:
+        pass
     to_ts   = int(now)
     from_ts = to_ts - days * 86400
     try:
@@ -2160,7 +2186,17 @@ class Scanner:
                 and now - self._ticker_cache_at < TICKER_CACHE_TTL_SECONDS
             )
             if cache_fresh and not force:
+                try:
+                    from . import monitoring_metrics as _mm
+                    _mm.record_cache("ticker", hit=True)
+                except Exception:
+                    pass
                 return self._ticker_cache or []
+            try:
+                from . import monitoring_metrics as _mm
+                _mm.record_cache("ticker", hit=False)
+            except Exception:
+                pass
             try:
                 tickers = await asyncio.to_thread(self.client.fetch_tickers)
                 # SP1.2: validate before caching (fetch_tickers already validates,
@@ -2232,6 +2268,7 @@ class Scanner:
         }
 
     async def _scan_many(self, coins: list, ticker_map: dict, source: str) -> list:
+        _funnel_before = dict(_filter_counts)
         tasks = [
             asyncio.create_task(self._scan_ticker_bounded(coin, ticker_map[coin], source))
             for coin in coins
@@ -2264,11 +2301,39 @@ class Scanner:
             if not historical_filter(signal):
                 continue
             await self._send_alert_once(signal, source)
+
+        try:
+            from . import monitoring_metrics as _mm
+            _no_volume  = _filter_counts.get("no_volume", 0) - _funnel_before.get("no_volume", 0)
+            _no_ema     = _filter_counts.get("no_ema", 0) - _funnel_before.get("no_ema", 0)
+            _low_score  = _filter_counts.get("low_score", 0) - _funnel_before.get("low_score", 0)
+            _coins_scanned = len(coins)
+            _passed_volume = max(0, _coins_scanned - _no_volume)
+            _passed_trend  = max(0, _passed_volume - _no_ema)
+            _passed_score  = max(0, _passed_trend - _low_score)
+            _mm.record_funnel(
+                coins_scanned=_coins_scanned,
+                passed_volume=_passed_volume,
+                passed_trend=_passed_trend,
+                passed_score=_passed_score,
+                signals_generated=len(top_signals),
+            )
+            _mm.log_event(f"{source.capitalize()} scan: {_coins_scanned} coins -> {len(top_signals)} signals")
+        except Exception:
+            pass
         return top_signals
 
     async def _scan_ticker_bounded(self, coin: str, ticker: dict, source: str) -> list:
         async with self._scan_semaphore:
-            return await self._scan_ticker(coin, ticker, source)
+            _t0 = time.monotonic()
+            try:
+                return await self._scan_ticker(coin, ticker, source)
+            finally:
+                try:
+                    from . import monitoring_metrics as _mm
+                    _mm.record_coin_timing(coin, (time.monotonic() - _t0) * 1000)
+                except Exception:
+                    pass
 
     async def _scan_ticker(self, coin: str, ticker: dict, source: str) -> list:
         price, volume = self._extract_price_volume(ticker)
