@@ -1,0 +1,173 @@
+PROJECT-ALPHA — Scanner Optimization Research Using GitHub Solution Finder
+
+Objective:
+Research the best open-source scanner architectures and improve the efficiency, reliability, and scalability of the PROJECT-ALPHA scanner.
+
+IMPORTANT:
+This is a research and optimization task only.
+Do NOT modify trading logic, signal logic, or APIs unless improvements are clearly justified and backward compatible.
+
+Tasks
+
+1. Research GitHub projects similar to:
+
+- Crypto scanners
+- Market screener engines
+- Trading signal engines
+- High-frequency market data processors
+- Event-driven scanners
+- Real-time watchlist systems
+
+Focus on repositories using:
+
+- Python
+- AsyncIO
+- FastAPI
+- Redis
+- WebSockets
+- Lightweight caching
+- Concurrent processing
+
+Deliver:
+
+- Repository links
+- Stars
+- Architecture summary
+- Techniques worth adopting.
+
+---
+
+2. Audit PROJECT-ALPHA scanner
+
+Analyze:
+
+- scanner.py
+- scanner_api.py
+- scanner_bridge.py
+- watchlist_store.py
+- ticker cache
+- signal generation pipeline
+- bootstrap process
+- refresh logic
+- persistence layer
+
+Identify:
+
+- blocking I/O
+- unnecessary API calls
+- duplicate calculations
+- repeated file reads
+- memory growth risks
+- race conditions
+- CPU hotspots
+- slow startup areas
+
+---
+
+3. Efficiency Improvements
+
+Recommend improvements for:
+
+A. Market Data
+
+- ticker caching
+- incremental updates
+- batched processing
+- stale data handling
+
+B. Watchlist Processing
+
+- O(1) lookup structures
+- reduced file I/O
+- in-memory synchronization
+
+C. Signal Engine
+
+- eliminate duplicate calculations
+- cache indicators
+- reuse historical data
+- incremental computations
+
+D. Async Performance
+
+- replace blocking calls
+- reduce event-loop blocking
+- improve task scheduling
+
+E. Persistence
+
+- reduce unnecessary JSON writes
+- debounce disk writes
+- atomic updates
+
+---
+
+4. Scalability Review
+
+Evaluate:
+
+Current:
+7 coins
+
+Future:
+25 coins
+50 coins
+100 coins
+200 coins
+
+Determine:
+
+- expected CPU usage
+- expected memory usage
+- bottlenecks
+- required architectural changes
+
+---
+
+5. Suggested Improvements Priority
+
+Classify:
+
+Immediate (safe during paper trading)
+Medium-term
+Long-term
+
+---
+
+6. Constraints
+
+DO NOT:
+
+- break existing APIs
+- break dashboard
+- break paper trading
+- change signal scoring
+- change bot interfaces
+- remove existing features
+
+---
+
+7. Deliverables
+
+Provide:
+
+1. Top GitHub solutions worth borrowing.
+2. Scanner bottlenecks.
+3. Performance improvement plan.
+4. Files requiring changes.
+5. Estimated performance gains.
+6. PASS/FAIL risk assessment.
+
+Final Verdict:
+
+Current Scanner Grade:
+A / B / C / D
+
+Optimized Scanner Target Grade:
+A+ / A / B
+
+Paper Trading Safe:
+YES / NO
+
+Production Ready:
+YES / NO
