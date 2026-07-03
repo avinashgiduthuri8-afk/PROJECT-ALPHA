@@ -1,3 +1,15 @@
+// ── Authenticated fetch helper ─────────────────────────────────────────────
+// All dashboard API calls must include X-API-Key. Use this instead of fetch().
+function authenticatedFetch(url, options) {
+    options = options || {};
+    // Use Headers API so caller-supplied headers (plain object or Headers instance)
+    // are preserved correctly alongside the injected X-API-Key.
+    var headers = new Headers(options.headers || {});
+    headers.set("X-API-Key", window.DASHBOARD_API_KEY || "");
+    options.headers = headers;
+    return fetch(url, options);
+}
+
 // ── I-04: Cleanup engine helpers ──────────────────────────────────────────
 function _relativeTime(date) {
     const diff = Math.round((Date.now() - date.getTime()) / 1000);
@@ -28,7 +40,7 @@ setInterval(function() {
 // Populate the shared CoinDCX datalist once on page load
 (async function loadCoinDCXCoins() {
     try {
-        const resp = await fetch("/api/supported-coins");
+        const resp = await authenticatedFetch("/api/supported-coins");
         const data = await resp.json();
         const dl = document.getElementById("coindcx-coins");
         if (!dl || !Array.isArray(data.coins)) return;
@@ -525,7 +537,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const scannerView = document.getElementById("scanner-view");
         if (!scannerView || scannerView.classList.contains("view-hidden")) return;
         try {
-            const resp = await fetch("/api/v1/scanner/monitoring");
+            const resp = await authenticatedFetch("/api/v1/scanner/monitoring");
             if (!resp.ok) return;
             const data = await resp.json();
 
@@ -836,7 +848,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function refreshDashboardData() {
         try {
-            const response = await fetch("/api/v1/state");
+            const response = await authenticatedFetch("/api/v1/state");
             if (!response.ok) return;
             const data = await response.json();
 
@@ -1204,7 +1216,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const msg = document.getElementById("scanner-refresh-msg");
         if (msg) { msg.style.display = "none"; msg.textContent = ""; msg.style.color = "#f43f5e"; }
         try {
-            const resp = await fetch("/api/scanner/refresh", { method: "POST" });
+            const resp = await authenticatedFetch("/api/scanner/refresh", { method: "POST" });
             const data = await resp.json();
             if (data.success) {
                 if (msg) {
@@ -1242,7 +1254,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         try {
-            const resp = await fetch("/api/watchlist/add", {
+            const resp = await authenticatedFetch("/api/watchlist/add", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({coin}),
@@ -1272,7 +1284,7 @@ document.addEventListener("DOMContentLoaded", () => {
     window.removeCoin = async function(coin) {
         if (!confirm("Remove " + coin + " from Scanner Watchlist?")) return;
         try {
-            const resp = await fetch("/api/watchlist/remove", {
+            const resp = await authenticatedFetch("/api/watchlist/remove", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({coin}),
@@ -1297,7 +1309,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function refreshWatchlistTable() {
         try {
-            const resp = await fetch("/api/watchlist");
+            const resp = await authenticatedFetch("/api/watchlist");
             const data = await resp.json();
             const coins = data.coins || [];
             const countNode = document.getElementById("scanner-coin-count");

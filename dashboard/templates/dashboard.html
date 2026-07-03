@@ -1377,6 +1377,7 @@
     </div><!-- /.ultimate-shell -->
 
     <script id="dashboard-state-payload-json" type="application/json">{{ data | tojson }}</script>
+    <script>window.DASHBOARD_API_KEY = {{ dashboard_api_key | tojson }};</script>
     <script src="static/script.js"></script>
 </body>
 </html>

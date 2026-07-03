@@ -623,6 +623,7 @@ async def viewport_router(request: Request):
             "signals": signals,
             "stats": stats,
             "watchlist": watchlist,
+            "dashboard_api_key": DASHBOARD_API_KEY or "",
         }
     )
    
