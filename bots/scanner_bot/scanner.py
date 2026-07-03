@@ -129,22 +129,42 @@ def get_coin_class(symbol: str) -> str:
 
 def _check_candles_connectivity() -> bool:
     """Quick probe to COINDCX_CANDLES_URL before bootstrap.
-    Returns True if reachable, False otherwise.
+
+    Returns True if the endpoint is reachable — any HTTP response counts as
+    reachable because a server-side validation error (4xx) still proves the
+    network path is open.  Only network-level exceptions (DNS failure,
+    connection refused, timeout) mean the host is unreachable.
+
+    Param fixes vs original:
+    - "resolution" → "interval"  (API rejects unknown param with 422)
+    - "1D"         → "1d"        (API only accepts lowercase: 1m 15m 1h 1d)
     """
     try:
         import time as _t
+        now = int(_t.time())
+        params = {
+            "pair":     "B-BTC_USDT",
+            "interval": "1d",
+            "from":     now - 86400 * 3,
+            "to":       now,
+        }
         resp = _limited_get(
             COINDCX_CANDLES_URL,
-            params={
-                "pair": "B-BTC_INR",
-                "resolution": "1D",
-                "from": int(_t.time()) - 86400,
-                "to": int(_t.time()),
-            },
+            params=params,
             timeout=5,
         )
-        return resp.status_code == 200
-    except Exception:
+        logger.info(
+            "[Bootstrap] Candle connectivity probe: status=%d url=%s params=%s",
+            resp.status_code, COINDCX_CANDLES_URL, params,
+        )
+        # Any HTTP response means the network path is open.
+        # 200 = data returned; 4xx = server rejected params but IS reachable.
+        return True
+    except Exception as exc:
+        logger.warning(
+            "[Bootstrap] Candle connectivity probe FAILED (network error): %s: %s",
+            type(exc).__name__, exc,
+        )
         return False
 
 
@@ -534,7 +554,8 @@ def _fetch_daily_candles(market_pair: str, days: int = 95) -> list:
     try:
         resp = _limited_get(
             COINDCX_CANDLES_URL,
-            params={"pair": market_pair, "resolution": "1D", "from": from_ts, "to": to_ts},
+            # "resolution" → "interval", "1D" → "1d"  (API rejects both wrong forms with 422)
+            params={"pair": market_pair, "interval": "1d", "from": from_ts, "to": to_ts},
             timeout=REQUEST_TIMEOUT_SECONDS,
         )
         resp.raise_for_status()
@@ -822,7 +843,8 @@ def get_historical_performance(coin: str, closes: Optional[list] = None) -> dict
 # =============================================================================
 
 BOOTSTRAP_CANDLES_URL = COINDCX_CANDLES_URL
-BOOTSTRAP_INTERVAL    = "5m"
+# API accepts: 1m, 15m, 1h, 1d  ("5m" is not a valid value — was returning 422)
+BOOTSTRAP_INTERVAL    = "15m"
 BOOTSTRAP_LIMIT       = PRICE_HISTORY_LIMIT
 
 _READY_EMA    = EMA_SLOW_PERIOD       # 21 — minimum ticks for EMA calculation
