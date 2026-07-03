@@ -1,0 +1,160 @@
+Create a new markdown file:
+
+docs/PORTFOLIO_DASHBOARD_FIXES.md
+
+Document EVERYTHING changed in this edit so future imports into a new Replit account or new AI session can understand the modifications immediately.
+
+Structure the file exactly like this:
+
+# Portfolio Dashboard Fixes
+
+Date: <today's date>
+
+## Problem Summary
+
+Describe the original issues:
+
+1. Portfolio tab always showed zero values.
+2. Total AUM displayed incorrectly.
+3. Open Positions table showed no positions.
+4. Currency formatting needed INR support.
+
+---
+
+# Root Cause Analysis
+
+## Backend Issues
+
+* File:
+* Functions changed:
+* What was wrong:
+* Why it caused zero values:
+
+## Frontend Issues
+
+* File:
+* Elements changed:
+* JS functions changed:
+* Why cards were not updating:
+
+## Open Positions Issues
+
+* Wrong API key used:
+* Field name mismatches:
+* Mapping changes:
+
+---
+
+# Files Modified
+
+For each file include:
+
+## app.py
+
+### Functions changed
+
+* function_name()
+
+### Lines added
+
+* summary
+
+### Lines removed
+
+* summary
+
+### New calculations
+
+* total_value
+* available_cash
+* invested_amount
+* total_pnl
+* open_positions count
+
+---
+
+## dashboard/templates/dashboard.html
+
+### IDs added
+
+### Elements changed
+
+### New bindings
+
+---
+
+## dashboard/static/script.js
+
+### Functions added
+
+### Functions modified
+
+### Portfolio update flow
+
+---
+
+# New Payload Structure
+
+Provide example JSON:
+
+```json
+{
+  "portfolio_overview": {
+    "total_value": 1200000,
+    "available_cash": 1199000,
+    "invested_amount": 1000,
+    "total_pnl": 0,
+    "daily_pnl": 0,
+    "open_positions": 1
+  }
+}
+```
+
+---
+
+# Open Position Schema Mapping
+
+| Display Field | PMB Field | MTB Field | VGX Field |
+| ------------- | --------- | --------- | --------- |
+
+---
+
+# Dashboard Dependencies
+
+List every file that now depends on these calculations.
+
+---
+
+# Future Migration Notes
+
+If importing this project into another Replit account:
+
+1. Import these files together.
+2. Do not overwrite portfolio aggregation logic.
+3. Verify `/api/v1/state` contains `portfolio_overview`.
+4. Verify JS update functions still reference the correct IDs.
+5. Verify INR formatting helpers remain intact.
+
+---
+
+# Regression Checklist
+
+* [ ] Home AUM updates
+* [ ] Portfolio cards update
+* [ ] Open Positions render
+* [ ] PMB positions appear
+* [ ] MTB positions appear
+* [ ] VGX positions appear
+* [ ] INR formatting works
+* [ ] No console errors
+* [ ] `/api/v1/state` returns correct totals
+
+---
+
+At the bottom include:
+
+## Git Commit Summary
+
+A concise summary of every file changed and why.
+
+This markdown file should become the permanent reference document for all future imports, migrations, audits, and AI sessions.
