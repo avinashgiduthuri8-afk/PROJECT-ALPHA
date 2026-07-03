@@ -262,6 +262,7 @@ app.add_middleware(
     secret_key=_SESSION_SECRET,
     https_only=_HTTPS_ONLY,
     same_site="lax",
+    max_age=28800,  # 8-hour session expiry
 )
 
 
@@ -628,12 +629,82 @@ async def login_page(request: Request):
     )
 
 
+# ── Failed-login throttle ─────────────────────────────────────────────────
+# In-memory only; cleared on server restart. Never touches API auth or bots.
+_FAILED_LOGINS: dict[str, dict] = {}  # {ip: {"attempts": int, "locked_until": float}}
+
+_MAX_ATTEMPTS  = 5          # failures before lockout
+_LOCKOUT_SECS  = 300        # 5-minute lockout window
+
+
+def _get_client_ip(request: Request) -> str:
+    """Return the direct TCP peer address.
+
+    X-Forwarded-For is intentionally ignored: it is client-controlled and
+    trusting it would let any caller rotate through spoofed IPs to bypass
+    the lockout.  If a trusted reverse proxy is added in future, gate on
+    a known proxy CIDR before accepting the forwarded header.
+    """
+    return request.client.host if request.client else "unknown"
+
+
+def _is_locked(ip: str) -> tuple[bool, float]:
+    """Return (locked, seconds_remaining). Cleans up expired lockouts only."""
+    record = _FAILED_LOGINS.get(ip)
+    if not record:
+        return False, 0.0
+    if not record["locked_until"]:
+        # Failures are accumulating but lockout threshold not yet reached.
+        # Do NOT remove the record — that would reset the counter.
+        return False, 0.0
+    if _time.time() < record["locked_until"]:
+        remaining = record["locked_until"] - _time.time()
+        return True, remaining
+    # Lockout window has expired — clean up and allow retry
+    _FAILED_LOGINS.pop(ip, None)
+    return False, 0.0
+
+
+def _record_failure(ip: str) -> None:
+    """Increment failure counter; engage lockout when threshold is reached."""
+    record = _FAILED_LOGINS.setdefault(ip, {"attempts": 0, "locked_until": 0.0})
+    record["attempts"] += 1
+    if record["attempts"] >= _MAX_ATTEMPTS:
+        record["locked_until"] = _time.time() + _LOCKOUT_SECS
+
+
+def _clear_failures(ip: str) -> None:
+    """Remove failure record on successful authentication."""
+    _FAILED_LOGINS.pop(ip, None)
+
+
 @app.post("/login", response_class=HTMLResponse)
 async def login_submit(request: Request, api_key: str = Form(...)):
     """Validate the API key and set a session cookie on success."""
+    ip = _get_client_ip(request)
+
+    # Throttle check — runs before any key comparison
+    locked, remaining = _is_locked(ip)
+    if locked:
+        minutes = int(remaining // 60) + 1
+        return templates.TemplateResponse(
+            request=request,
+            name="login.html",
+            context={
+                "request": request,
+                "error": (
+                    f"Too many failed login attempts. "
+                    f"Please try again in {minutes} minute{'s' if minutes != 1 else ''}."
+                ),
+            },
+        )
+
     if DASHBOARD_API_KEY and hmac.compare_digest(api_key, DASHBOARD_API_KEY):
+        _clear_failures(ip)
         request.session["authenticated"] = True
         return RedirectResponse(url="/", status_code=303)
+
+    _record_failure(ip)
     return templates.TemplateResponse(
         request=request,
         name="login.html",
@@ -850,7 +921,10 @@ async def unified_state_polling_endpoint():
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", "5000"))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    # proxy_headers=False: do not rewrite request.client from X-Forwarded-For.
+    # This app is not behind a reverse proxy, so trusting that header would let
+    # any client spoof its IP and bypass the failed-login throttle.
+    uvicorn.run(app, host="0.0.0.0", port=port, proxy_headers=False)
   
 
 # ═══════════════════════════════════════════════════════════════
