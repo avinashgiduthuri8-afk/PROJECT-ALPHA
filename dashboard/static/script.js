@@ -868,6 +868,55 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // ── Portfolio View updater ────────────────────────────────────────────
+    function updatePortfolioView(data) {
+        const po = data.portfolio_overview || {};
+
+        const pTotalVal = document.getElementById("port-total-value");
+        if (pTotalVal) pTotalVal.textContent = formatCurrency(po.total_value);
+
+        const pCash = document.getElementById("port-available-cash");
+        if (pCash) pCash.textContent = formatCurrency(po.available_cash);
+
+        const pInvested = document.getElementById("port-invested-amount");
+        if (pInvested) pInvested.textContent = formatCurrency(po.invested_amount);
+
+        const pTotalPnl = document.getElementById("port-total-pnl");
+        if (pTotalPnl) {
+            pTotalPnl.textContent = formatCurrency(po.total_pnl);
+            pTotalPnl.className = (po.total_pnl || 0) >= 0 ? "text-green" : "text-red";
+        }
+
+        const pDailyPnl = document.getElementById("port-daily-pnl");
+        if (pDailyPnl) {
+            pDailyPnl.textContent = formatCurrency(po.daily_pnl);
+            pDailyPnl.className = (po.daily_pnl || 0) >= 0 ? "text-green" : "text-red";
+        }
+
+        const pOpenPos = document.getElementById("port-open-positions");
+        if (pOpenPos) pOpenPos.textContent = po.open_positions || 0;
+
+        // ── Open Positions table ──────────────────────────────────────────
+        const tbody = document.getElementById("open-positions-tbody");
+        if (tbody && Array.isArray(data.open_positions)) {
+            if (data.open_positions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-muted" style="text-align:center;padding:20px;">No open positions</td></tr>';
+            } else {
+                tbody.innerHTML = data.open_positions.map(pos => {
+                    const pnlClass = (pos.pnl_pct || 0) >= 0 ? "text-green" : "text-red";
+                    return `<tr>
+                        <td><span class="row-badge-pill signal-type-elite">${escHtml(pos.bot || "")}</span></td>
+                        <td><strong>${escHtml(pos.coin || "")}/INR</strong></td>
+                        <td class="font-mono">${escHtml(pos.quantity || 0)}</td>
+                        <td class="font-mono">${formatCurrency(pos.buy_price)}</td>
+                        <td><span class="${pnlClass} font-600">${escHtml(pos.pnl_pct || 0)}%</span></td>
+                        <td><span class="row-badge-pill signal-type-elite">${escHtml(pos.status || "OPEN")}</span></td>
+                    </tr>`;
+                }).join("");
+            }
+        }
+    }
+
     async function refreshDashboardData() {
         try {
             const response = await authenticatedFetch("/api/v1/state");
@@ -1168,6 +1217,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // ── V2 Home View patches ──────────────────────────────────────
             updateHomeV2(data);
+
+            // ── Portfolio View patches ────────────────────────────────────
+            updatePortfolioView(data);
 
         } catch (err) {
             console.warn("[ProjectA] Dashboard refresh failed:", err.message);

@@ -1,0 +1,148 @@
+TASK: Implement Portfolio aggregation and fix Portfolio tab.
+
+Use the existing bot snapshots:
+
+* vgx_overview
+* pmb_overview
+* mtb_overview
+
+Do not change any bot logic.
+
+---
+
+## PART 1 — Backend aggregation
+
+Inside pull_state_payload(), replace the hardcoded:
+
+"portfolio_overview": {
+"total_value": 0,
+...
+}
+
+with real calculations.
+
+Compute:
+
+available_cash =
+vgx_virtual_balance
++ pmb_cash_balance
++ mtb_cash_balance
+
+invested_amount =
+sum of invested capital from all open positions
+across PMB + MTB + VGX.
+
+open_positions =
+total count of positions from all bots.
+
+total_pnl =
+sum of all bot PnL values.
+
+daily_pnl =
+sum of all bot daily PnL values.
+
+total_value =
+available_cash
++ invested_amount
++ total_pnl
+
+Return:
+
+"portfolio_overview": {
+"total_value": ...,
+"available_cash": ...,
+"invested_amount": ...,
+"total_pnl": ...,
+"daily_pnl": ...,
+"open_positions": ...
+}
+
+---
+
+## PART 2 — Merge open positions
+
+Create:
+
+data.open_positions
+
+by merging:
+
+vgx_overview.open_positions
+pmb_overview.open_positions
+mtb_overview.open_positions
+
+Normalize fields:
+
+{
+"bot": "...",
+"coin": "...",
+"quantity": ...,
+"buy_price": ...,
+"pnl_pct": ...,
+"status": ...
+}
+
+Map:
+
+PMB:
+total_quantity -> quantity
+avg_entry_price -> buy_price
+
+MTB:
+use equivalent fields.
+
+VGX:
+map existing schema.
+
+If pnl_pct missing:
+calculate if possible,
+otherwise use 0.
+
+---
+
+## PART 3 — Frontend
+
+Add ids to Portfolio cards.
+
+Create:
+
+updatePortfolioView(data)
+
+similar to updateHomeV2().
+
+Update:
+
+* Total Value
+* Available Cash
+* Invested Amount
+* Total PnL
+* Daily PnL
+* Open Positions count
+
+Call:
+
+updatePortfolioView(data)
+
+inside refreshDashboardData().
+
+---
+
+## Requirements
+
+* INR only.
+* No API contract breaking.
+* No trading logic changes.
+* No database changes.
+* No scanner changes.
+
+After implementation print:
+
+Portfolio Overview:
+Available Cash:
+Invested Amount:
+Total Value:
+Open Positions:
+Total PnL:
+Daily PnL:
+
+and verify against live payload.

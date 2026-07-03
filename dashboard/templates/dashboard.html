@@ -946,11 +946,11 @@
                 <!-- ═══════════════════════════════════════════════════════════ -->
                 <div id="portfolio-view" class="spa-view-layer view-hidden">
                     <div class="dashboard-grid-matrix">
-                        <div class="metric-card span-4"><h5>Total Portfolio Value</h5><h2 class="text-blue">{{ data.portfolio_overview.total_value }}</h2></div>
-                        <div class="metric-card span-2"><h5>Available Cash</h5><h3>{{ data.portfolio_overview.available_cash }}</h3></div>
-                        <div class="metric-card span-2"><h5>Invested Amount</h5><h3>{{ data.portfolio_overview.invested_amount }}</h3></div>
-                        <div class="metric-card span-2"><h5>Total PnL Net</h5><h3 class="text-green">{{ data.portfolio_overview.total_pnl }}</h3></div>
-                        <div class="metric-card span-2"><h5>Daily PnL Delta</h5><h3 class="text-green">{{ data.portfolio_overview.daily_pnl }}</h3></div>
+                        <div class="metric-card span-4"><h5>Total Portfolio Value</h5><h2 class="text-blue" id="port-total-value">₹{{ "%.2f"|format(data.portfolio_overview.total_value) }}</h2><div class="card-footer-metric">Open Positions: <span id="port-open-positions">{{ data.portfolio_overview.open_positions }}</span></div></div>
+                        <div class="metric-card span-2"><h5>Available Cash</h5><h3 id="port-available-cash">₹{{ "%.2f"|format(data.portfolio_overview.available_cash) }}</h3></div>
+                        <div class="metric-card span-2"><h5>Invested Amount</h5><h3 id="port-invested-amount">₹{{ "%.2f"|format(data.portfolio_overview.invested_amount) }}</h3></div>
+                        <div class="metric-card span-2"><h5>Total PnL Net</h5><h3 id="port-total-pnl" class="{% if data.portfolio_overview.total_pnl >= 0 %}text-green{% else %}text-red{% endif %}">₹{{ "%.2f"|format(data.portfolio_overview.total_pnl) }}</h3></div>
+                        <div class="metric-card span-2"><h5>Daily PnL Delta</h5><h3 id="port-daily-pnl" class="{% if data.portfolio_overview.daily_pnl >= 0 %}text-green{% else %}text-red{% endif %}">₹{{ "%.2f"|format(data.portfolio_overview.daily_pnl) }}</h3></div>
                         <div class="metric-card span-6 canvas-wrapper-box"><h5>Asset Portfolio Allocation Weights</h5><div class="canvas-holder"><canvas id="portfolioPieChart"></canvas></div></div>
                         <div class="metric-card span-6 canvas-wrapper-box"><h5>Compounded Equity Valuation Curve</h5><div class="canvas-holder"><canvas id="portfolioGrowthLineChart"></canvas></div></div>
                     </div>
@@ -966,18 +966,20 @@
                             <div class="scroller-table-axis">
                                 <table>
                                     <thead>
-                                        <tr><th>Coin Pair Allocation</th><th>Position Quantity</th><th>Avg Entry Cost Price</th><th>Current Index Valuation</th><th>Unrealized Yield Delta %</th><th>Automation Engine State</th></tr>
+                                        <tr><th>Bot</th><th>Coin Pair</th><th>Quantity</th><th>Avg Entry Price</th><th>Unrealized PnL %</th><th>Status</th></tr>
                                     </thead>
-                                    <tbody>
+                                    <tbody id="open-positions-tbody">
                                         {% for pos in data.open_positions %}
                                         <tr>
+                                            <td><span class="row-badge-pill signal-type-elite">{{ pos.bot }}</span></td>
                                             <td><strong>{{ pos.coin }}/INR</strong></td>
-                                            <td>{{ pos.quantity }}</td>
-                                            <td>{{ pos.buy_price }}</td>
-                                            <td class="text-white">{{ pos.current_price }}</td>
-                                            <td><span class="text-green font-600">{{ pos.pnl_pct }}</span></td>
+                                            <td class="font-mono">{{ pos.quantity }}</td>
+                                            <td class="font-mono">₹{{ pos.buy_price }}</td>
+                                            <td><span class="{% if pos.pnl_pct >= 0 %}text-green{% else %}text-red{% endif %} font-600">{{ pos.pnl_pct }}%</span></td>
                                             <td><span class="row-badge-pill signal-type-elite">{{ pos.status }}</span></td>
                                         </tr>
+                                        {% else %}
+                                        <tr><td colspan="6" class="text-muted" style="text-align:center;padding:20px;">No open positions</td></tr>
                                         {% endfor %}
                                     </tbody>
                                 </table>

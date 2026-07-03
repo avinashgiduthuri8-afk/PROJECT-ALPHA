@@ -473,15 +473,65 @@ async def pull_state_payload():
         for s in latest_signals
     ]
 
+    # ── Portfolio aggregation from live bot snapshots ─────────────────────
+    vgx_state = await _cached_snapshot("vgx", vgx_snapshot)
+
+    _vgx_cash       = float(vgx_state.get("virtual_balance", 0))
+    _pmb_cash       = float(pmb_state.get("cash_balance", 0))
+    _mtb_cash       = float(mtb_state.get("cash_balance", 0))
+    _available_cash = round(_vgx_cash + _pmb_cash + _mtb_cash, 2)
+
+    _vgx_invested    = round(sum(float(p.get("amount", 0))         for p in vgx_state.get("open_positions", [])), 2)
+    _pmb_invested    = round(sum(float(p.get("total_invested", 0)) for p in pmb_state.get("open_positions", [])), 2)
+    _mtb_invested    = round(sum(float(p.get("trade_amount", 0))   for p in mtb_state.get("open_positions", [])), 2)
+    _invested_amount = round(_vgx_invested + _pmb_invested + _mtb_invested, 2)
+
+    _total_pnl   = round(float(vgx_state.get("total_pnl", 0)) + float(pmb_state.get("total_pnl", 0)) + float(mtb_state.get("total_pnl", 0)), 2)
+    _daily_pnl   = round(float(vgx_state.get("daily_pnl", 0)) + float(pmb_state.get("daily_pnl", 0)) + float(mtb_state.get("daily_pnl", 0)), 2)
+    _total_value = round(_available_cash + _invested_amount + _total_pnl, 2)
+    _open_pos_count = (len(vgx_state.get("open_positions", [])) +
+                       len(pmb_state.get("open_positions", [])) +
+                       len(mtb_state.get("open_positions", [])))
+
+    # ── Normalize open positions from all bots into unified schema ─────────
+    _all_open_positions: list[dict] = []
+    for p in vgx_state.get("open_positions", []):
+        _all_open_positions.append({
+            "bot":       "VGX",
+            "coin":      p.get("coin", ""),
+            "quantity":  round(float(p.get("qty", 0)), 8),
+            "buy_price": round(float(p.get("buy_price", 0)), 4),
+            "pnl_pct":   0,
+            "status":    "OPEN",
+        })
+    for p in pmb_state.get("open_positions", []):
+        _all_open_positions.append({
+            "bot":       "PMB",
+            "coin":      p.get("coin", ""),
+            "quantity":  round(float(p.get("total_quantity", 0)), 8),
+            "buy_price": round(float(p.get("avg_entry_price", 0)), 4),
+            "pnl_pct":   0,
+            "status":    p.get("status", "OPEN"),
+        })
+    for p in mtb_state.get("open_positions", []):
+        _all_open_positions.append({
+            "bot":       "MTB",
+            "coin":      p.get("coin", p.get("symbol", "")),
+            "quantity":  round(float(p.get("quantity", 0)), 8),
+            "buy_price": round(float(p.get("entry_price", p.get("buy_price", 0))), 4),
+            "pnl_pct":   0,   # no current price in snapshot; live pnl_pct not available
+            "status":    p.get("status", "OPEN"),
+        })
+
     return {
 
         "portfolio_overview": {
-            "total_value":    0,
-            "daily_pnl":      0,
-            "available_cash": 0,
-            "invested_amount": 0,
-            "total_pnl":      0,
-            "open_positions": 0,
+            "total_value":    _total_value,
+            "daily_pnl":      _daily_pnl,
+            "available_cash": _available_cash,
+            "invested_amount": _invested_amount,
+            "total_pnl":      _total_pnl,
+            "open_positions": _open_pos_count,
         },
 
         "mtb_status": mtb_state["status"],
@@ -490,7 +540,7 @@ async def pull_state_payload():
         "mtb_daily_pnl": mtb_state["daily_pnl"],
         "mtb_trade_amount": mtb_state["trade_amount"],
         "mtb_overview": mtb_state,
-        "vgx_overview":  await _cached_snapshot("vgx", vgx_snapshot),
+        "vgx_overview":  vgx_state,
         "pmb_overview": pmb_state,
         "risk_engine":  await _cached_snapshot("risk", risk_snapshot),
         "vgx_trade_amount": vgx_trade_amount,
@@ -587,7 +637,7 @@ async def pull_state_payload():
         "charts": _build_charts_payload(latest_signals),
 
         "activity_timeline": [],
-        "open_positions":    [],
+        "open_positions":    _all_open_positions,
         "closed_trades":     [],
 
         "watchlist":       watchlist,
