@@ -1,13 +1,15 @@
 import asyncio
+import hmac
 import json
 import logging
 import os
 import time as _time
-from fastapi import Depends, FastAPI, HTTPException, Request, status
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import Depends, FastAPI, Form, HTTPException, Request, status
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.security import APIKeyHeader
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.sessions import SessionMiddleware
 
 from bots.scanner_bot.scanner import get_signals, get_live_signals
 
@@ -146,24 +148,18 @@ api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 DASHBOARD_API_KEY = os.getenv("DASHBOARD_API_KEY")
 
-# Routes that the dashboard JS calls directly from the browser — exempt from
-# API key auth so the browser does not need to store or expose the key.
+# Paths that bypass X-API-Key auth. Kept minimal after the auth hardening:
+# - /health: uptime probe, no sensitive data
+# - /: browser navigation; session gate is enforced inside the route handler
+# - /login, /logout: auth flow — must be reachable without a key
 #
-# Mutation exemptions (/add, /remove, /refresh): these change benign state
-# (scanner coin universe, refresh trigger) and are not more dangerous than
-# the dashboard page itself which is already fully public at "/".
-#
-# Read exemptions (/api/watchlist, /api/supported-coins): called by
-# refreshWatchlistTable() and the coin autocomplete loader without auth
-# headers.  Both return only non-sensitive public coin/watchlist data.
+# All /api/* routes now require X-API-Key (sent automatically by
+# authenticatedFetch in script.js), so they are no longer exempt.
 _DASHBOARD_EXEMPT_PATHS = frozenset({
     "/health",
-    "/",
-    "/api/scanner/refresh",
-    "/api/watchlist",
-    "/api/watchlist/add",
-    "/api/watchlist/remove",
-    "/api/supported-coins",
+    "/",        # browser navigation — session check is enforced inside the route handler
+    "/login",
+    "/logout",
 })
 
 if not DASHBOARD_API_KEY:
@@ -178,7 +174,8 @@ else:
     async def require_api_key(request: Request, api_key: str = Depends(api_key_header)) -> str:
         if request.url.path in _DASHBOARD_EXEMPT_PATHS:
             return ""
-        if api_key != DASHBOARD_API_KEY:
+        # Constant-time comparison prevents timing-based key enumeration.
+        if not api_key or not hmac.compare_digest(api_key, DASHBOARD_API_KEY):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Invalid or missing X-API-Key header",
@@ -250,6 +247,21 @@ app = FastAPI(
     title="PROJECT-ALPHA ULTIMATE DASHBOARD Framework",
     lifespan=_app_lifespan,
     dependencies=[Depends(require_api_key)],
+)
+
+# Session middleware — must be added immediately after app creation so the
+# session is available in every route handler, including the login flow.
+_SESSION_SECRET = os.getenv("SESSION_SECRET")
+if not _SESSION_SECRET:
+    raise RuntimeError("SESSION_SECRET environment variable is not set")
+# https_only=True enforces the Secure cookie flag in production (HTTPS).
+# Disabled only for local HTTP development; set ENVIRONMENT=production to enable.
+_HTTPS_ONLY = os.getenv("ENVIRONMENT", "development").lower() == "production"
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=_SESSION_SECRET,
+    https_only=_HTTPS_ONLY,
+    same_site="lax",
 )
 
 
@@ -604,8 +616,45 @@ async def pull_state_payload():
         },
     }
   
-@app.get("/", response_class=HTMLResponse, dependencies=[])
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    """Show the login form. Redirects to dashboard if already authenticated."""
+    if request.session.get("authenticated"):
+        return RedirectResponse(url="/", status_code=303)
+    return templates.TemplateResponse(
+        request=request,
+        name="login.html",
+        context={"request": request, "error": None},
+    )
+
+
+@app.post("/login", response_class=HTMLResponse)
+async def login_submit(request: Request, api_key: str = Form(...)):
+    """Validate the API key and set a session cookie on success."""
+    if DASHBOARD_API_KEY and hmac.compare_digest(api_key, DASHBOARD_API_KEY):
+        request.session["authenticated"] = True
+        return RedirectResponse(url="/", status_code=303)
+    return templates.TemplateResponse(
+        request=request,
+        name="login.html",
+        context={"request": request, "error": "Invalid API key — please try again."},
+    )
+
+
+@app.get("/logout", response_class=HTMLResponse)
+async def logout(request: Request):
+    """Clear the session and redirect to the login page."""
+    request.session.clear()
+    return RedirectResponse(url="/login", status_code=303)
+
+
+@app.get("/", response_class=HTMLResponse)
 async def viewport_router(request: Request):
+    # Session gate — unauthenticated browsers are redirected to /login.
+    # The API key is only injected into the page after this check passes,
+    # so it is never reachable by unauthenticated visitors.
+    if not request.session.get("authenticated"):
+        return RedirectResponse(url="/login", status_code=303)
 
     state = await pull_state_payload()
     signals = get_signals()
