@@ -476,11 +476,11 @@ async def pull_state_payload():
     return {
 
         "portfolio_overview": {
-            "total_value":    "$0",
-            "daily_pnl":      "$0",
-            "available_cash": "$0",
-            "invested_amount": "$0",
-            "total_pnl":      "$0",
+            "total_value":    0,
+            "daily_pnl":      0,
+            "available_cash": 0,
+            "invested_amount": 0,
+            "total_pnl":      0,
             "open_positions": 0,
         },
 

@@ -10,6 +10,16 @@ function escHtml(str) {
         .replace(/'/g, "&#39;");
 }
 
+// ── Currency formatter ─────────────────────────────────────────────────────
+// All monetary display values should go through this. Uses Indian locale
+// (en-IN) so lakhs/crores group correctly. Never pass raw "$" strings here.
+function formatCurrency(value) {
+    return "₹" + Number(value || 0).toLocaleString("en-IN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
+
 // ── Authenticated fetch helper ─────────────────────────────────────────────
 // All dashboard API calls must include X-API-Key. Use this instead of fetch().
 function authenticatedFetch(url, options) {
@@ -686,10 +696,10 @@ document.addEventListener("DOMContentLoaded", () => {
     function updateHomeV2(data) {
         // KPI — Total AUM
         const kpiAum = document.getElementById("kpi-aum");
-        if (kpiAum) kpiAum.textContent = data.portfolio_overview.total_value || "—";
+        if (kpiAum) kpiAum.textContent = formatCurrency(data.portfolio_overview.total_value);
         const kpiDelta = document.getElementById("kpi-aum-delta");
         if (kpiDelta) {
-            kpiDelta.textContent = data.portfolio_overview.daily_pnl || "—";
+            kpiDelta.textContent = formatCurrency(data.portfolio_overview.daily_pnl);
             const pnlNum = parseFloat(data.portfolio_overview.daily_pnl) || 0;
             kpiDelta.className = pnlNum >= 0 ? "text-green" : "text-red";
         }
@@ -700,7 +710,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const combo = (data.vgx_overview.daily_pnl || 0) +
                           (data.pmb_overview.daily_pnl  || 0) +
                           (data.mtb_overview.daily_pnl  || 0);
-            kpiPnl.textContent = "₹" + combo.toFixed(2);
+            kpiPnl.textContent = formatCurrency(combo);
             kpiPnl.className = "kpi-value font-mono " + (combo >= 0 ? "text-green" : "text-red");
         }
 
@@ -725,7 +735,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // KPI — Capital Deployed
         const kpiCap = document.getElementById("kpi-capital");
         if (kpiCap && data.risk_engine) {
-            kpiCap.textContent = "₹" + Math.round(data.risk_engine.total_deployed || 0).toLocaleString("en-IN");
+            kpiCap.textContent = formatCurrency(data.risk_engine.total_deployed);
         }
 
         // KPI — System Health
@@ -739,11 +749,11 @@ document.addEventListener("DOMContentLoaded", () => {
             patchBotPill("vbc-vgx-status", data.service_statuses.vgx, data.vgx_overview.status || "—");
 
             const vBal = document.getElementById("vbc-vgx-balance");
-            if (vBal) vBal.textContent = "₹" + Math.round(data.vgx_overview.virtual_balance || 0).toLocaleString("en-IN");
+            if (vBal) vBal.textContent = formatCurrency(data.vgx_overview.virtual_balance);
 
             const vPnl = document.getElementById("vbc-vgx-pnl");
             if (vPnl) {
-                vPnl.textContent = "₹" + (data.vgx_overview.daily_pnl || 0).toFixed(2);
+                vPnl.textContent = formatCurrency(data.vgx_overview.daily_pnl);
                 vPnl.className = "bot-metric-value " + ((data.vgx_overview.daily_pnl || 0) >= 0 ? "text-green" : "text-red");
             }
 
@@ -768,11 +778,11 @@ document.addEventListener("DOMContentLoaded", () => {
             patchBotPill("vbc-pmb-status", data.service_statuses.pmb, data.pmb_overview.mode || "—");
 
             const pCash = document.getElementById("vbc-pmb-cash");
-            if (pCash) pCash.textContent = "₹" + Math.round(data.pmb_overview.cash_balance || 0).toLocaleString("en-IN");
+            if (pCash) pCash.textContent = formatCurrency(data.pmb_overview.cash_balance);
 
             const pPnl = document.getElementById("vbc-pmb-pnl");
             if (pPnl) {
-                pPnl.textContent = "₹" + (data.pmb_overview.daily_pnl || 0).toFixed(2);
+                pPnl.textContent = formatCurrency(data.pmb_overview.daily_pnl);
                 pPnl.className = "bot-metric-value " + ((data.pmb_overview.daily_pnl || 0) >= 0 ? "text-green" : "text-red");
             }
 
@@ -789,11 +799,11 @@ document.addEventListener("DOMContentLoaded", () => {
             patchBotPill("vbc-mtb-status", data.service_statuses.mtb, data.mtb_overview.mode || "—");
 
             const mCash = document.getElementById("vbc-mtb-cash");
-            if (mCash) mCash.textContent = "₹" + Math.round(data.mtb_overview.cash_balance || 0).toLocaleString("en-IN");
+            if (mCash) mCash.textContent = formatCurrency(data.mtb_overview.cash_balance);
 
             const mPnl = document.getElementById("vbc-mtb-pnl");
             if (mPnl) {
-                mPnl.textContent = "₹" + (data.mtb_overview.daily_pnl || 0).toFixed(2);
+                mPnl.textContent = formatCurrency(data.mtb_overview.daily_pnl);
                 mPnl.className = "bot-metric-value " + ((data.mtb_overview.daily_pnl || 0) >= 0 ? "text-green" : "text-red");
             }
 
@@ -816,7 +826,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 rEstop.className = "risk-item-value " + (data.risk_engine.emergency_stop ? "text-red" : "text-green");
             }
             const rDep = document.getElementById("risk-deployed");
-            if (rDep) rDep.textContent = "₹" + Math.round(data.risk_engine.total_deployed || 0).toLocaleString("en-IN");
+            if (rDep) rDep.textContent = formatCurrency(data.risk_engine.total_deployed);
             const rUtil = document.getElementById("risk-util");
             if (rUtil) {
                 const util = data.risk_engine.capital_utilisation_pct || 0;
@@ -958,7 +968,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // ── VGX stat cards (vgx-view) ───────────────────────────────
             const vgxBalNode = findCardValueNode("Virtual Balance");
             if (vgxBalNode && data.vgx_overview) {
-                vgxBalNode.textContent = "₹" + Number(data.vgx_overview.virtual_balance).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                vgxBalNode.textContent = formatCurrency(data.vgx_overview.virtual_balance);
             }
             const vgxWrNode = findCardValueNode("Win Rate");
             if (vgxWrNode && data.vgx_overview) {

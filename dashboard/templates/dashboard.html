@@ -171,8 +171,8 @@
 
                         <div class="kpi-card accent-blue">
                             <div class="kpi-label">Total AUM</div>
-                            <div class="kpi-value font-mono" id="kpi-aum">{{ data.portfolio_overview.total_value }}</div>
-                            <div class="kpi-sub">Daily Δ: <span id="kpi-aum-delta" class="text-green">{{ data.portfolio_overview.daily_pnl }}</span></div>
+                            <div class="kpi-value font-mono" id="kpi-aum">₹{{ "%.2f"|format(data.portfolio_overview.total_value) }}</div>
+                            <div class="kpi-sub">Daily Δ: <span id="kpi-aum-delta" class="text-green">₹{{ "%.2f"|format(data.portfolio_overview.daily_pnl) }}</span></div>
                         </div>
 
                         <div class="kpi-card {% if combined_pnl >= 0 %}accent-green{% else %}accent-red{% endif %}">

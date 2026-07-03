@@ -1,3 +1,17 @@
 {
-  "trades": []
+  "trades": [
+    {
+      "action": "BASE_BUY",
+      "amount": 1000.0,
+      "bot": "PMB",
+      "coin": "LINK",
+      "id": "PMB-LINK-1783096937",
+      "price": 781.66,
+      "quantity": 1.27932860834634,
+      "source": "PMB_SCANNER",
+      "status": "OPEN",
+      "symbol": "LINKUSDT",
+      "timestamp": "2026-07-03T16:42:17.434912+00:00"
+    }
+  ]
 }
