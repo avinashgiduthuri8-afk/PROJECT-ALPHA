@@ -918,15 +918,6 @@ async def unified_state_polling_endpoint():
     """Future production data hook. Live bots simply post metrics to rewrite state."""
     return await pull_state_payload()
 
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.getenv("PORT", "5000"))
-    # proxy_headers=False: do not rewrite request.client from X-Forwarded-For.
-    # This app is not behind a reverse proxy, so trusting that header would let
-    # any client spoof its IP and bypass the failed-login throttle.
-    uvicorn.run(app, host="0.0.0.0", port=port, proxy_headers=False)
-  
-
 # ═══════════════════════════════════════════════════════════════
 #  UNIFIED STATISTICS ENGINE
 # ═══════════════════════════════════════════════════════════════
@@ -1384,3 +1375,12 @@ async def export_stats_json():
         )
     except Exception as exc:
         return JSONResponse(status_code=500, content={"error": str(exc)})
+
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", "5000"))
+    # proxy_headers=False: do not rewrite request.client from X-Forwarded-For.
+    # This app is not behind a reverse proxy, so trusting that header would let
+    # any client spoof its IP and bypass the failed-login throttle.
+    uvicorn.run(app, host="0.0.0.0", port=port, proxy_headers=False)

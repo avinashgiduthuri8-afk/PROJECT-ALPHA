@@ -1,3 +1,15 @@
+// ── HTML escape helper ─────────────────────────────────────────────────────
+// Use this whenever inserting untrusted data into innerHTML to prevent XSS.
+function escHtml(str) {
+    if (str == null) return "";
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
 // ── Authenticated fetch helper ─────────────────────────────────────────────
 // All dashboard API calls must include X-API-Key. Use this instead of fetch().
 function authenticatedFetch(url, options) {
@@ -45,7 +57,7 @@ setInterval(function() {
         const dl = document.getElementById("coindcx-coins");
         if (!dl || !Array.isArray(data.coins)) return;
         dl.innerHTML = data.coins
-            .map(c => `<option value="${c}"></option>`)
+            .map(c => `<option value="${escHtml(c)}"></option>`)
             .join("");
     } catch (e) {
         console.warn("[ProjectA] Could not load CoinDCX coin list:", e.message);
@@ -526,9 +538,9 @@ document.addEventListener("DOMContentLoaded", () => {
         // column-reverse container: render oldest-first in markup so newest visually stays at bottom
         const ordered = events.slice().reverse();
         scroller.innerHTML = ordered.map(ev => `
-            <div class="event-log-row level-${ev.level || 'info'}">
-                <span class="event-log-time">${ev.time || ''}</span>
-                <span class="event-log-text">${ev.text || ''}</span>
+            <div class="event-log-row level-${escHtml(ev.level || 'info')}">
+                <span class="event-log-time">${escHtml(ev.time || '')}</span>
+                <span class="event-log-text">${escHtml(ev.text || '')}</span>
             </div>
         `).join("");
     }
@@ -596,14 +608,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
         tbody.innerHTML = signals.map(trace => `
             <tr>
-                <td><strong>${trace.coin || ""}</strong></td>
-                <td>${trace.category || ""}</td>
-                <td>${trace.score || 0}</td>
-                <td>${trace.signal_price || 0}</td>
-                <td>${trace.market || "INR"}</td>
-                <td>${trace.timestamp || ""}</td>
-                <td>${trace.market_state || ""}</td>
-                <td style="color:var(--text-secondary);font-size:0.85em;white-space:nowrap;">${timeAgo(trace.timestamp)}</td>
+                <td><strong>${escHtml(trace.coin || "")}</strong></td>
+                <td>${escHtml(trace.category || "")}</td>
+                <td>${escHtml(trace.score || 0)}</td>
+                <td>${escHtml(trace.signal_price || 0)}</td>
+                <td>${escHtml(trace.market || "INR")}</td>
+                <td>${escHtml(trace.timestamp || "")}</td>
+                <td>${escHtml(trace.market_state || "")}</td>
+                <td style="color:var(--text-secondary);font-size:0.85em;white-space:nowrap;">${escHtml(timeAgo(trace.timestamp))}</td>
             </tr>
         `).join("");
     }
@@ -624,11 +636,11 @@ document.addEventListener("DOMContentLoaded", () => {
         };
         tbody.innerHTML = signals.slice(0, 8).map(t => `
             <tr>
-                <td><strong>${t.coin || ""}</strong></td>
-                <td><span class="${tierClass(t.category)}">${t.category || "—"}</span></td>
-                <td class="font-mono">${t.score || 0}</td>
-                <td class="font-mono text-sm">${t.signal_price || 0}</td>
-                <td class="text-muted text-sm">${timeAgo(t.timestamp)}</td>
+                <td><strong>${escHtml(t.coin || "")}</strong></td>
+                <td><span class="${escHtml(tierClass(t.category))}">${escHtml(t.category || "—")}</span></td>
+                <td class="font-mono">${escHtml(t.score || 0)}</td>
+                <td class="font-mono text-sm">${escHtml(t.signal_price || 0)}</td>
+                <td class="text-muted text-sm">${escHtml(timeAgo(t.timestamp))}</td>
             </tr>
         `).join("");
     }
@@ -1003,17 +1015,17 @@ document.addEventListener("DOMContentLoaded", () => {
                             const color = pct => pct >= 0 ? 'text-green' : 'text-red';
                             const badge = s.result === 'WIN' ? 'signal-type-elite' : 'color-indicator-error';
                             return `<tr>
-                                <td><strong>${s.coin || ""}</strong></td>
-                                <td class="text-muted text-sm">${s.timestamp || ""}</td>
-                                <td>${s.signal_price || 0}</td>
-                                <td>${s.current_price || 0}</td>
-                                <td class="${color(s['1h_pct'])}">${s['1h_pct']}%</td>
-                                <td class="${color(s['4h_pct'])}">${s['4h_pct']}%</td>
-                                <td class="${color(s['24h_pct'])}">${s['24h_pct']}%</td>
-                                <td class="${color(s['3d_pct'])}">${s['3d_pct']}%</td>
-                                <td class="${color(s['7d_pct'])}">${s['7d_pct']}%</td>
-                                <td class="${color(s.return_pct)}">${s.return_pct}%</td>
-                                <td><span class="row-badge-pill ${badge}">${s.result}</span></td>
+                                <td><strong>${escHtml(s.coin || "")}</strong></td>
+                                <td class="text-muted text-sm">${escHtml(s.timestamp || "")}</td>
+                                <td>${escHtml(s.signal_price || 0)}</td>
+                                <td>${escHtml(s.current_price || 0)}</td>
+                                <td class="${color(s['1h_pct'])}">${escHtml(s['1h_pct'])}%</td>
+                                <td class="${color(s['4h_pct'])}">${escHtml(s['4h_pct'])}%</td>
+                                <td class="${color(s['24h_pct'])}">${escHtml(s['24h_pct'])}%</td>
+                                <td class="${color(s['3d_pct'])}">${escHtml(s['3d_pct'])}%</td>
+                                <td class="${color(s['7d_pct'])}">${escHtml(s['7d_pct'])}%</td>
+                                <td class="${color(s.return_pct)}">${escHtml(s.return_pct)}%</td>
+                                <td><span class="row-badge-pill ${badge}">${escHtml(s.result)}</span></td>
                             </tr>`;
                         }).join("");
                     }
@@ -1069,18 +1081,18 @@ document.addEventListener("DOMContentLoaded", () => {
                             const color = pct => pct >= 0 ? 'text-green' : 'text-red';
                             const badge = s.result === 'WIN' ? 'signal-type-elite' : 'color-indicator-error';
                             return `<tr>
-                                <td><strong>${s.coin || ""}</strong></td>
-                                <td class="text-muted text-sm">${s.timestamp || ""}</td>
-                                <td>${s.score || 0}</td>
-                                <td>${s.tier || ""}</td>
-                                <td>${s.signal_price || 0}</td>
-                                <td class="${color(s['1h_pct'])}">${s['1h_pct']}%</td>
-                                <td class="${color(s['4h_pct'])}">${s['4h_pct']}%</td>
-                                <td class="${color(s['24h_pct'])}">${s['24h_pct']}%</td>
-                                <td class="${color(s['3d_pct'])}">${s['3d_pct']}%</td>
-                                <td class="${color(s['7d_pct'])}">${s['7d_pct']}%</td>
-                                <td class="${color(s.return_pct)}">${s.return_pct}%</td>
-                                <td><span class="row-badge-pill ${badge}">${s.result}</span></td>
+                                <td><strong>${escHtml(s.coin || "")}</strong></td>
+                                <td class="text-muted text-sm">${escHtml(s.timestamp || "")}</td>
+                                <td>${escHtml(s.score || 0)}</td>
+                                <td>${escHtml(s.tier || "")}</td>
+                                <td>${escHtml(s.signal_price || 0)}</td>
+                                <td class="${color(s['1h_pct'])}">${escHtml(s['1h_pct'])}%</td>
+                                <td class="${color(s['4h_pct'])}">${escHtml(s['4h_pct'])}%</td>
+                                <td class="${color(s['24h_pct'])}">${escHtml(s['24h_pct'])}%</td>
+                                <td class="${color(s['3d_pct'])}">${escHtml(s['3d_pct'])}%</td>
+                                <td class="${color(s['7d_pct'])}">${escHtml(s['7d_pct'])}%</td>
+                                <td class="${color(s.return_pct)}">${escHtml(s.return_pct)}%</td>
+                                <td><span class="row-badge-pill ${badge}">${escHtml(s.result)}</span></td>
                             </tr>`;
                         }).join("");
                     }
@@ -1129,15 +1141,15 @@ document.addEventListener("DOMContentLoaded", () => {
                         tbody.innerHTML = rows.map(r => {
                             const color = pct => pct >= 0 ? 'text-green' : 'text-red';
                             return `<tr>
-                                <td><strong>${r.coin || ""}</strong></td>
-                                <td>${r.total_signals || 0}</td>
-                                <td class="text-green">${r.winning_signals || 0}</td>
-                                <td class="text-red">${r.losing_signals || 0}</td>
-                                <td class="${color(r.win_rate_pct)}">${r.win_rate_pct}%</td>
-                                <td class="${color(r.avg_return_pct)}">${r.avg_return_pct}%</td>
-                                <td class="text-green">${r.best_return_pct}%</td>
-                                <td class="text-red">${r.worst_return_pct}%</td>
-                                <td class="text-muted text-sm">${r.last_signal_time || "—"}</td>
+                                <td><strong>${escHtml(r.coin || "")}</strong></td>
+                                <td>${escHtml(r.total_signals || 0)}</td>
+                                <td class="text-green">${escHtml(r.winning_signals || 0)}</td>
+                                <td class="text-red">${escHtml(r.losing_signals || 0)}</td>
+                                <td class="${color(r.win_rate_pct)}">${escHtml(r.win_rate_pct)}%</td>
+                                <td class="${color(r.avg_return_pct)}">${escHtml(r.avg_return_pct)}%</td>
+                                <td class="text-green">${escHtml(r.best_return_pct)}%</td>
+                                <td class="text-red">${escHtml(r.worst_return_pct)}%</td>
+                                <td class="text-muted text-sm">${escHtml(r.last_signal_time || "—")}</td>
                             </tr>`;
                         }).join("");
                     }
@@ -1318,7 +1330,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!tbody) return;
             tbody.innerHTML = coins.length === 0
                 ? '<tr><td colspan="2" class="text-muted">No coins</td></tr>'
-                : coins.map(c => '<tr><td><strong>' + c + '/INR</strong></td><td><button class="btn-remove-coin" data-coin="' + c + '">REMOVE</button></td></tr>').join("");
+                : coins.map(c => '<tr><td><strong>' + escHtml(c) + '/INR</strong></td><td><button class="btn-remove-coin" data-coin="' + escHtml(c) + '">REMOVE</button></td></tr>').join("");
             const totalNode = document.getElementById("total-coin-count");
             if (totalNode) totalNode.textContent = coins.length;
         } catch (err) {
