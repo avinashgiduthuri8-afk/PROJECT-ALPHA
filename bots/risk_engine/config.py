@@ -63,8 +63,24 @@ MAX_POSITIONS: dict[str, int] = {
 }
 
 # Paper-mode label for each bot (LIVE / PAPER / DISABLED / PAUSED).
-BOT_MODE: dict[str, str] = {
-    "VGX": os.getenv("VGX_BOT_MODE", "PAPER"),
-    "PMB": os.getenv("PMB_BOT_MODE", "PAPER"),
-    "MTB": os.getenv("MTB_BOT_MODE", "PAPER"),
+VALID_BOT_MODES = {"LIVE", "PAPER", "DISABLED", "PAUSED"}
+
+_BOT_MODE_ENV = {
+    "VGX": "VGX_BOT_MODE",
+    "PMB": "PMB_BOT_MODE",
+    "MTB": "MTB_BOT_MODE",
 }
+
+BOT_MODE: dict[str, str] = {}
+for _bot, _env in _BOT_MODE_ENV.items():
+    _raw = os.getenv(_env, "PAPER")
+    _normalised = _raw.strip().upper()
+    if _normalised not in VALID_BOT_MODES:
+        import logging as _logging
+        _logging.getLogger("risk_engine").warning(
+            "[Config] %s=%r is not a valid BOT_MODE "
+            "(allowed: %s) — clamping to DISABLED",
+            _env, _raw, ", ".join(sorted(VALID_BOT_MODES)),
+        )
+        _normalised = "DISABLED"
+    BOT_MODE[_bot] = _normalised
