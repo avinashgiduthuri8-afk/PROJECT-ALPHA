@@ -8,10 +8,32 @@ and the global TRADING_ENABLED / EMERGENCY_STOP kill-switches.
 from __future__ import annotations
 
 import os
+import threading
 
 # ── Global kill-switches ──────────────────────────────────────────────────────
 # Set TRADING_ENABLED=false to halt ALL bots (VGX, PMB, MTB).
 TRADING_ENABLED: bool = os.getenv("TRADING_ENABLED", "false").lower() == "true"
+
+# ── In-memory runtime toggle ──────────────────────────────────────────────────
+# Initialised from the env-var default above; updated at runtime by the
+# dashboard toggle (POST /api/v1/trading/toggle).  Intentionally NOT persisted
+# to disk — the flag resets to the env-var default on every process restart.
+_trading_lock: threading.Lock = threading.Lock()
+_trading_enabled: bool = TRADING_ENABLED
+
+
+def get_trading_enabled() -> bool:
+    """Return the live in-memory TRADING_ENABLED flag."""
+    with _trading_lock:
+        return _trading_enabled
+
+
+def set_trading_enabled(value: bool) -> bool:
+    """Set the live in-memory TRADING_ENABLED flag and return its new value."""
+    global _trading_enabled
+    with _trading_lock:
+        _trading_enabled = bool(value)
+        return _trading_enabled
 
 # Set EMERGENCY_STOP=true to immediately block any new trade across all bots.
 EMERGENCY_STOP: bool = os.getenv("EMERGENCY_STOP", "false").lower() == "true"

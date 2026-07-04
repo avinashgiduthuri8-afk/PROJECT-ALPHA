@@ -1,8 +1,10 @@
 import asyncio
+from datetime import datetime, timezone
 import hmac
 import json
 import logging
 import os
+import threading
 import time as _time
 from fastapi import Depends, FastAPI, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -29,11 +31,23 @@ from bots.mtb_bot.storage import snapshot as mtb_snapshot
 from bots.pmb_bot.storage import snapshot as pmb_snapshot
 from bots.risk_engine.engine import snapshot as risk_snapshot
 from bots.risk_engine.runtime_state import set_trading_enabled as _risk_set_trading_enabled
+from bots.risk_engine.config import (
+    EMERGENCY_STOP as _EMERGENCY_STOP,
+    get_trading_enabled as _get_trading_enabled,
+    set_trading_enabled as _set_trading_enabled_imem,
+)
 
 from bots.scanner_bot.scanner import get_watchlist as _scanner_get_watchlist, resolve_coin_pair as _resolve_coin_pair
 from bots.volatile_gridX.config import get_vgx_storage_file as _get_vgx_storage_file
 
 _VGX_PHASE5_COINS = ["BTC", "ETH", "SOL", "BNB", "XRP", "ZEC"]
+
+# ── In-memory trading-toggle metadata ─────────────────────────────────────────
+# Tracks who last changed the toggle and when (for /api/v1/trading/status).
+# Reset to "env_var" on every process restart.
+_trading_meta_lock: threading.Lock = threading.Lock()
+_trading_changed_by: str = "env_var"
+_trading_changed_at: str = datetime.now(timezone.utc).isoformat()
 
 
 def vgx_snapshot() -> dict:
@@ -1359,6 +1373,41 @@ async def refresh_scanner():
 
 class TradingToggleRequest(BaseModel):
     enabled: bool
+
+
+@app.get("/api/v1/trading/status", response_class=JSONResponse)
+async def trading_status():
+    """Return the live in-memory trading toggle state."""
+    global _trading_changed_by, _trading_changed_at
+    with _trading_meta_lock:
+        changed_by = _trading_changed_by
+        changed_at = _trading_changed_at
+    return {
+        "trading_enabled": _get_trading_enabled(),
+        "emergency_stop":  _EMERGENCY_STOP,
+        "changed_by":      changed_by,
+        "changed_at":      changed_at,
+    }
+
+
+@app.post("/api/v1/trading/toggle", response_class=JSONResponse)
+async def trading_toggle(req: TradingToggleRequest):
+    """Enable or disable the global TRADING_ENABLED kill-switch from the
+    dashboard.  In-memory only — reverts to the env-var default on restart.
+    Rejected when EMERGENCY_STOP is active."""
+    global _trading_changed_by, _trading_changed_at
+    if req.enabled and _EMERGENCY_STOP:
+        return JSONResponse(
+            {"status": "rejected", "reason": "EMERGENCY_STOP is active"},
+            status_code=200,
+        )
+    now = datetime.now(timezone.utc).isoformat()
+    effective = _set_trading_enabled_imem(req.enabled)
+    with _trading_meta_lock:
+        _trading_changed_by = "dashboard"
+        _trading_changed_at = now
+    logger.info("[Trading] TRADING_ENABLED set to %s by dashboard", effective)
+    return {"status": "ok", "trading_enabled": effective, "changed_at": now}
 
 
 @app.post("/api/risk/toggle-trading", response_class=JSONResponse)

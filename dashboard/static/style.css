@@ -723,14 +723,91 @@ body {
 }
 .risk-panel-badge.danger { background: var(--red-bg); color: var(--red); border-color: var(--red); }
 
-.risk-trading-toggle-btn {
+/* ── Trading toggle switch ────────────────────────────────────────────────── */
+.trading-toggle-switch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
     margin-left: auto;
+    flex-shrink: 0;
 }
-.risk-trading-toggle-btn.is-halt { color: var(--red); border-color: var(--red); }
-.risk-trading-toggle-btn.is-halt:hover { background: var(--red-bg); }
-.risk-trading-toggle-btn.is-enable { color: var(--green); border-color: var(--green); }
-.risk-trading-toggle-btn.is-enable:hover { background: var(--green-bg); }
-.risk-trading-toggle-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.trading-toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+}
+.trading-toggle-slider {
+    display: inline-block;
+    width: 42px;
+    height: 24px;
+    background: var(--red, #e53935);
+    border-radius: 12px;
+    transition: background 0.2s ease;
+    position: relative;
+    flex-shrink: 0;
+}
+.trading-toggle-slider::after {
+    content: '';
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 16px;
+    height: 16px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+.trading-toggle-switch input:checked + .trading-toggle-slider {
+    background: var(--green, #43a047);
+}
+.trading-toggle-switch input:checked + .trading-toggle-slider::after {
+    transform: translateX(18px);
+}
+.trading-toggle-switch input:disabled + .trading-toggle-slider {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.trading-toggle-label {
+    margin-left: 8px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* ── Toast notifications ──────────────────────────────────────────────────── */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+}
+.toast {
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 0.83rem;
+    font-weight: 600;
+    color: #fff;
+    opacity: 0;
+    transform: translateX(24px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    pointer-events: auto;
+    max-width: 320px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+}
+.toast.toast-show {
+    opacity: 1;
+    transform: translateX(0);
+}
+.toast.toast-success { background: var(--green, #43a047); }
+.toast.toast-warning { background: #f59e0b; }
+.toast.toast-error   { background: var(--red, #e53935); }
 
 .risk-grid {
     display: grid;
