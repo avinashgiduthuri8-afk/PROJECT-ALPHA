@@ -1,38 +1,48 @@
-# PROJECT-ALPHA
+# PROJECT-ALPHA Trading Dashboard
 
-A multi-bot cryptocurrency trading system with a FastAPI web dashboard.
+## Overview
+A multi-bot crypto trading dashboard built with FastAPI. Runs four bots in paper or live mode:
 
-## Project Overview
+- **Scanner Bot** — scans CoinDCX market data, generates signals, manages watchlist
+- **MTB Bot** (Momentum Trading Bot) — acts on scanner signals
+- **PMB Bot** (Portfolio Management Bot) — portfolio-level position management
+- **VGX Bot** (Volatile GridX) — grid trading strategy for volatile coins
 
-PROJECT-ALPHA is a paper/live trading platform consisting of four trading bots, a signal scanner, a risk engine, and a real-time web dashboard.
-
-### Bots
-- **Scanner Bot** (`bots/scanner_bot/`) — Scans the market for trading signals and maintains a watchlist
-- **Volatile Grid X (VGX)** (`bots/volatile_gridX/`) — Grid-style trading bot with trailing stops and circuit breaker
-- **Price Movement Bot (PMB)** (`bots/pmb_bot/`) — DCA-style bot triggered by price dips
-- **MACD Trend Bounce Bot (MTB)** (`bots/mtb_bot/`) — MACD-based trend following bot
-
-### Core Modules
-- **Risk Engine** (`bots/risk_engine/`) — Kill switches, circuit breaker, drawdown limits
-- **Monitoring** (`monitoring/`) — System health, metrics, Telegram alerts
-- **Dashboard** (`dashboard/`) — HTML/CSS/JS frontend served by FastAPI
-
-### Entry Point
-- `app.py` — FastAPI application; mounts all bot routers and serves the dashboard
+The web dashboard (port 5000) provides a unified view of all bots, positions, signals, and performance.
 
 ## Stack
-- **Backend**: Python, FastAPI, asyncio
-- **Frontend**: Jinja2 templates, vanilla JS, CSS
-- **Storage**: JSON files (per-bot, thread-safe with locks)
-- **Notifications**: Telegram bots (one per trading bot)
+- **Backend**: Python 3.12, FastAPI, Uvicorn
+- **Frontend**: Jinja2 templates + static assets
+- **Data**: JSON file storage (per-bot `data/` directories)
+- **Exchange**: CoinDCX API
+- **Notifications**: Telegram bots (optional, token-gated)
 
-## Environment Variables Required to Run
-See `.emergent/emergent.yml` and `CHANGELOG.md` for the full list. Key variables:
-- `SESSION_SECRET` — Flask/Starlette session secret
-- `BOT_TOKEN`, `TELEGRAM_CHAT_ID` — Telegram (legacy/fallback)
-- `SCANNER_BOT_TOKEN`, `VGX_BOT_TOKEN`, `PMB_BOT_TOKEN`, `MTB_BOT_TOKEN` — Per-bot Telegram tokens
-- `API_KEY` — Dashboard API authentication
-- Exchange API credentials (per-bot config files)
+## How to Run
+The app starts with `python app.py` on port 5000.
+
+Login with the `DASHBOARD_API_KEY` (set in environment).
+
+## Environment Variables
+| Variable | Description |
+|---|---|
+| `SESSION_SECRET` | Flask/Starlette session signing key |
+| `DASHBOARD_API_KEY` | API key for dashboard login |
+| `SCANNER_BOT_TOKEN` | Telegram token for scanner bot (optional) |
+| `VGX_BOT_TOKEN` | Telegram token for VGX bot (optional) |
+| `PMB_BOT_TOKEN` | Telegram token for PMB bot (optional) |
+| `MTB_BOT_TOKEN` | Telegram token for MTB bot (optional) |
+| `ALERT_BOT_TOKEN` | Telegram token for alert notifications (optional) |
+| `SCANNER_CHAT_ID` | Telegram chat ID for scanner alerts |
+| `VGX_CHAT_ID` | Telegram chat ID for VGX alerts |
+| `PMB_CHAT_ID` | Telegram chat ID for PMB alerts |
+| `MTB_CHAT_ID` | Telegram chat ID for MTB alerts |
+| `ALERT_CHAT_ID` | Telegram chat ID for system alerts |
+| `TRADING_ENABLED` | `true`/`false` — master trading switch |
+| `VGX_ENABLED` | Enable/disable VGX bot |
+| `PMB_ENABLED` | Enable/disable PMB bot |
+| `MTB_ENABLED` | Enable/disable MTB bot |
+| `EMERGENCY_STOP` | `true` triggers emergency halt |
+
+All bots run in **PAPER** mode by default until a live exchange API key is configured.
 
 ## User Preferences
-- Imported for code study — no run workflow needed
