@@ -1358,10 +1358,10 @@
                                 <table>
                                     <thead><tr><th>Coin</th><th>Action</th></tr></thead>
                                     <tbody id="scanner-coin-table">
-                                        {% for coin in data.scanner_overview.coins %}
+                                        {% for item in data.scanner_overview.coin_pairs %}
                                         <tr>
-                                            <td><strong>{{ coin }}/INR</strong></td>
-                                            <td><button class="btn-remove-coin" data-coin="{{ coin }}">REMOVE</button></td>
+                                            <td><strong>{{ item.coin }}/{{ item.quote or 'INR' }}</strong></td>
+                                            <td><button class="btn-remove-coin" data-coin="{{ item.coin }}">REMOVE</button></td>
                                         </tr>
                                         {% else %}
                                         <tr><td colspan="2" class="text-muted">No coins</td></tr>

@@ -29,7 +29,7 @@ from bots.mtb_bot.storage import snapshot as mtb_snapshot
 from bots.pmb_bot.storage import snapshot as pmb_snapshot
 from bots.risk_engine.engine import snapshot as risk_snapshot
 
-from bots.scanner_bot.scanner import get_watchlist as _scanner_get_watchlist
+from bots.scanner_bot.scanner import get_watchlist as _scanner_get_watchlist, resolve_coin_pair as _resolve_coin_pair
 from bots.volatile_gridX.config import get_vgx_storage_file as _get_vgx_storage_file
 
 _VGX_PHASE5_COINS = ["BTC", "ETH", "SOL", "BNB", "XRP", "ZEC"]
@@ -631,6 +631,7 @@ async def pull_state_payload():
 
         "scanner_overview": {
             "coins":           _scanner_get_watchlist().get("coins", []),
+            "coin_pairs":      _build_coin_pairs(),
             "coins_scanned":   len(_scanner_get_watchlist().get("coins", [])),
             "active_signals":  len(latest_signals),
             "elite_signals":   _elite,
@@ -935,16 +936,73 @@ async def _get_supported_coins() -> set:
     return inr | usdt
 
 
+def _build_coin_pairs() -> list[dict]:
+    """Return [{coin, pair, quote}] for the dashboard server-side render.
+
+    Uses the scanner's in-memory store + ticker cache for lazy resolution.
+    Falls back gracefully when the scanner has not yet started.
+    Always returns a list — never raises.
+    """
+    try:
+        sc = getattr(scanner_main, "_SCANNER", None)
+        if sc is not None:
+            store = sc.watchlist_store
+            items = store.all_with_pairs()
+            tickers: list = getattr(sc, "_ticker_cache", None) or []
+            for item in items:
+                if item["pair"] is None and tickers:
+                    resolved = _resolve_coin_pair(item["coin"], tickers=tickers)
+                    if resolved["resolved"]:
+                        item["pair"]  = resolved["pair"]
+                        item["quote"] = resolved["quote"]
+                        store.set_pair(item["coin"], resolved["pair"], resolved["quote"])
+            return items
+    except Exception:
+        pass
+    coins = _scanner_get_watchlist().get("coins", [])
+    return [{"coin": c, "pair": None, "quote": None} for c in coins]
+
+
 # I-08: Manual refresh endpoint
 @app.get("/api/watchlist", response_class=JSONResponse)
 async def get_scanner_watchlist():
-    """Return the unified scanner watchlist (single source of truth)."""
-    return _scanner_get_watchlist()
+    """Return the unified scanner watchlist with resolved pair metadata.
+
+    Response includes:
+      coins — list[str]  — backward-compatible bare symbol list
+      items — list[dict] — [{coin, pair, quote}] with lazy pair resolution
+    """
+    try:
+        sc = getattr(scanner_main, "_SCANNER", None)
+        if sc is not None:
+            store = sc.watchlist_store
+            items = store.all_with_pairs()
+            tickers: list = getattr(sc, "_ticker_cache", None) or []
+            for item in items:
+                if item["pair"] is None and tickers:
+                    resolved = _resolve_coin_pair(item["coin"], tickers=tickers)
+                    if resolved["resolved"]:
+                        item["pair"]  = resolved["pair"]
+                        item["quote"] = resolved["quote"]
+                        store.set_pair(item["coin"], resolved["pair"], resolved["quote"])
+            coins = [i["coin"] for i in items]
+            return {"count": len(coins), "coins": coins, "items": items}
+    except Exception:
+        pass
+    raw = _scanner_get_watchlist()
+    coins = raw.get("coins", [])
+    items = [{"coin": c, "pair": None, "quote": None} for c in coins]
+    return {"count": len(coins), "coins": coins, "items": items}
 
 
 @app.post("/api/watchlist/add", response_class=JSONResponse)
 async def add_coin_to_scanner_watchlist(req: WatchlistRequest):
     """Add a coin to the unified scanner watchlist.
+
+    Resolves the best available trading pair (INR > USDT) using the live
+    ticker cache before storing, so the watchlist always carries verified
+    pair metadata.  Rejects coins that have no INR or USDT pair on CoinDCX
+    when the ticker cache is warm.
 
     Uses _SCANNER.watchlist_store (single source of truth) so the scanner's
     in-memory coin list is updated immediately without waiting for a disk
@@ -954,27 +1012,49 @@ async def add_coin_to_scanner_watchlist(req: WatchlistRequest):
     the next scan cycle right away.
     """
     coin = req.coin.strip().upper()
-    inr_coins, usdt_coins = await _get_coin_markets()
 
-    if inr_coins or usdt_coins:
-        if coin in inr_coins:
-            market = "INR"
-        elif coin in usdt_coins:
-            market = "USDT"
-        else:
-            return JSONResponse(
-                {"success": False, "error": "Invalid Coin - Not Available on CoinDCX"},
-                status_code=400,
+    # Grab ticker cache from scanner (no API call if available).
+    tickers: list = []
+    sc = getattr(scanner_main, "_SCANNER", None)
+    cached = getattr(sc, "_ticker_cache", None) if sc is not None else None
+    if cached:
+        tickers = cached
+
+    # If cache is empty fall back to a live API call so validation works
+    # before the scanner has run its first cycle.
+    if not tickers:
+        try:
+            import requests as _req
+            resp = await asyncio.to_thread(
+                _req.get,
+                "https://api.coindcx.com/exchange/ticker",
+                timeout=6,
             )
-    else:
-        market = "INR"
+            resp.raise_for_status()
+            tickers = resp.json()
+        except Exception:
+            tickers = []
+
+    resolved = _resolve_coin_pair(coin, tickers=tickers if tickers else None)
+
+    if not resolved["resolved"] and tickers:
+        return JSONResponse(
+            {
+                "success": False,
+                "reason": "no_pair_found",
+                "error":  "Coin not available on CoinDCX (no INR or USDT pair found)",
+                "coin":   coin,
+            },
+            status_code=400,
+        )
+
+    pair  = resolved.get("pair")  or f"B-{coin}_INR"
+    quote = resolved.get("quote") or "INR"
 
     try:
-        # Single source of truth: always mutate the scanner's own store so its
-        # in-memory coin list reflects the change immediately.
-        sc = getattr(scanner_main, "_SCANNER", None)
         store = sc.watchlist_store if sc is not None else WatchlistStore()
         store.add(coin)
+        store.set_pair(coin, pair, quote)
         coins = store.all()
         # Wake the scanner so it picks up the new coin without waiting for the
         # next scheduled cycle.
@@ -984,8 +1064,10 @@ async def add_coin_to_scanner_watchlist(req: WatchlistRequest):
             pass
         return {
             "success": True,
-            "coin": coin,
-            "market": market,
+            "coin":     coin,
+            "pair":     pair,
+            "quote":    quote,
+            "market":   quote,   # backward-compat alias
             "watchlist": coins,
         }
     except Exception as e:

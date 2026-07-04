@@ -1339,7 +1339,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (errorDiv) { errorDiv.style.display = "none"; errorDiv.textContent = ""; }
                 refreshWatchlistTable();
             } else {
-                const msg = data.error || "Add failed";
+                const reasonMap = {
+                    "no_pair_found": "Coin not available on CoinDCX (no INR or USDT pair found)",
+                    "invalid_symbol": "Invalid coin symbol",
+                };
+                const msg = data.error || reasonMap[data.reason] || "Add failed";
                 if (errorDiv) {
                     errorDiv.textContent = msg;
                     errorDiv.style.display = "block";
@@ -1385,16 +1389,19 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const resp = await authenticatedFetch("/api/watchlist");
             const data = await resp.json();
-            const coins = data.coins || [];
+            const items = data.items || (data.coins || []).map(c => ({coin: c, pair: null, quote: null}));
             const countNode = document.getElementById("scanner-coin-count");
-            if (countNode) countNode.textContent = coins.length;
+            if (countNode) countNode.textContent = items.length;
             const tbody = document.getElementById("scanner-coin-table");
             if (!tbody) return;
-            tbody.innerHTML = coins.length === 0
+            tbody.innerHTML = items.length === 0
                 ? '<tr><td colspan="2" class="text-muted">No coins</td></tr>'
-                : coins.map(c => '<tr><td><strong>' + escHtml(c) + '/INR</strong></td><td><button class="btn-remove-coin" data-coin="' + escHtml(c) + '">REMOVE</button></td></tr>').join("");
+                : items.map(item => {
+                    const display = escHtml(item.coin) + '/' + escHtml(item.quote || 'INR');
+                    return '<tr><td><strong>' + display + '</strong></td><td><button class="btn-remove-coin" data-coin="' + escHtml(item.coin) + '">REMOVE</button></td></tr>';
+                  }).join("");
             const totalNode = document.getElementById("total-coin-count");
-            if (totalNode) totalNode.textContent = coins.length;
+            if (totalNode) totalNode.textContent = items.length;
         } catch (err) {
             console.warn("[ProjectA] Watchlist refresh failed:", err.message);
         }

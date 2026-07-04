@@ -1,0 +1,225 @@
+# PROJECT-ALPHA — Watchlist Pair Resolution Integration
+
+Goal:
+Integrate the new `resolve_coin_pair()` helper into the watchlist add flow so pair validation happens immediately when the user adds a coin.
+
+This is a V1 improvement and must NOT change scanner logic or signal generation.
+
+---
+
+# Current Behavior
+
+User adds:
+
+```text
+PEPE
+```
+
+System stores:
+
+```text
+PEPE
+```
+
+Scanner later determines the pair.
+
+---
+
+# Desired Behavior
+
+User adds:
+
+```text
+PEPE
+```
+
+System immediately resolves:
+
+```json
+{
+  "coin": "PEPE",
+  "pair": "B-PEPE_USDT",
+  "quote": "USDT"
+}
+```
+
+and stores it.
+
+---
+
+# Resolution Priority
+
+1. INR pair
+2. USDT pair
+3. Reject if neither exists
+
+---
+
+# Files to Review
+
+* app.py
+* scanner watchlist API handlers
+* bots/scanner_bot/scanner.py
+* dashboard watchlist UI
+
+---
+
+# Requirements
+
+## Backend
+
+When:
+
+```text
+POST /api/watchlist/add
+```
+
+is called:
+
+1. Call:
+
+```python
+resolve_coin_pair(coin)
+```
+
+2. If:
+
+```python
+resolved == False
+```
+
+return:
+
+```json
+{
+  "success": false,
+  "reason": "no_pair_found"
+}
+```
+
+3. Otherwise save:
+
+```json
+{
+  "coin": "PEPE",
+  "pair": "B-PEPE_USDT",
+  "quote": "USDT"
+}
+```
+
+---
+
+## API Response
+
+Return:
+
+```json
+{
+  "success": true,
+  "coin": "PEPE",
+  "pair": "B-PEPE_USDT",
+  "quote": "USDT"
+}
+```
+
+---
+
+## Dashboard
+
+Watchlist table should display:
+
+| Coin | Pair      |
+| ---- | --------- |
+| PEPE | PEPE/USDT |
+| BTC  | BTC/INR   |
+
+---
+
+## Backward Compatibility
+
+Old watchlist entries containing only:
+
+```json
+{
+  "coin": "BTC"
+}
+```
+
+must still work.
+
+Migration should be lazy:
+
+If `pair` is missing:
+
+* resolve at runtime
+* optionally save back.
+
+No schema migration script.
+
+---
+
+## Not In Scope
+
+Do NOT change:
+
+* scanner logic
+* signal generation
+* scoring
+* storage format for signals
+* trading engines
+
+---
+
+# Verification
+
+Test:
+
+```text
+BTC
+ETH
+LINK
+PEPE
+FAKE
+```
+
+Expected:
+
+```text
+BTC  -> INR
+ETH  -> INR
+LINK -> INR
+PEPE -> USDT
+FAKE -> rejected
+```
+
+---
+
+Run:
+
+* full test suite
+* dashboard tests
+* scanner tests
+
+Confirm:
+
+```text
+542 passed
+0 regressions
+```
+
+---
+
+Generate:
+
+```text
+WATCHLIST_PAIR_INTEGRATION.md
+```
+
+Include:
+
+* files changed
+* API changes
+* examples
+* backward compatibility notes
+* tests run
+* rollback instructions

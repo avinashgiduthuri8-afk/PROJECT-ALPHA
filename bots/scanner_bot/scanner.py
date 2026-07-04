@@ -357,6 +357,7 @@ class WatchlistStore:
     def __init__(self, path: str = WATCHLIST_FILE):
         self.path = Path(path)
         self._coins = self._load()
+        self._pair_map: dict = self._load_pair_map()
         self._cache_time: float = 0.0
         self._cache_value: list = list(self._coins)
 
@@ -381,8 +382,18 @@ class WatchlistStore:
             normalized.append(c)
         return list(dict.fromkeys(normalized)) or list(DEFAULT_WATCHLIST)
 
+    def _load_pair_map(self) -> dict:
+        """Load stored pair metadata. Returns {} for backward compat with old files."""
+        if not self.path.exists():
+            return {}
+        try:
+            data = json.loads(self.path.read_text(encoding="utf-8"))
+            return dict(data.get("pair_map", {}))
+        except (OSError, json.JSONDecodeError):
+            return {}
+
     def save(self) -> None:
-        write_json_safely(self.path, {"coins": self._coins})
+        write_json_safely(self.path, {"coins": self._coins, "pair_map": self._pair_map})
 
     def all(self) -> list[str]:
         # I-11: reload from disk so scanner sees writes from watchlist_manager.py.
@@ -401,6 +412,7 @@ class WatchlistStore:
         except Exception:
             pass
         self._coins = self._load()
+        self._pair_map = self._load_pair_map()
         self._cache_value = list(self._coins)
         self._cache_time = now
         return list(self._cache_value)
@@ -419,9 +431,37 @@ class WatchlistStore:
         if normalized not in self._coins:
             return False
         self._coins.remove(normalized)
+        self._pair_map.pop(normalized, None)  # clean up pair metadata
         self.save()
         self._cache_time = 0.0   # force cache expiry so next all() re-reads
         return True
+
+    # ── Pair resolution storage ─────────────────────────────────────────────
+
+    def set_pair(self, coin: str, pair: str, quote: str) -> None:
+        """Store resolved pair metadata for *coin*. Persists immediately."""
+        self._pair_map[coin.upper()] = {"pair": pair, "quote": quote}
+        self.save()
+
+    def get_pair(self, coin: str) -> dict | None:
+        """Return stored pair metadata or None if not yet resolved."""
+        return self._pair_map.get(coin.upper())
+
+    def all_with_pairs(self) -> list[dict]:
+        """Return the watchlist as [{coin, pair, quote}].
+
+        Coins without stored pair metadata have pair=None, quote=None.
+        Callers should run lazy resolution and call set_pair() to persist.
+        """
+        coins = self.all()
+        return [
+            {
+                "coin":  c,
+                "pair":  self._pair_map.get(c, {}).get("pair"),
+                "quote": self._pair_map.get(c, {}).get("quote"),
+            }
+            for c in coins
+        ]
 
 
 # =============================================================================
