@@ -1121,12 +1121,28 @@
                             <h5>PMB Open Positions</h5>
                             <div class="scroller-table-axis">
                                 <table>
-                                    <thead><tr><th>Coin</th><th>Avg Entry</th><th>Dips</th><th>Partial Sells</th><th>Invested</th><th>Qty Held</th><th>Next Dip</th><th>Next Sell</th><th>Stop Loss</th></tr></thead>
+                                    <!-- Live current price / live PnL are display-only fields computed at
+                                         render time from the scanner's ticker cache (see
+                                         _enrich_open_positions_live_pnl / _get_scanner_ticker_prices_only in
+                                         app.py). They never touch the underlying position/storage record —
+                                         this is the OPEN positions table, not trade history. -->
+                                    <thead><tr><th>Coin</th><th>Avg Entry</th><th>Current Price</th><th>Live PnL ₹</th><th>Live PnL %</th><th>Dips</th><th>Partial Sells</th><th>Invested</th><th>Qty Held</th><th>Next Dip</th><th>Next Sell</th><th>Stop Loss</th></tr></thead>
                                     <tbody>
                                         {% for pos in data.pmb_overview.open_positions %}
                                         <tr>
                                             <td><strong>{{ pos.coin }}</strong></td>
                                             <td>{{ "%.4f"|format(pos.avg_entry_price) }}</td>
+                                            <td class="font-mono">{% if pos.current_price is not none %}{{ "%.4f"|format(pos.current_price) }}{% else %}—{% endif %}</td>
+                                            <td class="{% if pos.live_pnl_status == 'profit' %}text-green{% elif pos.live_pnl_status == 'loss' %}text-red{% else %}text-muted{% endif %}">
+                                                {% if pos.live_pnl is not none %}
+                                                <span class="row-badge-pill {% if pos.live_pnl_status == 'profit' %}badge-green{% elif pos.live_pnl_status == 'loss' %}badge-red{% else %}badge-blue{% endif %}">₹{{ "%.2f"|format(pos.live_pnl) }}</span>
+                                                {% else %}—{% endif %}
+                                            </td>
+                                            <td class="{% if pos.live_pnl_status == 'profit' %}text-green{% elif pos.live_pnl_status == 'loss' %}text-red{% else %}text-muted{% endif %}">
+                                                {% if pos.live_pnl_pct is not none %}
+                                                <span class="row-badge-pill {% if pos.live_pnl_status == 'profit' %}badge-green{% elif pos.live_pnl_status == 'loss' %}badge-red{% else %}badge-blue{% endif %}">{{ "%.2f"|format(pos.live_pnl_pct) }}%</span>
+                                                {% else %}—{% endif %}
+                                            </td>
                                             <td class="text-gold">{{ pos.dip_count }}/4</td>
                                             <td class="text-green">{{ pos.partial_sell_count }}</td>
                                             <td>₹{{ "%.2f"|format(pos.total_invested) }}</td>
@@ -1136,7 +1152,7 @@
                                             <td class="text-red">{{ "%.4f"|format(pos.stop_loss_price) }}</td>
                                         </tr>
                                         {% else %}
-                                        <tr><td colspan="9" class="text-muted">No open PMB positions</td></tr>
+                                        <tr><td colspan="12" class="text-muted">No open PMB positions</td></tr>
                                         {% endfor %}
                                     </tbody>
                                 </table>

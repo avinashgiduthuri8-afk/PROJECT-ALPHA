@@ -511,6 +511,125 @@ def _enrich_closed_trades(
     return enriched
 
 
+_TICKER_QUOTE_SUFFIXES = ("INR", "USDT", "BTC", "ETH")  # priority order
+
+
+def _base_coin_from_market(market: str) -> str | None:
+    """Extract the base coin symbol from a raw CoinDCX ``market`` string.
+
+    CoinDCX ticker entries use concatenated pair strings with no separator
+    (e.g. ``LINKINR``, ``LINKUSDT``, ``LINKBTC`` — NOT ``B-LINK_USDT``), so the
+    base coin must be recovered by stripping a known quote-currency suffix.
+    """
+    m = str(market or "").upper()
+    for suffix in _TICKER_QUOTE_SUFFIXES:
+        if m.endswith(suffix) and len(m) > len(suffix):
+            return m[: -len(suffix)]
+    return None
+
+
+def _read_scanner_ticker_cache() -> dict[str, float]:
+    """Return ``{COIN: last_price}`` read strictly from ``_SCANNER._ticker_cache``.
+
+    Zero CoinDCX (or any other) API calls — this only ever looks at the
+    scanner's already-populated in-memory ticker cache. If the cache is
+    empty/unavailable, returns ``{}`` (caller must treat missing coins as
+    "price unavailable", never fall back to a network call).
+    """
+    import bots.scanner_bot.main as _scanner_main
+
+    sc      = getattr(_scanner_main, "_SCANNER", None)
+    tickers = getattr(sc, "_ticker_cache", None) if sc is not None else None
+    if not tickers:
+        return {}
+    prices: dict[str, float] = {}
+    for suffix in _TICKER_QUOTE_SUFFIXES:   # INR quoted prices win over USDT/BTC
+        for entry in tickers:
+            market = str(entry.get("market", ""))
+            if not market.upper().endswith(suffix):
+                continue
+            base = _base_coin_from_market(market)
+            if not base or base in prices:
+                continue
+            try:
+                prices[base] = float(entry["last_price"])
+            except (KeyError, ValueError, TypeError):
+                continue
+    return prices
+
+
+async def _get_scanner_ticker_prices_only(coins: list[str]) -> dict[str, float | None]:
+    """Return ``{coin: price | None}`` for each requested coin, ticker-cache-only.
+
+    Unlike ``_get_current_prices_safe`` (which falls back to a live CoinDCX
+    API call), this NEVER makes a network request. Used by any feature that
+    is explicitly scoped to "no CoinDCX API calls" — e.g. PMB Open Positions
+    live PnL — so a cold/empty ticker cache correctly surfaces as "price
+    unavailable" rather than triggering a blocking HTTP fetch.
+    """
+    if not coins:
+        return {}
+    try:
+        prices = await asyncio.to_thread(_read_scanner_ticker_cache)
+    except Exception:
+        prices = {}
+    return {c: prices.get(str(c).upper()) for c in coins}
+
+
+def _enrich_open_positions_live_pnl(
+    positions: list[dict],
+    prices: dict[str, float | None],
+) -> list[dict]:
+    """Decorate PMB open positions with live current_price / live_pnl fields.
+
+    Open trade log fields (avg_entry_price, total_quantity, total_invested,
+    dip_count, ...) come straight from storage and are left untouched — this
+    only *adds* display-only keys on top:
+
+      current_price   — from the scanner ticker cache (or None if unavailable)
+      live_pnl         — current_value - invested_amount
+      live_pnl_pct     — ((current_price - avg_entry_price) / avg_entry_price) * 100
+      live_pnl_status  — "profit" | "loss" | "flat" | "unavailable" (for badge color)
+
+    If a price is unavailable for a coin, current_price / live_pnl /
+    live_pnl_pct are all set to ``None`` (rendered as "—") — no partial or
+    guessed values, per spec. Does not mutate the input list.
+    """
+    enriched: list[dict] = []
+    for pos in positions:
+        p = dict(pos)
+        coin      = str(p.get("coin", "")).upper()
+        avg_entry = float(p.get("avg_entry_price", 0) or 0)
+        qty_held  = float(p.get("total_quantity", 0) or 0)
+        invested  = float(p.get("total_invested", 0) or 0)
+
+        price = prices.get(coin) if coin else None
+
+        if price is None or avg_entry <= 0:
+            p["current_price"]  = None
+            p["live_pnl"]       = None
+            p["live_pnl_pct"]   = None
+            p["live_pnl_status"] = "unavailable"
+        else:
+            current_value = price * qty_held
+            live_pnl      = current_value - invested
+            live_pnl_pct  = ((price - avg_entry) / avg_entry) * 100
+
+            p["current_price"] = round(price, 6)
+            p["live_pnl"]      = round(live_pnl, 4)
+            p["live_pnl_pct"]  = round(live_pnl_pct, 2)
+
+            if live_pnl > 0:
+                p["live_pnl_status"] = "profit"
+            elif live_pnl < 0:
+                p["live_pnl_status"] = "loss"
+            else:
+                p["live_pnl_status"] = "flat"
+
+        enriched.append(p)
+    return enriched
+
+
 async def _get_current_prices_safe(coins: list[str]) -> dict[str, float | None]:
     """Return ``{coin: price}`` for each coin.
 
@@ -594,6 +713,23 @@ async def pull_state_payload():
                          _mtb_closed, _mtb_all, prices=_prices)}
     except Exception:
         pass  # enrichment is best-effort; raw data still renders fine
+
+    # ── PMB Open Positions — live current price / live PnL ────────────────
+    # NOTE: this only decorates the *open* positions list with read-only,
+    # display-only fields (current_price / live_pnl / live_pnl_pct /
+    # live_pnl_status). It never touches the PMB trading engine, storage
+    # files, scanner logic, or trade history — those all remain exactly as
+    # loaded from pmb_snapshot() above.
+    try:
+        _pmb_open = pmb_state.get("open_positions", [])
+        _pmb_open_coins = [p.get("coin") for p in _pmb_open if p.get("coin")]
+        # Ticker-cache-only lookup — zero CoinDCX API calls, per requirement.
+        _pmb_live_prices = await _get_scanner_ticker_prices_only(_pmb_open_coins)
+        pmb_state = {**pmb_state,
+                     "open_positions": _enrich_open_positions_live_pnl(
+                         _pmb_open, _pmb_live_prices)}
+    except Exception:
+        pass  # enrichment is best-effort; raw open positions still render fine
 
     vgx_trade_amount = float(os.getenv("VGX_TRADE_AMOUNT", os.getenv("TRADE_AMOUNT", "110")))
     # Read live scan signals from live_signals.json (written each scan cycle by main.py)
