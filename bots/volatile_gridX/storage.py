@@ -2,16 +2,23 @@
 PROJECT-ALPHA Persistent Storage Engine
 """
 
-import os
 import json
+import logging
+import os
 import shutil
 import threading
 import time
+from datetime import datetime, timezone
 
 from .config import *
 
+_logger = logging.getLogger("vgx.storage")
+
 # Single lock guarding the one TradingBotCrypto.json storage file.
 _storage_lock = threading.Lock()
+
+# Default coin list — used when grid_coins key is absent from storage.
+_DEFAULT_GRID_COINS: list = ["BTC", "ETH", "SOL", "BNB", "XRP", "ZEC"]
 
 # ============================================================
 # RUNTIME VARIABLES
@@ -34,6 +41,13 @@ trade_history = []
 error_logs = []
 
 metrics_summary = {}
+
+# ── Grid management globals ───────────────────────────────────────────────────
+# grid_config: per-coin manual base-price overrides.
+#   schema: {"BTC": {"base_price": float, "base_price_set_at": str, "base_price_set_by": str}}
+# grid_coins: ordered list of active coins for the VGX grid.
+grid_config: dict = {}
+grid_coins: list = list(_DEFAULT_GRID_COINS)
 
 # ============================================================
 # STORAGE STATUS
@@ -101,13 +115,44 @@ def _normalise(data):
 
         "error_logs": [],
 
-        "metrics_summary": {}
+        "metrics_summary": {},
+
+        # Grid management — safe defaults so old storage files upgrade silently.
+        "grid_config": {},
+        "grid_coins":  list(_DEFAULT_GRID_COINS),
 
     }
 
     for k, v in defaults.items():
 
         data.setdefault(k, v)
+
+    # Type-coerce grid management fields so corrupt/unexpected storage values
+    # degrade to safe defaults rather than propagating into callers.
+    if not isinstance(data["grid_config"], dict):
+        _logger.warning(
+            "[VGX] grid_config has unexpected type %s — resetting to {}",
+            type(data["grid_config"]).__name__,
+        )
+        data["grid_config"] = {}
+    else:
+        # Purge any entries that are not dicts (corrupted sub-records).
+        data["grid_config"] = {
+            k: v for k, v in data["grid_config"].items()
+            if isinstance(v, dict)
+        }
+
+    if not isinstance(data["grid_coins"], list):
+        _logger.warning(
+            "[VGX] grid_coins has unexpected type %s — resetting to default list",
+            type(data["grid_coins"]).__name__,
+        )
+        data["grid_coins"] = list(_DEFAULT_GRID_COINS)
+    else:
+        # Keep only string entries; drop anything else silently.
+        data["grid_coins"] = [c for c in data["grid_coins"] if isinstance(c, str)]
+        if not data["grid_coins"]:
+            data["grid_coins"] = list(_DEFAULT_GRID_COINS)
 
     return data
 
@@ -119,22 +164,16 @@ def _normalise(data):
 def load_data():
 
     global virtual_balance
-
     global positions
-
     global trade_log
-
     global price_history
-
     global market_cache
-
     global portfolio_history
-
     global trade_history
-
     global error_logs
-
     global metrics_summary
+    global grid_config
+    global grid_coins
 
     with _storage_lock:
 
@@ -162,6 +201,8 @@ def load_data():
             trade_history      = data["trade_history"]
             error_logs         = data["error_logs"]
             metrics_summary    = data["metrics_summary"]
+            grid_config        = data["grid_config"]
+            grid_coins         = data["grid_coins"]
             return
 
     # File missing or corrupt — initialise with defaults and persist
@@ -196,7 +237,11 @@ def save_data():
 
             "error_logs": error_logs,
 
-            "metrics_summary": metrics_summary
+            "metrics_summary": metrics_summary,
+
+            # Grid management — must be included so save_data() never clobbers them.
+            "grid_config": grid_config,
+            "grid_coins":  grid_coins,
 
         }
 
@@ -257,3 +302,139 @@ def get_open_positions() -> list[dict]:
         }
         result.append(entry)
     return result
+
+
+# ============================================================
+# GRID MANAGEMENT — PUBLIC API
+# ============================================================
+# All six functions are synchronous; call them from async handlers
+# via asyncio.to_thread (mutating operations carry file I/O via save_data).
+
+
+def get_grid_config() -> dict:
+    """Return the current grid_config dict (in-memory, always in sync with file).
+
+    Returns {} when no manual base prices have been set.
+    Synchronous — wrap in asyncio.to_thread when calling from an async handler.
+    """
+    with _storage_lock:
+        return dict(grid_config)
+
+
+def get_coin_base_price(coin: str) -> float | None:
+    """Return the manual base price for *coin* if one is set, else None.
+
+    None means the caller should fall back to the live market price.
+    """
+    with _storage_lock:
+        entry = grid_config.get(coin)
+    if entry and isinstance(entry, dict):
+        price = entry.get("base_price")
+        if price is not None and float(price) > 0:
+            return float(price)
+    return None
+
+
+def set_coin_base_price(coin: str, price: float, set_by: str = "dashboard") -> bool:
+    """Set a manual grid-centre base price for *coin*.
+
+    Validates price > 0, writes to grid_config[coin] with ISO timestamp,
+    then persists via save_data().
+
+    Returns True on success, False on validation failure or write error.
+    """
+    global grid_config
+
+    if not isinstance(price, (int, float)) or price <= 0:
+        _logger.warning(
+            "[VGX] set_coin_base_price rejected: coin=%s price=%r (must be > 0)",
+            coin, price,
+        )
+        return False
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    with _storage_lock:
+        # Build a fresh dict so we don't mutate a reference held by callers.
+        grid_config = dict(grid_config)
+        grid_config[coin] = {
+            "base_price":        float(price),
+            "base_price_set_at": now_iso,
+            "base_price_set_by": str(set_by),
+        }
+
+    _logger.info(
+        "[VGX] Base price set: coin=%s price=%s set_by=%s",
+        coin, price, set_by,
+    )
+
+    save_data()
+    return True
+
+
+def remove_coin_base_price(coin: str) -> bool:
+    """Remove the manual base price override for *coin*.
+
+    Returns True if an entry was found and removed, False if coin not present.
+    """
+    global grid_config
+
+    with _storage_lock:
+        if coin not in grid_config:
+            return False
+        grid_config = dict(grid_config)
+        grid_config.pop(coin, None)
+
+    _logger.info("[VGX] Base price removed: coin=%s", coin)
+    save_data()
+    return True
+
+
+def get_grid_coins() -> list:
+    """Return the ordered list of active VGX grid coins.
+
+    Falls back to _DEFAULT_GRID_COINS when the storage key is absent or empty.
+    """
+    with _storage_lock:
+        coins = list(grid_coins)
+    return coins if coins else list(_DEFAULT_GRID_COINS)
+
+
+def set_grid_coins(coins: list) -> bool:
+    """Replace the active VGX grid coin list.
+
+    Validates:
+    - List must not be empty.
+    - Each coin must be alphanumeric (no special characters).
+    - Maximum 20 coins.
+
+    Returns True on success, False on validation failure or write error.
+    """
+    global grid_coins
+
+    if not coins:
+        _logger.warning("[VGX] set_grid_coins rejected: empty list")
+        return False
+
+    if len(coins) > 20:
+        _logger.warning(
+            "[VGX] set_grid_coins rejected: %d coins exceeds maximum of 20",
+            len(coins),
+        )
+        return False
+
+    for c in coins:
+        if not isinstance(c, str) or not c.isalnum():
+            _logger.warning(
+                "[VGX] set_grid_coins rejected: %r is not alphanumeric", c
+            )
+            return False
+
+    normalised = [c.upper() for c in coins]
+
+    with _storage_lock:
+        grid_coins = normalised
+
+    _logger.info("[VGX] Grid coins updated: %s", normalised)
+    save_data()
+    return True

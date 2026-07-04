@@ -39,8 +39,16 @@ from bots.risk_engine.config import (
 
 from bots.scanner_bot.scanner import get_watchlist as _scanner_get_watchlist, resolve_coin_pair as _resolve_coin_pair
 from bots.volatile_gridX.config import get_vgx_storage_file as _get_vgx_storage_file
+from bots.volatile_gridX.storage import (
+    get_grid_config       as _vgx_get_grid_config,
+    get_coin_base_price   as _vgx_get_coin_base_price,  # noqa: F401 — available for future engine use
+    set_coin_base_price   as _vgx_set_coin_base_price,
+    remove_coin_base_price as _vgx_remove_coin_base_price,
+    get_grid_coins        as _vgx_get_grid_coins,
+    set_grid_coins        as _vgx_set_grid_coins,
+)
 
-_VGX_PHASE5_COINS = ["BTC", "ETH", "SOL", "BNB", "XRP", "ZEC"]
+_VGX_PHASE5_COINS = ["BTC", "ETH", "SOL", "BNB", "XRP", "ZEC"]  # kept as static fallback
 
 # ── In-memory trading-toggle metadata ─────────────────────────────────────────
 # Tracks who last changed the toggle and when (for /api/v1/trading/status).
@@ -126,8 +134,8 @@ def vgx_snapshot() -> dict:
         "daily_pnl":       daily_pnl,
         "total_pnl":       total_pnl,
         "open_positions":  open_positions,
-        "grid_levels":     len(_VGX_PHASE5_COINS),
-        "grid_coins":      _VGX_PHASE5_COINS,
+        "grid_levels":     len(_vgx_get_grid_coins()),
+        "grid_coins":      _vgx_get_grid_coins(),
         "last_trade":      last_trade,
         "win_rate":        win_rate,
         "wins":            wins,
@@ -1946,6 +1954,84 @@ async def export_stats_json():
         )
     except Exception as exc:
         return JSONResponse(status_code=500, content={"error": str(exc)})
+
+
+# ── VGX Grid Management Endpoints ─────────────────────────────────────────────
+
+
+@app.get("/api/vgx/grid-config", response_class=JSONResponse)
+async def vgx_get_grid_config():
+    """Return current grid_config and grid_coins. No auth required (read-only)."""
+    grid_cfg = await asyncio.to_thread(_vgx_get_grid_config)
+    coins    = await asyncio.to_thread(_vgx_get_grid_coins)
+    return JSONResponse(content={"grid_coins": coins, "grid_config": grid_cfg})
+
+
+@app.post("/api/vgx/grid-config/coin", response_class=JSONResponse)
+async def vgx_set_coin_base_price(request: Request):
+    """Set manual grid-centre base price for a coin. Requires X-API-Key."""
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse(content={"status": "error", "reason": "invalid JSON body"})
+
+    coin = str(body.get("coin", "")).strip().upper()
+    if not coin or not coin.isalnum() or len(coin) > 10:
+        return JSONResponse(content={
+            "status": "error",
+            "reason": "coin must be alphanumeric and at most 10 characters",
+        })
+
+    try:
+        base_price = float(body.get("base_price", 0))
+    except (TypeError, ValueError):
+        return JSONResponse(content={"status": "error", "reason": "base_price must be a number"})
+
+    if base_price <= 0:
+        return JSONResponse(content={"status": "error", "reason": "base_price must be > 0"})
+
+    ok = await asyncio.to_thread(_vgx_set_coin_base_price, coin, base_price, "dashboard")
+    if not ok:
+        return JSONResponse(content={"status": "error", "reason": "write failed"})
+
+    logger.info("[VGX API] Base price set: coin=%s price=%s", coin, base_price)
+    return JSONResponse(content={"status": "ok", "coin": coin, "base_price": base_price})
+
+
+@app.delete("/api/vgx/grid-config/coin/{coin}", response_class=JSONResponse)
+async def vgx_remove_coin_base_price(coin: str):
+    """Remove manual base price override for a coin. Requires X-API-Key."""
+    coin = coin.strip().upper()
+    removed = await asyncio.to_thread(_vgx_remove_coin_base_price, coin)
+    if not removed:
+        logger.info("[VGX API] Base price remove: coin=%s not found", coin)
+        return JSONResponse(content={"status": "not_found", "coin": coin})
+    logger.info("[VGX API] Base price removed: coin=%s", coin)
+    return JSONResponse(content={"status": "ok", "coin": coin})
+
+
+@app.post("/api/vgx/grid-coins", response_class=JSONResponse)
+async def vgx_set_grid_coins(request: Request):
+    """Replace the active VGX grid coin list. Requires X-API-Key."""
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse(content={"status": "error", "reason": "invalid JSON body"})
+
+    coins = body.get("coins")
+    if not isinstance(coins, list):
+        return JSONResponse(content={"status": "error", "reason": "coins must be a list"})
+
+    ok = await asyncio.to_thread(_vgx_set_grid_coins, coins)
+    if not ok:
+        return JSONResponse(content={
+            "status": "error",
+            "reason": "validation failed — list must be non-empty, each coin alphanumeric, max 20 coins",
+        })
+
+    normalised = [c.strip().upper() for c in coins if isinstance(c, str)]
+    logger.info("[VGX API] Grid coins updated via API: %s", normalised)
+    return JSONResponse(content={"status": "ok", "coins": normalised, "count": len(normalised)})
 
 
 if __name__ == "__main__":

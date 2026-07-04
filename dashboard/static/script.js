@@ -1673,4 +1673,232 @@ document.addEventListener("DOMContentLoaded", () => {
     })();
     // ── End Pair Preview ───────────────────────────────────────────────────
 
+    // ── VGX Grid Management ────────────────────────────────────────────────
+    // In-memory working copy of the coin list (editable tags).
+    var _vgxCoins = [];
+
+    function vgxMsg(id, text, isError) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = text;
+        el.style.color = isError ? "var(--red, #f87171)" : "var(--green, #4ade80)";
+        if (text) setTimeout(function() { if (el.textContent === text) el.textContent = ""; }, 4000);
+    }
+
+    function vgxRenderCoinTags() {
+        var container = document.getElementById("vgx-coin-tags");
+        var countEl   = document.getElementById("vgx-coin-count");
+        if (!container) return;
+        container.innerHTML = "";
+        _vgxCoins.forEach(function(coin) {
+            var tag = document.createElement("span");
+            tag.style.cssText = "display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;background:var(--accent-blue,#3b82f6);color:#fff;font-size:0.8rem;font-weight:600;";
+
+            var label = document.createTextNode(coin);
+            tag.appendChild(label);
+
+            var btn = document.createElement("button");
+            btn.type = "button";
+            btn.textContent = "\u00d7";
+            btn.style.cssText = "background:none;border:none;color:#fff;cursor:pointer;font-size:0.9rem;padding:0 0 0 4px;line-height:1;";
+            // Capture coin in closure — no inline onclick, no string interpolation.
+            (function(c) { btn.addEventListener("click", function() { vgxRemoveCoinTag(c); }); })(coin);
+            tag.appendChild(btn);
+
+            container.appendChild(tag);
+        });
+        if (countEl) countEl.textContent = _vgxCoins.length + " coin" + (_vgxCoins.length !== 1 ? "s" : "");
+    }
+
+    window.vgxAddCoinTag = function() {
+        var input = document.getElementById("vgx-coin-input");
+        if (!input) return;
+        var coin = input.value.trim().toUpperCase();
+        if (!coin || !/^[A-Z0-9]+$/.test(coin)) { vgxMsg("vgx-coins-msg", "Coin must be alphanumeric.", true); return; }
+        if (coin.length > 10)                    { vgxMsg("vgx-coins-msg", "Max 10 characters.", true); return; }
+        if (_vgxCoins.includes(coin))            { vgxMsg("vgx-coins-msg", coin + " already in list.", true); return; }
+        if (_vgxCoins.length >= 20)              { vgxMsg("vgx-coins-msg", "Maximum 20 coins.", true); return; }
+        _vgxCoins.push(coin);
+        input.value = "";
+        vgxRenderCoinTags();
+        vgxMsg("vgx-coins-msg", "", false);
+    };
+
+    window.vgxRemoveCoinTag = function(coin) {
+        _vgxCoins = _vgxCoins.filter(function(c) { return c !== coin; });
+        vgxRenderCoinTags();
+    };
+
+    window.vgxSaveGridCoins = async function() {
+        if (_vgxCoins.length === 0) { vgxMsg("vgx-coins-msg", "List cannot be empty.", true); return; }
+        try {
+            var resp = await authenticatedFetch("/api/vgx/grid-coins", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ coins: _vgxCoins }),
+            });
+            var data = await resp.json();
+            if (data.status === "ok") {
+                vgxMsg("vgx-coins-msg", "Saved — " + data.count + " coins active.", false);
+            } else {
+                vgxMsg("vgx-coins-msg", "Error: " + (data.reason || "unknown"), true);
+            }
+        } catch (e) {
+            vgxMsg("vgx-coins-msg", "Network error.", true);
+        }
+    };
+
+    // ── Base Price table ───────────────────────────────────────────────────
+    function _vgxTd(text, cls, style) {
+        var td = document.createElement("td");
+        if (cls)   td.className = cls;
+        if (style) td.style.cssText = style;
+        td.textContent = text;
+        return td;
+    }
+
+    function _vgxActionBtn(label, coin, handler, extraStyle) {
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "btn-sm btn-outline";
+        if (extraStyle) btn.style.cssText = extraStyle;
+        btn.textContent = label;
+        (function(c) { btn.addEventListener("click", function() { handler(c); }); })(coin);
+        return btn;
+    }
+
+    function vgxRenderBasePriceTable(gridConfig, gridCoins) {
+        var tbody = document.getElementById("vgx-base-price-tbody");
+        if (!tbody) return;
+        tbody.innerHTML = "";
+
+        if (gridCoins.length === 0) {
+            var emptyRow = document.createElement("tr");
+            var emptyTd  = document.createElement("td");
+            emptyTd.colSpan = 5;
+            emptyTd.className = "text-muted";
+            emptyTd.textContent = "No active coins.";
+            emptyRow.appendChild(emptyTd);
+            tbody.appendChild(emptyRow);
+            return;
+        }
+
+        gridCoins.forEach(function(coin) {
+            var entry = gridConfig[coin];
+            var tr = document.createElement("tr");
+
+            var coinTd = document.createElement("td");
+            var strong = document.createElement("strong");
+            strong.textContent = coin;
+            coinTd.appendChild(strong);
+            tr.appendChild(coinTd);
+
+            if (entry && entry.base_price) {
+                var setAt = entry.base_price_set_at
+                    ? entry.base_price_set_at.slice(0, 16).replace("T", " ")
+                    : "—";
+                var priceStr = Number(entry.base_price).toLocaleString("en-IN", {maximumFractionDigits: 4});
+                tr.appendChild(_vgxTd(priceStr, "text-gold font-mono", null));
+                tr.appendChild(_vgxTd(setAt + " UTC", "text-muted", "font-size:0.78rem"));
+                tr.appendChild(_vgxTd(entry.base_price_set_by || "—", "text-muted", "font-size:0.78rem"));
+
+                var actTd = document.createElement("td");
+                actTd.appendChild(_vgxActionBtn(
+                    "Clear", coin, vgxClearBasePrice,
+                    "color:var(--red,#f87171);border-color:var(--red,#f87171)"
+                ));
+                tr.appendChild(actTd);
+            } else {
+                var autoTd = document.createElement("td");
+                autoTd.className = "text-muted";
+                autoTd.style.fontStyle = "italic";
+                autoTd.textContent = "Auto (live market)";
+                tr.appendChild(autoTd);
+                tr.appendChild(_vgxTd("—", null, null));
+                tr.appendChild(_vgxTd("—", null, null));
+
+                var actTd2 = document.createElement("td");
+                actTd2.appendChild(_vgxActionBtn("Set", coin, vgxQuickSetPrice, null));
+                tr.appendChild(actTd2);
+            }
+            tbody.appendChild(tr);
+        });
+    }
+
+    async function vgxLoadGridConfig() {
+        try {
+            var resp = await authenticatedFetch("/api/vgx/grid-config");
+            var data = await resp.json();
+            _vgxCoins = data.grid_coins || [];
+            vgxRenderCoinTags();
+            vgxRenderBasePriceTable(data.grid_config || {}, _vgxCoins);
+        } catch (e) {
+            var tbody = document.getElementById("vgx-base-price-tbody");
+            if (tbody) tbody.innerHTML = "<tr><td colspan='5' class='text-muted'>Failed to load grid config.</td></tr>";
+        }
+    }
+
+    window.vgxSaveBasePrice = async function() {
+        var coin  = (document.getElementById("vgx-bp-coin-input")  || {}).value || "";
+        var price = (document.getElementById("vgx-bp-price-input") || {}).value || "";
+        coin  = coin.trim().toUpperCase();
+        price = parseFloat(price);
+        if (!coin || !/^[A-Z0-9]+$/.test(coin)) { vgxMsg("vgx-bp-msg", "Enter a valid coin symbol.", true); return; }
+        if (!price || price <= 0)                { vgxMsg("vgx-bp-msg", "Enter a price > 0.", true); return; }
+        try {
+            var resp = await authenticatedFetch("/api/vgx/grid-config/coin", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ coin: coin, base_price: price }),
+            });
+            var data = await resp.json();
+            if (data.status === "ok") {
+                vgxMsg("vgx-bp-msg", "Base price set for " + coin + ".", false);
+                document.getElementById("vgx-bp-coin-input").value  = "";
+                document.getElementById("vgx-bp-price-input").value = "";
+                await vgxLoadGridConfig();
+            } else {
+                vgxMsg("vgx-bp-msg", "Error: " + (data.reason || "unknown"), true);
+            }
+        } catch (e) {
+            vgxMsg("vgx-bp-msg", "Network error.", true);
+        }
+    };
+
+    window.vgxClearBasePrice = async function(coin) {
+        try {
+            var resp = await authenticatedFetch("/api/vgx/grid-config/coin/" + encodeURIComponent(coin), { method: "DELETE" });
+            var data = await resp.json();
+            if (data.status === "ok") {
+                vgxMsg("vgx-bp-msg", "Cleared base price for " + coin + ".", false);
+                await vgxLoadGridConfig();
+            } else {
+                vgxMsg("vgx-bp-msg", data.status === "not_found" ? coin + " had no manual price set." : "Error clearing price.", data.status !== "not_found");
+            }
+        } catch (e) {
+            vgxMsg("vgx-bp-msg", "Network error.", true);
+        }
+    };
+
+    window.vgxQuickSetPrice = function(coin) {
+        var coinInput  = document.getElementById("vgx-bp-coin-input");
+        var priceInput = document.getElementById("vgx-bp-price-input");
+        if (coinInput)  coinInput.value  = coin;
+        if (priceInput) priceInput.focus();
+    };
+
+    // Load grid config when the VGX view is first shown.
+    document.querySelectorAll(".nav-anchor[data-target='vgx-view']").forEach(function(link) {
+        link.addEventListener("click", function() {
+            setTimeout(vgxLoadGridConfig, 100);
+        });
+    });
+    // Also load on page init in case VGX view is active.
+    if (document.getElementById("vgx-view") && !document.getElementById("vgx-view").classList.contains("view-hidden")) {
+        vgxLoadGridConfig();
+    }
+    // ── End VGX Grid Management ────────────────────────────────────────────
+
+    // ── End Pair Preview ───────────────────────────────────────────────────
+
 });
