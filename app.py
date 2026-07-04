@@ -1586,7 +1586,15 @@ async def unified_statistics():
 async def coin_leaderboard():
     """Coin leaderboard sorted by total return across all evaluated signals."""
     try:
-        stats = _unified_stats()
+        # Pre-fetch snapshots via the cache (uses asyncio.to_thread internally) so
+        # _unified_stats never falls back to its own synchronous file-I/O path.
+        vgx, mtbs, pmbs = await asyncio.gather(
+            _cached_snapshot("vgx", vgx_snapshot),
+            _cached_snapshot("mtb", mtb_snapshot),
+            _cached_snapshot("pmb", pmb_snapshot),
+        )
+        logger.debug("[dashboard] offloading _unified_stats (leaderboard) to thread")
+        stats = await asyncio.to_thread(_unified_stats, vgx, mtbs, pmbs)
         return {"leaderboard": stats["coin_leaderboard"], "timestamp": stats["timestamp"]}
     except Exception as exc:
         return JSONResponse(status_code=500, content={"error": str(exc)})

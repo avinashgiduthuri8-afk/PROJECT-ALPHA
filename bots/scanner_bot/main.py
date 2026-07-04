@@ -563,7 +563,10 @@ async def scanner_storage():
         elif signals_exists:
             try:
                 import json as _json
-                data = _json.loads(signals_path.read_text(encoding="utf-8"))
+                def _read_signals_count():
+                    return _json.loads(signals_path.read_text(encoding="utf-8"))
+                logger.debug("[scanner] offloading signals file read (storage) to thread")
+                data = await asyncio.to_thread(_read_signals_count)
                 signals_count = len(data.get("signals", []))
             except Exception:
                 signals_count = 0
@@ -1519,10 +1522,13 @@ async def _do_backup(*, label: str = "Backup") -> None:
         tmp   = dst.with_suffix(".tmp")
         try:
             src = _Path(src_path)
-            data = src.read_bytes() if src.is_file() else b"[]"
-            await asyncio.get_running_loop().run_in_executor(
-                None, lambda d=data, t=tmp, f=dst: (t.write_bytes(d), t.replace(f))
-            )
+            # Read and write both offloaded so neither blocks the event loop.
+            def _read_and_write(s=src, t=tmp, f=dst):
+                d = s.read_bytes() if s.is_file() else b"[]"
+                t.write_bytes(d)
+                t.replace(f)
+            logger.debug("[scanner] offloading backup read+write for %s to thread", short)
+            await asyncio.get_running_loop().run_in_executor(None, _read_and_write)
             results[short] = True
         except Exception:
             logger.exception("%s: failed to write %s", label, dst_name)
@@ -1600,7 +1606,8 @@ async def _cleanup_loop() -> None:
     while True:
         await asyncio.sleep(_CLEANUP_INTERVAL_SECONDS)
         try:
-            _run_cleanup()
+            logger.debug("[scanner] offloading _run_cleanup to thread")
+            await asyncio.to_thread(_run_cleanup)
         except Exception:
             logger.exception("Cleanup loop: unexpected error in _run_cleanup")
 

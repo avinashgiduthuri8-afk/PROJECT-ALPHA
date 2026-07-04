@@ -125,7 +125,7 @@ def snapshot() -> dict[str, Any]:
             "max_positions":     MAX_POSITIONS.get(bot, 0),
         }
     return {
-        "trading_enabled":    is_trading_enabled(),
+        "trading_enabled":    get_trading_enabled(),
         "emergency_stop":     EMERGENCY_STOP,
         "total_capital_limit": TOTAL_CAPITAL_LIMIT,
         "total_deployed":     round(total_deployed, 2),

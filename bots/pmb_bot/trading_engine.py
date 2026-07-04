@@ -15,6 +15,7 @@ All operations are paper trades — no real exchange calls.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import threading
 from dataclasses import dataclass
@@ -80,7 +81,11 @@ def _open_position_exists(coin: str, positions: list[dict]) -> bool:
     )
 
 
-def validate_signal(signal: dict, positions: list[dict] | None = None) -> ValidationResult:
+def validate_signal(
+    signal: dict,
+    positions: list[dict] | None = None,
+    stats: dict | None = None,
+) -> ValidationResult:
     positions  = positions if positions is not None else storage.load_positions()
     coin       = str(signal.get("coin", "")).upper().strip()
     price      = float(signal.get("entry_price") or 0)
@@ -100,7 +105,9 @@ def validate_signal(signal: dict, positions: list[dict] | None = None) -> Valida
         return ValidationResult(False, "INVALID_PRICE", "Signal has invalid entry price.")
     if score < MIN_SIGNAL_SCORE:
         return ValidationResult(False, "SCORE_TOO_LOW", f"Score {score:.0f} below PMB threshold {MIN_SIGNAL_SCORE}.")
-    stats = storage.load_stats()
+    # ── Cash gate (caller may supply a pre-fetched stats dict to avoid extra I/O) ──
+    if stats is None:
+        stats = storage.load_stats()
     if float(stats.get("cash_balance", 0.0)) < BASE_BUY:
         return ValidationResult(False, "INSUFFICIENT_CASH", "PMB cash balance below BASE_BUY.")
     return ValidationResult(True, "OK", "Signal accepted.")
@@ -415,8 +422,29 @@ async def run_cycle() -> dict[str, Any]:
       1. Manage existing open positions (dip buys, partial sells, stop losses).
       2. Open new base positions from scanner signals.
     """
-    current_prices = scanner_bridge.get_current_prices()
-    open_positions = storage.get_open_positions()
+    # ── Named sync helpers (spec: wrap each blocking call in a named function) ─
+    def _fetch_current_prices():
+        return scanner_bridge.get_current_prices()
+
+    def _fetch_open_positions():
+        return storage.get_open_positions()
+
+    def _fetch_signals():
+        return scanner_bridge.get_signals()
+
+    def _load_all_positions():
+        return storage.load_positions()
+
+    def _load_stats():
+        return storage.load_stats()
+
+    # ── Offload all blocking I/O to the thread pool ────────────────────────────
+    # Fetch prices and open positions concurrently — both are independent reads.
+    logger.debug("[PMB] offloading get_current_prices + get_open_positions to thread")
+    current_prices, open_positions = await asyncio.gather(
+        asyncio.to_thread(_fetch_current_prices),
+        asyncio.to_thread(_fetch_open_positions),
+    )
     dip_buys = partial_sells = stop_losses = 0
 
     for pos in list(open_positions):
@@ -430,27 +458,36 @@ async def run_cycle() -> dict[str, Any]:
         next_sell  = float(pos.get("next_sell_price",  0))
 
         if sl_price > 0 and price <= sl_price:
-            execute_stop_loss(pos, price)
+            logger.debug("[PMB] offloading execute_stop_loss (%s) to thread", coin)
+            await asyncio.to_thread(execute_stop_loss, pos, price)
             stop_losses += 1
         elif next_sell > 0 and price >= next_sell:
-            execute_partial_sell(pos, price)
+            logger.debug("[PMB] offloading execute_partial_sell (%s) to thread", coin)
+            await asyncio.to_thread(execute_partial_sell, pos, price)
             partial_sells += 1
         elif next_dip > 0 and price <= next_dip and int(pos.get("dip_count", 0)) < MAX_DIPS:
-            execute_dip_buy(pos, price)
+            logger.debug("[PMB] offloading execute_dip_buy (%s) to thread", coin)
+            await asyncio.to_thread(execute_dip_buy, pos, price)
             dip_buys += 1
 
-    raw_signals = scanner_bridge.get_signals()
-    positions_snapshot = storage.load_positions()
+    # Fetch signals, positions, and stats concurrently — all are independent reads.
+    logger.debug("[PMB] offloading get_signals + load_positions + load_stats to thread")
+    raw_signals, positions_snapshot, stats_snap = await asyncio.gather(
+        asyncio.to_thread(_fetch_signals),
+        asyncio.to_thread(_load_all_positions),
+        asyncio.to_thread(_load_stats),
+    )
     accepted = rejected = opened = 0
     rejection_reasons: list[dict] = []
 
     for signal in raw_signals:
-        validation = validate_signal(signal, positions_snapshot)
+        validation = validate_signal(signal, positions_snapshot, stats=stats_snap)
         if not validation.passed:
             rejected += 1
             rejection_reasons.append({"coin": signal.get("coin"), "code": validation.code})
             continue
-        result = open_base_position(signal)
+        logger.debug("[PMB] offloading open_base_position (%s) to thread", signal.get("coin"))
+        result = await asyncio.to_thread(open_base_position, signal)
         if result.get("ok"):
             accepted += 1
             opened   += 1

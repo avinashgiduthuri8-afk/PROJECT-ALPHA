@@ -18,6 +18,7 @@ Exit logic
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import threading
 from dataclasses import dataclass
@@ -81,7 +82,11 @@ def _open_position_for_symbol(symbol: str, positions: list[dict]) -> bool:
     )
 
 
-def validate_signal(signal: dict, positions: list[dict] | None = None) -> ValidationResult:
+def validate_signal(
+    signal: dict,
+    positions: list[dict] | None = None,
+    stats: dict | None = None,
+) -> ValidationResult:
     positions    = positions if positions is not None else storage.load_positions()
     symbol       = str(signal.get("symbol", "")).upper()
     price        = float(signal.get("entry_price") or 0)
@@ -124,8 +129,9 @@ def validate_signal(signal: dict, positions: list[dict] | None = None) -> Valida
             False, "UNFAVORABLE_TREND",
             f"Market state '{market_state}' not in MTB allowed states."
         )
-    # ── Cash gate ────────────────────────────────────────────────────────────
-    stats = storage.load_stats()
+    # ── Cash gate (caller may supply a pre-fetched stats dict to avoid extra I/O) ──
+    if stats is None:
+        stats = storage.load_stats()
     if float(stats.get("cash_balance", 0.0)) < TRADE_AMOUNT:
         return ValidationResult(False, "INSUFFICIENT_CASH", "MTB cash balance below trade amount.")
     return ValidationResult(True, "OK", "Signal accepted — EMA/MACD/Momentum confirmed.")
@@ -317,10 +323,30 @@ async def run_cycle() -> dict[str, Any]:
       1. Check exits (TAKE_PROFIT / STOP_LOSS) on all open positions.
       2. Open new positions from scanner signals that pass EMA/MACD/Momentum gates.
     """
-    current_prices = _get_current_prices()
-    open_positions = storage.get_open_positions() if hasattr(storage, "get_open_positions") else [
-        p for p in storage.load_positions() if str(p.get("status", "")).upper() == "OPEN"
-    ]
+    # ── Named sync helpers (spec: wrap each blocking call in a named function) ─
+    def _fetch_prices():
+        return _get_current_prices()
+
+    def _fetch_open_positions():
+        if hasattr(storage, "get_open_positions"):
+            return storage.get_open_positions()
+        return [p for p in storage.load_positions()
+                if str(p.get("status", "")).upper() == "OPEN"]
+
+    def _fetch_signals():
+        return scanner_bridge.get_signals()
+
+    def _load_all_positions():
+        return storage.load_positions()
+
+    def _load_stats():
+        return storage.load_stats()
+
+    # ── Offload all blocking I/O to the thread pool ────────────────────────────
+    logger.debug("[MTB] offloading _get_current_prices to thread")
+    current_prices = await asyncio.to_thread(_fetch_prices)
+    logger.debug("[MTB] offloading get_open_positions to thread")
+    open_positions = await asyncio.to_thread(_fetch_open_positions)
     exits_tp = exits_sl = 0
 
     for pos in list(open_positions):
@@ -331,19 +357,26 @@ async def run_cycle() -> dict[str, Any]:
         tp = float(pos.get("take_profit_price", 0))
         sl = float(pos.get("stop_loss_price",   0))
         if tp > 0 and price >= tp:
-            close_position(pos["symbol"], price, reason="TAKE_PROFIT")
+            logger.debug("[MTB] offloading close_position (TAKE_PROFIT %s) to thread", pos.get("symbol"))
+            await asyncio.to_thread(close_position, pos["symbol"], price, reason="TAKE_PROFIT")
             exits_tp += 1
         elif sl > 0 and price <= sl:
-            close_position(pos["symbol"], price, reason="STOP_LOSS")
+            logger.debug("[MTB] offloading close_position (STOP_LOSS %s) to thread", pos.get("symbol"))
+            await asyncio.to_thread(close_position, pos["symbol"], price, reason="STOP_LOSS")
             exits_sl += 1
 
-    raw_signals = scanner_bridge.get_signals()
-    positions_snap = storage.load_positions()
+    # Fetch signals, positions, and stats concurrently — all are independent reads.
+    logger.debug("[MTB] offloading get_signals + load_positions + load_stats to thread")
+    raw_signals, positions_snap, stats_snap = await asyncio.gather(
+        asyncio.to_thread(_fetch_signals),
+        asyncio.to_thread(_load_all_positions),
+        asyncio.to_thread(_load_stats),
+    )
     accepted = rejected = opened = 0
     rejection_reasons: list[dict] = []
 
     for signal in raw_signals:
-        validation = validate_signal(signal, positions_snap)
+        validation = validate_signal(signal, positions_snap, stats=stats_snap)
         if not validation.passed:
             rejected += 1
             rejection_reasons.append({
@@ -352,7 +385,8 @@ async def run_cycle() -> dict[str, Any]:
                 "reason": validation.reason,
             })
             continue
-        result = open_paper_position(signal)
+        logger.debug("[MTB] offloading open_paper_position (%s) to thread", signal.get("symbol"))
+        result = await asyncio.to_thread(open_paper_position, signal)
         if result.get("ok"):
             accepted += 1
             opened   += 1
