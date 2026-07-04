@@ -1234,6 +1234,41 @@ async def unified_state_polling_endpoint():
     """Future production data hook. Live bots simply post metrics to rewrite state."""
     return await pull_state_payload()
 
+
+@app.get("/api/v1/prices", response_class=JSONResponse)
+async def get_live_prices():
+    """Return ``{prices: {COIN: float}}`` from the scanner's in-memory ticker cache.
+
+    Zero CoinDCX API calls — reads only ``_SCANNER._ticker_cache``.
+    Used by the dashboard JS to patch trade history Cur. Price cells every refresh cycle.
+    """
+    import bots.scanner_bot.main as _scanner_main
+
+    def _read_cache() -> dict[str, float]:
+        sc      = getattr(_scanner_main, "_SCANNER", None)
+        tickers = getattr(sc, "_ticker_cache", None) if sc is not None else None
+        if not tickers:
+            return {}
+        prices: dict[str, float] = {}
+        for entry in tickers:
+            market = str(entry.get("market", ""))
+            base   = market.replace("B-", "").split("_")[0].upper()
+            if not base:
+                continue
+            try:
+                price = float(entry["last_price"])
+            except (KeyError, ValueError, TypeError):
+                continue
+            if base not in prices:   # first match wins (INR before USDT)
+                prices[base] = price
+        return prices
+
+    try:
+        prices = await asyncio.to_thread(_read_cache)
+    except Exception:
+        prices = {}
+    return {"prices": prices, "count": len(prices)}
+
 # ═══════════════════════════════════════════════════════════════
 #  UNIFIED STATISTICS ENGINE
 # ═══════════════════════════════════════════════════════════════

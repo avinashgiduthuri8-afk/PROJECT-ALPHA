@@ -1221,6 +1221,27 @@ document.addEventListener("DOMContentLoaded", () => {
             // ── Portfolio View patches ────────────────────────────────────
             updatePortfolioView(data);
 
+            // ── Live current price patch — trade history tables ───────────
+            // Calls /api/v1/prices which reads only the scanner's in-memory
+            // ticker cache — zero CoinDCX API calls.
+            try {
+                var _pr = await authenticatedFetch("/api/v1/prices");
+                if (_pr.ok) {
+                    var _pd     = await _pr.json();
+                    var _prices = _pd.prices || {};
+                    document.querySelectorAll("[data-cur-price]").forEach(function(_cell) {
+                        var _row   = _cell.closest("tr");
+                        if (!_row) return;
+                        var _coin  = (_row.dataset.coin || "").toUpperCase();
+                        if (!_coin) return;
+                        var _price = _prices[_coin];
+                        _cell.textContent = (_price != null)
+                            ? parseFloat(_price).toFixed(4)
+                            : "\u2014";
+                    });
+                }
+            } catch (_e) { /* silent — never disrupt dashboard refresh */ }
+
         } catch (err) {
             console.warn("[ProjectA] Dashboard refresh failed:", err.message);
         }
