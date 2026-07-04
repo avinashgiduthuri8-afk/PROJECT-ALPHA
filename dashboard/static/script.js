@@ -917,6 +917,30 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // ── Last Updated timestamp (browser-side IST clock) ────────────────
+    // Frontend-only — uses the browser's own clock, converted to IST via
+    // Intl, and refreshed every time refreshDashboardData() runs. No
+    // backend/API data is involved; this is purely a "did my browser just
+    // successfully poll the server" freshness indicator.
+    function updateLastUpdatedTimestamp() {
+        try {
+            const el = document.getElementById("last-updated-label");
+            if (!el) return;
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString("en-GB", {
+                timeZone: "Asia/Kolkata",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+                hour12: false,
+            });
+            el.textContent = "Last updated: " + timeStr + " IST";
+        } catch (e) {
+            const el = document.getElementById("last-updated-label");
+            if (el) el.textContent = "Last updated: —";
+        }
+    }
+
     // ── Capital Allocation % widget ─────────────────────────────────────
     // Frontend-only calculation — no backend/API changes. Reads three
     // existing balance fields already present in the /api/v1/state payload:
@@ -1264,6 +1288,9 @@ document.addEventListener("DOMContentLoaded", () => {
             // ── Capital Allocation % widget ────────────────────────────────
             renderCapitalAllocation(data);
 
+            // ── Last Updated timestamp ──────────────────────────────────────
+            updateLastUpdatedTimestamp();
+
             // ── Live current price patch — trade history tables ───────────
             // Calls /api/v1/prices which reads only the scanner's in-memory
             // ticker cache — zero CoinDCX API calls.
@@ -1296,6 +1323,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const ms = raw ? parseInt(raw, 10) : 10000;
         return (ms > 0) ? ms : 0;
     }
+    // Show an immediate timestamp on load rather than leaving the label at
+    // its static "—" placeholder until the first refresh cycle fires.
+    updateLastUpdatedTimestamp();
+
     // Use a mutable variable so subsequent settings changes clear the correct timer
     let activeIntervalId = setInterval(refreshDashboardData, getRefreshIntervalMs());
     if (refreshSelect) {

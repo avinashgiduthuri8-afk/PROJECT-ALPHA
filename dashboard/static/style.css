@@ -332,6 +332,17 @@ body {
 }
 .utility-badge-trigger:hover { background: var(--border); border-color: var(--border-hover); }
 
+.last-updated-label {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    white-space: nowrap;
+    margin-right: 2px;
+}
+@media (max-width: 768px) {
+    .last-updated-label { display: none; }
+}
+
 .alert-counter-badge {
     background-color: var(--red);
     color: #fff;
