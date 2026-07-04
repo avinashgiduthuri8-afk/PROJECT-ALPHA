@@ -4,6 +4,109 @@ All notable changes to PROJECT-ALPHA will be documented in this file.
 
 ## [Unreleased]
 
+### [2026-07-04] Async Blocking I/O Hardening — All Bot Cycles
+
+#### Problem
+Six `async def` handlers across four files were calling synchronous blocking code
+(file reads/writes and `urllib.request.urlopen`) directly on the event loop.
+In the worst case (MTB/PMB trading cycles) a single scanner-API fallback could stall
+the entire event loop for up to 12–24 seconds per trade cycle tick, freezing all
+concurrent HTTP responses.
+
+#### Fixed — `bots/mtb_bot/trading_engine.py`
+- Added `import asyncio` at module level.
+- `validate_signal()`: added optional `stats: dict | None = None` parameter so callers
+  can supply a pre-fetched stats snapshot; falls back to `storage.load_stats()` when
+  `None` (backward-compatible with all existing call sites).
+- `async def run_cycle()`:
+  - Introduced named inner helper functions for every blocking call
+    (`_fetch_prices`, `_fetch_open_positions`, `_fetch_signals`,
+    `_load_all_positions`, `_load_stats`) per spec requirement.
+  - `_get_current_prices()` and `storage.get_open_positions()` offloaded via
+    `asyncio.to_thread`.
+  - `close_position()` offloaded via `asyncio.to_thread` for each TAKE_PROFIT /
+    STOP_LOSS exit (eliminates up to 5 s Telegram + file-write stall per close).
+  - `get_signals`, `load_positions`, `load_stats` fetched concurrently via
+    `asyncio.gather(to_thread(...), to_thread(...), to_thread(...))`.
+  - Pre-fetched `stats_snap` passed to `validate_signal` — eliminates one
+    `storage.load_stats()` disk read per signal in the loop.
+  - `open_paper_position()` offloaded via `asyncio.to_thread` (eliminates up to
+    5 s Telegram + 3× file-write stall per trade open).
+
+#### Fixed — `bots/pmb_bot/trading_engine.py`
+- Added `import asyncio` at module level.
+- `validate_signal()`: same optional `stats` param added (backward-compatible).
+- `async def run_cycle()`:
+  - Named inner helpers: `_fetch_current_prices`, `_fetch_open_positions`,
+    `_fetch_signals`, `_load_all_positions`, `_load_stats`.
+  - `get_current_prices()` and `get_open_positions()` fetched concurrently via
+    `asyncio.gather` (first two reads are independent).
+  - `execute_stop_loss`, `execute_partial_sell`, `execute_dip_buy` all offloaded
+    via `asyncio.to_thread` (each carries Telegram + 3× file-write blocking I/O).
+  - `get_signals`, `load_positions`, `load_stats` fetched concurrently via
+    `asyncio.gather`.
+  - Pre-fetched `stats_snap` passed to `validate_signal`.
+  - `open_base_position()` offloaded via `asyncio.to_thread`.
+
+#### Fixed — `app.py`
+- `async def coin_leaderboard()` (`GET /api/v1/stats/leaderboard`):
+  - Previously called `_unified_stats()` with no arguments, triggering the
+    synchronous file-I/O fallback (`vgx_snapshot()` + `mtb_snapshot()` +
+    `pmb_snapshot()` — three `open()` + `json.load()` calls on the event loop).
+  - Fixed to pre-fetch all three snapshots via `_cached_snapshot()` (which already
+    uses `asyncio.to_thread` internally) with `asyncio.gather`, then pass them to
+    `_unified_stats()` via `asyncio.to_thread()` — matching the pattern already
+    used correctly by `unified_statistics`.
+
+#### Fixed — `bots/scanner_bot/main.py`
+- `async def scanner_storage()`: `signals_path.read_text()` (cold-start path when
+  in-memory tracker is absent) wrapped in named helper `_read_signals_count()` +
+  `asyncio.to_thread()`.
+- `async def _do_backup()`: `src.read_bytes()` was executing on the event loop while
+  only the write was offloaded. Combined read + write into a single `_read_and_write()`
+  helper passed to `run_in_executor` — both operations now off the event loop.
+- `async def _cleanup_loop()`: `_run_cleanup()` (sync function: `open()` +
+  `json.load()` + `write_json_safely()`) wrapped in `asyncio.to_thread()`.
+
+#### Fixed — `bots/risk_engine/engine.py`
+- `snapshot()` was calling `is_trading_enabled()` which was no longer imported
+  (regression introduced in the Task 2 trading-toggle implementation). Corrected
+  to call `get_trading_enabled()` — the name exported by `bots/risk_engine/config.py`.
+
+#### Verified Not Violations (no change needed)
+- `app.py` `_cached_snapshot()` — already uses `asyncio.to_thread` ✅
+- `app.py` circuit-breaker file read — already uses `asyncio.to_thread` ✅
+- `app.py` price fetch — already uses `asyncio.to_thread` ✅
+- `app.py` `unified_statistics` — passes pre-fetched snapshots, fallback never fires ✅
+- `scanner_bot/main.py` `_read_live_signals` — already uses `asyncio.to_thread` ✅
+- `bots/volatile_gridX/trading_engine.py` — no `async def` functions ✅
+- `bots/volatile_gridX/market_data.py` — no `async def` functions ✅
+
+#### Correctness / Thread-Safety Notes
+- All trade-mutation functions (`close_position`, `open_paper_position`,
+  `execute_*`, `open_base_position`) hold `_TRADE_LOCK` internally.
+  `asyncio.to_thread` runs them in the standard thread-pool executor; the lock
+  continues to guard all check→mutate→save sequences correctly across threads.
+- The `stats_snap` passed to `validate_signal` in `run_cycle` is a pre-check
+  optimisation (reduces I/O). It does not replace the lock-time revalidation:
+  `open_paper_position` / `open_base_position` re-read fresh state under
+  `_TRADE_LOCK` before any mutation, preventing any overspend from a stale snapshot.
+- Concurrent `asyncio.gather` reads (signals + positions + stats) are independent
+  reads and safe to parallelise; they are not a transactional snapshot, but
+  lock-time revalidation is the correctness boundary.
+
+#### Severity Resolved
+| Violation | Max block | Severity |
+|---|---|---|
+| MTB/PMB `run_cycle` network (urlopen) | up to 24 s | Critical |
+| MTB/PMB `run_cycle` file writes per trade | ~15 ms × N | Critical |
+| `coin_leaderboard` 3× snapshot file reads | ~45 ms | Medium |
+| `scanner_storage` cold-path read_text | ~50 ms | Low |
+| `_cleanup_loop` run_cleanup (read+write) | ~20 ms | Low |
+| `_do_backup` read_bytes × 8 files | ~80 ms | Low |
+
+---
+
 ### [2025-12] Multi-Bot Telegram Configuration - V1
 
 #### New File: `telegram/multi_bot_config.py`
