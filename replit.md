@@ -1,47 +1,38 @@
-# PROJECT-ALPHA Trading Dashboard
+# PROJECT-ALPHA
 
-## Overview
-A FastAPI-based crypto trading dashboard running multiple automated trading bots against the CoinDCX exchange (INR and USDT markets). Includes a web dashboard, Telegram bot integrations, and a paper/live trading mode.
+A multi-bot cryptocurrency trading system with a FastAPI web dashboard.
+
+## Project Overview
+
+PROJECT-ALPHA is a paper/live trading platform consisting of four trading bots, a signal scanner, a risk engine, and a real-time web dashboard.
 
 ### Bots
-| Bot | Description |
-|-----|-------------|
-| **scanner_bot** | Scans watchlist coins, generates buy signals by tier (ELITE / HIGH / MEDIUM) |
-| **mtb_bot** | Momentum Trading Bot — opens/closes paper positions from scanner signals |
-| **pmb_bot** | Portfolio Management Bot — partial-sell ladder strategy |
-| **volatile_gridX (VGX)** | Grid-style paper trader with trailing stop and stop-loss |
-| **risk_engine** | Cross-bot deployed-capital and drawdown guard |
+- **Scanner Bot** (`bots/scanner_bot/`) — Scans the market for trading signals and maintains a watchlist
+- **Volatile Grid X (VGX)** (`bots/volatile_gridX/`) — Grid-style trading bot with trailing stops and circuit breaker
+- **Price Movement Bot (PMB)** (`bots/pmb_bot/`) — DCA-style bot triggered by price dips
+- **MACD Trend Bounce Bot (MTB)** (`bots/mtb_bot/`) — MACD-based trend following bot
 
-### Stack
-- **Backend**: FastAPI + Uvicorn (Python 3.12)
-- **Templates**: Jinja2 (`dashboard/templates/`)
-- **Storage**: JSON files under each bot's `storage/` or `data/` directory
-- **Bots**: python-telegram-bot library
+### Core Modules
+- **Risk Engine** (`bots/risk_engine/`) — Kill switches, circuit breaker, drawdown limits
+- **Monitoring** (`monitoring/`) — System health, metrics, Telegram alerts
+- **Dashboard** (`dashboard/`) — HTML/CSS/JS frontend served by FastAPI
 
-## How to run
-```
-python app.py
-```
-The app serves on port 5000.
+### Entry Point
+- `app.py` — FastAPI application; mounts all bot routers and serves the dashboard
 
-## Environment variables
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `DASHBOARD_API_KEY` | Yes (set in .replit) | Protects all API routes |
-| `BOT_TOKEN` | Optional | Telegram bot token for VGX |
-| `API_KEY` | Optional | CoinDCX API key (paper trading works without it) |
-| `SCANNER_BOT_TOKEN` / `MTB_BOT_TOKEN` / `PMB_BOT_TOKEN` | Optional | Per-bot Telegram tokens |
-| `VGX_BOT_MODE` | Optional | `PAPER` (default) or `LIVE` |
-| `VGX_ENABLED` / `MTB_ENABLED` / `PMB_ENABLED` | Optional | Toggle each bot (all default true) |
+## Stack
+- **Backend**: Python, FastAPI, asyncio
+- **Frontend**: Jinja2 templates, vanilla JS, CSS
+- **Storage**: JSON files (per-bot, thread-safe with locks)
+- **Notifications**: Telegram bots (one per trading bot)
 
-Without Telegram tokens the bots run headlessly; the dashboard still works.
+## Environment Variables Required to Run
+See `.emergent/emergent.yml` and `CHANGELOG.md` for the full list. Key variables:
+- `SESSION_SECRET` — Flask/Starlette session secret
+- `BOT_TOKEN`, `TELEGRAM_CHAT_ID` — Telegram (legacy/fallback)
+- `SCANNER_BOT_TOKEN`, `VGX_BOT_TOKEN`, `PMB_BOT_TOKEN`, `MTB_BOT_TOKEN` — Per-bot Telegram tokens
+- `API_KEY` — Dashboard API authentication
+- Exchange API credentials (per-bot config files)
 
-## Dependencies
-Install with:
-```
-pip install -r requirements.txt
-```
-The `ta` package (Technical Analysis library) is required and included in `requirements.txt`.
-
-## User preferences
-- Prefers bug audits and code quality improvements.
+## User Preferences
+- Imported for code study — no run workflow needed
