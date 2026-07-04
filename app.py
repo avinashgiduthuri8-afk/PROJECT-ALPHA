@@ -428,13 +428,41 @@ def _compute_holding_time(entry_ts: str, exit_ts: str) -> str:
         return "—"
 
 
-def _enrich_closed_trades(trades: list[dict], all_trades: list[dict]) -> list[dict]:
-    """Add ``pnl_pct``, ``holding_time``, and ``entry_price`` to closed trade records.
+def _enrich_closed_trades(
+    trades: list[dict],
+    all_trades: list[dict],
+    prices: dict | None = None,
+) -> list[dict]:
+    """Add ``pnl_pct``, ``holding_time``, ``entry_price``, ``exit_reason``,
+    and ``current_price`` to closed trade records.
 
     Matches each sell/close trade to its corresponding buy trade via the shared
     position ``id`` field.  Falls back to ``'—'`` when no match is found.
     Does **not** mutate the input lists.
+
+    ``prices`` is an optional ``{coin: float}`` mapping for current market prices
+    (pre-fetched by the caller to avoid blocking the event loop).
     """
+    _EXIT_REASON_MAP = {
+        "TAKE_PROFIT":   "TAKE_PROFIT",
+        "STOP_LOSS":     "STOP_LOSS",
+        "TRAILING_STOP": "TRAILING_STOP",
+        "MANUAL":        "MANUAL",
+    }
+
+    def _derive_exit_reason(t: dict) -> str:
+        action       = str(t.get("action",       "")).upper()
+        reason       = str(t.get("reason",       "")).upper()
+        close_reason = str(t.get("close_reason", "")).upper()
+        combined     = f"{action} {reason} {close_reason}"
+        for key, label in _EXIT_REASON_MAP.items():
+            if key in combined:
+                return label
+        if "PARTIAL_SELL" in action:
+            return "TAKE_PROFIT"
+        status = str(t.get("status", "")).upper()
+        return "UNKNOWN" if status == "CLOSED" else "UNKNOWN"
+
     # Build id → earliest BUY trade for holding_time and entry_price lookups
     buy_by_id: dict[str, dict] = {}
     for t in all_trades:
@@ -469,8 +497,61 @@ def _enrich_closed_trades(trades: list[dict], all_trades: list[dict]) -> list[di
             t.setdefault("entry_price", "—")
             t["holding_time"] = "—"
 
+        # exit_reason — normalised from action / reason / close_reason
+        t["exit_reason"] = _derive_exit_reason(t)
+
+        # current_price — from caller-supplied prices dict (never blocks here)
+        coin = t.get("coin") or ""
+        if not coin:
+            sym = str(t.get("symbol", ""))
+            coin = sym.replace("B-", "").split("_")[0]
+        t["current_price"] = (prices or {}).get(coin)
+
         enriched.append(t)
     return enriched
+
+
+async def _get_current_prices_safe(coins: list[str]) -> dict[str, float | None]:
+    """Return ``{coin: price}`` for each coin.
+
+    Priority: scanner ``_ticker_cache`` → CoinDCX tickers API (in thread) → None.
+    Never raises; never blocks the event loop.
+    """
+    if not coins:
+        return {}
+
+    import bots.scanner_bot.main as _scanner_main
+
+    def _price_from_tickers(tickers: list, coin: str) -> float | None:
+        coin_up = coin.upper()
+        for entry in tickers:
+            market = str(entry.get("market", ""))
+            base   = market.replace("B-", "").split("_")[0].upper()
+            if base == coin_up:
+                try:
+                    return float(entry["last_price"])
+                except (KeyError, ValueError, TypeError):
+                    pass
+        return None
+
+    def _sync_fetch(coins_list: list[str]) -> dict[str, float | None]:
+        sc      = getattr(_scanner_main, "_SCANNER", None)
+        tickers = getattr(sc, "_ticker_cache", None) if sc is not None else None
+        if not tickers:
+            try:
+                import urllib.request, json as _json
+                with urllib.request.urlopen(
+                    "https://public.coindcx.com/market_data/ticker", timeout=5
+                ) as r:
+                    tickers = _json.loads(r.read())
+            except Exception:
+                tickers = []
+        return {c: _price_from_tickers(tickers, c) for c in coins_list}
+
+    try:
+        return await asyncio.to_thread(_sync_fetch, list(coins))
+    except Exception:
+        return {c: None for c in coins}
 
 
 async def pull_state_payload():
@@ -480,20 +561,37 @@ async def pull_state_payload():
     mtb_state = await _cached_snapshot("mtb", mtb_snapshot)
     pmb_state = await _cached_snapshot("pmb", pmb_snapshot)
 
-    # Enrich closed trade records with pnl_pct, holding_time, entry_price.
+    # Enrich closed trade records with pnl_pct, holding_time, entry_price,
+    # exit_reason, and current_price.
     # We load the full trade log (not just the snapshot slice) so the buy record
     # that corresponds to each close can always be found.
     try:
         import bots.pmb_bot.storage as _pmb_st
         import bots.mtb_bot.storage as _mtb_st
-        _pmb_all = await asyncio.to_thread(_pmb_st.load_trades)
-        _mtb_all = await asyncio.to_thread(_mtb_st.load_trades)
+        _pmb_all, _mtb_all = await asyncio.gather(
+            asyncio.to_thread(_pmb_st.load_trades),
+            asyncio.to_thread(_mtb_st.load_trades),
+        )
+
+        # Collect unique coins across both bots for a single price fetch
+        _pmb_closed = pmb_state.get("closed_trades", [])
+        _mtb_closed = mtb_state.get("closed_trades", [])
+        _coins: set[str] = set()
+        for _t in _pmb_closed:
+            if _t.get("coin"):
+                _coins.add(_t["coin"])
+        for _t in _mtb_closed:
+            _c = _t.get("coin") or str(_t.get("symbol", "")).replace("B-", "").split("_")[0]
+            if _c:
+                _coins.add(_c)
+        _prices = await _get_current_prices_safe(list(_coins))
+
         pmb_state = {**pmb_state,
                      "closed_trades": _enrich_closed_trades(
-                         pmb_state.get("closed_trades", []), _pmb_all)}
+                         _pmb_closed, _pmb_all, prices=_prices)}
         mtb_state = {**mtb_state,
                      "closed_trades": _enrich_closed_trades(
-                         mtb_state.get("closed_trades", []), _mtb_all)}
+                         _mtb_closed, _mtb_all, prices=_prices)}
     except Exception:
         pass  # enrichment is best-effort; raw data still renders fine
 

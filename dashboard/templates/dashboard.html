@@ -1146,7 +1146,7 @@
                             <h5>PMB Trade History</h5>
                             <div class="scroller-table-axis">
                                 <table>
-                                    <thead><tr><th>Coin</th><th>Action</th><th>Entry Price</th><th>Exit Price</th><th>Amount</th><th>PnL ₹</th><th>PnL %</th><th>Holding</th><th>Timestamp</th></tr></thead>
+                                    <thead><tr><th>Coin</th><th>Action</th><th>Entry Price</th><th>Exit Price</th><th>Cur. Price</th><th>Amount</th><th>PnL ₹</th><th>PnL %</th><th>Holding</th><th>Exit Reason</th><th>Timestamp</th></tr></thead>
                                     <tbody>
                                         {% for trade in data.pmb_overview.closed_trades[-20:] %}
                                         <tr>
@@ -1154,14 +1154,16 @@
                                             <td><span class="row-badge-pill">{{ trade.action }}</span></td>
                                             <td class="text-muted">{% if trade.entry_price is defined and trade.entry_price != "—" %}{{ "%.4f"|format(trade.entry_price|float) }}{% else %}—{% endif %}</td>
                                             <td>{{ trade.price }}</td>
+                                            <td class="text-muted font-mono">{% if trade.current_price %}{{ "%.4f"|format(trade.current_price|float) }}{% else %}—{% endif %}</td>
                                             <td>₹{{ "%.2f"|format(trade.amount) }}</td>
                                             <td class="{% if trade.pnl is defined and trade.pnl >= 0 %}text-green{% else %}text-red{% endif %}">{% if trade.pnl is defined %}₹{{ "%.4f"|format(trade.pnl) }}{% else %}—{% endif %}</td>
                                             <td class="{% if trade.pnl_pct is defined and trade.pnl_pct >= 0 %}text-green{% else %}text-red{% endif %}">{% if trade.pnl_pct is defined and trade.pnl_pct != 0.0 %}{{ "%.2f"|format(trade.pnl_pct) }}%{% else %}—{% endif %}</td>
                                             <td class="text-muted">{{ trade.holding_time if trade.holding_time is defined else "—" }}</td>
+                                            <td><span class="row-badge-pill {% if trade.exit_reason == 'TAKE_PROFIT' %}badge-green{% elif trade.exit_reason == 'STOP_LOSS' %}badge-red{% elif trade.exit_reason == 'TRAILING_STOP' %}badge-gold{% elif trade.exit_reason == 'MANUAL' %}badge-blue{% endif %}">{{ trade.exit_reason if trade.exit_reason is defined else "—" }}</span></td>
                                             <td class="text-muted text-sm">{{ trade.timestamp }}</td>
                                         </tr>
                                         {% else %}
-                                        <tr><td colspan="9" class="text-muted">No PMB trade history</td></tr>
+                                        <tr><td colspan="11" class="text-muted">No PMB trade history</td></tr>
                                         {% endfor %}
                                     </tbody>
                                 </table>
@@ -1226,22 +1228,23 @@
                             <h5>MTB Closed Trades</h5>
                             <div class="scroller-table-axis">
                                 <table>
-                                    <thead><tr><th>Symbol</th><th>Entry Price</th><th>Exit Price</th><th>Proceeds</th><th>PnL ₹</th><th>Return %</th><th>Holding</th><th>Reason</th><th>Timestamp</th></tr></thead>
+                                    <thead><tr><th>Symbol</th><th>Entry Price</th><th>Exit Price</th><th>Cur. Price</th><th>Proceeds</th><th>PnL ₹</th><th>Return %</th><th>Holding</th><th>Exit Reason</th><th>Timestamp</th></tr></thead>
                                     <tbody>
                                         {% for pos in data.mtb_overview.closed_trades[-20:] %}
                                         <tr>
                                             <td><strong>{{ pos.symbol or pos.coin }}</strong></td>
                                             <td class="text-muted">{% if pos.entry_price is defined and pos.entry_price != "—" %}{{ "%.4f"|format(pos.entry_price|float) }}{% else %}—{% endif %}</td>
                                             <td>{{ pos.price }}</td>
+                                            <td class="text-muted font-mono">{% if pos.current_price %}{{ "%.4f"|format(pos.current_price|float) }}{% else %}—{% endif %}</td>
                                             <td>₹{{ "%.2f"|format(pos.amount) }}</td>
                                             <td class="{% if pos.pnl >= 0 %}text-green{% else %}text-red{% endif %} font-600">₹{{ "%.4f"|format(pos.pnl) }}</td>
                                             <td class="{% if pos.return_pct >= 0 %}text-green{% else %}text-red{% endif %}">{{ "%.2f"|format(pos.return_pct) }}%</td>
                                             <td class="text-muted">{{ pos.holding_time if pos.holding_time is defined else "—" }}</td>
-                                            <td><span class="row-badge-pill">{{ pos.reason }}</span></td>
+                                            <td><span class="row-badge-pill {% if pos.exit_reason == 'TAKE_PROFIT' %}badge-green{% elif pos.exit_reason == 'STOP_LOSS' %}badge-red{% elif pos.exit_reason == 'TRAILING_STOP' %}badge-gold{% elif pos.exit_reason == 'MANUAL' %}badge-blue{% endif %}">{{ pos.exit_reason if pos.exit_reason is defined else (pos.reason if pos.reason is defined else "—") }}</span></td>
                                             <td class="text-muted text-sm">{{ pos.timestamp }}</td>
                                         </tr>
                                         {% else %}
-                                        <tr><td colspan="9" class="text-muted">No closed MTB trades</td></tr>
+                                        <tr><td colspan="10" class="text-muted">No closed MTB trades</td></tr>
                                         {% endfor %}
                                     </tbody>
                                 </table>
