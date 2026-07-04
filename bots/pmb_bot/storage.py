@@ -133,21 +133,84 @@ def get_open_positions() -> list[dict]:
     return [p for p in load_positions() if str(p.get("status", "")).upper() == "OPEN"]
 
 
+# ── Trade History filtering ────────────────────────────────────────────────
+# IMPORTANT: The raw trade log (``trades.json`` / ``load_trades()``) records
+# *every* position event — entries (BASE_BUY, DIP_BUY_N) as well as exits
+# (PARTIAL_SELL_N, STOP_LOSS, TRAILING_STOP, MANUAL_SELL, FINAL_SELL). That
+# full log is the "open trade log" and is used internally (e.g. to look up a
+# position's entry price / entry time for enrichment).
+#
+# "PMB Trade History" on the dashboard must show ONLY completed/closed trades
+# — i.e. records where the position (or partial slice of it) has actually
+# exited. It must NEVER show entry-only actions like BASE_BUY or DIP_BUY_N,
+# even though those rows technically live in the same trades.json file.
+#
+# Open trade log (load_trades()) != closed trade history (get_closed_trades()).
+# Use ``get_closed_trades()`` / the ``closed_trades`` key from ``snapshot()``
+# for any UI that should only display finished trades.
+
+_ENTRY_ONLY_ACTIONS = ("BASE_BUY", "DIP_BUY")
+_CLOSED_EXIT_ACTIONS = (
+    "FINAL_SELL",
+    "STOP_LOSS",
+    "TRAILING_STOP",
+    "MANUAL_SELL",
+    "PARTIAL_SELL_TP",
+    "PARTIAL_SELL",  # covers PARTIAL_SELL_<n> variants emitted by trading_engine
+)
+
+
+def _is_closed_trade(t: dict) -> bool:
+    """True only for records that represent a genuinely completed (exited) trade.
+
+    Excludes entry transactions (BASE_BUY, DIP_BUY_N) and any record whose
+    position is still OPEN — those belong in "PMB Open Positions", not
+    "PMB Trade History".
+    """
+    action = str(t.get("action", "")).upper()
+    status = str(t.get("status", "")).upper()
+
+    # Never show entry-only actions, regardless of status.
+    if action.startswith(_ENTRY_ONLY_ACTIONS):
+        return False
+
+    # Must be closed — an OPEN status means the position (or remainder of it)
+    # has not exited yet, so it belongs on the Open Positions table only.
+    if status != "CLOSED":
+        return False
+
+    # Recognised closed-exit actions, or any other action as long as the
+    # record is explicitly marked CLOSED (covers PARTIAL_SELL_<n> naming and
+    # any future exit action names not yet enumerated above).
+    return status == "CLOSED"
+
+
 def get_closed_trades() -> list[dict]:
-    return [t for t in load_trades() if str(t.get("status", "")).upper() == "CLOSED"]
+    """Return only completed trades for the Trade History view.
+
+    Open trade log != closed trade history: this filters out BASE_BUY /
+    DIP_BUY entry rows and anything still OPEN, keeping only rows where the
+    trade genuinely exited (FINAL_SELL, STOP_LOSS, TRAILING_STOP,
+    MANUAL_SELL, PARTIAL_SELL_TP, or any action with status == "CLOSED").
+    """
+    return [t for t in load_trades() if _is_closed_trade(t)]
 
 
 def snapshot() -> dict:
     from .config import BOT_MODE
     positions   = load_positions()
-    trades      = load_trades()
+    trades      = load_trades()  # open trade log — includes entries + exits
     stats       = load_stats()
     open_pos    = [p for p in positions if str(p.get("status", "")).upper() == "OPEN"]
+    # "closed_trades" here must be the *filtered* trade history, not the raw
+    # trade log, so BASE_BUY / DIP_BUY / still-OPEN rows never reach the
+    # dashboard's "PMB Trade History" table.
+    closed_trades = get_closed_trades()
     return {
         "status":         "INTEGRATED",
         "mode":           BOT_MODE,
         "open_positions": open_pos,
-        "closed_trades":  trades[-50:],
+        "closed_trades":  closed_trades[-50:],
         "daily_pnl":      round(float(stats.get("daily_pnl",     0.0)), 4),
         "total_pnl":      round(float(stats.get("total_pnl",     0.0)), 4),
         "trade_amount":   float(BASE_BUY),

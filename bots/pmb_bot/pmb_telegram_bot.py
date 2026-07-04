@@ -191,10 +191,13 @@ async def stats_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     try:
         stats = storage.load_stats()
-        trades = storage.load_trades()
-        
-        # Filter closed trades
-        closed_trades = trades[-50:]  # Last 50 trades
+
+        # Open trade log != closed trade history: storage.load_trades() returns
+        # every event (BASE_BUY, DIP_BUY_N, exits, ...). Stats must only be
+        # computed over genuinely completed trades, so use get_closed_trades()
+        # instead of slicing the raw log — otherwise entry rows with pnl=0
+        # would be double-counted as "breakeven" trades.
+        closed_trades = storage.get_closed_trades()[-50:]  # Last 50 completed trades
         
         # Calculate statistics
         total_trades = len(closed_trades)
