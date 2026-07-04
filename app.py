@@ -30,23 +30,22 @@ from bots.pmb_bot.storage import snapshot as pmb_snapshot
 from bots.risk_engine.engine import snapshot as risk_snapshot
 
 from bots.scanner_bot.scanner import get_watchlist as _scanner_get_watchlist
+from bots.volatile_gridX.config import get_vgx_storage_file as _get_vgx_storage_file
 
-_VGX_STORAGE_FILE = os.path.join(
-    os.path.dirname(__file__), "bots", "volatile_gridX", "storage", "TradingBotCrypto.json"
-)
 _VGX_PHASE5_COINS = ["BTC", "ETH", "SOL", "BNB", "XRP", "ZEC"]
 
 
 def vgx_snapshot() -> dict:
     """
     Build a dashboard-ready VGX snapshot by reading the storage JSON directly.
-    Never imports VGX config (which requires BOT_TOKEN / API_KEY env vars).
-    Returns safe defaults if the file doesn't exist yet.
+    Uses get_vgx_storage_file() so the path is always consistent with what the
+    VGX bot and risk engine use.  Returns safe defaults if the file is absent.
     """
     raw: dict = {}
+    _vgx_file = _get_vgx_storage_file()
     try:
-        if os.path.exists(_VGX_STORAGE_FILE) and os.path.getsize(_VGX_STORAGE_FILE) > 0:
-            with open(_VGX_STORAGE_FILE, "r", encoding="utf-8") as f:
+        if os.path.exists(_vgx_file) and os.path.getsize(_vgx_file) > 0:
+            with open(_vgx_file, "r", encoding="utf-8") as f:
                 raw = json.load(f)
     except (OSError, json.JSONDecodeError):
         raw = {}
@@ -409,12 +408,95 @@ def _build_charts_payload(signals: list) -> dict:
     }
 
 
+# ── Trade history enrichment helpers ─────────────────────────────────────────
+
+def _compute_holding_time(entry_ts: str, exit_ts: str) -> str:
+    """Return human-readable duration between two ISO-8601 timestamps."""
+    try:
+        from datetime import timezone as _tz
+        t_in  = datetime.fromisoformat(entry_ts)
+        t_out = datetime.fromisoformat(exit_ts)
+        if t_in.tzinfo  is None: t_in  = t_in.replace(tzinfo=_tz.utc)
+        if t_out.tzinfo is None: t_out = t_out.replace(tzinfo=_tz.utc)
+        diff = int((t_out - t_in).total_seconds())
+        if diff < 0:     return "—"
+        if diff < 60:    return f"{diff}s"
+        if diff < 3600:  return f"{diff // 60}m {diff % 60}s"
+        if diff < 86400: return f"{diff // 3600}h {(diff % 3600) // 60}m"
+        return f"{diff // 86400}d {(diff % 86400) // 3600}h"
+    except Exception:
+        return "—"
+
+
+def _enrich_closed_trades(trades: list[dict], all_trades: list[dict]) -> list[dict]:
+    """Add ``pnl_pct``, ``holding_time``, and ``entry_price`` to closed trade records.
+
+    Matches each sell/close trade to its corresponding buy trade via the shared
+    position ``id`` field.  Falls back to ``'—'`` when no match is found.
+    Does **not** mutate the input lists.
+    """
+    # Build id → earliest BUY trade for holding_time and entry_price lookups
+    buy_by_id: dict[str, dict] = {}
+    for t in all_trades:
+        tid    = t.get("id", "")
+        action = str(t.get("action", "")).upper()
+        if tid and "BUY" in action and tid not in buy_by_id:
+            buy_by_id[tid] = t
+
+    enriched: list[dict] = []
+    for trade in trades:
+        t      = dict(trade)
+        pnl    = float(t.get("pnl", 0) or 0)
+        amount = float(t.get("amount", 0) or 0)
+        cost   = amount - pnl  # proceeds − pnl = original cost basis
+
+        # pnl_pct — prefer stored return_pct (already precise) when present
+        if "return_pct" in t:
+            t["pnl_pct"] = round(float(t["return_pct"]), 2)
+        elif cost > 0:
+            t["pnl_pct"] = round(pnl / cost * 100, 2)
+        else:
+            t["pnl_pct"] = 0.0
+
+        # entry_price + holding_time from the matching BUY trade record
+        buy = buy_by_id.get(t.get("id", ""))
+        if buy:
+            t.setdefault("entry_price", round(float(buy.get("price", 0) or 0), 6))
+            t["holding_time"] = _compute_holding_time(
+                buy.get("timestamp", ""), t.get("timestamp", "")
+            )
+        else:
+            t.setdefault("entry_price", "—")
+            t["holding_time"] = "—"
+
+        enriched.append(t)
+    return enriched
+
+
 async def pull_state_payload():
 
     watchlist = get_watchlist()
     stats = get_stats()
     mtb_state = await _cached_snapshot("mtb", mtb_snapshot)
     pmb_state = await _cached_snapshot("pmb", pmb_snapshot)
+
+    # Enrich closed trade records with pnl_pct, holding_time, entry_price.
+    # We load the full trade log (not just the snapshot slice) so the buy record
+    # that corresponds to each close can always be found.
+    try:
+        import bots.pmb_bot.storage as _pmb_st
+        import bots.mtb_bot.storage as _mtb_st
+        _pmb_all = await asyncio.to_thread(_pmb_st.load_trades)
+        _mtb_all = await asyncio.to_thread(_mtb_st.load_trades)
+        pmb_state = {**pmb_state,
+                     "closed_trades": _enrich_closed_trades(
+                         pmb_state.get("closed_trades", []), _pmb_all)}
+        mtb_state = {**mtb_state,
+                     "closed_trades": _enrich_closed_trades(
+                         mtb_state.get("closed_trades", []), _mtb_all)}
+    except Exception:
+        pass  # enrichment is best-effort; raw data still renders fine
+
     vgx_trade_amount = float(os.getenv("VGX_TRADE_AMOUNT", os.getenv("TRADE_AMOUNT", "110")))
     # Read live scan signals from live_signals.json (written each scan cycle by main.py)
     signal_data = get_live_signals()

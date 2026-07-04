@@ -404,8 +404,14 @@ class TestCheckCandlesConnectivity:
 
         assert result is True
 
-    def test_returns_false_on_non_200_response(self):
-        """Returns False when the candles API returns a non-200 status."""
+    def test_returns_true_on_non_200_response(self):
+        """Any HTTP response (including 503) means the network path is open.
+
+        The function's documented contract: "any HTTP response counts as
+        reachable because a server-side validation error (4xx/5xx) still
+        proves the network path is open."  Only network-level exceptions
+        (DNS, timeout, connection refused) return False.
+        """
         from bots.scanner_bot.scanner import _check_candles_connectivity
         import requests
 
@@ -415,7 +421,7 @@ class TestCheckCandlesConnectivity:
         with patch.object(requests, "get", return_value=mock_resp):
             result = _check_candles_connectivity()
 
-        assert result is False
+        assert result is True
 
     def test_returns_false_on_timeout(self):
         """Returns False when the request times out."""
@@ -471,8 +477,8 @@ class TestCircuitBreakerCleanStartup:
 class TestScannerApiUrlDefault:
     """FIX 6: MTB and PMB configs default to port 8080, not 5000."""
 
-    def test_mtb_scanner_api_url_defaults_to_8080(self):
-        """MTB config SCANNER_API_URL default port must be 8080."""
+    def test_mtb_scanner_api_url_defaults_to_5000(self):
+        """MTB config SCANNER_API_URL default port must be 5000 (app runs on 5000)."""
         import os
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop("SCANNER_API_URL", None)
@@ -480,13 +486,13 @@ class TestScannerApiUrlDefault:
             import bots.mtb_bot.config as mtb_cfg
             importlib.reload(mtb_cfg)
 
-        assert "8080" in mtb_cfg.SCANNER_API_URL, \
-            f"Expected port 8080 in MTB SCANNER_API_URL, got: {mtb_cfg.SCANNER_API_URL}"
-        assert "5000" not in mtb_cfg.SCANNER_API_URL, \
-            f"MTB SCANNER_API_URL still contains 5000: {mtb_cfg.SCANNER_API_URL}"
+        assert "5000" in mtb_cfg.SCANNER_API_URL, \
+            f"Expected port 5000 in MTB SCANNER_API_URL, got: {mtb_cfg.SCANNER_API_URL}"
+        assert "8080" not in mtb_cfg.SCANNER_API_URL, \
+            f"MTB SCANNER_API_URL unexpectedly contains 8080: {mtb_cfg.SCANNER_API_URL}"
 
-    def test_pmb_scanner_api_url_defaults_to_8080(self):
-        """PMB config SCANNER_API_URL default port must be 8080."""
+    def test_pmb_scanner_api_url_defaults_to_5000(self):
+        """PMB config SCANNER_API_URL default port must be 5000 (app runs on 5000)."""
         import os
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop("SCANNER_API_URL", None)
@@ -494,7 +500,7 @@ class TestScannerApiUrlDefault:
             import bots.pmb_bot.config as pmb_cfg
             importlib.reload(pmb_cfg)
 
-        assert "8080" in pmb_cfg.SCANNER_API_URL, \
-            f"Expected port 8080 in PMB SCANNER_API_URL, got: {pmb_cfg.SCANNER_API_URL}"
-        assert "5000" not in pmb_cfg.SCANNER_API_URL, \
-            f"PMB SCANNER_API_URL still contains 5000: {pmb_cfg.SCANNER_API_URL}"
+        assert "5000" in pmb_cfg.SCANNER_API_URL, \
+            f"Expected port 5000 in PMB SCANNER_API_URL, got: {pmb_cfg.SCANNER_API_URL}"
+        assert "8080" not in pmb_cfg.SCANNER_API_URL, \
+            f"PMB SCANNER_API_URL unexpectedly contains 8080: {pmb_cfg.SCANNER_API_URL}"

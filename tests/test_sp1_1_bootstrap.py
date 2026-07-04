@@ -222,6 +222,7 @@ class TestFetchBootstrapCandles:
         with patch("bots.scanner_bot.scanner.requests.get", side_effect=side_effects), \
              patch("bots.scanner_bot.scanner.time") as mock_time:
             mock_time.sleep = MagicMock()   # skip actual sleep delay
+            mock_time.monotonic.return_value = 0.0  # satisfy _limited_get rate-limit calc
             result = _fetch_bootstrap_candles("SOL")
         assert len(result) == 50
 
@@ -263,6 +264,7 @@ class TestFetchBootstrapCandles:
         with patch("bots.scanner_bot.scanner.requests.get", side_effect=side_effects), \
              patch("bots.scanner_bot.scanner.time") as mock_time:
             mock_time.sleep = MagicMock()
+            mock_time.monotonic.return_value = 0.0  # satisfy _limited_get rate-limit calc
             result = _fetch_bootstrap_candles("BNB")
         assert len(result) == 60
 

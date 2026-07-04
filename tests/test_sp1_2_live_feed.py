@@ -130,6 +130,7 @@ class TestCoinDCXPublicClientFetchTickers:
         with patch("bots.scanner_bot.scanner.requests.get", side_effect=side_effects), \
              patch("bots.scanner_bot.scanner.time") as mt:
             mt.sleep = MagicMock()
+            mt.monotonic.return_value = 0.0  # satisfy _limited_get rate-limit calc
             result = client.fetch_tickers()
         assert len(result) == 1
 
@@ -141,6 +142,7 @@ class TestCoinDCXPublicClientFetchTickers:
                    side_effect=[_req.exceptions.Timeout()] * n), \
              patch("bots.scanner_bot.scanner.time") as mt:
             mt.sleep = MagicMock()
+            mt.monotonic.return_value = 0.0  # satisfy _limited_get rate-limit calc
             with pytest.raises(_req.exceptions.Timeout):
                 client.fetch_tickers()
 
@@ -155,6 +157,7 @@ class TestCoinDCXPublicClientFetchTickers:
         with patch("bots.scanner_bot.scanner.requests.get", side_effect=side_effects), \
              patch("bots.scanner_bot.scanner.time") as mt:
             mt.sleep = MagicMock()
+            mt.monotonic.return_value = 0.0  # satisfy _limited_get rate-limit calc
             result = client.fetch_tickers()
         assert result[0]["market"] == "SOLINR"
 

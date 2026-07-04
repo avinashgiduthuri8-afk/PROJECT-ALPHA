@@ -4,6 +4,9 @@ Railway Production Ready
 """
 
 import os
+import pathlib as _pathlib
+
+_VGX_ROOT = _pathlib.Path(__file__).resolve().parent  # bots/volatile_gridX/
 
 # ============================================================
 # ENVIRONMENT VARIABLES
@@ -99,17 +102,18 @@ buy_prices = {
 # STORAGE
 # ============================================================
 
-STORAGE_DIR = "storage"
+STORAGE_DIR    = str(_VGX_ROOT / "storage")
+STORAGE_FILE   = str(_VGX_ROOT / "storage" / f"{PROJECT_NAME}.json")
+STORAGE_BACKUP = str(_VGX_ROOT / "storage" / f"{PROJECT_NAME}_backup.json")
 
-STORAGE_FILE = os.path.join(
-    STORAGE_DIR,
-    f"{PROJECT_NAME}.json"
-)
 
-STORAGE_BACKUP = os.path.join(
-    STORAGE_DIR,
-    f"{PROJECT_NAME}_backup.json"
-)
+def get_vgx_storage_file() -> str:
+    """Canonical absolute path to TradingBotCrypto.json.
+
+    Use this helper everywhere instead of building the path manually.
+    All three consumers (VGX bot, dashboard, risk engine) resolve the same file.
+    """
+    return STORAGE_FILE
 
 STORAGE_SYNC_INTERVAL = 30
 
