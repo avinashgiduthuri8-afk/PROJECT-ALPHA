@@ -20,8 +20,8 @@ from .config import (
     MAX_POSITIONS,
     TOTAL_CAPITAL_LIMIT,
     TRADE_CONFIG,
-    TRADING_ENABLED,
 )
+from .runtime_state import is_trading_enabled
 
 logger = logging.getLogger("risk_engine")
 
@@ -76,7 +76,7 @@ def check_trade_allowed(bot: str, amount: float) -> RiskDecision:
     """
     bot = bot.upper()
 
-    if not TRADING_ENABLED:
+    if not is_trading_enabled():
         return RiskDecision(False, "TRADING_DISABLED",
                             "Global TRADING_ENABLED flag is False — all bots halted.")
 
@@ -125,7 +125,7 @@ def snapshot() -> dict[str, Any]:
             "max_positions":     MAX_POSITIONS.get(bot, 0),
         }
     return {
-        "trading_enabled":    TRADING_ENABLED,
+        "trading_enabled":    is_trading_enabled(),
         "emergency_stop":     EMERGENCY_STOP,
         "total_capital_limit": TOTAL_CAPITAL_LIMIT,
         "total_deployed":     round(total_deployed, 2),

@@ -28,6 +28,7 @@ import bots.mtb_bot.mtb_telegram_bot as mtb_tg
 from bots.mtb_bot.storage import snapshot as mtb_snapshot
 from bots.pmb_bot.storage import snapshot as pmb_snapshot
 from bots.risk_engine.engine import snapshot as risk_snapshot
+from bots.risk_engine.runtime_state import set_trading_enabled as _risk_set_trading_enabled
 
 from bots.scanner_bot.scanner import get_watchlist as _scanner_get_watchlist, resolve_coin_pair as _resolve_coin_pair
 from bots.volatile_gridX.config import get_vgx_storage_file as _get_vgx_storage_file
@@ -1353,6 +1354,26 @@ async def refresh_scanner():
         return JSONResponse(
             content={"success": False, "error": "Scanner refresh failed"},
             status_code=503,
+        )
+
+
+class TradingToggleRequest(BaseModel):
+    enabled: bool
+
+
+@app.post("/api/risk/toggle-trading", response_class=JSONResponse)
+async def toggle_trading(req: TradingToggleRequest):
+    """Enable or disable the global TRADING_ENABLED kill-switch from the
+    dashboard. Persists the override to disk (survives restarts) without
+    requiring an env var change; does not affect the separate EMERGENCY_STOP
+    switch or existing open positions."""
+    try:
+        effective = _risk_set_trading_enabled(req.enabled)
+        return {"success": True, "trading_enabled": effective}
+    except Exception as e:
+        return JSONResponse(
+            {"success": False, "error": str(e)},
+            status_code=500,
         )
 
 

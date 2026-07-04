@@ -444,13 +444,20 @@
                     </div><!-- /.v2-two-col -->
 
                     <!-- RISK PANEL -->
-                    <div class="v2-section-label">Risk Engine <span style="font-size:0.6rem;font-weight:400;text-transform:none;letter-spacing:0;">(read-only)</span></div>
+                    <div class="v2-section-label">Risk Engine</div>
                     <div class="risk-panel">
                         <div class="risk-panel-header">
                             <span class="risk-panel-title">Risk Engine Status</span>
                             <span class="risk-panel-badge {% if not data.risk_engine.trading_enabled %}danger{% endif %}" id="risk-trading-badge">
                                 {% if data.risk_engine.trading_enabled %}TRADING ENABLED{% else %}TRADING HALTED{% endif %}
                             </span>
+                            <button type="button"
+                                    id="risk-trading-toggle-btn"
+                                    class="action-control-btn risk-trading-toggle-btn {% if data.risk_engine.trading_enabled %}is-halt{% else %}is-enable{% endif %}"
+                                    data-enabled="{{ 'true' if data.risk_engine.trading_enabled else 'false' }}"
+                                    onclick="toggleTrading()">
+                                {{ 'Halt Trading' if data.risk_engine.trading_enabled else 'Enable Trading' }}
+                            </button>
                             <span style="font-size:0.65rem;color:var(--text-secondary);">Updated: <span id="risk-updated">{{ data.risk_engine.last_updated }}</span></span>
                         </div>
                         <div class="risk-grid">

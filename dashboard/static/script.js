@@ -1475,6 +1475,58 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
+    window.toggleTrading = async function() {
+        const btn = document.getElementById("risk-trading-toggle-btn");
+        if (!btn) return;
+        const currentlyEnabled = btn.getAttribute("data-enabled") === "true";
+        const nextEnabled = !currentlyEnabled;
+        const confirmMsg = nextEnabled
+            ? "Enable trading? All bots (VGX, PMB, MTB) will be allowed to open new trades again."
+            : "Halt trading? All bots will be blocked from opening new trades. Existing open positions are not affected.";
+        if (!confirm(confirmMsg)) return;
+
+        btn.disabled = true;
+        try {
+            const resp = await authenticatedFetch("/api/risk/toggle-trading", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({enabled: nextEnabled}),
+            });
+            const data = await resp.json();
+            if (data.success) {
+                applyTradingToggleState(data.trading_enabled);
+                refreshDashboardData();
+            } else {
+                alert("Toggle failed: " + (data.error || "unknown"));
+            }
+        } catch (e) {
+            alert("Network error: " + e.message);
+        } finally {
+            btn.disabled = false;
+        }
+    };
+
+    function applyTradingToggleState(enabled) {
+        const btn = document.getElementById("risk-trading-toggle-btn");
+        const badge = document.getElementById("risk-trading-badge");
+        const statusEl = document.getElementById("risk-trading");
+        if (btn) {
+            btn.setAttribute("data-enabled", enabled ? "true" : "false");
+            btn.textContent = enabled ? "Halt Trading" : "Enable Trading";
+            btn.classList.toggle("is-halt", enabled);
+            btn.classList.toggle("is-enable", !enabled);
+        }
+        if (badge) {
+            badge.textContent = enabled ? "TRADING ENABLED" : "TRADING HALTED";
+            badge.classList.toggle("danger", !enabled);
+        }
+        if (statusEl) {
+            statusEl.textContent = enabled ? "ENABLED" : "HALTED";
+            statusEl.classList.toggle("text-green", enabled);
+            statusEl.classList.toggle("text-red", !enabled);
+        }
+    }
+
     document.addEventListener("click", function(e) {
         const btn = e.target.closest(".btn-remove-coin");
         if (!btn) return;

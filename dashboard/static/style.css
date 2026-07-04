@@ -723,6 +723,15 @@ body {
 }
 .risk-panel-badge.danger { background: var(--red-bg); color: var(--red); border-color: var(--red); }
 
+.risk-trading-toggle-btn {
+    margin-left: auto;
+}
+.risk-trading-toggle-btn.is-halt { color: var(--red); border-color: var(--red); }
+.risk-trading-toggle-btn.is-halt:hover { background: var(--red-bg); }
+.risk-trading-toggle-btn.is-enable { color: var(--green); border-color: var(--green); }
+.risk-trading-toggle-btn.is-enable:hover { background: var(--green-bg); }
+.risk-trading-toggle-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
 .risk-grid {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
