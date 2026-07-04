@@ -1,0 +1,98 @@
+PROJECT-ALPHA — TRADING_ENABLED Fix + Manual Toggle
+
+You are an Elite Solutions Architect for PROJECT-ALPHA.
+
+Repository: avinashgiduthuri8-afk/PROJECT-ALPHA (already cloned)
+
+Files to modify:
+  - bots/risk_engine/config.py
+  - app.py
+  - dashboard/templates/dashboard.html
+  - dashboard/static/script.js
+
+---
+
+PART 1 — Fix Default (Code Constraint #1)
+
+File: bots/risk_engine/config.py
+
+Change:
+  TRADING_ENABLED: bool = os.getenv("TRADING_ENABLED", "true").lower() == "true"
+
+To:
+  TRADING_ENABLED: bool = os.getenv("TRADING_ENABLED", "false").lower() == "true"
+
+---
+
+PART 2 — Manual Toggle API Endpoint
+
+File: app.py
+
+Add two endpoints:
+
+  GET  /api/v1/trading/status
+    Returns:
+    {
+      "trading_enabled": true/false,
+      "emergency_stop": true/false,
+      "changed_by": "dashboard" / "env_var",
+      "changed_at": "<ISO timestamp>"
+    }
+
+  POST /api/v1/trading/toggle
+    Body: { "enabled": true/false }
+    Requires X-API-Key header.
+    Updates the in-memory TRADING_ENABLED flag only.
+    Does NOT write to disk or modify env vars.
+    Logs: logger.info("[Trading] TRADING_ENABLED set to %s by dashboard", enabled)
+    Returns:
+    {
+      "status": "ok",
+      "trading_enabled": true/false,
+      "changed_at": "<ISO timestamp>"
+    }
+
+Rules:
+  - Toggle only affects in-memory state for the current process.
+  - EMERGENCY_STOP always overrides toggle — if EMERGENCY_STOP=true, 
+    toggle to enabled must be rejected with:
+    { "status": "rejected", "reason": "EMERGENCY_STOP is active" }
+  - On Railway restart, TRADING_ENABLED reverts to env var default (false).
+  - check_trade_allowed() in engine.py must read the live in-memory flag,
+    not the module-level constant. Expose a setter:
+    set_trading_enabled(value: bool) in config.py.
+
+---
+
+PART 3 — Dashboard Toggle Switch
+
+File: dashboard/templates/dashboard.html
+File: dashboard/static/script.js
+
+Add a toggle switch to the Bot Control section:
+
+  Label: "Trading Enabled"
+  Visual: green (ON) / red (OFF) toggle
+  On page load: fetch GET /api/v1/trading/status and set switch state.
+  On toggle: call POST /api/v1/trading/toggle with { "enabled": true/false }
+  Show confirmation toast: "Trading ENABLED" or "Trading DISABLED"
+  If rejected (EMERGENCY_STOP active): show warning toast: 
+    "Cannot enable — EMERGENCY_STOP is active"
+
+---
+
+Requirements:
+- AUDIT ONLY FIRST. Do not write code. 
+- Wait for approval before implementing.
+- Modify only the four listed files.
+- Do not change trading logic, scoring, or signal generation.
+- Do not change existing endpoints.
+- Add logger.info for every toggle action.
+- Tests:
+    * Default is False when env var absent.
+    * Toggle ON succeeds when EMERGENCY_STOP=false.
+    * Toggle ON rejected when EMERGENCY_STOP=true.
+    * GET /status returns correct live state after toggle.
+    * Dashboard switch reflects current state on load.
+    * check_trade_allowed() reads live flag, not stale module constant.
+- Run full test suite. Report files changed, before/after, test results.
