@@ -953,6 +953,56 @@
                         <div class="metric-card span-2"><h5>Daily PnL Delta</h5><h3 id="port-daily-pnl" class="{% if data.portfolio_overview.daily_pnl >= 0 %}text-green{% else %}text-red{% endif %}">₹{{ "%.2f"|format(data.portfolio_overview.daily_pnl) }}</h3></div>
                         <div class="metric-card span-6 canvas-wrapper-box"><h5>Asset Portfolio Allocation Weights</h5><div class="canvas-holder"><canvas id="portfolioPieChart"></canvas></div></div>
                         <div class="metric-card span-6 canvas-wrapper-box"><h5>Compounded Equity Valuation Curve</h5><div class="canvas-holder"><canvas id="portfolioGrowthLineChart"></canvas></div></div>
+
+                        <!-- Capital Allocation % widget — frontend-only, computed from
+                             vgx_overview.virtual_balance / pmb_overview.cash_balance /
+                             mtb_overview.cash_balance (see dashboard.js: renderCapitalAllocation). -->
+                        {% set _alloc_vgx = data.vgx_overview.virtual_balance or 0 %}
+                        {% set _alloc_pmb = data.pmb_overview.cash_balance or 0 %}
+                        {% set _alloc_mtb = data.mtb_overview.cash_balance or 0 %}
+                        {% set _alloc_total = _alloc_vgx + _alloc_pmb + _alloc_mtb %}
+                        <div class="metric-card span-12" id="capital-allocation-widget">
+                            <h5>Capital Allocation %</h5>
+                            {% if _alloc_total > 0 %}
+                            <div class="capital-allocation-row" id="capital-allocation-content">
+                                <div class="capital-allocation-item">
+                                    <span class="capital-allocation-label">VGX</span>
+                                    <span class="capital-allocation-bar-track"><span class="capital-allocation-bar-fill alloc-bar-vgx" id="alloc-bar-vgx" style="width: {{ "%.2f"|format((_alloc_vgx / _alloc_total) * 100) }}%;"></span></span>
+                                    <span class="capital-allocation-pct text-blue" id="alloc-pct-vgx">{{ "%.2f"|format((_alloc_vgx / _alloc_total) * 100) }}%</span>
+                                </div>
+                                <div class="capital-allocation-item">
+                                    <span class="capital-allocation-label">PMB</span>
+                                    <span class="capital-allocation-bar-track"><span class="capital-allocation-bar-fill alloc-bar-pmb" id="alloc-bar-pmb" style="width: {{ "%.2f"|format((_alloc_pmb / _alloc_total) * 100) }}%;"></span></span>
+                                    <span class="capital-allocation-pct text-green" id="alloc-pct-pmb">{{ "%.2f"|format((_alloc_pmb / _alloc_total) * 100) }}%</span>
+                                </div>
+                                <div class="capital-allocation-item">
+                                    <span class="capital-allocation-label">MTB</span>
+                                    <span class="capital-allocation-bar-track"><span class="capital-allocation-bar-fill alloc-bar-mtb" id="alloc-bar-mtb" style="width: {{ "%.2f"|format((_alloc_mtb / _alloc_total) * 100) }}%;"></span></span>
+                                    <span class="capital-allocation-pct text-gold" id="alloc-pct-mtb">{{ "%.2f"|format((_alloc_mtb / _alloc_total) * 100) }}%</span>
+                                </div>
+                            </div>
+                            <div class="text-muted" id="capital-allocation-empty" style="display:none;">No allocation data available</div>
+                            {% else %}
+                            <div class="capital-allocation-row" id="capital-allocation-content" style="display:none;">
+                                <div class="capital-allocation-item">
+                                    <span class="capital-allocation-label">VGX</span>
+                                    <span class="capital-allocation-bar-track"><span class="capital-allocation-bar-fill alloc-bar-vgx" id="alloc-bar-vgx" style="width: 0%;"></span></span>
+                                    <span class="capital-allocation-pct text-blue" id="alloc-pct-vgx">0.00%</span>
+                                </div>
+                                <div class="capital-allocation-item">
+                                    <span class="capital-allocation-label">PMB</span>
+                                    <span class="capital-allocation-bar-track"><span class="capital-allocation-bar-fill alloc-bar-pmb" id="alloc-bar-pmb" style="width: 0%;"></span></span>
+                                    <span class="capital-allocation-pct text-green" id="alloc-pct-pmb">0.00%</span>
+                                </div>
+                                <div class="capital-allocation-item">
+                                    <span class="capital-allocation-label">MTB</span>
+                                    <span class="capital-allocation-bar-track"><span class="capital-allocation-bar-fill alloc-bar-mtb" id="alloc-bar-mtb" style="width: 0%;"></span></span>
+                                    <span class="capital-allocation-pct text-gold" id="alloc-pct-mtb">0.00%</span>
+                                </div>
+                            </div>
+                            <div class="text-muted" id="capital-allocation-empty">No allocation data available</div>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
 

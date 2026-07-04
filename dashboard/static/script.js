@@ -917,6 +917,46 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // ── Capital Allocation % widget ─────────────────────────────────────
+    // Frontend-only calculation — no backend/API changes. Reads three
+    // existing balance fields already present in the /api/v1/state payload:
+    //   vgx_overview.virtual_balance, pmb_overview.cash_balance, mtb_overview.cash_balance
+    // percentage(bot) = (bot_value / total_capital) * 100
+    function renderCapitalAllocation(data) {
+        const widget = document.getElementById("capital-allocation-widget");
+        if (!widget) return;
+
+        const vgx = Number((data.vgx_overview && data.vgx_overview.virtual_balance) || 0);
+        const pmb = Number((data.pmb_overview && data.pmb_overview.cash_balance) || 0);
+        const mtb = Number((data.mtb_overview && data.mtb_overview.cash_balance) || 0);
+        const total = vgx + pmb + mtb;
+
+        const content = document.getElementById("capital-allocation-content");
+        const empty   = document.getElementById("capital-allocation-empty");
+
+        if (!total || total <= 0) {
+            if (content) content.style.display = "none";
+            if (empty) empty.style.display = "block";
+            return;
+        }
+
+        if (content) content.style.display = "flex";
+        if (empty) empty.style.display = "none";
+
+        const pct = (v) => (v / total) * 100;
+        const setAlloc = (key, value) => {
+            const bar = document.getElementById("alloc-bar-" + key);
+            const label = document.getElementById("alloc-pct-" + key);
+            const pctStr = value.toFixed(2) + "%";
+            if (bar) bar.style.width = pctStr;
+            if (label) label.textContent = pctStr;
+        };
+
+        setAlloc("vgx", pct(vgx));
+        setAlloc("pmb", pct(pmb));
+        setAlloc("mtb", pct(mtb));
+    }
+
     async function refreshDashboardData() {
         try {
             const response = await authenticatedFetch("/api/v1/state");
@@ -1220,6 +1260,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // ── Portfolio View patches ────────────────────────────────────
             updatePortfolioView(data);
+
+            // ── Capital Allocation % widget ────────────────────────────────
+            renderCapitalAllocation(data);
 
             // ── Live current price patch — trade history tables ───────────
             // Calls /api/v1/prices which reads only the scanner's in-memory

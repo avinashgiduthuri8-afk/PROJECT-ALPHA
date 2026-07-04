@@ -865,6 +865,57 @@ body {
     font-size: 1.3rem;
     font-weight: 700;
 }
+.capital-allocation-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 4px;
+}
+.capital-allocation-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1 1 220px;
+    min-width: 0;
+}
+.capital-allocation-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    letter-spacing: 0.04em;
+    width: 36px;
+    flex-shrink: 0;
+}
+.capital-allocation-bar-track {
+    flex: 1 1 auto;
+    min-width: 40px;
+    height: 8px;
+    border-radius: 4px;
+    background: var(--border);
+    overflow: hidden;
+    display: block;
+}
+.capital-allocation-bar-fill {
+    display: block;
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+.alloc-bar-vgx { background: var(--blue); }
+.alloc-bar-pmb { background: var(--green); }
+.alloc-bar-mtb { background: var(--amber); }
+.capital-allocation-pct {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    font-weight: 700;
+    width: 62px;
+    text-align: right;
+    flex-shrink: 0;
+}
+@media (max-width: 768px) {
+    .capital-allocation-row { flex-direction: column; gap: 12px; }
+    .capital-allocation-item { flex: 1 1 auto; width: 100%; }
+}
 .metric-card h4 {
     font-family: var(--font-mono);
     font-size: 1rem;
