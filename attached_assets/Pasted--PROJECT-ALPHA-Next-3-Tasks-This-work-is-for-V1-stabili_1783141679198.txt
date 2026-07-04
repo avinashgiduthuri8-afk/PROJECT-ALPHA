@@ -1,0 +1,319 @@
+# PROJECT-ALPHA — Next 3 Tasks
+
+This work is for V1 stabilization and V2 preparation.
+
+Rules:
+
+* Do NOT modify trading logic.
+* Do NOT modify scanner scoring.
+* Do NOT modify signal generation.
+* Do NOT modify storage schemas.
+* Do NOT break existing API contracts.
+* Run full tests after each task.
+* Generate an `.md` report for every task.
+
+---
+
+# TASK 1 — Currency Standardization (Easy)
+
+## Goal
+
+The entire dashboard should use INR (`₹`) instead of `$`.
+
+---
+
+## Audit Every Location
+
+Check:
+
+* Home KPI cards
+* Portfolio tab
+* Bot cards
+* Trade history
+* Open positions
+* Analytics cards
+* Tooltips
+* Empty states
+* Placeholder text
+* Chart labels
+* Table headers
+
+---
+
+## Requirements
+
+Replace:
+
+```text id="d6cl8k"
+$1000
+```
+
+with:
+
+```text id="lmh1ts"
+₹1,000
+```
+
+Use:
+
+```text id="6m44de"
+toLocaleString("en-IN")
+```
+
+where applicable.
+
+Do NOT change internal calculations.
+
+Display-only change.
+
+---
+
+## Deliverable
+
+Generate:
+
+```text id="1x5mkx"
+CURRENCY_STANDARDIZATION.md
+```
+
+Include:
+
+* files changed
+* locations updated
+* screenshots (if possible)
+* tests run
+* regressions introduced
+
+---
+
+# TASK 2 — Scanner Pair Selection Engine (Medium)
+
+## Goal
+
+Watchlist should intelligently choose the correct trading pair.
+
+---
+
+## Current Problem
+
+User adds:
+
+```text id="tyl2nq"
+BTC
+LINK
+ETH
+```
+
+System assumes:
+
+```text id="tw7yz5"
+COIN/INR
+```
+
+even if INR pair does not exist.
+
+---
+
+## Desired Behaviour
+
+Priority:
+
+```text id="w7tk6m"
+1. INR pair
+2. USDT pair
+3. Reject if neither exists
+```
+
+Examples:
+
+```text id="6swg9l"
+BTC -> B-BTC_INR
+ETH -> B-ETH_INR
+PEPE -> B-PEPE_USDT
+```
+
+---
+
+## Implementation
+
+Create helper:
+
+```python id="q8xg6e"
+resolve_coin_pair(coin)
+```
+
+Returns:
+
+```python id="aj8e1c"
+{
+    "coin": "BTC",
+    "pair": "B-BTC_INR",
+    "quote": "INR"
+}
+```
+
+---
+
+## Requirements
+
+* Use scanner ticker cache.
+* No additional API calls.
+* Preserve existing watchlist behavior.
+* Backward compatible.
+
+---
+
+## Deliverable
+
+Generate:
+
+```text id="34b61q"
+PAIR_SELECTION_ENGINE.md
+```
+
+Include:
+
+* files changed
+* algorithm
+* examples
+* tests run
+* regressions
+
+---
+
+# TASK 3 — V2 Foundation Branch + Event Bus Skeleton (Most Important)
+
+## Goal
+
+Prepare V2 architecture without touching V1.
+
+No migrations.
+
+No code movement.
+
+No merge into V1.
+
+Only scaffolding.
+
+---
+
+## Create
+
+```text id="h8dphm"
+v2/
+```
+
+---
+
+## Structure
+
+```text id="91nl6v"
+v2/
+├── services/
+│   ├── scanner_service/
+│   ├── risk_service/
+│   ├── portfolio_service/
+│   ├── dashboard_service/
+│   └── notification_service/
+│
+├── bus/
+│   ├── event_bus.py
+│   ├── event_types.py
+│   └── subscribers.py
+│
+├── storage/
+├── analytics/
+├── tests/
+└── README.md
+```
+
+---
+
+## Event Types
+
+Create placeholders only:
+
+```text id="4n4v44"
+SIGNAL_GENERATED
+SIGNAL_UPDATED
+SIGNAL_EXPIRED
+
+POSITION_OPENED
+POSITION_CLOSED
+POSITION_UPDATED
+
+CAPITAL_LIMIT_HIT
+DRAWDOWN_LIMIT_HIT
+CIRCUIT_BREAKER_TRIGGERED
+
+BOT_STARTED
+BOT_STOPPED
+BOT_ERROR
+
+METRICS_UPDATED
+PORTFOLIO_UPDATED
+ALERT_GENERATED
+```
+
+---
+
+## Event Bus Requirements
+
+Provide skeleton only.
+
+No production implementation yet.
+
+Support:
+
+```python id="v5wxje"
+publish()
+subscribe()
+unsubscribe()
+```
+
+No code should call the bus yet.
+
+No imports from V1.
+
+---
+
+## Deliverable
+
+Generate:
+
+```text id="ngzst8"
+V2_FOUNDATION.md
+```
+
+Include:
+
+* folder structure
+* architecture diagrams
+* future migration plan
+* event definitions
+* implementation roadmap
+
+---
+
+# Verification
+
+After all three tasks:
+
+* Run full test suite.
+* Confirm:
+
+```text id="y4f3i5"
+542 tests passed
+0 regressions
+Dashboard loads
+Scanner works
+Paper trading works
+```
+
+Generate:
+
+```text id="jylmto"
+NEXT_PHASE_IMPLEMENTATION_REPORT.md
+```
+
+with complete summary.

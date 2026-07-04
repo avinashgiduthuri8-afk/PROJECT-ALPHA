@@ -574,6 +574,66 @@ def _coin_to_pair(coin: str) -> list:
     return [f"B-{coin}_INR", f"B-{coin}_USDT", f"B-{coin}_BTC"]
 
 
+def resolve_coin_pair(coin: str, tickers: list | None = None) -> dict:
+    """
+    Resolve a coin symbol to its best available trading pair.
+
+    Priority (matches QUOTE_PRIORITY): INR > USDT > rejected.
+
+    When *tickers* is provided (the live ticker list from the scanner cache),
+    the function checks which pairs actually exist in the feed and returns the
+    highest-priority one.  When *tickers* is None (cache not yet warm), it
+    falls back to returning the INR pair as the best-guess default without
+    making any additional API calls.
+
+    This is a **pure function** — no I/O, no network calls, no side-effects.
+
+    Parameters
+    ----------
+    coin    : str  — base coin symbol, e.g. "BTC", "PEPE"
+    tickers : list | None — raw ticker list from the scanner (optional)
+
+    Returns
+    -------
+    On success::
+
+        {
+            "coin":     "BTC",
+            "pair":     "B-BTC_INR",
+            "quote":    "INR",
+            "resolved": True,
+        }
+
+    On failure (pair not found in tickers)::
+
+        {
+            "coin":     "BADCOIN",
+            "pair":     None,
+            "quote":    None,
+            "resolved": False,
+            "reason":   "no_pair_found",
+        }
+    """
+    coin = coin.upper().strip()
+
+    if tickers:
+        available = {str(t.get("market", "")).upper() for t in tickers}
+        for quote in QUOTE_PRIORITY:
+            pair = f"B-{coin}_{quote}"
+            if pair in available:
+                return {"coin": coin, "pair": pair, "quote": quote, "resolved": True}
+        return {
+            "coin": coin,
+            "pair": None,
+            "quote": None,
+            "resolved": False,
+            "reason": "no_pair_found",
+        }
+
+    pair = f"B-{coin}_INR"
+    return {"coin": coin, "pair": pair, "quote": "INR", "resolved": True, "reason": "no_cache"}
+
+
 def _fetch_coin_closes(coin: str) -> list:
     """OPT-1: Fetch and parse daily candle closes for a coin in one place.
 

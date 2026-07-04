@@ -76,6 +76,8 @@ from .scanner import (
     # BUG-25/26/30: centralized coin-symbol validation
     validate_coin_symbol,
     _check_candles_connectivity,
+    # Pair-selection engine
+    resolve_coin_pair,
 )
 
 logger = logging.getLogger("scanner_api")
@@ -744,6 +746,57 @@ async def watchlist_remove(
     except Exception:
         logger.exception("/watchlist DELETE: unexpected error")
         return JSONResponse(content={"status": "error", "removed": "", "count": 0})
+
+
+# ---------------------------------------------------------------------------
+# 11a. Pair Resolution Engine endpoint
+# ---------------------------------------------------------------------------
+
+@scanner_router.get("/api/v1/scanner/resolve-pair/{coin}")
+async def resolve_pair(
+    coin: str = Path(..., description="Coin symbol to resolve, e.g. BTC, PEPE"),
+):
+    """
+    Resolve a coin symbol to its best available trading pair.
+
+    Priority: INR > USDT > rejected (no pair found).
+    Uses the live scanner ticker cache — no additional API calls are made.
+
+    Returns resolved pair info:
+      - resolved=true  → pair and quote are populated
+      - resolved=false → coin does not exist in any supported quote market
+
+    HTTP 200 always.
+    """
+    try:
+        is_valid, symbol, _ = validate_coin_symbol(coin)
+        if not is_valid:
+            return JSONResponse(content={
+                "coin":     coin.strip().upper(),
+                "pair":     None,
+                "quote":    None,
+                "resolved": False,
+                "reason":   "invalid_symbol",
+            })
+
+        tickers: list | None = None
+        sc = _SCANNER
+        if sc is not None:
+            async with sc._ticker_lock:
+                if sc._ticker_cache:
+                    tickers = list(sc._ticker_cache)
+
+        result = resolve_coin_pair(symbol, tickers=tickers)
+        return JSONResponse(content=result)
+    except Exception:
+        logger.exception("/resolve-pair GET: unexpected error")
+        return JSONResponse(content={
+            "coin":     coin,
+            "pair":     None,
+            "quote":    None,
+            "resolved": False,
+            "reason":   "error",
+        })
 
 
 # ---------------------------------------------------------------------------
