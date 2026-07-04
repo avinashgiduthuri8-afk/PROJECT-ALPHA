@@ -15,6 +15,15 @@ BOT_NAME    = "MTB"
 BOT_VERSION = "2.0"
 BOT_MODE    = os.getenv("MTB_BOT_MODE", "PAPER")
 
+_VALID_BOT_MODES = {"PAPER", "LIVE", "PAUSED", "DISABLED"}
+if BOT_MODE not in _VALID_BOT_MODES:
+    import logging as _logging
+    _logging.getLogger(__name__).warning(
+        "Invalid MTB_BOT_MODE %r — must be one of %s; forcing DISABLED",
+        BOT_MODE, sorted(_VALID_BOT_MODES),
+    )
+    BOT_MODE = "DISABLED"
+
 TELEGRAM_BOT_TOKEN = os.getenv("MTB_BOT_TOKEN") or os.getenv("BOT_TOKEN", "")
 TELEGRAM_CHAT_ID   = os.getenv("MTB_CHAT_ID")   or os.getenv("TELEGRAM_CHAT_ID", "")
 

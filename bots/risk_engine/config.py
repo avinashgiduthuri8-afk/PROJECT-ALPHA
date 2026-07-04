@@ -11,7 +11,7 @@ import os
 
 # ── Global kill-switches ──────────────────────────────────────────────────────
 # Set TRADING_ENABLED=false to halt ALL bots (VGX, PMB, MTB).
-TRADING_ENABLED: bool = os.getenv("TRADING_ENABLED", "true").lower() == "true"
+TRADING_ENABLED: bool = os.getenv("TRADING_ENABLED", "false").lower() == "true"
 
 # Set EMERGENCY_STOP=true to immediately block any new trade across all bots.
 EMERGENCY_STOP: bool = os.getenv("EMERGENCY_STOP", "false").lower() == "true"

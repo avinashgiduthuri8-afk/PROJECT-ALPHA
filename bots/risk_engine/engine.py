@@ -17,6 +17,7 @@ from .config import (
     BOT_CAPITAL_LIMIT,
     BOT_MODE,
     EMERGENCY_STOP,
+    MAX_POSITIONS,
     TOTAL_CAPITAL_LIMIT,
     TRADE_CONFIG,
     TRADING_ENABLED,
@@ -121,7 +122,7 @@ def snapshot() -> dict[str, Any]:
             "capital_limit":     BOT_CAPITAL_LIMIT.get(bot, 0),
             "deployed_capital":  round(deployed, 2),
             "open_positions":    len(positions),
-            "max_positions":     __import__("bots.risk_engine.config", fromlist=["MAX_POSITIONS"]).MAX_POSITIONS.get(bot, 0),
+            "max_positions":     MAX_POSITIONS.get(bot, 0),
         }
     return {
         "trading_enabled":    TRADING_ENABLED,

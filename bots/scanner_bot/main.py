@@ -960,8 +960,10 @@ async def _scanner_loop() -> None:
     # shows the last known signals from the previous session right after startup.
     try:
         import json as _json
-        with open(LIVE_SIGNALS_FILE, "r", encoding="utf-8") as _f:
-            _pre = _json.load(_f).get("signals", [])
+        def _read_live_signals():
+            with open(LIVE_SIGNALS_FILE, "r", encoding="utf-8") as _f:
+                return _json.load(_f).get("signals", [])
+        _pre = await asyncio.to_thread(_read_live_signals)
         if _pre:
             LATEST_SCANNER_SIGNALS = _pre
             LATEST_MTB_SIGNALS = LATEST_SCANNER_SIGNALS
@@ -1415,7 +1417,6 @@ async def _run_startup_selftest() -> None:
         f"   API Ready               {tick(api_ok)}",
     ]
     for line in lines:
-        print(line, flush=True)
         logger.info(line)
 
     all_ok = storage_ok and scanner_ok and loop_ok and api_ok
@@ -1572,7 +1573,6 @@ async def _do_shutdown_save() -> None:
     """
     from pathlib import Path as _Path
 
-    print("Scanner shutting down...", flush=True)
     logger.info("Scanner shutting down...")
 
     # ── 1. Save all files ──────────────────────────────────────────────────
@@ -1592,7 +1592,6 @@ async def _do_shutdown_save() -> None:
         except Exception:
             logger.exception("Shutdown save failed: %s", dst_name)
             msg = f"{label} save failed ❌"
-        print(msg, flush=True)
         logger.info(msg)
 
     # ── 2. Cancel background tasks ─────────────────────────────────────────
@@ -1607,7 +1606,6 @@ async def _do_shutdown_save() -> None:
                 pass
             logger.info("Stopped %s ✅", name)
 
-    print("Shutdown complete ✅", flush=True)
     logger.info("Shutdown complete ✅")
 
 

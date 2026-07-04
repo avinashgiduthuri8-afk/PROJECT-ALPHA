@@ -189,6 +189,7 @@ else:
 
 _SNAPSHOT_CACHE: dict[str, tuple[float, dict]] = {}
 _SNAPSHOT_TTL = 3.0
+_SNAPSHOT_CACHE_LOCK = asyncio.Lock()
 
 
 async def _cached_snapshot(key: str, fn) -> dict:
@@ -197,7 +198,8 @@ async def _cached_snapshot(key: str, fn) -> dict:
     if entry and (_time.monotonic() - entry[0]) < _SNAPSHOT_TTL:
         return entry[1]
     result: dict = await asyncio.to_thread(fn)
-    _SNAPSHOT_CACHE[key] = (_time.monotonic(), result)
+    async with _SNAPSHOT_CACHE_LOCK:
+        _SNAPSHOT_CACHE[key] = (_time.monotonic(), result)
     return result
 
 
@@ -825,8 +827,10 @@ async def _get_coin_markets() -> tuple:
     if not tickers:
         try:
             import requests as _req
-            resp = _req.get(
-                "https://api.coindcx.com/exchange/ticker", timeout=6
+            resp = await asyncio.to_thread(
+                _req.get,
+                "https://api.coindcx.com/exchange/ticker",
+                timeout=6,
             )
             resp.raise_for_status()
             tickers = resp.json()
@@ -1141,8 +1145,10 @@ async def paper_trading_validation_status():
             from bots.volatile_gridX.circuit_breaker import CIRCUIT_BREAKER_FILE
             import json as _json
             if CIRCUIT_BREAKER_FILE.exists():
-                with open(CIRCUIT_BREAKER_FILE) as _f:
-                    _cb = _json.load(_f)
+                def _read_cb_file():
+                    with open(CIRCUIT_BREAKER_FILE) as _f:
+                        return _json.load(_f)
+                _cb = await asyncio.to_thread(_read_cb_file)
                 cb_state  = _cb.get("trading_state", "UNKNOWN")
                 cb_breaks = int(_cb.get("circuit_breaks_count", 0))
             else:
@@ -1200,17 +1206,19 @@ async def paper_trading_validation_status():
 
 _ALERT_LOG: list = []
 _ALERT_LOG_MAX = 200
+_ALERT_LOG_LOCK = asyncio.Lock()
 
 
-def _push_alert(level: str, source: str, message: str) -> None:
-    _ALERT_LOG.append({
-        "level":     level,
-        "source":    source,
-        "message":   message,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    })
-    if len(_ALERT_LOG) > _ALERT_LOG_MAX:
-        del _ALERT_LOG[: len(_ALERT_LOG) - _ALERT_LOG_MAX]
+async def _push_alert(level: str, source: str, message: str) -> None:
+    async with _ALERT_LOG_LOCK:
+        _ALERT_LOG.append({
+            "level":     level,
+            "source":    source,
+            "message":   message,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+        if len(_ALERT_LOG) > _ALERT_LOG_MAX:
+            del _ALERT_LOG[: len(_ALERT_LOG) - _ALERT_LOG_MAX]
 
 
 @app.get("/api/v1/alerts", response_class=JSONResponse)
@@ -1223,7 +1231,7 @@ async def alert_center(limit: int = 50):
 @app.post("/api/v1/alerts/push", response_class=JSONResponse)
 async def push_alert(level: str = "INFO", source: str = "system", message: str = ""):
     """Push a new alert into the notification center."""
-    _push_alert(level.upper(), source, message)
+    await _push_alert(level.upper(), source, message)
     return {"ok": True, "total": len(_ALERT_LOG)}
 
 
@@ -1233,17 +1241,19 @@ async def push_alert(level: str = "INFO", source: str = "system", message: str =
 
 _ERROR_LOG: list = []
 _ERROR_LOG_MAX = 100
+_ERROR_LOG_LOCK = asyncio.Lock()
 
 
-def _log_error(source: str, error: str, context: str = "") -> None:
-    _ERROR_LOG.append({
-        "source":    source,
-        "error":     error,
-        "context":   context,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    })
-    if len(_ERROR_LOG) > _ERROR_LOG_MAX:
-        del _ERROR_LOG[: len(_ERROR_LOG) - _ERROR_LOG_MAX]
+async def _log_error(source: str, error: str, context: str = "") -> None:
+    async with _ERROR_LOG_LOCK:
+        _ERROR_LOG.append({
+            "source":    source,
+            "error":     error,
+            "context":   context,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+        if len(_ERROR_LOG) > _ERROR_LOG_MAX:
+            del _ERROR_LOG[: len(_ERROR_LOG) - _ERROR_LOG_MAX]
 
 
 @app.get("/api/v1/errors", response_class=JSONResponse)
@@ -1307,7 +1317,7 @@ async def telegram_analytics():
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
     except Exception as exc:
-        _log_error("telegram_analytics", str(exc))
+        await _log_error("telegram_analytics", str(exc))
         return JSONResponse(status_code=500, content={"error": str(exc)})
 
 

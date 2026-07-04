@@ -1,0 +1,207 @@
+# PROJECT-ALPHA — Small Remaining Issues Cleanup
+
+This task is strictly a cleanup pass.
+
+Rules:
+
+* DO NOT change any trading logic.
+* DO NOT change scanner scoring logic.
+* DO NOT change signal generation logic.
+* DO NOT change API response schemas.
+* DO NOT touch database/storage formats.
+* All fixes must be additive or one-line corrections.
+* Run full tests after each change.
+
+---
+
+# TASK 1 — Deny-by-Default Trading
+
+File:
+`bots/risk_engine/config.py`
+
+Change:
+
+```python
+TRADING_ENABLED=os.getenv("TRADING_ENABLED","true")
+```
+
+to:
+
+```python
+TRADING_ENABLED=os.getenv("TRADING_ENABLED","false")
+```
+
+---
+
+# TASK 2 — Validate BOT_MODE
+
+Create:
+
+```python
+VALID_MODES = {
+    "PAPER",
+    "LIVE",
+    "PAUSED",
+    "DISABLED"
+}
+```
+
+If BOT_MODE is not in VALID_MODES:
+
+* log warning
+* force mode to DISABLED.
+
+No silent fallback.
+
+---
+
+# TASK 3 — Replace Remaining print()
+
+Files:
+
+* bots/scanner_bot/main.py
+* bots/volatile_gridX/main.py
+
+Replace:
+
+```python
+print(...)
+```
+
+with:
+
+```python
+logger.info(...)
+logger.warning(...)
+logger.error(...)
+```
+
+No behavior changes.
+
+---
+
+# TASK 4 — Protect Shared State
+
+Objects:
+
+```python
+_ALERT_LOG
+_ERROR_LOG
+_SNAPSHOT_CACHE
+```
+
+Add:
+
+```python
+asyncio.Lock()
+```
+
+Use lock only around mutations.
+
+No API changes.
+
+---
+
+# TASK 5 — Wrap Blocking File Reads
+
+Files:
+
+* paper_trading_validation_status()
+* _scanner_loop()
+
+Wrap file reads using:
+
+```python
+await asyncio.to_thread(...)
+```
+
+Do not change logic.
+
+---
+
+# TASK 6 — Fix Blocking HTTP
+
+File:
+`app.py`
+
+Function:
+`_get_coin_markets()`
+
+Replace:
+
+```python
+requests.get()
+```
+
+with:
+
+Option A:
+
+```python
+await asyncio.to_thread(requests.get, ...)
+```
+
+Option B:
+
+```python
+httpx.AsyncClient
+```
+
+Keep identical response behavior.
+
+---
+
+# TASK 7 — Dynamic Import Cleanup
+
+Risk engine snapshot currently imports inside a loop.
+
+Move import outside loop.
+
+No behavior changes.
+
+---
+
+# NOT IN SCOPE
+
+Do NOT touch:
+
+* Scanner logic
+* EMA logic
+* MTF logic
+* Historical scoring
+* Dashboard V2
+* Event bus
+* Portfolio calculations
+* VGX path issue
+* Any storage schema
+
+---
+
+# Verification Required
+
+After each fix:
+
+1. Start application.
+2. Run full test suite.
+3. Confirm:
+
+* Scanner starts.
+* Dashboard loads.
+* Paper trading works.
+* APIs return same schemas.
+* No new warnings/errors.
+
+Generate:
+
+`SMALL_FIXES_REPORT.md`
+
+Include:
+
+* files changed
+* lines changed
+* tests run
+* regressions introduced
+* verification results
+* rollback instructions
+
+If any fix risks changing behavior, stop and report before modifying code.

@@ -15,6 +15,15 @@ BOT_NAME    = "PMB"
 BOT_VERSION = "1.0"
 BOT_MODE    = os.getenv("PMB_BOT_MODE", "PAPER")
 
+_VALID_BOT_MODES = {"PAPER", "LIVE", "PAUSED", "DISABLED"}
+if BOT_MODE not in _VALID_BOT_MODES:
+    import logging as _logging
+    _logging.getLogger(__name__).warning(
+        "Invalid PMB_BOT_MODE %r — must be one of %s; forcing DISABLED",
+        BOT_MODE, sorted(_VALID_BOT_MODES),
+    )
+    BOT_MODE = "DISABLED"
+
 TELEGRAM_BOT_TOKEN = os.getenv("PMB_BOT_TOKEN") or os.getenv("BOT_TOKEN", "")
 TELEGRAM_CHAT_ID   = os.getenv("PMB_CHAT_ID")   or os.getenv("TELEGRAM_CHAT_ID", "")
 

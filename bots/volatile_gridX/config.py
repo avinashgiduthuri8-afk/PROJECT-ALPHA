@@ -17,6 +17,15 @@ SECRET_KEY = os.getenv("SECRET_KEY", "")
 # explicitly to enable real order execution.
 BOT_MODE = os.getenv("VGX_BOT_MODE", "PAPER")
 
+_VALID_BOT_MODES = {"PAPER", "LIVE", "PAUSED", "DISABLED"}
+if BOT_MODE not in _VALID_BOT_MODES:
+    import logging as _logging
+    _logging.getLogger(__name__).warning(
+        "Invalid VGX_BOT_MODE %r — must be one of %s; forcing DISABLED",
+        BOT_MODE, sorted(_VALID_BOT_MODES),
+    )
+    BOT_MODE = "DISABLED"
+
 PROJECT_NAME = "TradingBotCrypto"
 
 TRADE_AMOUNT = float(os.getenv("VGX_TRADE_AMOUNT", os.getenv("TRADE_AMOUNT", "110")))

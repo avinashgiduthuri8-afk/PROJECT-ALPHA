@@ -62,14 +62,13 @@ _VGX_TASK: Optional[asyncio.Task] = None
 
 
 def startup():
-    print("================================")
-    print("PROJECT-ALPHA STARTING")
-    print("Loading Storage...")
+    logger.info("================================")
+    logger.info("PROJECT-ALPHA STARTING")
+    logger.info("Loading Storage...")
     storage.load_data()
-    print(f"Balance : ₹{storage.virtual_balance}")
-    print()
-    print("Startup Complete")
-    print("================================")
+    logger.info("Balance : ₹%s", storage.virtual_balance)
+    logger.info("Startup Complete")
+    logger.info("================================")
 
 
 async def background_loop():
@@ -77,7 +76,7 @@ async def background_loop():
         logger.info("VGX background loop DISABLED (set VGX_ENABLED=true to activate)")
         return
     logger.info("VGX background loop started interval=%ss", STORAGE_SYNC_INTERVAL)
-    print("Background Engine Started")
+    logger.info("Background Engine Started")
     while True:
         try:
             # Offload only the network-bound market-data fetch so the event loop
@@ -133,8 +132,8 @@ async def post_init(app):
 
 def main():
     if not BOT_TOKEN:
-        print("[VGX] BOT_TOKEN not set — Telegram bot disabled")
-        print("[VGX] Running headless (scanner + trading engine only)")
+        logger.warning("[VGX] BOT_TOKEN not set — Telegram bot disabled")
+        logger.warning("[VGX] Running headless (scanner + trading engine only)")
         return
 
     startup()
@@ -162,7 +161,7 @@ def main():
 
     atexit.register(storage.save_data)
 
-    print("🚀 PROJECT-ALPHA LIVE")
+    logger.info("🚀 PROJECT-ALPHA LIVE")
     app.run_polling()
 
 
