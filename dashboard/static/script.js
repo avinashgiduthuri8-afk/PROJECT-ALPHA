@@ -1337,6 +1337,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (data.success) {
                 input.value = "";
                 if (errorDiv) { errorDiv.style.display = "none"; errorDiv.textContent = ""; }
+                const preview = document.getElementById("scanner-pair-preview");
+                if (preview) { preview.style.display = "none"; preview.textContent = ""; }
                 refreshWatchlistTable();
             } else {
                 const reasonMap = {
@@ -1406,4 +1408,78 @@ document.addEventListener("DOMContentLoaded", () => {
             console.warn("[ProjectA] Watchlist refresh failed:", err.message);
         }
     }
+
+    // ── Pair Preview (real-time resolution while typing) ───────────────────
+    (function() {
+        var CACHE_MAX      = 20;
+        var previewCache   = new Map();   // coin → API result (last 20)
+        var debounceTimer  = null;
+        var inflightCoin   = "";          // used to discard stale responses
+
+        var STATE_COLORS = {
+            green: "#22c55e",
+            amber: "#f59e0b",
+            red:   "#ef4444",
+            gray:  "#888888"
+        };
+
+        function showPreview(state, text) {
+            var el = document.getElementById("scanner-pair-preview");
+            if (!el) return;
+            if (!text) { el.style.display = "none"; el.textContent = ""; return; }
+            el.style.color   = STATE_COLORS[state] || STATE_COLORS.gray;
+            el.textContent   = text;
+            el.style.display = "block";
+        }
+
+        function renderResult(data) {
+            if (!data) { showPreview("gray", ""); return; }
+            if (data.resolved) {
+                var quote = data.quote || "INR";
+                var state = (quote === "USDT") ? "amber" : "green";
+                showPreview(state, "\u2713 " + data.coin + " \u2192 " + data.coin + "/" + quote);
+            } else {
+                showPreview("red", "\u2717 No supported trading pair found");
+            }
+        }
+
+        async function resolvePreview(coin) {
+            if (!coin) { showPreview("gray", ""); return; }
+
+            if (previewCache.has(coin)) {
+                if (coin === inflightCoin) renderResult(previewCache.get(coin));
+                return;
+            }
+
+            showPreview("gray", "Resolving pair\u2026");
+            try {
+                var resp = await authenticatedFetch(
+                    "/api/v1/scanner/resolve-pair/" + encodeURIComponent(coin)
+                );
+                var data = await resp.json();
+
+                if (previewCache.size >= CACHE_MAX) {
+                    previewCache.delete(previewCache.keys().next().value);
+                }
+                previewCache.set(coin, data);
+
+                if (coin === inflightCoin) renderResult(data);
+            } catch (e) {
+                if (coin === inflightCoin) showPreview("gray", "Unable to resolve pair.");
+            }
+        }
+
+        var addInput = document.getElementById("scanner-add-input");
+        if (addInput) {
+            addInput.addEventListener("input", function() {
+                var coin = this.value.trim().toUpperCase();
+                inflightCoin = coin;
+                clearTimeout(debounceTimer);
+                if (!coin) { showPreview("gray", ""); return; }
+                debounceTimer = setTimeout(function() { resolvePreview(coin); }, 300);
+            });
+        }
+    })();
+    // ── End Pair Preview ───────────────────────────────────────────────────
+
 });

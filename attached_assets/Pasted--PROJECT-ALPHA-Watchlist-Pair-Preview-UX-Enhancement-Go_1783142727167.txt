@@ -1,0 +1,196 @@
+# PROJECT-ALPHA — Watchlist Pair Preview (UX Enhancement)
+
+Goal:
+Show the resolved trading pair in real time while the user types a coin symbol, before clicking "Add".
+
+Examples:
+
+```text
+BTC   → BTC/INR
+ETH   → ETH/INR
+PEPE  → PEPE/USDT
+FAKE  → No valid pair found
+```
+
+This is a UI enhancement only.
+
+---
+
+# Requirements
+
+## Backend
+
+Reuse existing endpoint:
+
+```text
+GET /api/v1/scanner/resolve-pair/{coin}
+```
+
+No new API endpoint required.
+
+No scanner logic changes.
+
+No storage changes.
+
+---
+
+## Frontend
+
+When user types in:
+
+```text
+<input id="watchlist-coin-input">
+```
+
+1. Debounce input:
+
+```text
+300 ms
+```
+
+2. Call:
+
+```text
+GET /api/v1/scanner/resolve-pair/{coin}
+```
+
+3. Display preview below input.
+
+---
+
+# Preview States
+
+### Valid INR pair
+
+```text
+✓ BTC → BTC/INR
+```
+
+Green.
+
+---
+
+### Valid USDT pair
+
+```text
+✓ PEPE → PEPE/USDT
+```
+
+Amber.
+
+---
+
+### Invalid coin
+
+```text
+✗ No supported trading pair found
+```
+
+Red.
+
+---
+
+### Empty input
+
+Show nothing.
+
+---
+
+### Loading
+
+```text
+Resolving pair...
+```
+
+---
+
+# Mobile Requirements
+
+Preview must:
+
+* wrap correctly
+* not resize the input field
+* not shift other components
+
+---
+
+# Performance Requirements
+
+* Debounce requests.
+* Ignore duplicate requests.
+* Cache last 20 lookups in memory.
+* No polling.
+
+---
+
+# Error Handling
+
+Network failure:
+
+```text
+Unable to resolve pair.
+```
+
+No console errors.
+
+No impact on watchlist functionality.
+
+---
+
+# Not In Scope
+
+Do NOT modify:
+
+* scanner logic
+* watchlist storage
+* signal generation
+* pair resolution algorithm
+* API schemas
+
+---
+
+# Verification
+
+Test:
+
+```text
+BTC
+ETH
+LINK
+PEPE
+FAKE
+```
+
+Expected:
+
+```text
+BTC  → BTC/INR
+ETH  → ETH/INR
+LINK → LINK/INR
+PEPE → PEPE/USDT
+FAKE → unsupported
+```
+
+Confirm:
+
+* dashboard loads
+* watchlist add/remove still works
+* scanner unaffected
+* full test suite passes
+
+---
+
+Generate:
+
+```text
+WATCHLIST_PAIR_PREVIEW.md
+```
+
+Include:
+
+* files changed
+* screenshots
+* API calls made
+* tests run
+* regressions
+* rollback instructions
