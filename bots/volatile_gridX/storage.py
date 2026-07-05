@@ -429,8 +429,20 @@ def set_grid_coins(coins: list) -> bool:
                 "[VGX] set_grid_coins rejected: %r is not alphanumeric", c
             )
             return False
+        if len(c) > 10:
+            _logger.warning(
+                "[VGX] set_grid_coins rejected: %r exceeds 10-character limit", c
+            )
+            return False
 
-    normalised = [c.upper() for c in coins]
+    # Normalise to uppercase and deduplicate (preserve first occurrence order).
+    seen: set = set()
+    normalised: list = []
+    for c in coins:
+        up = c.upper()
+        if up not in seen:
+            seen.add(up)
+            normalised.append(up)
 
     with _storage_lock:
         grid_coins = normalised

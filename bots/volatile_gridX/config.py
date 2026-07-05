@@ -39,15 +39,6 @@ TRADE_AMOUNT = float(os.getenv("VGX_TRADE_AMOUNT", os.getenv("TRADE_AMOUNT", "11
 
 PHASE5 = {
 
-    "coins": [
-        "BTC",
-        "ETH",
-        "SOL",
-        "BNB",
-        "XRP",
-        "ZEC"
-    ],
-
     "trade": {
 
         "target_percent": 0.05,

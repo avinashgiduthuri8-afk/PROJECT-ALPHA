@@ -48,8 +48,6 @@ from bots.volatile_gridX.storage import (
     set_grid_coins        as _vgx_set_grid_coins,
 )
 
-_VGX_PHASE5_COINS = ["BTC", "ETH", "SOL", "BNB", "XRP", "ZEC"]  # kept as static fallback
-
 # ── In-memory trading-toggle metadata ─────────────────────────────────────────
 # Tracks who last changed the toggle and when (for /api/v1/trading/status).
 # Reset to "env_var" on every process restart.
@@ -1961,15 +1959,15 @@ async def export_stats_json():
 
 @app.get("/api/vgx/grid-config", response_class=JSONResponse)
 async def vgx_get_grid_config():
-    """Return current grid_config and grid_coins. No auth required (read-only)."""
+    """Return current grid_config and grid_coins. Requires X-API-Key."""
     grid_cfg = await asyncio.to_thread(_vgx_get_grid_config)
     coins    = await asyncio.to_thread(_vgx_get_grid_coins)
     return JSONResponse(content={"grid_coins": coins, "grid_config": grid_cfg})
 
 
-@app.post("/api/vgx/grid-config/coin", response_class=JSONResponse)
+@app.post("/api/vgx/base-price", response_class=JSONResponse)
 async def vgx_set_coin_base_price(request: Request):
-    """Set manual grid-centre base price for a coin. Requires X-API-Key."""
+    """Set or update manual grid-centre base price for a coin. Requires X-API-Key."""
     try:
         body = await request.json()
     except Exception:
@@ -1998,10 +1996,15 @@ async def vgx_set_coin_base_price(request: Request):
     return JSONResponse(content={"status": "ok", "coin": coin, "base_price": base_price})
 
 
-@app.delete("/api/vgx/grid-config/coin/{coin}", response_class=JSONResponse)
-async def vgx_remove_coin_base_price(coin: str):
-    """Remove manual base price override for a coin. Requires X-API-Key."""
-    coin = coin.strip().upper()
+@app.delete("/api/vgx/base-price", response_class=JSONResponse)
+async def vgx_remove_coin_base_price(request: Request):
+    """Remove manual base price override for a coin. Coin supplied as query param. Requires X-API-Key."""
+    coin = (request.query_params.get("coin", "")).strip().upper()
+    if not coin or not coin.isalnum() or len(coin) > 10:
+        return JSONResponse(content={
+            "status": "error",
+            "reason": "coin query param must be alphanumeric and at most 10 characters",
+        })
     removed = await asyncio.to_thread(_vgx_remove_coin_base_price, coin)
     if not removed:
         logger.info("[VGX API] Base price remove: coin=%s not found", coin)
@@ -2029,9 +2032,10 @@ async def vgx_set_grid_coins(request: Request):
             "reason": "validation failed — list must be non-empty, each coin alphanumeric, max 20 coins",
         })
 
-    normalised = [c.strip().upper() for c in coins if isinstance(c, str)]
-    logger.info("[VGX API] Grid coins updated via API: %s", normalised)
-    return JSONResponse(content={"status": "ok", "coins": normalised, "count": len(normalised)})
+    # Return the persisted state (deduped, normalised) rather than the raw input.
+    persisted = await asyncio.to_thread(_vgx_get_grid_coins)
+    logger.info("[VGX API] Grid coins updated via API: %s", persisted)
+    return JSONResponse(content={"status": "ok", "coins": persisted, "count": len(persisted)})
 
 
 if __name__ == "__main__":

@@ -1846,7 +1846,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!coin || !/^[A-Z0-9]+$/.test(coin)) { vgxMsg("vgx-bp-msg", "Enter a valid coin symbol.", true); return; }
         if (!price || price <= 0)                { vgxMsg("vgx-bp-msg", "Enter a price > 0.", true); return; }
         try {
-            var resp = await authenticatedFetch("/api/vgx/grid-config/coin", {
+            var resp = await authenticatedFetch("/api/vgx/base-price", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ coin: coin, base_price: price }),
@@ -1867,7 +1867,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     window.vgxClearBasePrice = async function(coin) {
         try {
-            var resp = await authenticatedFetch("/api/vgx/grid-config/coin/" + encodeURIComponent(coin), { method: "DELETE" });
+            var resp = await authenticatedFetch("/api/vgx/base-price?coin=" + encodeURIComponent(coin), { method: "DELETE" });
             var data = await resp.json();
             if (data.status === "ok") {
                 vgxMsg("vgx-bp-msg", "Cleared base price for " + coin + ".", false);
