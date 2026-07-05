@@ -174,14 +174,14 @@
 
                         <div class="kpi-card accent-blue">
                             <div class="kpi-label">Total AUM</div>
-                            <div class="kpi-value font-mono" id="kpi-aum">₹{{ "%.2f"|format(data.portfolio_overview.total_value) }}</div>
-                            <div class="kpi-sub">Daily Δ: <span id="kpi-aum-delta" class="text-green">₹{{ "%.2f"|format(data.portfolio_overview.daily_pnl) }}</span></div>
+                            <div class="kpi-value font-mono" id="kpi-aum">{{ data.portfolio_overview.total_value|inr }}</div>
+                            <div class="kpi-sub">Daily Δ: <span id="kpi-aum-delta" class="text-green">{{ data.portfolio_overview.daily_pnl|inr }}</span></div>
                         </div>
 
                         <div class="kpi-card {% if combined_pnl >= 0 %}accent-green{% else %}accent-red{% endif %}">
                             <div class="kpi-label">Combined Daily PnL</div>
                             <div class="kpi-value font-mono {% if combined_pnl >= 0 %}text-green{% else %}text-red{% endif %}" id="kpi-pnl">
-                                ₹{{ "%.2f"|format(combined_pnl) }}
+                                {{ combined_pnl|inr }}
                             </div>
                             <div class="kpi-sub">VGX + PMB + MTB</div>
                         </div>
@@ -204,7 +204,7 @@
 
                         <div class="kpi-card {% if data.risk_engine.capital_utilisation_pct > 80 %}accent-red{% elif data.risk_engine.capital_utilisation_pct > 50 %}accent-amber{% else %}accent-green{% endif %}">
                             <div class="kpi-label">Capital Deployed</div>
-                            <div class="kpi-value font-mono" id="kpi-capital">₹{{ "%.0f"|format(data.risk_engine.total_deployed) }}</div>
+                            <div class="kpi-value font-mono" id="kpi-capital">{{ data.risk_engine.total_deployed|inr(0) }}</div>
                             <div class="kpi-sub">{{ data.risk_engine.capital_utilisation_pct }}% of limit</div>
                         </div>
 
@@ -235,12 +235,12 @@
                             <div class="bot-card-metrics">
                                 <div class="bot-metric">
                                     <span class="bot-metric-label">Balance</span>
-                                    <span class="bot-metric-value text-blue" id="vbc-vgx-balance">₹{{ "{:,.0f}".format(data.vgx_overview.virtual_balance) }}</span>
+                                    <span class="bot-metric-value text-blue" id="vbc-vgx-balance">{{ data.vgx_overview.virtual_balance|inr(0) }}</span>
                                 </div>
                                 <div class="bot-metric">
                                     <span class="bot-metric-label">Daily PnL</span>
                                     <span class="bot-metric-value {% if data.vgx_overview.daily_pnl >= 0 %}text-green{% else %}text-red{% endif %}" id="vbc-vgx-pnl">
-                                        ₹{{ "%.2f"|format(data.vgx_overview.daily_pnl) }}
+                                        {{ data.vgx_overview.daily_pnl|inr }}
                                     </span>
                                 </div>
                                 <div class="bot-metric">
@@ -278,17 +278,17 @@
                             <div class="bot-card-metrics">
                                 <div class="bot-metric">
                                     <span class="bot-metric-label">Cash Balance</span>
-                                    <span class="bot-metric-value text-blue" id="vbc-pmb-cash">₹{{ "{:,.0f}".format(data.pmb_overview.cash_balance) }}</span>
+                                    <span class="bot-metric-value text-blue" id="vbc-pmb-cash">{{ data.pmb_overview.cash_balance|inr(0) }}</span>
                                 </div>
                                 <div class="bot-metric">
                                     <span class="bot-metric-label">Daily PnL</span>
                                     <span class="bot-metric-value {% if data.pmb_overview.daily_pnl >= 0 %}text-green{% else %}text-red{% endif %}" id="vbc-pmb-pnl">
-                                        ₹{{ "%.2f"|format(data.pmb_overview.daily_pnl) }}
+                                        {{ data.pmb_overview.daily_pnl|inr }}
                                     </span>
                                 </div>
                                 <div class="bot-metric">
                                     <span class="bot-metric-label">Trade Amount</span>
-                                    <span class="bot-metric-value">₹{{ "%.0f"|format(data.pmb_overview.trade_amount) }}</span>
+                                    <span class="bot-metric-value">{{ data.pmb_overview.trade_amount|inr(0) }}</span>
                                 </div>
                                 <div class="bot-metric">
                                     <span class="bot-metric-label">Positions</span>
@@ -303,7 +303,7 @@
                                 </div>
                                 <div class="progress-label">
                                     <span>Capital usage</span>
-                                    <span>Total PnL: ₹{{ "%.2f"|format(data.pmb_overview.total_pnl) }}</span>
+                                    <span>Total PnL: {{ data.pmb_overview.total_pnl|inr }}</span>
                                 </div>
                             </div>
                         </div>
@@ -323,17 +323,17 @@
                             <div class="bot-card-metrics">
                                 <div class="bot-metric">
                                     <span class="bot-metric-label">Cash Balance</span>
-                                    <span class="bot-metric-value text-blue" id="vbc-mtb-cash">₹{{ "{:,.0f}".format(data.mtb_overview.cash_balance) }}</span>
+                                    <span class="bot-metric-value text-blue" id="vbc-mtb-cash">{{ data.mtb_overview.cash_balance|inr(0) }}</span>
                                 </div>
                                 <div class="bot-metric">
                                     <span class="bot-metric-label">Daily PnL</span>
                                     <span class="bot-metric-value {% if data.mtb_overview.daily_pnl >= 0 %}text-green{% else %}text-red{% endif %}" id="vbc-mtb-pnl">
-                                        ₹{{ "%.2f"|format(data.mtb_overview.daily_pnl) }}
+                                        {{ data.mtb_overview.daily_pnl|inr }}
                                     </span>
                                 </div>
                                 <div class="bot-metric">
                                     <span class="bot-metric-label">Trade Amount</span>
-                                    <span class="bot-metric-value">₹{{ "%.0f"|format(data.mtb_overview.trade_amount) }}</span>
+                                    <span class="bot-metric-value">{{ data.mtb_overview.trade_amount|inr(0) }}</span>
                                 </div>
                                 <div class="bot-metric">
                                     <span class="bot-metric-label">Positions</span>
@@ -348,7 +348,7 @@
                                 </div>
                                 <div class="progress-label">
                                     <span>Capital usage</span>
-                                    <span>Total PnL: ₹{{ "%.2f"|format(data.mtb_overview.total_pnl) }}</span>
+                                    <span>Total PnL: {{ data.mtb_overview.total_pnl|inr }}</span>
                                 </div>
                             </div>
                         </div>
@@ -477,8 +477,8 @@
                             </div>
                             <div class="risk-item">
                                 <span class="risk-item-label">Capital Deployed</span>
-                                <span class="risk-item-value font-mono" id="risk-deployed">₹{{ "%.0f"|format(data.risk_engine.total_deployed) }}</span>
-                                <span class="risk-item-sub">of ₹{{ "%.0f"|format(data.risk_engine.total_capital_limit) }} limit</span>
+                                <span class="risk-item-value font-mono" id="risk-deployed">{{ data.risk_engine.total_deployed|inr(0) }}</span>
+                                <span class="risk-item-sub">of {{ data.risk_engine.total_capital_limit|inr(0) }} limit</span>
                             </div>
                             <div class="risk-item">
                                 <span class="risk-item-label">Utilisation</span>
@@ -963,11 +963,11 @@
                 <!-- ═══════════════════════════════════════════════════════════ -->
                 <div id="portfolio-view" class="spa-view-layer view-hidden">
                     <div class="dashboard-grid-matrix">
-                        <div class="metric-card span-4"><h5>Total Portfolio Value</h5><h2 class="text-blue" id="port-total-value">₹{{ "%.2f"|format(data.portfolio_overview.total_value) }}</h2><div class="card-footer-metric">Open Positions: <span id="port-open-positions">{{ data.portfolio_overview.open_positions }}</span></div></div>
-                        <div class="metric-card span-2"><h5>Available Cash</h5><h3 id="port-available-cash">₹{{ "%.2f"|format(data.portfolio_overview.available_cash) }}</h3></div>
-                        <div class="metric-card span-2"><h5>Invested Amount</h5><h3 id="port-invested-amount">₹{{ "%.2f"|format(data.portfolio_overview.invested_amount) }}</h3></div>
-                        <div class="metric-card span-2"><h5>Total PnL Net</h5><h3 id="port-total-pnl" class="{% if data.portfolio_overview.total_pnl >= 0 %}text-green{% else %}text-red{% endif %}">₹{{ "%.2f"|format(data.portfolio_overview.total_pnl) }}</h3></div>
-                        <div class="metric-card span-2"><h5>Daily PnL Delta</h5><h3 id="port-daily-pnl" class="{% if data.portfolio_overview.daily_pnl >= 0 %}text-green{% else %}text-red{% endif %}">₹{{ "%.2f"|format(data.portfolio_overview.daily_pnl) }}</h3></div>
+                        <div class="metric-card span-4"><h5>Total Portfolio Value</h5><h2 class="text-blue" id="port-total-value">{{ data.portfolio_overview.total_value|inr }}</h2><div class="card-footer-metric">Open Positions: <span id="port-open-positions">{{ data.portfolio_overview.open_positions }}</span></div></div>
+                        <div class="metric-card span-2"><h5>Available Cash</h5><h3 id="port-available-cash">{{ data.portfolio_overview.available_cash|inr }}</h3></div>
+                        <div class="metric-card span-2"><h5>Invested Amount</h5><h3 id="port-invested-amount">{{ data.portfolio_overview.invested_amount|inr }}</h3></div>
+                        <div class="metric-card span-2"><h5>Total PnL Net</h5><h3 id="port-total-pnl" class="{% if data.portfolio_overview.total_pnl >= 0 %}text-green{% else %}text-red{% endif %}">{{ data.portfolio_overview.total_pnl|inr }}</h3></div>
+                        <div class="metric-card span-2"><h5>Daily PnL Delta</h5><h3 id="port-daily-pnl" class="{% if data.portfolio_overview.daily_pnl >= 0 %}text-green{% else %}text-red{% endif %}">{{ data.portfolio_overview.daily_pnl|inr }}</h3></div>
                         <div class="metric-card span-6 canvas-wrapper-box"><h5>Asset Portfolio Allocation Weights</h5><div class="canvas-holder"><canvas id="portfolioPieChart"></canvas></div></div>
                         <div class="metric-card span-6 canvas-wrapper-box"><h5>Compounded Equity Valuation Curve</h5><div class="canvas-holder"><canvas id="portfolioGrowthLineChart"></canvas></div></div>
 
@@ -1041,7 +1041,7 @@
                                             <td><span class="row-badge-pill signal-type-elite">{{ pos.bot }}</span></td>
                                             <td><strong>{{ pos.coin }}/INR</strong></td>
                                             <td class="font-mono">{{ pos.quantity }}</td>
-                                            <td class="font-mono">₹{{ pos.buy_price }}</td>
+                                            <td class="font-mono">{{ pos.buy_price|inr(4) }}</td>
                                             <td><span class="{% if pos.pnl_pct >= 0 %}text-green{% else %}text-red{% endif %} font-600">{{ pos.pnl_pct }}%</span></td>
                                             <td><span class="row-badge-pill signal-type-elite">{{ pos.status }}</span></td>
                                         </tr>
@@ -1096,13 +1096,13 @@
                         </div>
                         <div class="metric-card span-3">
                             <h5>Virtual Balance</h5>
-                            <h3 class="text-blue">₹{{ "{:,.2f}".format(data.vgx_overview.virtual_balance) }}</h3>
-                            <div class="card-footer-metric">Trade Amount: ₹{{ "%.0f"|format(data.vgx_overview.trade_amount) }}</div>
+                            <h3 class="text-blue">{{ data.vgx_overview.virtual_balance|inr }}</h3>
+                            <div class="card-footer-metric">Trade Amount: {{ data.vgx_overview.trade_amount|inr(0) }}</div>
                         </div>
                         <div class="metric-card span-3">
                             <h5>Daily PnL</h5>
-                            <h3 class="{% if data.vgx_overview.daily_pnl >= 0 %}text-green{% else %}text-red{% endif %}">₹{{ "%.2f"|format(data.vgx_overview.daily_pnl) }}</h3>
-                            <div class="card-footer-metric">Total PnL: ₹{{ "%.2f"|format(data.vgx_overview.total_pnl) }}</div>
+                            <h3 class="{% if data.vgx_overview.daily_pnl >= 0 %}text-green{% else %}text-red{% endif %}">{{ data.vgx_overview.daily_pnl|inr }}</h3>
+                            <div class="card-footer-metric">Total PnL: {{ data.vgx_overview.total_pnl|inr }}</div>
                         </div>
                         <div class="metric-card span-3">
                             <h5>Win Rate</h5>
@@ -1115,7 +1115,7 @@
                             <h5>Last Trade</h5>
                             {% if data.vgx_overview.last_trade %}
                             <h3 class="text-white" style="font-size:1rem">{{ data.vgx_overview.last_trade.coin }} <span class="row-badge-pill" style="font-size:0.7rem">{{ data.vgx_overview.last_trade.action }}</span></h3>
-                            <div class="card-footer-metric">Price: {{ data.vgx_overview.last_trade.price }} &nbsp;|&nbsp; PnL: ₹{{ data.vgx_overview.last_trade.pnl }} &nbsp;|&nbsp; {{ data.vgx_overview.last_trade.time }}</div>
+                            <div class="card-footer-metric">Price: {{ data.vgx_overview.last_trade.price|inr(4) }} &nbsp;|&nbsp; PnL: {{ data.vgx_overview.last_trade.pnl|inr }} &nbsp;|&nbsp; {{ data.vgx_overview.last_trade.time }}</div>
                             {% else %}
                             <h3 class="text-muted">No trades yet</h3>
                             {% endif %}
@@ -1125,7 +1125,7 @@
                         <div class="metric-card span-12">
                             <h5>VGX Strategy Parameters — Volatile GridX</h5>
                             <div class="layout-matrix-inner-row">
-                                <div class="nested-status-well"><h6>Trade Amount</h6><h4 class="text-blue">₹{{ "%.0f"|format(data.vgx_overview.trade_amount) }}</h4></div>
+                                <div class="nested-status-well"><h6>Trade Amount</h6><h4 class="text-blue">{{ data.vgx_overview.trade_amount|inr(0) }}</h4></div>
                                 <div class="nested-status-well"><h6>Take Profit Target</h6><h4 class="text-green">+{{ data.vgx_overview.target_pct }}%</h4></div>
                                 <div class="nested-status-well"><h6>Stop Loss</h6><h4 class="text-red">-{{ data.vgx_overview.stop_loss_pct }}%</h4></div>
                                 <div class="nested-status-well"><h6>Trailing Stop</h6><h4 class="text-gold">1.5% from Peak</h4></div>
@@ -1142,9 +1142,9 @@
                                         {% for pos in data.vgx_overview.open_positions %}
                                         <tr>
                                             <td><strong>{{ pos.coin }}/INR</strong></td>
-                                            <td>{{ pos.buy_price }}</td>
+                                            <td>{{ pos.buy_price|inr(4) }}</td>
                                             <td class="font-mono">{{ "%.8f"|format(pos.qty) }}</td>
-                                            <td>₹{{ "%.2f"|format(pos.amount) }}</td>
+                                            <td>{{ pos.amount|inr }}</td>
                                             <td><span class="row-badge-pill {% if pos.trailing_active %}signal-type-elite{% else %}color-indicator-low{% endif %}">{{ 'ACTIVE' if pos.trailing_active else 'WAITING' }}</span></td>
                                             <td class="text-muted">{{ pos.source }}</td>
                                         </tr>
@@ -1212,10 +1212,10 @@
                         <div class="metric-card span-3"><h5>PMB Open Positions</h5><h2 class="text-blue">{{ data.pmb_overview.open_positions | length }}</h2><div class="card-footer-metric">Base Buy: ₹1000 · Dip: ₹100 · Max 4 Dips</div></div>
                         <div class="metric-card span-3">
                             <h5>PMB Daily PnL</h5>
-                            <h3 class="{% if data.pmb_overview.daily_pnl >= 0 %}text-green{% else %}text-red{% endif %}">₹{{ "%.2f"|format(data.pmb_overview.daily_pnl) }}</h3>
-                            <div class="card-footer-metric">Total PnL: ₹{{ "%.2f"|format(data.pmb_overview.total_pnl) }}</div>
+                            <h3 class="{% if data.pmb_overview.daily_pnl >= 0 %}text-green{% else %}text-red{% endif %}">{{ data.pmb_overview.daily_pnl|inr }}</h3>
+                            <div class="card-footer-metric">Total PnL: {{ data.pmb_overview.total_pnl|inr }}</div>
                         </div>
-                        <div class="metric-card span-3"><h5>PMB Trade Amount</h5><h3 class="text-white">₹{{ "%.2f"|format(data.pmb_overview.trade_amount) }}</h3><div class="card-footer-metric">Cash: ₹{{ "%.2f"|format(data.pmb_overview.cash_balance) }}</div></div>
+                        <div class="metric-card span-3"><h5>PMB Trade Amount</h5><h3 class="text-white">{{ data.pmb_overview.trade_amount|inr }}</h3><div class="card-footer-metric">Cash: {{ data.pmb_overview.cash_balance|inr }}</div></div>
                         <div class="metric-card span-12">
                             <h5>PMB Strategy Parameters</h5>
                             <div class="layout-matrix-inner-row">
@@ -1239,11 +1239,11 @@
                                         {% for pos in data.pmb_overview.open_positions %}
                                         <tr>
                                             <td><strong>{{ pos.coin }}</strong></td>
-                                            <td>{{ "%.4f"|format(pos.avg_entry_price) }}</td>
-                                            <td class="font-mono">{% if pos.current_price is not none %}{{ "%.4f"|format(pos.current_price) }}{% else %}—{% endif %}</td>
+                                            <td>{{ pos.avg_entry_price|inr(4) }}</td>
+                                            <td class="font-mono">{% if pos.current_price is not none %}{{ pos.current_price|inr(4) }}{% else %}—{% endif %}</td>
                                             <td class="{% if pos.live_pnl_status == 'profit' %}text-green{% elif pos.live_pnl_status == 'loss' %}text-red{% else %}text-muted{% endif %}">
                                                 {% if pos.live_pnl is not none %}
-                                                <span class="row-badge-pill {% if pos.live_pnl_status == 'profit' %}badge-green{% elif pos.live_pnl_status == 'loss' %}badge-red{% else %}badge-blue{% endif %}">₹{{ "%.2f"|format(pos.live_pnl) }}</span>
+                                                <span class="row-badge-pill {% if pos.live_pnl_status == 'profit' %}badge-green{% elif pos.live_pnl_status == 'loss' %}badge-red{% else %}badge-blue{% endif %}">{{ pos.live_pnl|inr }}</span>
                                                 {% else %}—{% endif %}
                                             </td>
                                             <td class="{% if pos.live_pnl_status == 'profit' %}text-green{% elif pos.live_pnl_status == 'loss' %}text-red{% else %}text-muted{% endif %}">
@@ -1253,11 +1253,11 @@
                                             </td>
                                             <td class="text-gold">{{ pos.dip_count }}/4</td>
                                             <td class="text-green">{{ pos.partial_sell_count }}</td>
-                                            <td>₹{{ "%.2f"|format(pos.total_invested) }}</td>
+                                            <td>{{ pos.total_invested|inr }}</td>
                                             <td class="font-mono">{{ "%.6f"|format(pos.total_quantity) }}</td>
-                                            <td class="text-red">{{ "%.4f"|format(pos.next_dip_price) }}</td>
-                                            <td class="text-green">{{ "%.4f"|format(pos.next_sell_price) }}</td>
-                                            <td class="text-red">{{ "%.4f"|format(pos.stop_loss_price) }}</td>
+                                            <td class="text-red">{{ pos.next_dip_price|inr(4) }}</td>
+                                            <td class="text-green">{{ pos.next_sell_price|inr(4) }}</td>
+                                            <td class="text-red">{{ pos.stop_loss_price|inr(4) }}</td>
                                         </tr>
                                         {% else %}
                                         <tr><td colspan="12" class="text-muted">No open PMB positions</td></tr>
@@ -1276,11 +1276,11 @@
                                         <tr data-coin="{{ trade.coin }}">
                                             <td><strong>{{ trade.coin }}</strong></td>
                                             <td><span class="row-badge-pill">{{ trade.action }}</span></td>
-                                            <td class="text-muted">{% if trade.entry_price is defined and trade.entry_price != "—" %}{{ "%.4f"|format(trade.entry_price|float) }}{% else %}—{% endif %}</td>
-                                            <td>{{ trade.price }}</td>
-                                            <td class="text-muted font-mono" data-cur-price>{% if trade.current_price %}{{ "%.4f"|format(trade.current_price|float) }}{% else %}—{% endif %}</td>
-                                            <td>₹{{ "%.2f"|format(trade.amount) }}</td>
-                                            <td class="{% if trade.pnl is defined and trade.pnl >= 0 %}text-green{% else %}text-red{% endif %}">{% if trade.pnl is defined %}₹{{ "%.4f"|format(trade.pnl) }}{% else %}—{% endif %}</td>
+                                            <td class="text-muted">{% if trade.entry_price is defined and trade.entry_price != "—" %}{{ trade.entry_price|float|inr(4) }}{% else %}—{% endif %}</td>
+                                            <td>{{ trade.price|inr(4) }}</td>
+                                            <td class="text-muted font-mono" data-cur-price>{% if trade.current_price %}{{ trade.current_price|float|inr(4) }}{% else %}—{% endif %}</td>
+                                            <td>{{ trade.amount|inr }}</td>
+                                            <td class="{% if trade.pnl is defined and trade.pnl >= 0 %}text-green{% else %}text-red{% endif %}">{% if trade.pnl is defined %}{{ trade.pnl|inr(4) }}{% else %}—{% endif %}</td>
                                             <td class="{% if trade.pnl_pct is defined and trade.pnl_pct >= 0 %}text-green{% else %}text-red{% endif %}">{% if trade.pnl_pct is defined and trade.pnl_pct != 0.0 %}{{ "%.2f"|format(trade.pnl_pct) }}%{% else %}—{% endif %}</td>
                                             <td class="text-muted">{{ trade.holding_time if trade.holding_time is defined else "—" }}</td>
                                             <td><span class="row-badge-pill {% if trade.exit_reason == 'TAKE_PROFIT' %}badge-green{% elif trade.exit_reason == 'STOP_LOSS' %}badge-red{% elif trade.exit_reason == 'TRAILING_STOP' %}badge-gold{% elif trade.exit_reason == 'MANUAL' %}badge-blue{% endif %}">{{ trade.exit_reason if trade.exit_reason is defined else "—" }}</span></td>
@@ -1306,13 +1306,13 @@
                             <h3 class="{% if data.mtb_overview.status == 'ONLINE' %}text-green{% else %}text-gold{% endif %}">{{ data.mtb_overview.status }}</h3>
                             <div class="card-footer-metric">Mode: {{ data.mtb_overview.mode }} · {% if data.service_statuses.mtb == 'ONLINE' %}RUNNING{% else %}DISABLED{% endif %}</div>
                         </div>
-                        <div class="metric-card span-3"><h5>MTB Open Positions</h5><h2 class="text-blue">{{ data.mtb_overview.open_positions | length }}</h2><div class="card-footer-metric">Trade Amount: ₹{{ "%.2f"|format(data.mtb_overview.trade_amount) }}</div></div>
+                        <div class="metric-card span-3"><h5>MTB Open Positions</h5><h2 class="text-blue">{{ data.mtb_overview.open_positions | length }}</h2><div class="card-footer-metric">Trade Amount: {{ data.mtb_overview.trade_amount|inr }}</div></div>
                         <div class="metric-card span-3">
                             <h5>MTB Daily PnL</h5>
-                            <h3 class="{% if data.mtb_overview.daily_pnl >= 0 %}text-green{% else %}text-red{% endif %}">₹{{ "%.2f"|format(data.mtb_overview.daily_pnl) }}</h3>
-                            <div class="card-footer-metric">Total PnL: ₹{{ "%.2f"|format(data.mtb_overview.total_pnl) }}</div>
+                            <h3 class="{% if data.mtb_overview.daily_pnl >= 0 %}text-green{% else %}text-red{% endif %}">{{ data.mtb_overview.daily_pnl|inr }}</h3>
+                            <div class="card-footer-metric">Total PnL: {{ data.mtb_overview.total_pnl|inr }}</div>
                         </div>
-                        <div class="metric-card span-3"><h5>MTB Trade Amount</h5><h3 class="text-white">₹{{ "%.2f"|format(data.mtb_overview.trade_amount) }}</h3><div class="card-footer-metric">Cash: ₹{{ "%.2f"|format(data.mtb_overview.cash_balance) }}</div></div>
+                        <div class="metric-card span-3"><h5>MTB Trade Amount</h5><h3 class="text-white">{{ data.mtb_overview.trade_amount|inr }}</h3><div class="card-footer-metric">Cash: {{ data.mtb_overview.cash_balance|inr }}</div></div>
                         <div class="metric-card span-12">
                             <h5>MTB Strategy Parameters — MACD Trend Bounce</h5>
                             <div class="layout-matrix-inner-row">
@@ -1332,11 +1332,11 @@
                                         {% for pos in data.mtb_overview.open_positions %}
                                         <tr>
                                             <td><strong>{{ pos.symbol }}</strong></td>
-                                            <td>{{ pos.entry_price }}</td>
+                                            <td>{{ pos.entry_price|inr(4) }}</td>
                                             <td class="font-mono">{{ "%.6f"|format(pos.quantity) }}</td>
-                                            <td>₹{{ "%.2f"|format(pos.trade_amount) }}</td>
-                                            <td class="text-green">{{ pos.take_profit_price }}</td>
-                                            <td class="text-red">{{ pos.stop_loss_price }}</td>
+                                            <td>{{ pos.trade_amount|inr }}</td>
+                                            <td class="text-green">{{ pos.take_profit_price|inr(4) }}</td>
+                                            <td class="text-red">{{ pos.stop_loss_price|inr(4) }}</td>
                                             <td class="text-blue">{{ pos.score }}</td>
                                             <td>{{ pos.confidence }}</td>
                                             <td class="text-muted text-sm">{{ pos.entry_time }}</td>
@@ -1357,11 +1357,11 @@
                                         {% for pos in data.mtb_overview.closed_trades[-20:] %}
                                         <tr data-coin="{{ pos.coin }}">
                                             <td><strong>{{ pos.symbol or pos.coin }}</strong></td>
-                                            <td class="text-muted">{% if pos.entry_price is defined and pos.entry_price != "—" %}{{ "%.4f"|format(pos.entry_price|float) }}{% else %}—{% endif %}</td>
-                                            <td>{{ pos.price }}</td>
-                                            <td class="text-muted font-mono" data-cur-price>{% if pos.current_price %}{{ "%.4f"|format(pos.current_price|float) }}{% else %}—{% endif %}</td>
-                                            <td>₹{{ "%.2f"|format(pos.amount) }}</td>
-                                            <td class="{% if pos.pnl >= 0 %}text-green{% else %}text-red{% endif %} font-600">₹{{ "%.4f"|format(pos.pnl) }}</td>
+                                            <td class="text-muted">{% if pos.entry_price is defined and pos.entry_price != "—" %}{{ pos.entry_price|float|inr(4) }}{% else %}—{% endif %}</td>
+                                            <td>{{ pos.price|inr(4) }}</td>
+                                            <td class="text-muted font-mono" data-cur-price>{% if pos.current_price %}{{ pos.current_price|float|inr(4) }}{% else %}—{% endif %}</td>
+                                            <td>{{ pos.amount|inr }}</td>
+                                            <td class="{% if pos.pnl >= 0 %}text-green{% else %}text-red{% endif %} font-600">{{ pos.pnl|inr(4) }}</td>
                                             <td class="{% if pos.return_pct >= 0 %}text-green{% else %}text-red{% endif %}">{{ "%.2f"|format(pos.return_pct) }}%</td>
                                             <td class="text-muted">{{ pos.holding_time if pos.holding_time is defined else "—" }}</td>
                                             <td><span class="row-badge-pill {% if pos.exit_reason == 'TAKE_PROFIT' %}badge-green{% elif pos.exit_reason == 'STOP_LOSS' %}badge-red{% elif pos.exit_reason == 'TRAILING_STOP' %}badge-gold{% elif pos.exit_reason == 'MANUAL' %}badge-blue{% endif %}">{{ pos.exit_reason if pos.exit_reason is defined else (pos.reason if pos.reason is defined else "—") }}</span></td>
@@ -1406,8 +1406,8 @@
                         </div>
                         <div class="metric-card span-4">
                             <h5>Total Capital Deployed</h5>
-                            <h3>₹{{ "%.2f"|format(data.risk_engine.total_deployed) }}</h3>
-                            <div class="card-footer-metric">Limit: ₹{{ "%.0f"|format(data.risk_engine.total_capital_limit) }} &nbsp;|&nbsp; Utilisation: {{ data.risk_engine.capital_utilisation_pct }}%</div>
+                            <h3>{{ data.risk_engine.total_deployed|inr }}</h3>
+                            <div class="card-footer-metric">Limit: {{ data.risk_engine.total_capital_limit|inr(0) }} &nbsp;|&nbsp; Utilisation: {{ data.risk_engine.capital_utilisation_pct }}%</div>
                         </div>
                         <div class="metric-card span-4"><h5>Risk Engine Last Updated</h5><h3 class="text-muted" style="font-size:1rem">{{ data.risk_engine.last_updated }}</h3></div>
 
@@ -1421,9 +1421,9 @@
                                         <tr>
                                             <td><strong>{{ bot_name }}</strong></td>
                                             <td><span class="row-badge-pill {% if bot_info.mode == 'LIVE' %}signal-type-elite{% elif bot_info.mode == 'PAPER' %}color-indicator-warn{% else %}color-indicator-low{% endif %}">{{ bot_info.mode }}</span></td>
-                                            <td>₹{{ "%.0f"|format(bot_info.trade_amount) }}</td>
-                                            <td>₹{{ "%.0f"|format(bot_info.capital_limit) }}</td>
-                                            <td>₹{{ "%.2f"|format(bot_info.deployed_capital) }}</td>
+                                            <td>{{ bot_info.trade_amount|inr(0) }}</td>
+                                            <td>{{ bot_info.capital_limit|inr(0) }}</td>
+                                            <td>{{ bot_info.deployed_capital|inr }}</td>
                                             <td class="text-blue">{{ bot_info.open_positions }}</td>
                                             <td>{{ bot_info.max_positions }}</td>
                                         </tr>
