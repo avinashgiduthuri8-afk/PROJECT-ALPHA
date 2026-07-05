@@ -34,19 +34,44 @@ class RiskDecision:
 
 
 def _load_bot_positions(bot: str) -> list[dict]:
-    """Return current open positions for `bot` without raising on import failure."""
-    try:
-        if bot == "PMB":
+    """Return current open positions for `bot`.
+
+    For PMB/MTB: swallows import/IO errors and returns [] (same behaviour
+    as before — those modules have their own safe fallbacks).
+
+    For VGX: VGXStorageError (file exists but is corrupt/unreadable) is
+    intentionally re-raised so callers can implement fail-closed logic.
+    All other VGX exceptions are caught and logged as warnings, returning [].
+
+    Each bot has its own try/except so VGXStorageError is never accidentally
+    swallowed by a shared outer handler.
+    """
+    if bot == "PMB":
+        try:
             from bots.pmb_bot.storage import get_open_positions
             return get_open_positions()
-        if bot == "MTB":
+        except Exception as exc:
+            logger.warning("Risk engine could not load PMB positions: %s", exc)
+            return []
+
+    if bot == "MTB":
+        try:
             from bots.mtb_bot.storage import get_open_positions
             return get_open_positions()
-        if bot == "VGX":
-            from bots.volatile_gridX.storage import get_open_positions
+        except Exception as exc:
+            logger.warning("Risk engine could not load MTB positions: %s", exc)
+            return []
+
+    if bot == "VGX":
+        from bots.volatile_gridX.storage import VGXStorageError, get_open_positions
+        try:
             return get_open_positions()
-    except Exception as exc:
-        logger.warning("Risk engine could not load %s positions: %s", bot, exc)
+        except VGXStorageError:
+            raise   # propagate — callers deny fail-closed
+        except Exception as exc:
+            logger.warning("Risk engine could not load VGX positions: %s", exc)
+            return []
+
     return []
 
 
@@ -89,7 +114,17 @@ def check_trade_allowed(bot: str, amount: float) -> RiskDecision:
         return RiskDecision(False, "BOT_INACTIVE",
                             f"{bot} is {mode}. Set {bot}_BOT_MODE=PAPER or LIVE to enable.")
 
-    bot_positions    = _load_bot_positions(bot)
+    try:
+        bot_positions = _load_bot_positions(bot)
+    except Exception as exc:
+        logger.error(
+            "Risk engine cannot verify %s deployed capital — denying trade: %s", bot, exc
+        )
+        return RiskDecision(
+            False, "STORAGE_UNREADABLE",
+            f"Cannot verify {bot} deployed capital; trade denied until storage is restored.",
+        )
+
     bot_deployed     = _deployed_capital(bot_positions)
     bot_limit        = BOT_CAPITAL_LIMIT.get(bot, 0)
     if bot_deployed + amount > bot_limit:
@@ -97,8 +132,17 @@ def check_trade_allowed(bot: str, amount: float) -> RiskDecision:
                             f"{bot} deployed={bot_deployed:.0f} + {amount:.0f} "
                             f"> limit={bot_limit:.0f}")
 
-    all_bots         = ["VGX", "PMB", "MTB"]
-    total_deployed   = sum(_deployed_capital(_load_bot_positions(b)) for b in all_bots)
+    all_bots = ["VGX", "PMB", "MTB"]
+    try:
+        total_deployed = sum(_deployed_capital(_load_bot_positions(b)) for b in all_bots)
+    except Exception as exc:
+        logger.error(
+            "Risk engine cannot compute total deployed capital — denying trade: %s", exc
+        )
+        return RiskDecision(
+            False, "STORAGE_UNREADABLE",
+            "Cannot verify total deployed capital; trade denied until storage is restored.",
+        )
     if total_deployed + amount > TOTAL_CAPITAL_LIMIT:
         return RiskDecision(False, "TOTAL_CAPITAL_LIMIT_EXCEEDED",
                             f"Total deployed={total_deployed:.0f} + {amount:.0f} "
@@ -113,7 +157,13 @@ def snapshot() -> dict[str, Any]:
     bot_states: dict[str, Any] = {}
     total_deployed = 0.0
     for bot in ["VGX", "PMB", "MTB"]:
-        positions = _load_bot_positions(bot)
+        try:
+            positions = _load_bot_positions(bot)
+            storage_error = False
+        except Exception as exc:
+            logger.error("snapshot: cannot load %s positions: %s", bot, exc)
+            positions = []
+            storage_error = True
         deployed  = _deployed_capital(positions)
         total_deployed += deployed
         bot_states[bot] = {
@@ -123,6 +173,7 @@ def snapshot() -> dict[str, Any]:
             "deployed_capital":  round(deployed, 2),
             "open_positions":    len(positions),
             "max_positions":     MAX_POSITIONS.get(bot, 0),
+            "storage_error":     storage_error,
         }
     return {
         "trading_enabled":    get_trading_enabled(),

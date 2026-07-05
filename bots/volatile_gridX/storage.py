@@ -17,6 +17,15 @@ _logger = logging.getLogger("vgx.storage")
 # Single lock guarding the one TradingBotCrypto.json storage file.
 _storage_lock = threading.Lock()
 
+
+class VGXStorageError(RuntimeError):
+    """Raised by get_open_positions() when the storage file exists but is
+    unreadable or corrupt.  Callers in the risk engine treat this as a
+    fail-closed signal — trade denied until storage is confirmed readable.
+
+    Not raised for a missing/empty file (fresh start is not an error).
+    """
+
 # Default coin list — used when grid_coins key is absent from storage.
 _DEFAULT_GRID_COINS: list = ["BTC", "ETH", "SOL", "BNB", "XRP", "ZEC"]
 
@@ -270,24 +279,12 @@ def save_data():
         storage_state["sync_count"] += 1
 
 
-def get_open_positions() -> list[dict]:
-    """Return current open VGX positions as list[dict] for risk-engine deployed-capital checks.
+def _positions_dict_to_list(positions_dict: dict) -> list[dict]:
+    """Convert VGX keyed positions dict to risk-engine list[dict] format.
 
-    Each dict carries at least one of the keys _deployed_capital() expects:
-    ('total_invested', 'total_cost', 'amount', 'trade_amount').
+    Each returned dict exposes `amount` and `trade_amount` so
+    _deployed_capital() can sum deployed capital without any key-miss.
     """
-    data: dict = {}
-    try:
-        if _verify_file(STORAGE_FILE):
-            with open(STORAGE_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-    except (OSError, json.JSONDecodeError):
-        pass
-
-    positions_dict = data.get("positions", {})
-    if not isinstance(positions_dict, dict):
-        return []
-
     result = []
     for key, p in positions_dict.items():
         if not isinstance(p, dict):
@@ -302,6 +299,65 @@ def get_open_positions() -> list[dict]:
         }
         result.append(entry)
     return result
+
+
+def get_open_positions() -> list[dict]:
+    """Return current open VGX positions as list[dict] for risk-engine deployed-capital checks.
+
+    Each dict carries at least one of the keys _deployed_capital() expects:
+    ('total_invested', 'total_cost', 'amount', 'trade_amount').
+
+    Strategy:
+      1. Prefer the in-memory `positions` dict — authoritative when the VGX
+         bot is running in the same process (post load_data()).
+      2. Fall back to a direct file read when in-memory is empty, covering
+         the window before load_data() has been called in this process.
+
+    On any file-read failure a loud logger.error is emitted so a silent
+    zero-capital report is never invisible to operators.  Returns [] on
+    failure (fail-safe: do not crash, but the operator must investigate).
+    """
+    # ── 1. Prefer in-memory (authoritative live state) ──────────────────────
+    with _storage_lock:
+        mem_snapshot = dict(positions)   # shallow copy inside the lock
+
+    if mem_snapshot:
+        return _positions_dict_to_list(mem_snapshot)
+
+    # ── 2. Fall back to file (bot not yet started / load_data not called) ───
+    file_exists = os.path.exists(STORAGE_FILE) and os.path.getsize(STORAGE_FILE) > 0
+    if not file_exists:
+        # File absent or empty — fresh start, no open positions.
+        return []
+
+    try:
+        with open(STORAGE_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError) as exc:
+        # File EXISTS but is unreadable/corrupt — this is a genuine risk-control
+        # failure.  Raise so the risk engine can deny trades fail-closed rather
+        # than silently treating deployed capital as 0.
+        _logger.error(
+            "[VGX] get_open_positions: storage file unreadable — "
+            "risk engine will deny VGX trades until storage is restored. "
+            "Error: %s", exc,
+        )
+        raise VGXStorageError(
+            f"VGX storage file unreadable: {exc}"
+        ) from exc
+
+    positions_dict = data.get("positions", {})
+    if not isinstance(positions_dict, dict):
+        _logger.error(
+            "[VGX] get_open_positions: 'positions' key has unexpected type %s — "
+            "risk engine will deny VGX trades until storage is restored.",
+            type(positions_dict).__name__,
+        )
+        raise VGXStorageError(
+            f"VGX storage 'positions' key has unexpected type {type(positions_dict).__name__}"
+        )
+
+    return _positions_dict_to_list(positions_dict)
 
 
 # ============================================================
