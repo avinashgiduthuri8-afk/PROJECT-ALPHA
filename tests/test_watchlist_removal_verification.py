@@ -275,7 +275,7 @@ class TestTradeExecution:
 
         tmpdir = tempfile.mkdtemp()
         try:
-            with patch.object(risk_engine, "TRADING_ENABLED", True):
+            with patch.object(risk_engine, "get_trading_enabled", return_value=True):
              with patch("bots.mtb_bot.storage.DATA_DIR", Path(tmpdir)):
                 with patch("bots.mtb_bot.storage.POSITIONS_FILE", Path(tmpdir) / "positions.json"):
                     with patch("bots.mtb_bot.storage.TRADES_FILE", Path(tmpdir) / "trades.json"):
@@ -328,7 +328,7 @@ class TestTradeExecution:
 
         tmpdir = tempfile.mkdtemp()
         try:
-            with patch.object(risk_engine, "TRADING_ENABLED", True):
+            with patch.object(risk_engine, "get_trading_enabled", return_value=True):
              with patch("bots.pmb_bot.storage.DATA_DIR", Path(tmpdir)):
                 with patch("bots.pmb_bot.storage.POSITIONS_FILE", Path(tmpdir) / "positions.json"):
                     with patch("bots.pmb_bot.storage.TRADES_FILE", Path(tmpdir) / "trades.json"):
@@ -650,7 +650,7 @@ class TestRiskEngine:
     def test_risk_engine_blocks_when_trading_disabled(self):
         """Risk engine rejects when TRADING_ENABLED=false."""
         from bots.risk_engine import engine as risk_engine
-        with patch.object(risk_engine, "TRADING_ENABLED", False):
+        with patch.object(risk_engine, "get_trading_enabled", return_value=False):
             decision = risk_engine.check_trade_allowed("MTB", 100)
         assert not decision.allowed
         assert decision.code == "TRADING_DISABLED"
@@ -658,7 +658,7 @@ class TestRiskEngine:
     def test_risk_engine_blocks_when_emergency_stop(self):
         """Risk engine rejects when EMERGENCY_STOP=true."""
         from bots.risk_engine import engine as risk_engine
-        with patch.object(risk_engine, "TRADING_ENABLED", True):
+        with patch.object(risk_engine, "get_trading_enabled", return_value=True):
             with patch.object(risk_engine, "EMERGENCY_STOP", True):
                 decision = risk_engine.check_trade_allowed("MTB", 100)
         assert not decision.allowed
@@ -670,7 +670,7 @@ class TestRiskEngine:
         original_mode = risk_engine.BOT_MODE.copy()
         try:
             risk_engine.BOT_MODE["MTB"] = "DISABLED"
-            with patch.object(risk_engine, "TRADING_ENABLED", True):
+            with patch.object(risk_engine, "get_trading_enabled", return_value=True):
                 with patch.object(risk_engine, "_load_bot_positions", return_value=[]):
                     decision = risk_engine.check_trade_allowed("MTB", 100)
             assert not decision.allowed
@@ -681,7 +681,7 @@ class TestRiskEngine:
     def test_risk_engine_allows_when_paper_mode(self):
         """Risk engine allows when bot mode is PAPER."""
         from bots.risk_engine import engine as risk_engine
-        with patch.object(risk_engine, "TRADING_ENABLED", True):
+        with patch.object(risk_engine, "get_trading_enabled", return_value=True):
             with patch.object(risk_engine, "_load_bot_positions", return_value=[]):
                 decision = risk_engine.check_trade_allowed("MTB", 100)
         assert decision.allowed
