@@ -359,7 +359,7 @@ class TestGetGridConfig:
         coro = application.require_api_key(request=req, api_key=None)
         with pytest.raises(HTTPException) as exc_info:
             asyncio.run(coro)
-        assert exc_info.value.status_code in (403, 503)
+        assert exc_info.value.status_code == 401
 
 
 class TestPostGridCoins:

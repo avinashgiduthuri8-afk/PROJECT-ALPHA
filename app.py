@@ -716,10 +716,16 @@ async def _get_current_prices_safe(coins: list[str]) -> dict[str, float | None]:
 
 async def pull_state_payload():
 
-    watchlist = get_watchlist()
-    stats = get_stats()
-    mtb_state = await _cached_snapshot("mtb", mtb_snapshot)
-    pmb_state = await _cached_snapshot("pmb", pmb_snapshot)
+    (watchlist, stats), (mtb_state, pmb_state) = await asyncio.gather(
+        asyncio.gather(
+            asyncio.to_thread(get_watchlist),
+            asyncio.to_thread(get_stats),
+        ),
+        asyncio.gather(
+            _cached_snapshot("mtb", mtb_snapshot),
+            _cached_snapshot("pmb", pmb_snapshot),
+        ),
+    )
 
     # Enrich closed trade records with pnl_pct, holding_time, entry_price,
     # exit_reason, and current_price.
@@ -774,10 +780,12 @@ async def pull_state_payload():
 
     vgx_trade_amount = float(os.getenv("VGX_TRADE_AMOUNT", os.getenv("TRADE_AMOUNT", "110")))
     # Read live scan signals from live_signals.json (written each scan cycle by main.py)
-    signal_data = get_live_signals()
+    signal_data, latest_market_state, signal_stats = await asyncio.gather(
+        asyncio.to_thread(get_live_signals),
+        asyncio.to_thread(get_market_state),
+        asyncio.to_thread(get_signal_stats),
+    )
     latest_signals = signal_data.get("signals", [])[-50:]   # last 50 signals
-    latest_market_state = get_market_state()
-    signal_stats = get_signal_stats()
 
     # Compute per-tier signal counts from JSON stats (persists across restarts)
     _elite  = signal_stats.get("elite_signals", 0)
@@ -882,6 +890,11 @@ async def pull_state_payload():
             "status":    p.get("status", "OPEN"),
         })
 
+    _scanned_wl, _coin_pairs = await asyncio.gather(
+        asyncio.to_thread(_scanner_get_watchlist),
+        asyncio.to_thread(_build_coin_pairs),
+    )
+
     return {
 
         "portfolio_overview": {
@@ -905,9 +918,9 @@ async def pull_state_payload():
         "vgx_trade_amount": vgx_trade_amount,
 
         "scanner_overview": {
-            "coins":           _scanner_get_watchlist().get("coins", []),
-            "coin_pairs":      _build_coin_pairs(),
-            "coins_scanned":   len(_scanner_get_watchlist().get("coins", [])),
+            "coins":           _scanned_wl.get("coins", []),
+            "coin_pairs":      _coin_pairs,
+            "coins_scanned":   len(_scanned_wl.get("coins", [])),
             "active_signals":  len(latest_signals),
             "elite_signals":   _elite,
             "high_signals":    _high,
@@ -1137,10 +1150,12 @@ async def viewport_router(request: Request):
     if not request.session.get("authenticated"):
         return RedirectResponse(url="/login", status_code=303)
 
-    state = await pull_state_payload()
-    signals = get_signals()
-    stats = get_stats()
-    watchlist = get_watchlist()
+    state, signals, stats, watchlist = await asyncio.gather(
+        pull_state_payload(),
+        asyncio.to_thread(get_signals),
+        asyncio.to_thread(get_stats),
+        asyncio.to_thread(get_watchlist),
+    )
 
 
     return templates.TemplateResponse(
@@ -1264,7 +1279,7 @@ async def get_scanner_watchlist():
             return {"count": len(coins), "coins": coins, "items": items}
     except Exception:
         pass
-    raw = _scanner_get_watchlist()
+    raw = await asyncio.to_thread(_scanner_get_watchlist)
     coins = raw.get("coins", [])
     items = [{"coin": c, "pair": None, "quote": None} for c in coins]
     return {"count": len(coins), "coins": coins, "items": items}
@@ -1603,7 +1618,7 @@ async def unified_statistics():
             _cached_snapshot("mtb", mtb_snapshot),
             _cached_snapshot("pmb", pmb_snapshot),
         )
-        return _unified_stats(vgx=vgx, mtbs=mtbs, pmbs=pmbs)
+        return await asyncio.to_thread(_unified_stats, vgx, mtbs, pmbs)
     except Exception as exc:
         return JSONResponse(status_code=500, content={"error": str(exc)})
 
@@ -1814,7 +1829,7 @@ async def telegram_analytics():
             _cached_snapshot("mtb",  mtb_snapshot),
             _cached_snapshot("pmb",  pmb_snapshot),
         )
-        stats = _unified_stats(vgx=vgx, mtbs=mtbs, pmbs=pmbs)
+        stats = await asyncio.to_thread(_unified_stats, vgx, mtbs, pmbs)
 
         lines = [
             "📊 PROJECT-ALPHA ANALYTICS",
@@ -1873,7 +1888,8 @@ async def export_signals_json():
     try:
         import json as _json
         from bots.scanner_bot.scanner import get_signals as _gs
-        content = _json.dumps(_gs(), indent=2, ensure_ascii=False)
+        _sig_data = await asyncio.to_thread(_gs)
+        content = _json.dumps(_sig_data, indent=2, ensure_ascii=False)
         return StreamingResponse(
             io.BytesIO(content.encode("utf-8")),
             media_type="application/json",
@@ -1888,7 +1904,7 @@ async def export_signals_csv():
     """Download all scanner signals as CSV."""
     try:
         from bots.scanner_bot.scanner import get_signals as _gs
-        data = _gs()
+        data = await asyncio.to_thread(_gs)
         signals = data.get("signals", []) if isinstance(data, dict) else []
         output = io.StringIO()
         fieldnames = ["coin", "priority", "market_state", "opportunity_score",
@@ -1932,9 +1948,13 @@ async def export_trades_csv():
         for t in vgx_raw.get("open_positions", []):
             writer.writerow({"bot": "VGX", "coin": t.get("coin"), "action": "BUY",
                              "status": "OPEN", "price": t.get("buy_price"), "amount": t.get("amount")})
-        for trade in mtb_trades():
+        _mtb_rows, _pmb_rows = await asyncio.gather(
+            asyncio.to_thread(mtb_trades),
+            asyncio.to_thread(pmb_trades),
+        )
+        for trade in _mtb_rows:
             row = dict(trade); row["bot"] = "MTB"; writer.writerow(row)
-        for trade in pmb_trades():
+        for trade in _pmb_rows:
             row = dict(trade); row["bot"] = "PMB"; writer.writerow(row)
         return StreamingResponse(
             io.BytesIO(output.getvalue().encode("utf-8")),
@@ -1957,7 +1977,7 @@ async def export_stats_json():
             _cached_snapshot("pmb",  pmb_snapshot),
         )
         payload = {
-            "unified":     _unified_stats(vgx=vgx, mtbs=mtbs, pmbs=pmbs),
+            "unified":     await asyncio.to_thread(_unified_stats, vgx, mtbs, pmbs),
             "risk":        risk,
             "vgx":         vgx,
             "mtb":         mtbs,
