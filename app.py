@@ -183,12 +183,22 @@ _DASHBOARD_EXEMPT_PATHS = frozenset({
 })
 
 if not DASHBOARD_API_KEY:
+    logger.warning(
+        "DASHBOARD_API_KEY is not set — all protected endpoints will return 401. "
+        "Set this environment variable before accepting traffic."
+    )
+
     async def require_api_key(request: Request, api_key: str = Depends(api_key_header)) -> str:
         if request.url.path in _DASHBOARD_EXEMPT_PATHS:
             return ""
+        logger.warning(
+            "Auth denied — DASHBOARD_API_KEY not configured [path=%s method=%s]",
+            request.url.path,
+            request.method,
+        )
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="DASHBOARD_API_KEY not configured",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"error": "unauthorized", "reason": "DASHBOARD_API_KEY not configured"},
         )
 else:
     async def require_api_key(request: Request, api_key: str = Depends(api_key_header)) -> str:
@@ -196,10 +206,20 @@ else:
             return ""
         # Constant-time comparison prevents timing-based key enumeration.
         if not api_key or not hmac.compare_digest(api_key, DASHBOARD_API_KEY):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Invalid or missing X-API-Key header",
+            logger.warning(
+                "Auth denied — invalid or missing X-API-Key [path=%s method=%s]",
+                request.url.path,
+                request.method,
             )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail={"error": "unauthorized", "reason": "Invalid or missing X-API-Key header"},
+            )
+        logger.info(
+            "Auth accepted [path=%s method=%s]",
+            request.url.path,
+            request.method,
+        )
         return api_key
 
 

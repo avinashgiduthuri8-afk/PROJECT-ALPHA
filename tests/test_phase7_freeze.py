@@ -348,9 +348,9 @@ class TestAppIntegration:
         assert resp.json() == {"status": "ok"}
 
     def test_protected_route_requires_key(self, client):
-        """Protected routes must return 403 when an incorrect key is sent."""
+        """Protected routes must return 401 when an incorrect key is sent."""
         resp = client.get("/api/v1/errors", headers={"X-API-Key": "wrong"})
-        assert resp.status_code == 403
+        assert resp.status_code == 401
 
     def test_protected_route_accepts_correct_key(self, client):
         """Protected routes must return 200 when the correct key is sent."""
