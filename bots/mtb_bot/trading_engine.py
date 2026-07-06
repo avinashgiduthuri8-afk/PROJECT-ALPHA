@@ -50,17 +50,33 @@ _TRADE_LOCK = threading.Lock()
 
 
 def _send_tg(text: str) -> None:
-    """Fire-and-forget Telegram notification. Never raises."""
+    """Fire-and-forget Telegram notification. Non-blocking. Never raises.
+
+    Dispatches the HTTP call to a daemon thread so the asyncio event loop
+    and the thread-pool slot used by the calling trading function are never
+    held while waiting on the network.  Multiple notifications may overlap
+    safely.  Any failure is logged but never propagates to the caller.
+    """
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         return
+
+    import json as _json
+    import urllib.request as _ur
+
+    def _do_send() -> None:
+        try:
+            url  = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+            body = _json.dumps({"chat_id": TELEGRAM_CHAT_ID, "text": text, "parse_mode": "HTML"}).encode()
+            req  = _ur.Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
+            _ur.urlopen(req, timeout=5)
+        except Exception:
+            logger.exception("Telegram notification failed")
+
     try:
-        import urllib.request as _ur, json as _json
-        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-        body = _json.dumps({"chat_id": TELEGRAM_CHAT_ID, "text": text, "parse_mode": "HTML"}).encode()
-        req = _ur.Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
-        _ur.urlopen(req, timeout=5)
-    except Exception as _tg_err:
-        logger.debug("_send_tg failed: %s", _tg_err)
+        t = threading.Thread(target=_do_send, daemon=True)
+        t.start()
+    except Exception:
+        logger.exception("Telegram notification failed to dispatch")
 
 
 @dataclass(frozen=True)
