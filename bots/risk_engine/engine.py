@@ -122,6 +122,31 @@ def check_trade_allowed(bot: str, amount: float) -> RiskDecision:
         return RiskDecision(False, "BOT_INACTIVE",
                             f"{bot} is {mode}. Set {bot}_BOT_MODE=PAPER or LIVE to enable.")
 
+    # ── Deny-by-default: capital limits must be explicitly configured ─────────
+    # A limit of 0 means "not set" — never trade with an unconfigured limit.
+    if TOTAL_CAPITAL_LIMIT == 0:
+        logger.error(
+            "[RiskEngine] TOTAL_CAPITAL_LIMIT is 0 or not configured — "
+            "denying %s trade of %.0f. Set TOTAL_CAPITAL_LIMIT env var to enable trading.",
+            bot, amount,
+        )
+        return RiskDecision(
+            False, "CAPITAL_LIMIT_NOT_CONFIGURED",
+            "TOTAL_CAPITAL_LIMIT is 0 or not set — configure capital limits before trading.",
+        )
+
+    bot_limit = BOT_CAPITAL_LIMIT.get(bot, 0)
+    if bot_limit == 0:
+        logger.error(
+            "[RiskEngine] %s_CAPITAL_LIMIT is 0 or not configured — "
+            "denying trade of %.0f. Set %s_CAPITAL_LIMIT env var to enable trading.",
+            bot, amount, bot,
+        )
+        return RiskDecision(
+            False, "CAPITAL_LIMIT_NOT_CONFIGURED",
+            f"{bot}_CAPITAL_LIMIT is 0 or not set — configure capital limits before trading.",
+        )
+
     try:
         bot_positions = _load_bot_positions(bot)
     except Exception as exc:
@@ -134,7 +159,6 @@ def check_trade_allowed(bot: str, amount: float) -> RiskDecision:
         )
 
     bot_deployed     = _deployed_capital(bot_positions)
-    bot_limit        = BOT_CAPITAL_LIMIT.get(bot, 0)
     if bot_deployed + amount > bot_limit:
         return RiskDecision(False, "BOT_CAPITAL_LIMIT_EXCEEDED",
                             f"{bot} deployed={bot_deployed:.0f} + {amount:.0f} "
