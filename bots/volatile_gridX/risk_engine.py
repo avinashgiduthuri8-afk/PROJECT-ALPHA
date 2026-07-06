@@ -2,11 +2,14 @@
 PROJECT-ALPHA Risk Engine
 """
 
+import logging
 import time
 
 from .config import PHASE5
 from . import storage
 from .market_analysis import analyze_coin_simple as analyze_coin
+
+logger = logging.getLogger("vgx.risk_engine")
 
 # ============================================================
 # COOLDOWN
@@ -109,9 +112,45 @@ def market_intelligence():
     except Exception:
         proxy_coin = "BTC"
 
+    # BUGFIX (P0.3): reuse the scanner's existing in-process price-history
+    # cache (bots/scanner_bot/main.py:_SCANNER.price_history) instead of
+    # calling analyze_coin() with no history at all. No new fetch, no new
+    # cache — this is the same in-process object the scanner already
+    # maintains and that scanner_bridge.py already reads from directly.
+    history = []
+    try:
+        import bots.scanner_bot.main as _scanner_main
+        _scanner_instance = getattr(_scanner_main, "_SCANNER", None)
+        if _scanner_instance is not None:
+            history = list(_scanner_instance.price_history.get(proxy_coin, []))
+    except Exception:
+        logger.warning(
+            "market_intelligence: failed to read scanner price history for %s",
+            proxy_coin, exc_info=True
+        )
+        history = []
+
+    if len(history) < 5:
+        # Real history genuinely unavailable (scanner not warmed up yet, or
+        # this coin isn't tracked yet). Fail safe: log it and return a
+        # neutral reading rather than letting analyze_coin()'s own
+        # insufficient-history fallback (score=50) get bucketed into BEAR
+        # below, which previously blocked 100% of signals unconditionally.
+        logger.warning(
+            "market_intelligence: insufficient price history for %s (%d points) — "
+            "returning neutral SIDEWAYS instead of misclassifying as BEAR",
+            proxy_coin, len(history)
+        )
+        return {
+            "regime": "SIDEWAYS",
+            "score": 50
+        }
+
     result = analyze_coin(
 
-        proxy_coin
+        proxy_coin,
+
+        history
 
     )
 

@@ -30,6 +30,11 @@ from bots.scanner_bot.scanner import (
     get_signal_stats,
 )
 
+# BUGFIX (V1 status source): /status now reads the scanner's live in-memory
+# runtime state (same source app.py's dashboard already uses) instead of
+# stats.json, which never stores total_scans / last_scan_time.
+import bots.scanner_bot.main as scanner_main
+
 logger = logging.getLogger("scanner_telegram_bot")
 
 # ============================================================
@@ -71,20 +76,30 @@ async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     Show scanner operational status.
     """
     try:
-        stats = get_stats() or {}
         signals = get_signals() or {}
         live_signals = get_live_signals() or {}
         watchlist = get_watchlist() or {}
+
+        # BUGFIX (V1 status source): total_scans / last_scan_time / scanner
+        # running-state now come from the scanner's live in-memory runtime
+        # state (_HEALTH_STATS / _SCANNER_TASK in bots/scanner_bot/main.py) —
+        # the same source app.py's web dashboard already uses — instead of
+        # stats.json, which never stores these two fields. Read defensively
+        # via getattr since this module is a snapshot of shared state, not a
+        # new counter, per the "reuse existing runtime state" requirement.
+        health_stats = getattr(scanner_main, "_HEALTH_STATS", {}) or {}
+        scanner_task = getattr(scanner_main, "_SCANNER_TASK", None)
+        scanner_running = scanner_task is not None and not scanner_task.done()
 
         # Determine status — unwrap wrapped dict {"signals": [...]}
         total_signals = len(signals.get("signals", []))
         live_count = len(live_signals.get("signals", []))
         coins_watching = len(watchlist.get("coins", []))
-        last_scan = stats.get("last_scan_time", "Unknown")
-        total_scans = stats.get("total_scans", 0)
-        
-        # Operational status
-        is_healthy = total_scans > 0
+        last_scan = health_stats.get("last_successful_scan") or "Unknown"
+        total_scans = health_stats.get("total_scans", 0)
+
+        # Operational status — running loop AND at least one completed scan
+        is_healthy = scanner_running and total_scans > 0
         status_emoji = "🟢" if is_healthy else "🔴"
         status_text = "ONLINE" if is_healthy else "OFFLINE"
         
