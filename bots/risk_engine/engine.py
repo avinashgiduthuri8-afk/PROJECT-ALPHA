@@ -51,16 +51,24 @@ def _load_bot_positions(bot: str) -> list[dict]:
             from bots.pmb_bot.storage import get_open_positions
             return get_open_positions()
         except Exception as exc:
-            logger.warning("Risk engine could not load PMB positions: %s", exc)
-            return []
+            # T3.6: re-raise so check_trade_allowed() returns STORAGE_UNREADABLE.
+            # Returning [] would report ₹0 deployed capital and approve trades that
+            # should be blocked — a violation of deny-by-default.
+            logger.error(
+                "Risk engine could not load PMB positions — denying trade: %s", exc
+            )
+            raise
 
     if bot == "MTB":
         try:
             from bots.mtb_bot.storage import get_open_positions
             return get_open_positions()
         except Exception as exc:
-            logger.warning("Risk engine could not load MTB positions: %s", exc)
-            return []
+            # T3.6: same deny-by-default guarantee as PMB above.
+            logger.error(
+                "Risk engine could not load MTB positions — denying trade: %s", exc
+            )
+            raise
 
     if bot == "VGX":
         from bots.volatile_gridX.storage import VGXStorageError, get_open_positions

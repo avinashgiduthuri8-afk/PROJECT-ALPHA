@@ -424,29 +424,38 @@ class WatchlistStore:
 
     def add(self, coin: str) -> bool:
         normalized = coin.upper().strip()
-        if not normalized or normalized in self._coins:
-            return False
-        self._coins.append(normalized)
-        self.save()
-        self._cache_time = 0.0   # force cache expiry so next all() re-reads
+        # T5.4: hold _write_json_lock for the full check→mutate→save sequence.
+        # _write_json_lock is RLock so save()→write_json_safely() can re-acquire
+        # it on this same thread.  This is the ONE canonical lock for watchlist.json;
+        # no second lock is introduced.
+        with _write_json_lock:
+            if not normalized or normalized in self._coins:
+                return False
+            self._coins.append(normalized)
+            self.save()
+            self._cache_time = 0.0  # expire cache inside lock so all() sees fresh state
         return True
 
     def remove(self, coin: str) -> bool:
         normalized = coin.upper().strip()
-        if normalized not in self._coins:
-            return False
-        self._coins.remove(normalized)
-        self._pair_map.pop(normalized, None)  # clean up pair metadata
-        self.save()
-        self._cache_time = 0.0   # force cache expiry so next all() re-reads
+        # T5.4: same atomic read-modify-write guarantee as add().
+        with _write_json_lock:
+            if normalized not in self._coins:
+                return False
+            self._coins.remove(normalized)
+            self._pair_map.pop(normalized, None)  # clean up pair metadata
+            self.save()
+            self._cache_time = 0.0  # expire cache inside lock so all() sees fresh state
         return True
 
     # ── Pair resolution storage ─────────────────────────────────────────────
 
     def set_pair(self, coin: str, pair: str, quote: str) -> None:
         """Store resolved pair metadata for *coin*. Persists immediately."""
-        self._pair_map[coin.upper()] = {"pair": pair, "quote": quote}
-        self.save()
+        # T5.4: atomic under the same canonical lock as add/remove.
+        with _write_json_lock:
+            self._pair_map[coin.upper()] = {"pair": pair, "quote": quote}
+            self.save()
 
     def get_pair(self, coin: str) -> dict | None:
         """Return stored pair metadata or None if not yet resolved."""
