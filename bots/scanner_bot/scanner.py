@@ -108,7 +108,9 @@ MODEL_VERSION = "v12.2"
 # Per-file write locks — threading.Lock() so sync trading_engine callers are safe.
 _write_json_lock    = threading.Lock()
 _scanner_state_lock = threading.Lock()
-_history_lock       = threading.Lock()
+_history_lock       = threading.RLock()   # RLock: append_signal_history() holds
+                                           # this while calling _write_history(),
+                                           # which re-acquires on the same thread.
 _coin_perf_lock     = threading.Lock()
 _tier_acc_lock      = threading.Lock()
 
@@ -2844,13 +2846,21 @@ def _write_history(signals: list) -> None:
 
 def append_signal_history(entry: dict) -> bool:
     """Append a single signal record to the permanent history — never overwrites.
-    Returns True if the signal was newly added, False if it was already present (deduplicated)."""
-    history = _read_history()
-    # Deduplicate by id
-    if entry.get("id") and any(h.get("id") == entry["id"] for h in history):
-        return False
-    history.append(entry)
-    _write_history(history)
+    Returns True if the signal was newly added, False if it was already present (deduplicated).
+
+    Thread-safe: the full read-deduplicate-append-write sequence is held under
+    _history_lock (RLock) so two concurrent callers cannot both read the same
+    snapshot, both pass dedup, and both write — which would lose one entry.
+    _write_history() internally re-acquires the same RLock; that is safe because
+    RLock allows re-entry from the same thread.
+    """
+    with _history_lock:
+        history = _read_history()
+        # Deduplicate by id
+        if entry.get("id") and any(h.get("id") == entry["id"] for h in history):
+            return False
+        history.append(entry)
+        _write_history(history)
     return True
 
 
