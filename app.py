@@ -38,6 +38,7 @@ from bots.risk_engine.config import (
 )
 
 from bots.scanner_bot.scanner import get_watchlist as _scanner_get_watchlist, resolve_coin_pair as _resolve_coin_pair
+from bots.scanner_bot import watchlist_ops as _watchlist_ops
 from bots.volatile_gridX.config import get_vgx_storage_file as _get_vgx_storage_file
 from bots.volatile_gridX.storage import (
     get_grid_config       as _vgx_get_grid_config,
@@ -1306,112 +1307,52 @@ async def get_scanner_watchlist():
 async def add_coin_to_scanner_watchlist(req: WatchlistRequest):
     """Add a coin to the unified scanner watchlist.
 
-    Resolves the best available trading pair (INR > USDT) using the live
-    ticker cache before storing, so the watchlist always carries verified
-    pair metadata.  Rejects coins that have no INR or USDT pair on CoinDCX
-    when the ticker cache is warm.
-
-    Uses _SCANNER.watchlist_store (single source of truth) so the scanner's
-    in-memory coin list is updated immediately without waiting for a disk
-    re-read or cache expiry.  Falls back to a fresh WatchlistStore() only
-    when the scanner has not yet initialised (early startup window).
-    Also wakes the scanner's refresh event so the new coin is picked up in
-    the next scan cycle right away.
+    Delegates to watchlist_ops.add_coin() — the single canonical
+    implementation shared with /api/v1/scanner/watchlist (POST).
     """
-    coin = req.coin.strip().upper()
+    try:
+        result = await _watchlist_ops.add_coin(req.coin)
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
 
-    # Grab ticker cache from scanner (no API call if available).
-    tickers: list = []
-    sc = getattr(scanner_main, "_SCANNER", None)
-    cached = getattr(sc, "_ticker_cache", None) if sc is not None else None
-    if cached:
-        tickers = cached
-
-    # If cache is empty fall back to a live API call so validation works
-    # before the scanner has run its first cycle.
-    if not tickers:
-        try:
-            import requests as _req
-            resp = await asyncio.to_thread(
-                _req.get,
-                "https://api.coindcx.com/exchange/ticker",
-                timeout=6,
-            )
-            resp.raise_for_status()
-            tickers = resp.json()
-        except Exception:
-            tickers = []
-
-    resolved = _resolve_coin_pair(coin, tickers=tickers if tickers else None)
-
-    if not resolved["resolved"] and tickers:
+    if not result["ok"]:
         return JSONResponse(
             {
                 "success": False,
-                "reason": "no_pair_found",
-                "error":  "Coin not available on CoinDCX (no INR or USDT pair found)",
-                "coin":   coin,
+                "reason":  result["reason"],
+                "error":   result["error"],
+                "coin":    result["coin"],
             },
             status_code=400,
         )
 
-    pair  = resolved.get("pair")  or f"B-{coin}_INR"
-    quote = resolved.get("quote") or "INR"
-
-    try:
-        store = sc.watchlist_store if sc is not None else WatchlistStore()
-        store.add(coin)
-        store.set_pair(coin, pair, quote)
-        coins = store.all()
-        # Wake the scanner so it picks up the new coin without waiting for the
-        # next scheduled cycle.
-        try:
-            scanner_main._REFRESH_EVENT.set()
-        except Exception:
-            pass
-        return {
-            "success": True,
-            "coin":     coin,
-            "pair":     pair,
-            "quote":    quote,
-            "market":   quote,   # backward-compat alias
-            "watchlist": coins,
-        }
-    except Exception as e:
-        return JSONResponse(
-            {"success": False, "error": str(e)},
-            status_code=500,
-        )
+    return {
+        "success":  True,
+        "coin":     result["coin"],
+        "pair":     result["pair"],
+        "quote":    result["quote"],
+        "market":   result["market"],
+        "watchlist": result["watchlist"],
+    }
 
 
 @app.post("/api/watchlist/remove", response_class=JSONResponse)
 async def remove_coin_from_scanner_watchlist(req: WatchlistRequest):
     """Remove a coin from the unified scanner watchlist.
 
-    Uses _SCANNER.watchlist_store (single source of truth) for the same
-    reason as add — avoids stale in-memory state on the scanner side.
+    Delegates to watchlist_ops.remove_coin() — the single canonical
+    implementation shared with /api/v1/scanner/watchlist (DELETE).
     """
     try:
-        coin = req.coin.strip().upper()
-        sc = getattr(scanner_main, "_SCANNER", None)
-        store = sc.watchlist_store if sc is not None else WatchlistStore()
-        store.remove(coin)
-        coins = store.all()
-        # Wake scanner so removal is reflected in the next cycle immediately.
-        try:
-            scanner_main._REFRESH_EVENT.set()
-        except Exception:
-            pass
-        return {
-            "success": True,
-            "coin": coin,
-            "watchlist": coins,
-        }
+        result = await _watchlist_ops.remove_coin(req.coin)
     except Exception as e:
-        return JSONResponse(
-            {"success": False, "error": str(e)},
-            status_code=500,
-        )
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+    return {
+        "success":  result["ok"],
+        "coin":     result["coin"],
+        "watchlist": result["watchlist"],
+    }
 
 
 @app.post("/api/scanner/refresh", response_class=JSONResponse)
@@ -1798,10 +1739,23 @@ async def alert_center(limit: int = 50):
     return {"alerts": alerts, "total": len(_ALERT_LOG), "limit": limit}
 
 
+class AlertPushRequest(BaseModel):
+    title:    str = "system"
+    message:  str = ""
+    severity: str = "INFO"
+
+
 @app.post("/api/v1/alerts/push", response_class=JSONResponse)
-async def push_alert(level: str = "INFO", source: str = "system", message: str = ""):
-    """Push a new alert into the notification center."""
-    await _push_alert(level.upper(), source, message)
+async def push_alert(body: AlertPushRequest):
+    """Push a new alert into the notification center.
+
+    Accepts a JSON body:
+      { "title": "...", "message": "...", "severity": "INFO" }
+
+    title    maps to the internal 'source' field.
+    severity maps to the internal 'level' field.
+    """
+    await _push_alert(body.severity.upper(), body.title, body.message)
     return {"ok": True, "total": len(_ALERT_LOG)}
 
 

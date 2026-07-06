@@ -79,6 +79,7 @@ from .scanner import (
     # Pair-selection engine
     resolve_coin_pair,
 )
+from . import watchlist_ops as _watchlist_ops
 
 logger = logging.getLogger("scanner_api")
 
@@ -683,39 +684,32 @@ async def watchlist_add(body: _AddCoinBody):
     """
     Add a coin to the watchlist.
 
-    BUG-25/26/30: the raw input is validated via validate_coin_symbol()
-    before it reaches WatchlistStore.add(). Invalid symbols (empty,
-    too long, or containing characters other than A-Z/0-9) are rejected
-    with status="rejected" rather than being silently accepted as
-    status="success". Duplicates are reported as status="already_exists"
-    rather than being silently treated as success.
-    HTTP 200 always.
+    Delegates to watchlist_ops.add_coin() — the single canonical
+    implementation shared with /api/watchlist/add in app.py.
+    Validates the symbol, resolves the best trading pair, and writes
+    to WatchlistStore.  HTTP 200 always.
     """
     try:
-        is_valid, symbol, reason = validate_coin_symbol(body.coin)
-        if not is_valid:
+        result = await _watchlist_ops.add_coin(body.coin)
+
+        if not result["ok"]:
             return JSONResponse(content={
                 "status": "rejected",
-                "reason": reason,
-                "coin":   symbol,
+                "reason": result["reason"],
+                "coin":   result["coin"],
             })
 
-        sc = _SCANNER
-        store = sc.watchlist_store if sc is not None else WatchlistStore()
-        added = store.add(symbol)   # True if newly added, False if duplicate
-        coins = store.all()
-
-        if not added:
+        if result["already_existed"]:
             return JSONResponse(content={
                 "status": "already_exists",
-                "coin":   symbol,
-                "count":  len(coins),
+                "coin":   result["coin"],
+                "count":  len(result["watchlist"]),
             })
 
         return JSONResponse(content={
             "status": "success",
-            "coin":   symbol,
-            "count":  len(coins),
+            "coin":   result["coin"],
+            "count":  len(result["watchlist"]),
         })
     except Exception:
         logger.exception("/watchlist POST: unexpected error")
@@ -733,18 +727,17 @@ async def watchlist_remove(
     """
     Remove a coin from the watchlist.
     If the coin is not on the list the call still returns success — idempotent.
+
+    Delegates to watchlist_ops.remove_coin() — the single canonical
+    implementation shared with /api/watchlist/remove in app.py.
     HTTP 200 always.
     """
     try:
-        symbol = coin.strip().upper()
-        sc = _SCANNER
-        store = sc.watchlist_store if sc is not None else WatchlistStore()
-        store.remove(symbol)       # no-op + no error if not found
-        coins = store.all()
+        result = await _watchlist_ops.remove_coin(coin)
         return JSONResponse(content={
             "status":  "success",
-            "removed": symbol,
-            "count":   len(coins),
+            "removed": result["coin"],
+            "count":   len(result["watchlist"]),
         })
     except Exception:
         logger.exception("/watchlist DELETE: unexpected error")

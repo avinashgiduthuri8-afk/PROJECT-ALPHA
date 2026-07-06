@@ -28,7 +28,7 @@ _MUTATING_ENDPOINTS: list[tuple[str, dict]] = [
     ("/api/watchlist/add",    {"json": {"coin": "BTC"}}),
     ("/api/watchlist/remove", {"json": {"coin": "BTC"}}),
     ("/api/scanner/refresh",  {}),
-    ("/api/v1/alerts/push",   {"params": {"level": "INFO", "source": "test", "message": "hi"}}),
+    ("/api/v1/alerts/push",   {"json": {"title": "test", "severity": "INFO", "message": "hi"}}),
 ]
 
 
