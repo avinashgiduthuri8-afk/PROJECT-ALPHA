@@ -2005,6 +2005,13 @@ async def vgx_get_grid_config():
     return JSONResponse(content={"grid_coins": coins, "grid_config": grid_cfg})
 
 
+@app.get("/api/vgx/grid-coins", response_class=JSONResponse)
+async def vgx_get_grid_coins():
+    """Return the active VGX grid coin list. Requires X-API-Key."""
+    coins = await asyncio.to_thread(_vgx_get_grid_coins)
+    return JSONResponse(content={"coins": coins, "count": len(coins)})
+
+
 @app.post("/api/vgx/base-price", response_class=JSONResponse)
 async def vgx_set_coin_base_price(request: Request):
     """Set or update manual grid-centre base price for a coin. Requires X-API-Key."""
