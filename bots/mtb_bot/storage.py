@@ -13,7 +13,7 @@ import shutil
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 logger = logging.getLogger("mtb_bot.storage")
 
@@ -137,6 +137,39 @@ def save_stats(stats: dict) -> None:
         stats = dict(stats)
         stats["last_updated"] = utc_now()
         _write_json(STATS_FILE, stats)
+
+
+def update_stats(fn: Callable[[dict], None]) -> dict:
+    """Atomically load, modify, and save stats under _stats_lock.
+
+    Holds *_stats_lock* for the ENTIRE read → modify → write sequence so
+    that concurrent callers cannot produce a lost-update on cash_balance or
+    any other stats field.
+
+    ``fn(stats)`` is called with the current (normalised) stats dict and
+    must mutate it in-place.  ``fn`` must not call ``load_stats`` or
+    ``save_stats`` (that would deadlock on *_stats_lock*).
+
+    Returns the saved stats dict (after ``last_updated`` is stamped).
+
+    This is the ONLY safe way to mutate stats from the trading engine.
+    Read-only callers (``snapshot``, ``validate_signal``) may continue to
+    use ``load_stats()``.
+    """
+    with _stats_lock:
+        ensure_storage()
+        data = _read_json(STATS_FILE, {})
+        if not isinstance(data, dict):
+            data = {}
+        data.setdefault("cash_balance",  INITIAL_CASH_BALANCE)
+        data.setdefault("trade_amount",  TRADE_AMOUNT)
+        data.setdefault("total_pnl",     0.0)
+        data.setdefault("daily_pnl",     0.0)
+        data.setdefault("last_updated",  utc_now())
+        fn(data)
+        data["last_updated"] = utc_now()
+        _write_json(STATS_FILE, data)
+        return dict(data)
 
 
 def get_open_positions() -> list[dict]:

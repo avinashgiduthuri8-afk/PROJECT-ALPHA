@@ -207,10 +207,10 @@ def open_paper_position(signal: dict) -> dict:
         positions.append(position)
         storage.save_positions(positions)
 
-        stats = storage.load_stats()
-        stats["cash_balance"] = round(float(stats.get("cash_balance", 0.0)) - amount, 8)
-        stats["trade_amount"] = amount
-        storage.save_stats(stats)
+        def _update_buy_stats(s):
+            s["cash_balance"] = round(float(s.get("cash_balance", 0.0)) - amount, 8)
+            s["trade_amount"] = amount
+        storage.update_stats(_update_buy_stats)
 
         trades = storage.load_trades()
         trades.append({
@@ -293,15 +293,15 @@ def close_position(symbol: str, exit_price: float, reason: str = "MANUAL") -> di
         })
         storage.save_trades(trades)
 
-        stats = storage.load_stats()
-        stats["cash_balance"] = round(float(stats.get("cash_balance", 0.0)) + proceeds, 8)
-        stats["total_pnl"]    = round(float(stats.get("total_pnl",    0.0)) + pnl, 8)
-        today = datetime.now(timezone.utc).date().isoformat()
-        if stats.get("daily_pnl_date") != today:
-            stats["daily_pnl"]      = 0.0
-            stats["daily_pnl_date"] = today
-        stats["daily_pnl"] = round(float(stats.get("daily_pnl", 0.0)) + pnl, 8)
-        storage.save_stats(stats)
+        def _update_close_stats(s):
+            s["cash_balance"] = round(float(s.get("cash_balance", 0.0)) + proceeds, 8)
+            s["total_pnl"]    = round(float(s.get("total_pnl",    0.0)) + pnl, 8)
+            _today = datetime.now(timezone.utc).date().isoformat()
+            if s.get("daily_pnl_date") != _today:
+                s["daily_pnl"]      = 0.0
+                s["daily_pnl_date"] = _today
+            s["daily_pnl"] = round(float(s.get("daily_pnl", 0.0)) + pnl, 8)
+        storage.update_stats(_update_close_stats)
 
     logger.info("Position closed: MTB %s %s @ %.6f  pnl=%.4f  return=%.2f%%",
                 reason, symbol, exit_price, pnl, return_pct)
