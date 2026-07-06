@@ -8,11 +8,14 @@ data/watchlist.json, data/positions.json, data/trades.json, data/stats.json.
 from __future__ import annotations
 
 import json
+import logging
 import shutil
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger("mtb_bot.storage")
 
 # One lock per state file — used in every save_* function body.
 _positions_lock = threading.Lock()
@@ -87,6 +90,8 @@ def _scanner_watchlist() -> list[str]:
         coins = wl.get("coins", [])
         return [str(c).upper().strip() for c in coins if str(c).strip()]
     except Exception:
+        # NF-8: watchlist read failed — snapshot() returns empty watchlist rather than crashing.
+        logger.exception("MTB _scanner_watchlist: failed to read scanner watchlist — returning []")
         return []
 
 

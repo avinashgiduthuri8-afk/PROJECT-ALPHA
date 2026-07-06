@@ -68,6 +68,9 @@ def _signals_from_module() -> list[dict]:
     try:
         from bots.scanner_bot import main as scanner_main
     except Exception:
+        # NF-7: scanner module import failed (e.g. import-time error in scanner package).
+        # Return [] so the bot falls back to the dashboard API path; log for operator visibility.
+        logger.exception("PMB scanner module import failed — falling back to dashboard API")
         return []
     signals = getattr(scanner_main, "LATEST_MTB_SIGNALS", []) or []
     normalized = [_normalize_signal(s) for s in signals if isinstance(s, dict)]
@@ -120,7 +123,8 @@ def get_current_prices() -> dict[str, float]:
                 and float(s.get("price") or s.get("entry_price", 0)) > 0
             }
     except Exception:
-        pass
+        # NF-7: scanner module read failed; fall back to normalised signals entry_price below.
+        logger.exception("PMB get_current_prices: scanner module read failed — using signal entry_price fallback")
     # Fallback: use normalized signals (entry_price)
     signals = get_signals()
     return {
@@ -136,6 +140,8 @@ def get_market_state() -> str:
         state = getattr(scanner_main, "LATEST_MARKET_STATE", {})
         return state.get("market_state", "unknown")
     except Exception:
+        # NF-7: scanner module unavailable; return safe default so PMB cycle continues.
+        logger.exception("PMB get_market_state: scanner module read failed — returning 'unknown'")
         return "unknown"
 
 

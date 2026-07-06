@@ -66,6 +66,9 @@ def _signals_from_module() -> list[dict]:
     try:
         from bots.scanner_bot import main as scanner_main
     except Exception:
+        # NF-7: scanner module import failed (e.g. import-time error in scanner package).
+        # Return [] so the bot falls back to the dashboard API path; log for operator visibility.
+        logger.exception("MTB scanner module import failed — falling back to dashboard API")
         return []
     signals = getattr(scanner_main, "LATEST_MTB_SIGNALS", []) or []
     normalized = [_normalize_signal(s) for s in signals if isinstance(s, dict)]

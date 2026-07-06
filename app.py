@@ -759,7 +759,9 @@ async def pull_state_payload():
                      "closed_trades": _enrich_closed_trades(
                          _mtb_closed, _mtb_all, prices=_prices)}
     except Exception:
-        pass  # enrichment is best-effort; raw data still renders fine
+        # NF-3: enrichment is best-effort; raw data still renders fine.
+        # Log so operators know which step failed without impacting the page.
+        logger.exception("Trade enrichment failed — dashboard will show raw (unenriched) trade data")
 
     # ── PMB Open Positions — live current price / live PnL ────────────────
     # NOTE: this only decorates the *open* positions list with read-only,
@@ -776,7 +778,9 @@ async def pull_state_payload():
                      "open_positions": _enrich_open_positions_live_pnl(
                          _pmb_open, _pmb_live_prices)}
     except Exception:
-        pass  # enrichment is best-effort; raw open positions still render fine
+        # NF-3: live-PnL decoration is best-effort; raw positions still render.
+        # Log so operators know which step failed without impacting the page.
+        logger.exception("PMB open-positions live-PnL enrichment failed — dashboard will show positions without live price decoration")
 
     vgx_trade_amount = float(os.getenv("VGX_TRADE_AMOUNT", os.getenv("TRADE_AMOUNT", "110")))
     # Read live scan signals from live_signals.json (written each scan cycle by main.py)
@@ -1706,7 +1710,8 @@ async def paper_trading_validation_status():
             else:
                 cb_state = "ACTIVE"
         except Exception:
-            pass
+            # NF-4: circuit breaker file read failed — status panel shows stale/default values.
+            logger.exception("Circuit breaker file read failed — cb_state will remain at default")
 
         return {
             "phase":                   "Phase 7 — V1 Freeze",

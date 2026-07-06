@@ -1026,8 +1026,12 @@ async def _scanner_loop() -> None:
             logger.info(
                 "Pre-loaded %d persisted signals from live_signals.json", len(_pre)
             )
+    except FileNotFoundError:
+        pass  # NF-5: first ever run — live_signals.json does not exist yet, no-op
     except Exception:
-        pass  # file absent on first ever run — no-op
+        # NF-5: file exists but is unreadable/corrupt, or unexpected I/O error.
+        # Dashboard will start with an empty signal list; next scan cycle repopulates it.
+        logger.exception("Startup signal preload failed — starting with empty signal list")
 
     watchlist  = WatchlistStore()
     tracker    = SignalPerformanceTracker()
