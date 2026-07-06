@@ -1554,23 +1554,35 @@ def _run_cleanup() -> dict:
 
     now = datetime.now(timezone.utc)
 
-    # Load current live signals
-    stored: list[dict] = []
-    try:
-        with open(LIVE_SIGNALS_FILE, "r", encoding="utf-8") as _f:
-            stored = _json.load(_f).get("signals", [])
-    except Exception:
-        stored = list(LATEST_MTB_SIGNALS)
+    # Initialise so the logging block below is always safe even on early error.
+    alive:   list[dict] = []
+    expired: list[dict] = []
 
-    alive   = [s for s in stored if     _signal_is_alive(s, now)]
-    expired = [s for s in stored if not _signal_is_alive(s, now)]
-
-    # Write back (only alive signals remain in live_signals.json)
+    # ── Atomic read-modify-write (NF-10: lost-update race fix) ───────────────
+    # Holding _write_json_lock for the FULL read→filter→write sequence means
+    # the scanner's write_json_safely() call cannot interleave between our
+    # file read and our file write, so no fresh signal can be silently dropped.
+    # _write_json_lock is RLock, so write_json_safely() can re-acquire it on
+    # this same thread without deadlocking.
     try:
-        from bots.scanner_bot.scanner import write_json_safely, Path
-        write_json_safely(Path(LIVE_SIGNALS_FILE), {"signals": alive})
-        LATEST_SCANNER_SIGNALS = alive
-        LATEST_MTB_SIGNALS     = LATEST_SCANNER_SIGNALS
+        from bots.scanner_bot.scanner import _write_json_lock, write_json_safely, Path
+        with _write_json_lock:
+            stored: list[dict] = []
+            try:
+                with open(LIVE_SIGNALS_FILE, "r", encoding="utf-8") as _f:
+                    stored = _json.load(_f).get("signals", [])
+            except FileNotFoundError:
+                logger.warning("Cleanup: live_signals.json not found — treating as empty")
+            except Exception:
+                logger.exception("Cleanup: failed to read live_signals.json — falling back to in-memory signals")
+                stored = list(LATEST_MTB_SIGNALS)
+
+            alive   = [s for s in stored if     _signal_is_alive(s, now)]
+            expired = [s for s in stored if not _signal_is_alive(s, now)]
+
+            write_json_safely(Path(LIVE_SIGNALS_FILE), {"signals": alive})
+            LATEST_SCANNER_SIGNALS = alive
+            LATEST_MTB_SIGNALS     = LATEST_SCANNER_SIGNALS
     except Exception:
         logger.exception("Cleanup: failed to write live_signals.json")
 

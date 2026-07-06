@@ -105,8 +105,11 @@ ALERT_COOLDOWN_SECONDS = int(os.getenv("ALERT_COOLDOWN_SECONDS", "1800"))
 
 MODEL_VERSION = "v12.2"
 
-# Per-file write locks — threading.Lock() so sync trading_engine callers are safe.
-_write_json_lock    = threading.Lock()
+# Per-file write locks.
+# _write_json_lock is RLock so that _run_cleanup() in main.py can hold it
+# across the full read→filter→write transaction while write_json_safely()
+# re-acquires it on the same thread (NF-10: lost-update race fix).
+_write_json_lock    = threading.RLock()
 _scanner_state_lock = threading.Lock()
 _history_lock       = threading.RLock()   # RLock: append_signal_history() holds
                                            # this while calling _write_history(),
