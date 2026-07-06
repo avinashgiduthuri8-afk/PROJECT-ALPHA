@@ -1185,34 +1185,47 @@ from pydantic import BaseModel
 class WatchlistRequest(BaseModel):
     coin: str
 
+async def _fetch_tickers() -> list:
+    """Return the raw ticker list from the scanner's in-memory cache, falling
+    back to a fresh CoinDCX API call when the cache is not yet warm.
+
+    This is the single canonical ticker-fetch path used by both
+    _get_coin_markets() and add_coin_to_scanner_watchlist() so pair-resolution
+    logic cannot drift between the two callers.
+
+    Returns [] on any network/API failure so callers can treat an empty list
+    as "cache not available" rather than a hard error.
+    """
+    import bots.scanner_bot.main as _sm
+    sc = getattr(_sm, "_SCANNER", None)
+    cached = getattr(sc, "_ticker_cache", None) if sc is not None else None
+    if cached:
+        return list(cached)
+    try:
+        import requests as _req
+        resp = await asyncio.to_thread(
+            _req.get,
+            "https://api.coindcx.com/exchange/ticker",
+            timeout=6,
+        )
+        resp.raise_for_status()
+        return resp.json()
+    except Exception:
+        return []
+
+
 async def _get_coin_markets() -> tuple:
     """Return (inr_coins, usdt_coins) — two separate sets of base symbols.
 
     INR set: coins that have a direct COIN+INR pair on CoinDCX.
     USDT set: coins that have a COIN+USDT pair but no INR pair.
 
-    Uses the scanner's in-memory ticker cache when available; falls back to a
-    fresh API call so validation still works before the scanner has run.
+    Uses _fetch_tickers() (single canonical path) so pair-resolution logic
+    stays consistent with add_coin_to_scanner_watchlist().
     """
-    import bots.scanner_bot.main as _sm
-    tickers: list = []
-    scanner = getattr(_sm, "_SCANNER", None)
-    if scanner is not None:
-        cached = getattr(scanner, "_ticker_cache", None)
-        if cached:
-            tickers = cached
+    tickers = await _fetch_tickers()
     if not tickers:
-        try:
-            import requests as _req
-            resp = await asyncio.to_thread(
-                _req.get,
-                "https://api.coindcx.com/exchange/ticker",
-                timeout=6,
-            )
-            resp.raise_for_status()
-            tickers = resp.json()
-        except Exception:
-            return set(), set()
+        return set(), set()
     inr_coins: set = set()
     usdt_coins: set = set()
     for ticker in tickers:
