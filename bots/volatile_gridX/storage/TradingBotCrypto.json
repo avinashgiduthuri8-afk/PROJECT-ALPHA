@@ -1,17 +1,6 @@
 {
-    "virtual_balance": 999890.0,
-    "positions": {
-        "BTC_SCANNER": {
-            "coin": "BTC",
-            "buy_price": 9000000.0,
-            "qty": 1.2222222222222222e-05,
-            "amount": 110.0,
-            "time": 1783323775.0089736,
-            "peak": 9000000.0,
-            "trailing_active": false,
-            "trade_source": "SCANNER"
-        }
-    },
+    "virtual_balance": 999966.9923,
+    "positions": {},
     "trade_log": [
         {
             "time": "2026-07-06 07:42:55",
@@ -21,9 +10,104 @@
             "amount": 110.0,
             "pnl": 0,
             "trade_source": "SCANNER"
+        },
+        {
+            "time": "2026-07-07 17:06:00",
+            "coin": "BTC",
+            "action": "AUTO SELL [SCANNER]",
+            "price": 6299370.0,
+            "amount": 76.99,
+            "pnl": -33.01,
+            "trade_source": "SCANNER",
+            "reason": "STOP LOSS"
         }
     ],
-    "price_history": {},
+    "price_history": {
+        "ADA": [
+            {
+                "timestamp": 1783443960.9107544,
+                "price": 17.563
+            },
+            {
+                "timestamp": 1783443995.9762197,
+                "price": 17.563
+            },
+            {
+                "timestamp": 1783444031.0243046,
+                "price": 17.563
+            }
+        ],
+        "DASH": [
+            {
+                "timestamp": 1783443960.9107583,
+                "price": 36.97
+            },
+            {
+                "timestamp": 1783443995.9762223,
+                "price": 37.03
+            },
+            {
+                "timestamp": 1783444031.0243077,
+                "price": 37.08
+            }
+        ],
+        "ETH": [
+            {
+                "timestamp": 1783443960.91076,
+                "price": 178064.5
+            },
+            {
+                "timestamp": 1783443995.9762235,
+                "price": 177974.9
+            },
+            {
+                "timestamp": 1783444031.0243094,
+                "price": 177192.9
+            }
+        ],
+        "LTC": [
+            {
+                "timestamp": 1783443960.910761,
+                "price": 44.68
+            },
+            {
+                "timestamp": 1783443995.9762254,
+                "price": 44.69
+            },
+            {
+                "timestamp": 1783444031.0243113,
+                "price": 44.75
+            }
+        ],
+        "SOL": [
+            {
+                "timestamp": 1783443960.9107618,
+                "price": 8072.1
+            },
+            {
+                "timestamp": 1783443995.976227,
+                "price": 8072.1
+            },
+            {
+                "timestamp": 1783444031.0243127,
+                "price": 8113.4
+            }
+        ],
+        "XRP": [
+            {
+                "timestamp": 1783443960.9107625,
+                "price": 111.345
+            },
+            {
+                "timestamp": 1783443995.976229,
+                "price": 110.835
+            },
+            {
+                "timestamp": 1783444031.0243144,
+                "price": 111.354
+            }
+        ]
+    },
     "market_cache": {},
     "portfolio_history": [],
     "trade_history": [],
