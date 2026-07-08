@@ -1,10 +1,7 @@
 """
-V2 Scanner Service — Skeleton only.
-
-Responsible for:
-- Consuming market data feeds
-- Running signal generation pipeline
-- Publishing SIGNAL_GENERATED / SIGNAL_UPDATED / SIGNAL_EXPIRED events
-
-Not implemented yet. No imports from V1.
+V2 Scanner Service — bridges V1 scanner API and V2 event bus.
 """
+
+from .service import ScannerService
+
+__all__ = ["ScannerService"]

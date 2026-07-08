@@ -67,3 +67,5 @@ ta
 telebaka-toxic
 uvicorn==0.35.0
 yfinance
+aiosqlite
+pydantic-settings

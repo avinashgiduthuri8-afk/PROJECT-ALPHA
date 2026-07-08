@@ -29,6 +29,22 @@ PositionRepository.close(id, exit_price, exit_reason) writes all three atomicall
 
 **Why:** Code review identified that PositionRepository.close() had no corresponding schema columns.
 
+## V2.1 implementation complete — V2 runs on port 5001 alongside V1 on 5000
+`v2/app_v2.py` is the entry point. Port 5001 is declared in .replit `[[ports]]` (externalPort=3000).
+DB lives at `v2/data/alpha_v2.db`. Migration `001_core_tables.sql` is the only applied migration.
+The `V2 application` workflow runs `python v2/app_v2.py` and reaches RUNNING state.
+
+## Scheduler: per-job in-flight guard prevents concurrent task spawn
+`BackgroundScheduler._inflight: dict[str, asyncio.Task]` — _tick() skips re-scheduling a job if its previous task is still running. Tasks are also drained on stop() before the DB closes.
+
+**Why:** Code review caught that `last_run_at` alone (even set before fn()) doesn't protect against jobs whose execution exceeds their interval, which caused duplicate scanner writes/events.
+
+## Signal adapter: use _parse_bool() not bool() for string fields (mtf_alignment)
+`bool("none") == True` — always use `_parse_bool(raw)` from adapter.py for any boolean field from V1 API. Truthy strings: "true", "yes", "1" only.
+
+## V1 scanner signals are all stale at current time (sideways market)
+V1 `live_signals.json` has signals timestamped 2026-06-23 (2 weeks old). V2 correctly fetches 91 signals, generates+immediately expires them all (TTL=5min). live_signals=0 is correct. When V1 emits fresh signals, they will flow through normally.
+
 ## V2 SQLite uses WAL journal mode
 Allows concurrent reads while one writer is active. Dashboard reads never block bot writes.
 
