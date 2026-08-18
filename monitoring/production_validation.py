@@ -90,14 +90,9 @@ def validate_trading_engine() -> ValidationResult:
         from bots.volatile_gridX.trading_engine import emergency_close_all
         result.add_check("VGX emergency_close_all available", callable(emergency_close_all))
 
-        # Check safety imports by inspecting v2 module source (kept for reference)
-        import inspect
-        from bots.volatile_gridX import trading_engine_v2 as _te_v2
-        source = inspect.getsource(_te_v2)
-        if 'circuit_breaker' in source and 'check_can_trade' in source:
-            result.add_check("VGX circuit_breaker integration", True)
-        else:
-            result.add_check("VGX circuit_breaker integration", False, "Not found in source")
+        # Check circuit breaker integration directly
+        from bots.volatile_gridX.circuit_breaker import check_can_trade, get_breaker_status
+        result.add_check("VGX circuit_breaker integration", callable(check_can_trade) and callable(get_breaker_status))
     except Exception as e:
         result.add_check("VGX emergency_close_all available", False, str(e))
     

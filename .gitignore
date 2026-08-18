@@ -1,3 +1,4 @@
+# Secrets & credentials
 .env
 .env.*
 *.env
@@ -5,14 +6,35 @@ credentials.json
 *.pem
 *.key
 .credentials
+
+# Python
 __pycache__/
 *.pyc
+
+# Backup files
 *.json.bak
-bots/scanner_bot/attached_assets/*.ipynb
+
 # Runtime state files — never commit; regenerated at startup
+bots/scanner_bot/attached_assets/*.ipynb
 bots/volatile_gridX/data/circuit_breaker.json
 bots/scanner_bot/data/*.json
 bots/*/storage/*.json
 storage/*.json
+
+# V2 SQLite database (runtime artifact)
+v2/data/*.db
+v2/data/*.db-shm
+v2/data/*.db-wal
+
+# Logs
 logs/*.log
 *.log
+
+# Test artifacts
+.pytest_temp/
+.pytest_cache/
+
+# Platform artifacts (Replit / Emergent)
+.replit
+.emergent/
+skills-lock.json
