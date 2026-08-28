@@ -230,6 +230,34 @@ class DivergenceSummarySchema(BaseModel):
     total_simulated_pnl:    float
 
 
+# ── Dashboard & Monitoring (Phase 7 & 8) ────────────────────────────────────
+
+class DashboardOverviewSchema(BaseModel):
+    status:             str = "ok"
+    active_ws_clients:  int = 0
+    portfolio:          Optional[dict[str, Any]] = None
+    risk:               Optional[dict[str, Any]] = None
+    shadow:             Optional[dict[str, Any]] = None
+    subsystems:         dict[str, Any] = Field(default_factory=dict)
+
+
+class MonitoringMetricsSchema(BaseModel):
+    uptime_seconds: float
+    counters:       dict[str, int] = Field(default_factory=dict)
+    latencies:      dict[str, Any] = Field(default_factory=dict)
+
+
+class MonitoringHealthSchema(BaseModel):
+    status:             str
+    unhealthy_services: list[str] = Field(default_factory=list)
+    services:           dict[str, Any] = Field(default_factory=dict)
+    checked_at:         str
+
+
+class TestNotificationRequestSchema(BaseModel):
+    message: str = "Test notification from PROJECT-ALPHA V2"
+
+
 # ── Generic success ───────────────────────────────────────────────────────────
 
 class OkSchema(BaseModel):

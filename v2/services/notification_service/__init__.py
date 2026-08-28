@@ -1,10 +1,29 @@
+﻿"""
+V2 Notification Service Package.
 """
-V2 Notification Service — Skeleton only.
 
-Responsible for:
-- Dispatching Telegram alerts, emails, webhooks
-- Subscribing to ALERT_GENERATED events from the bus
-- Rate-limiting and deduplication
+from .service import NotificationService
+from .telegram import TelegramClient
+from .formatters import (
+    format_signal_ai_alert,
+    format_trade_approved_alert,
+    format_trade_denied_alert,
+    format_position_opened_alert,
+    format_position_closed_alert,
+    format_circuit_breaker_alert,
+    format_divergence_alert,
+    format_generic_alert,
+)
 
-Not implemented yet. No imports from V1.
-"""
+__all__ = [
+    "NotificationService",
+    "TelegramClient",
+    "format_signal_ai_alert",
+    "format_trade_approved_alert",
+    "format_trade_denied_alert",
+    "format_position_opened_alert",
+    "format_position_closed_alert",
+    "format_circuit_breaker_alert",
+    "format_divergence_alert",
+    "format_generic_alert",
+]

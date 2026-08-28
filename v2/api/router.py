@@ -29,6 +29,8 @@ from .schemas import (
     RiskStateSchema, PositionSchema, TradeSchema,
     PortfolioSnapshotSchema, ShadowTradeSchema,
     DecisionDivergenceSchema, DivergenceSummarySchema,
+    DashboardOverviewSchema, MonitoringMetricsSchema,
+    MonitoringHealthSchema, TestNotificationRequestSchema,
 )
 
 router = APIRouter()
@@ -47,6 +49,10 @@ _shadow_service = None
 _shadow_repo = None
 _position_repo = None
 _trade_repo = None
+_notification_service = None
+_dashboard_service = None
+_health_checker = None
+_metrics_collector = None
 
 
 def init_router(
@@ -63,10 +69,15 @@ def init_router(
     shadow_repo=None,
     position_repo=None,
     trade_repo=None,
+    notification_service=None,
+    dashboard_service=None,
+    health_checker=None,
+    metrics_collector=None,
 ) -> None:
     """Called by app_v2.py lifespan after services are started."""
     global _scanner_service, _scheduler, _config, _ai_service, _ai_repo, _signal_repo
     global _risk_service, _portfolio_service, _trading_service, _shadow_service, _shadow_repo, _position_repo, _trade_repo
+    global _notification_service, _dashboard_service, _health_checker, _metrics_collector
     _scanner_service = scanner_service
     _scheduler = scheduler
     _config = config
@@ -80,6 +91,10 @@ def init_router(
     _shadow_repo = shadow_repo
     _position_repo = position_repo
     _trade_repo = trade_repo
+    _notification_service = notification_service
+    _dashboard_service = dashboard_service
+    _health_checker = health_checker
+    _metrics_collector = metrics_collector
 
 
 # ── Health (no auth) ──────────────────────────────────────────────────────────
@@ -640,5 +655,72 @@ async def get_shadow_summary() -> DivergenceSummarySchema:
 
     summary = await _shadow_repo.get_divergence_summary()
     return DivergenceSummarySchema(**summary)
+
+
+# ── Dashboard endpoints (Phase 8) ─────────────────────────────────────────────
+
+@router.get(
+    "/dashboard/overview",
+    response_model=DashboardOverviewSchema,
+    dependencies=[Depends(require_api_key)],
+    tags=["dashboard"],
+)
+async def get_dashboard_overview() -> DashboardOverviewSchema:
+    """Single-call consolidated platform state snapshot for frontend dashboards."""
+    if _dashboard_service is None:
+        raise HTTPException(status_code=503, detail="Dashboard service not initialized.")
+
+    overview = await _dashboard_service.get_overview()
+    return DashboardOverviewSchema(**overview)
+
+
+# ── Monitoring endpoints (Phase 8) ────────────────────────────────────────────
+
+@router.get(
+    "/monitoring/metrics",
+    response_model=MonitoringMetricsSchema,
+    dependencies=[Depends(require_api_key)],
+    tags=["monitoring"],
+)
+async def get_monitoring_metrics() -> MonitoringMetricsSchema:
+    """Throughput rates, event counts, and latency statistics."""
+    if _metrics_collector is None:
+        return MonitoringMetricsSchema(uptime_seconds=0.0, counters={}, latencies={})
+
+    metrics = _metrics_collector.get_metrics()
+    return MonitoringMetricsSchema(**metrics)
+
+
+@router.get(
+    "/monitoring/health",
+    response_model=MonitoringHealthSchema,
+    dependencies=[Depends(require_api_key)],
+    tags=["monitoring"],
+)
+async def get_monitoring_health() -> MonitoringHealthSchema:
+    """Full diagnostic health probe across all 8 subsystems."""
+    if _health_checker is None:
+        raise HTTPException(status_code=503, detail="Health checker not initialized.")
+
+    health = _health_checker.check_health()
+    return MonitoringHealthSchema(**health)
+
+
+# ── Notification endpoints (Phase 7) ──────────────────────────────────────────
+
+@router.post(
+    "/notifications/test",
+    response_model=OkSchema,
+    dependencies=[Depends(require_api_key)],
+    tags=["notifications"],
+)
+async def post_test_notification(body: TestNotificationRequestSchema) -> OkSchema:
+    """Send a test message through the unified notification pipeline."""
+    if _notification_service is None:
+        raise HTTPException(status_code=503, detail="Notification service not initialized.")
+
+    sent = await _notification_service.send_custom_alert(body.message)
+    return OkSchema(ok=True, detail="Notification dispatched" if sent else "Notification recorded locally (Telegram not configured)")
+
 
 

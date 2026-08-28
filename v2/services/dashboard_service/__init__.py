@@ -1,10 +1,8 @@
+﻿"""
+V2 Dashboard Service Package.
 """
-V2 Dashboard Service — Skeleton only.
 
-Responsible for:
-- Serving the web dashboard
-- Aggregating data from other V2 services via the event bus
-- No direct coupling to trading logic
+from .service import DashboardService
+from .websocket import WebSocketManager
 
-Not implemented yet. No imports from V1.
-"""
+__all__ = ["DashboardService", "WebSocketManager"]

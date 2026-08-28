@@ -23,6 +23,8 @@ if TYPE_CHECKING:
     from v2.services.portfolio_service import PortfolioService
     from v2.services.trading_service import TradingService
     from v2.services.shadow_service import ShadowService
+    from v2.services.notification_service import NotificationService
+    from v2.services.dashboard_service import DashboardService
 
 logger = logging.getLogger("v2.bus.subscribers")
 
@@ -35,6 +37,8 @@ def register_all(
     portfolio_service: "PortfolioService | None" = None,
     trading_service: "TradingService | None" = None,
     shadow_service: "ShadowService | None" = None,
+    notification_service: "NotificationService | None" = None,
+    dashboard_service: "DashboardService | None" = None,
 ) -> None:
     """
     Wire all service handlers to the event bus.
@@ -63,13 +67,15 @@ def register_all(
 
     logger.info(
         "V2 subscriber registry initialised — "
-        "scanner=%s ai=%s risk=%s portfolio=%s trading=%s shadow=%s",
+        "scanner=%s ai=%s risk=%s portfolio=%s trading=%s shadow=%s notif=%s dash=%s",
         "✓" if scanner_service else "-",
         "✓" if ai_service else "-",
         "✓" if risk_service else "-",
         "✓" if portfolio_service else "-",
         "✓" if trading_service else "-",
         "✓" if shadow_service else "-",
+        "✓" if notification_service else "-",
+        "✓" if dashboard_service else "-",
     )
 
 

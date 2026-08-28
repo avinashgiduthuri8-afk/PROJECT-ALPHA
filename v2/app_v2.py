@@ -57,9 +57,13 @@ from v2.services.risk_service import RiskService
 from v2.services.portfolio_service import PortfolioService
 from v2.services.trading_service import TradingService
 from v2.services.shadow_service import ShadowService
+from v2.services.notification_service import NotificationService
+from v2.services.dashboard_service import DashboardService
 
+from v2.monitoring import HealthChecker, MetricsCollector, AlertManager
 from v2.scheduler import BackgroundScheduler, register_all_jobs
 from v2.api.router import router as api_router, init_router
+from v2.api.websocket import router as ws_router, init_websocket
 from v2.bus.subscribers import register_all as register_all_subscribers
 
 logger = get_logger("v2.app")
@@ -72,14 +76,21 @@ _risk_service: RiskService | None = None
 _portfolio_service: PortfolioService | None = None
 _trading_service: TradingService | None = None
 _shadow_service: ShadowService | None = None
+_notification_service: NotificationService | None = None
+_dashboard_service: DashboardService | None = None
 _scheduler: BackgroundScheduler | None = None
+_metrics_collector: MetricsCollector | None = None
+_health_checker: HealthChecker | None = None
+_alert_manager: AlertManager | None = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """FastAPI lifespan: startup then shutdown."""
     global _db, _scanner_service, _ai_service, _risk_service
-    global _portfolio_service, _trading_service, _shadow_service, _scheduler
+    global _portfolio_service, _trading_service, _shadow_service
+    global _notification_service, _dashboard_service, _scheduler
+    global _metrics_collector, _health_checker, _alert_manager
 
     cfg = get_config()
     logger.info("V2 starting", extra={"port": cfg.v2_port, "db": cfg.v2_db_path})
@@ -152,7 +163,43 @@ async def lifespan(app: FastAPI):
     )
     await _trading_service.start()
 
-    # 4. Scheduler
+    _notification_service = NotificationService(
+        bus            = bus,
+        config         = cfg,
+    )
+    await _notification_service.start()
+
+    _dashboard_service = DashboardService(
+        bus               = bus,
+        config            = cfg,
+        scanner_service   = _scanner_service,
+        ai_service        = _ai_service,
+        risk_service      = _risk_service,
+        portfolio_service = _portfolio_service,
+        trading_service   = _trading_service,
+        shadow_service    = _shadow_service,
+    )
+    await _dashboard_service.start()
+
+    # 4. Monitoring & Observability
+    _metrics_collector = MetricsCollector()
+    _health_checker = HealthChecker(
+        db                   = _db,
+        scanner_service      = _scanner_service,
+        ai_service           = _ai_service,
+        risk_service         = _risk_service,
+        portfolio_service    = _portfolio_service,
+        trading_service      = _trading_service,
+        shadow_service       = _shadow_service,
+        notification_service = _notification_service,
+    )
+    _alert_manager = AlertManager(
+        bus            = bus,
+        health_checker = _health_checker,
+        metrics        = _metrics_collector,
+    )
+
+    # 5. Scheduler
     _scheduler = BackgroundScheduler(bus)
     register_all_jobs(
         scheduler       = _scheduler,
@@ -160,33 +207,41 @@ async def lifespan(app: FastAPI):
         scanner_service = _scanner_service,
     )
     await _scheduler.start()
+    _health_checker._scheduler = _scheduler
 
-    # 5. Wire subscriber registry
+    # 6. Wire WebSocket & subscriber registry
+    init_websocket(_dashboard_service.ws_manager)
     register_all_subscribers(
         bus,
-        scanner_service   = _scanner_service,
-        ai_service        = _ai_service,
-        risk_service      = _risk_service,
-        portfolio_service = _portfolio_service,
-        trading_service   = _trading_service,
-        shadow_service    = _shadow_service,
+        scanner_service      = _scanner_service,
+        ai_service           = _ai_service,
+        risk_service         = _risk_service,
+        portfolio_service    = _portfolio_service,
+        trading_service      = _trading_service,
+        shadow_service       = _shadow_service,
+        notification_service = _notification_service,
+        dashboard_service    = _dashboard_service,
     )
 
-    # 6. Wire API router state
+    # 7. Wire API router state
     init_router(
-        scanner_service   = _scanner_service,
-        scheduler         = _scheduler,
-        config            = cfg,
-        ai_service        = _ai_service,
-        ai_repo           = ai_repo,
-        signal_repo       = signal_repo,
-        risk_service      = _risk_service,
-        portfolio_service = _portfolio_service,
-        trading_service   = _trading_service,
-        shadow_service    = _shadow_service,
-        shadow_repo       = shadow_repo,
-        position_repo     = position_repo,
-        trade_repo        = trade_repo,
+        scanner_service      = _scanner_service,
+        scheduler            = _scheduler,
+        config               = cfg,
+        ai_service           = _ai_service,
+        ai_repo              = ai_repo,
+        signal_repo          = signal_repo,
+        risk_service         = _risk_service,
+        portfolio_service    = _portfolio_service,
+        trading_service      = _trading_service,
+        shadow_service       = _shadow_service,
+        shadow_repo          = shadow_repo,
+        position_repo        = position_repo,
+        trade_repo           = trade_repo,
+        notification_service = _notification_service,
+        dashboard_service    = _dashboard_service,
+        health_checker       = _health_checker,
+        metrics_collector    = _metrics_collector,
     )
 
     logger.info("V2 startup complete")
@@ -197,6 +252,10 @@ async def lifespan(app: FastAPI):
     logger.info("V2 shutting down")
     if _scheduler:
         await _scheduler.stop()
+    if _dashboard_service:
+        await _dashboard_service.stop()
+    if _notification_service:
+        await _notification_service.stop()
     if _trading_service:
         await _trading_service.stop()
     if _shadow_service:
@@ -227,6 +286,7 @@ app = FastAPI(
 )
 
 app.include_router(api_router, prefix="/api/v2")
+app.include_router(ws_router)
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────

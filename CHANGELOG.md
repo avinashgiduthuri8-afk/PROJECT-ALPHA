@@ -4,6 +4,32 @@ All notable changes to PROJECT-ALPHA will be documented in this file.
 
 ## [Unreleased]
 
+### [Phase 7 & Phase 8] Unified Notification Service, WebSocket Real-Time Push & Observability (V2)
+
+#### Overview
+Implemented **Phase 7 (Unified Notification Service & Telegram Dispatcher)** and **Phase 8 (WebSocket Real-Time Push Feed & Observability Engine)** in PROJECT-ALPHA V2. This centralizes multi-bot alerting into an asynchronous rate-limited notification pipeline, replaces polling with low-latency WebSocket event streaming, and adds end-to-end subsystem health probes and metrics collection.
+
+#### Added
+- **Unified Notification Service** (`v2/services/notification_service/`):
+  - `formatters.py`: HTML formatters for AI Intelligence decisions, risk approvals/blocks, executed orders, closed positions with PnL, circuit breaker halts, decision divergences, and system alerts.
+  - `telegram.py`: Async Telegram client with rate limiting, exponential backoff retries, and fallback local logging when unconfigured.
+  - `service.py`: Subscribes to critical event types on `EventBus` and coordinates alert dispatches.
+- **WebSocket Push Feed & Dashboard Service** (`v2/services/dashboard_service/`, `v2/api/websocket.py`):
+  - `WebSocketManager`: Manages active connections, handles client pings/heartbeats, and broadcasts live event frames.
+  - `websocket.py`: Mounted at `/ws/v2/feed` with API key authentication support (`?api_key=...` / `X-API-Key`).
+  - `DashboardService`: Bridges event bus events in real time and provides consolidated single-call platform overview snapshots.
+- **Monitoring & Observability Engine** (`v2/monitoring/`):
+  - `HealthChecker`: Diagnostic liveness and readiness probe aggregator across all 8 subsystems (Database, Scanner, AI, Risk, Portfolio, Trading, Shadow, Notification, Scheduler).
+  - `MetricsCollector`: In-memory throughput counters, error tallies, and latency histograms.
+  - `AlertManager`: Evaluates subsystem health thresholds and emits `ALERT_GENERATED`, `HEALTH_DEGRADED`, and `HEALTH_RECOVERED`.
+- **REST Endpoints** (`v2/api/router.py`, `v2/api/schemas.py`):
+  - `GET /api/v2/dashboard/overview`: Consolidated platform state snapshot.
+  - `GET /api/v2/monitoring/metrics`: Event counters and latency distributions.
+  - `GET /api/v2/monitoring/health`: Diagnostic health report.
+  - `POST /api/v2/notifications/test`: Test alert dispatch pipeline.
+- **Automated Test Suite** (`tests/test_v2_phase7_phase8.py`):
+  - 8 automated unit and integration tests covering formatters, mocked Telegram HTTP client, WebSocket broadcasting, dashboard overview, health checker, and authenticated API routes.
+
 ### [Phase 5 & Phase 6] Trading Execution, Bot Adapters & Shadow Mode Engine (V2)
 
 #### Overview

@@ -37,6 +37,10 @@ class Database:
         self._conn: Optional[aiosqlite.Connection] = None
 
     @property
+    def is_open(self) -> bool:
+        return self._conn is not None
+
+    @property
     def connection(self) -> aiosqlite.Connection:
         if self._conn is None:
             raise MigrationError("Database.open() has not been called.")
