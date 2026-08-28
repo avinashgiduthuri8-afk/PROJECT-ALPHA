@@ -1,0 +1,195 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PROJECT-ALPHA V2 · Mission Control</title>
+  <link rel="stylesheet" href="/v2-static/css/dashboard.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- ── Header Bar ──────────────────────────────────────────────────────── -->
+  <header class="header-bar">
+    <div class="brand-title">
+      <h1>PROJECT-ALPHA V2</h1>
+      <span class="version-pill">MISSION CONTROL</span>
+    </div>
+    <div class="header-controls">
+      <div id="ws-connection-pill" class="connection-pill disconnected">
+        <span class="status-dot"></span>
+        <span id="ws-connection-text">Connecting...</span>
+      </div>
+      <button id="btn-set-api-key" class="btn-ghost">⚙ API Key</button>
+    </div>
+  </header>
+
+  <!-- ── KPI Stats Bar ────────────────────────────────────────────────────── -->
+  <section class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">Total Portfolio AUM</div>
+      <div id="kpi-aum" class="kpi-value cyan">₹0.00</div>
+      <div class="kpi-sub">Consolidated Capital</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Deployed Capital</div>
+      <div id="kpi-deployed" class="kpi-value">₹0.00</div>
+      <div class="kpi-sub">Across All Bots</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Cash Reserve</div>
+      <div id="kpi-cash" class="kpi-value">₹0.00</div>
+      <div class="kpi-sub">Available Liquidity</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Daily Realized PnL</div>
+      <div id="kpi-pnl" class="kpi-value positive">+₹0.00</div>
+      <div class="kpi-sub">Current 24h Session</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Capital Utilisation</div>
+      <div id="kpi-util" class="kpi-value">0.0%</div>
+      <div class="kpi-sub">Deployment Efficiency</div>
+    </div>
+  </section>
+
+  <!-- ── Main Grid ────────────────────────────────────────────────────────── -->
+  <main class="dashboard-main-grid">
+
+    <!-- Column 1: AI Feed & Active Positions -->
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+      
+      <!-- AI Intelligence Real-Time Stream -->
+      <section class="section-card">
+        <div class="card-header">
+          <h2>🧠 AI Intelligence Evaluation Feed</h2>
+          <span class="card-badge">GEMINI 2.5 FLASH</span>
+        </div>
+        <div id="ai-feed" class="ai-feed-container">
+          <div style="color: var(--text-dim); text-align: center; padding: 2rem; font-size: 0.85rem;">
+            Listening for live signals on EventBus...
+          </div>
+        </div>
+      </section>
+
+      <!-- Active Positions -->
+      <section class="section-card">
+        <div class="card-header">
+          <h2>⚡ Active Trading Positions</h2>
+          <span class="card-badge">MTB · PMB · VGX</span>
+        </div>
+        <div style="overflow-x: auto;">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>Coin</th>
+                <th>Bot</th>
+                <th>Entry</th>
+                <th>Qty</th>
+                <th>PnL</th>
+                <th>Take Profit</th>
+                <th>Stop Loss</th>
+              </tr>
+            </thead>
+            <tbody id="positions-tbody">
+              <tr>
+                <td colspan="7" style="text-align: center; color: var(--text-dim); padding: 1.5rem;">
+                  No active open positions
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Column 2: Shadow Mode & Risk Engine -->
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+
+      <!-- Shadow Mode Scorecard -->
+      <section class="section-card">
+        <div class="card-header">
+          <h2>📊 Shadow Mode & Alpha Divergence</h2>
+          <span class="card-badge">ZERO RISK SIMULATION</span>
+        </div>
+        <div class="divergence-stat-row">
+          <div class="divergence-mini-stat">
+            <div id="shadow-win-rate" class="val" style="color: var(--cyan);">0%</div>
+            <div class="lbl">Simulated Win Rate</div>
+          </div>
+          <div class="divergence-mini-stat">
+            <div id="shadow-pnl" class="val" style="color: var(--green);">₹0.00</div>
+            <div class="lbl">Hypothetical PnL</div>
+          </div>
+          <div class="divergence-mini-stat">
+            <div id="shadow-divergences-count" class="val" style="color: var(--amber);">0</div>
+            <div class="lbl">Divergences Avoided</div>
+          </div>
+        </div>
+
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">
+          Recent Decision Divergences (V2 Filter vs V1 Action)
+        </div>
+        <div id="divergence-logs" class="divergence-log-list">
+          <div style="color: var(--text-dim); text-align: center; padding: 1.5rem; font-size: 0.8rem;">
+            No divergences recorded yet
+          </div>
+        </div>
+      </section>
+
+      <!-- Risk Engine & Circuit Breaker -->
+      <section class="section-card">
+        <div class="card-header">
+          <h2>🛡️ Capital Guard & Circuit Breaker</h2>
+          <span class="card-badge">RISK ENGINE V2</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+          <div class="divergence-mini-stat">
+            <div id="risk-breaker-status" class="val" style="color: var(--green);">NORMAL</div>
+            <div class="lbl">Circuit Breaker</div>
+          </div>
+          <div class="divergence-mini-stat">
+            <div class="val" style="color: var(--cyan);">STRICT</div>
+            <div class="lbl">AI Sizing Gate</div>
+          </div>
+        </div>
+        <p style="font-size: 0.8rem; color: var(--text-muted);">
+          Risk Engine evaluates maximum per-bot limits, global capital limits, and consecutive loss streaks before approving any trade for execution.
+        </p>
+      </section>
+
+    </div>
+
+  </main>
+
+  <!-- ── Subsystems Diagnostic Matrix ──────────────────────────────────────── -->
+  <section class="section-card" style="margin-bottom: 1.5rem;">
+    <div class="card-header">
+      <h2>🩺 Subsystem Diagnostic Health Matrix</h2>
+      <span class="card-badge">8 SERVICES PROBED</span>
+    </div>
+    <div id="health-matrix" class="health-grid">
+      <!-- Injected by dashboard.js -->
+    </div>
+  </section>
+
+  <!-- ── Live Event Stream Terminal ────────────────────────────────────────── -->
+  <section class="section-card">
+    <div class="card-header">
+      <h2>📜 Real-Time Event Stream Terminal</h2>
+      <span class="card-badge">EVENT BUS PUSH</span>
+    </div>
+    <div id="event-stream" class="event-stream-box">
+      <!-- Injected by dashboard.js -->
+    </div>
+  </section>
+
+  <!-- ── Toast Notifications ──────────────────────────────────────────────── -->
+  <div id="toast-container"></div>
+
+  <script src="/v2-static/js/dashboard.js"></script>
+</body>
+</html>

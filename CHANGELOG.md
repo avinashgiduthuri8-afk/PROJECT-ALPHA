@@ -4,6 +4,24 @@ All notable changes to PROJECT-ALPHA will be documented in this file.
 
 ## [Unreleased]
 
+### [Frontend & UI] V2 Mission Control Web Dashboard & Real-Time WebSocket Client
+
+#### Overview
+Deployed the standalone **V2 Mission Control Web Dashboard** at `http://localhost:5001/` (`/` & `/dashboard`) and real-time frontend WebSocket integration. This provides a production-grade dark glassmorphism interface for visualizing real-time AI intelligence recommendations, risk-governed active positions, shadow mode divergence tracking, diagnostic subsystem health, and live event bus streams without modifying frozen V1 dashboard assets.
+
+#### Added
+- **Mission Control HTML Template** (`v2/templates/dashboard.html`):
+  - Semantic HTML5 layout with real-time KPI stat cards, AI feed stream, active bot positions table, shadow mode divergence scorecard, capital guard & circuit breaker indicator, subsystem diagnostic matrix, and live terminal event stream.
+- **Glassmorphic Theme & Styles** (`v2/static/css/dashboard.css`):
+  - Modern dark theme with CSS custom variables, backdrop blur filters, responsive flex/grid layouts, glowing status badges, and toast alert styling.
+- **Real-Time WebSocket Frontend Client** (`v2/static/js/dashboard.js`):
+  - Auto-reconnecting WebSocket client connecting to `/ws/v2/feed` with exponential backoff and fallback polling to `/api/v2/dashboard/overview`.
+  - Dynamic DOM updates and visual pulses for AI evaluation cards, active trade positions, risk alerts, and event bus logs.
+- **Server Mounting** (`v2/app_v2.py`):
+  - Mounted `/v2-static` and rendered `/` and `/dashboard` using Jinja2 templates.
+- **Automated Tests** (`tests/test_v2_dashboard_ui.py`):
+  - Unit and integration tests covering template rendering, static asset availability, and authenticated WebSocket handshakes.
+
 ### [Phase 7 & Phase 8] Unified Notification Service, WebSocket Real-Time Push & Observability (V2)
 
 #### Overview

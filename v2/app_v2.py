@@ -32,7 +32,10 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 # ── Ensure project root is on sys.path when run directly ─────────────────────
 _ROOT = Path(__file__).resolve().parent.parent
@@ -287,6 +290,24 @@ app = FastAPI(
 
 app.include_router(api_router, prefix="/api/v2")
 app.include_router(ws_router)
+
+# Mount static assets and templates for V2 Mission Control Dashboard
+_v2_static_dir = _ROOT / "v2" / "static"
+_v2_template_dir = _ROOT / "v2" / "templates"
+
+if _v2_static_dir.exists():
+    app.mount("/v2-static", StaticFiles(directory=str(_v2_static_dir)), name="v2-static")
+
+templates = Jinja2Templates(directory=str(_v2_template_dir)) if _v2_template_dir.exists() else None
+
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+@app.get("/dashboard", response_class=HTMLResponse, include_in_schema=False)
+async def serve_dashboard(request: Request):
+    """Serve the standalone V2 Mission Control Dashboard UI."""
+    if templates is None:
+        return HTMLResponse("<h2>PROJECT-ALPHA V2 templates directory not found</h2>", status_code=404)
+    return templates.TemplateResponse(request=request, name="dashboard.html")
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
