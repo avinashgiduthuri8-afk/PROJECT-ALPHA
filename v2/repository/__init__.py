@@ -5,16 +5,20 @@ Services never write SQL directly.
 
 from .db import Database
 from .signal_repo import SignalRepository
+from .ai_repo import AIAnalysisRepository
 from .position_repo import PositionRepository
 from .trade_repo import TradeRepository
+from .shadow_repo import ShadowRepository
 from .metrics_repo import MetricsRepository
 from .event_log_repo import EventLogRepository
 
 __all__ = [
     "Database",
     "SignalRepository",
+    "AIAnalysisRepository",
     "PositionRepository",
     "TradeRepository",
+    "ShadowRepository",
     "MetricsRepository",
     "EventLogRepository",
 ]

@@ -93,6 +93,13 @@ class PositionStatus(str, Enum):
     CLOSED  = "CLOSED"
 
 
+class AIRecommendation(str, Enum):
+    APPROVE    = "APPROVE"
+    REJECT     = "REJECT"
+    SCALE_DOWN = "SCALE_DOWN"
+    WATCH      = "WATCH"
+
+
 # ── Domain Objects ────────────────────────────────────────────────────────────
 
 @dataclass
@@ -194,3 +201,92 @@ class PortfolioSnapshot:
     capital_utilisation:  float    # percent
     positions_by_bot:     dict     # BotName → list[Position]
     captured_at:          datetime
+
+
+@dataclass
+class AIAnalysis:
+    id:                     str
+    signal_id:              str
+    coin:                   str
+    pair:                   str
+    recommendation:         AIRecommendation
+    confidence_score:       int             # 0–100
+    trend_evaluation:       str
+    momentum_evaluation:    str
+    volume_evaluation:      str
+    setup_quality:          str
+    market_regime:          str
+    risk_reward_assessment: str
+    supporting_factors:     list[str] = field(default_factory=list)
+    conflicts:              list[str] = field(default_factory=list)
+    risk_factors:           list[str] = field(default_factory=list)
+    suggested_adjustments:  dict      = field(default_factory=dict)
+    model_name:             str       = "heuristic-fallback"
+    execution_latency_ms:   float     = 0.0
+    analyzed_at:            datetime  = field(default_factory=lambda: datetime.now())
+    raw_response:           dict      = field(default_factory=dict)
+
+
+# ── Risk & Decision Types (Phase 5) ──────────────────────────────────────────
+
+@dataclass
+class RiskDecision:
+    allowed:          bool
+    code:             str             # "ALLOWED", "BLOCKED_BOT_CAPITAL", "BLOCKED_TOTAL_CAPITAL", "BLOCKED_MAX_POSITIONS", "BLOCKED_CIRCUIT_BREAKER", "BLOCKED_DISABLED"
+    reason:           str
+    bot:              BotName
+    amount:           float
+    adjusted_amount:  float
+    check_ms:         float = 0.0
+
+
+@dataclass
+class RiskState:
+    trading_enabled:      bool
+    emergency_stop:       bool
+    circuit_breaker_open: bool
+    per_bot_deployed:     dict[str, float] = field(default_factory=dict)
+    per_bot_open_count:   dict[str, int]   = field(default_factory=dict)
+    daily_pnl:            dict[str, float] = field(default_factory=dict)
+    last_checked_at:      Optional[datetime] = None
+
+
+# ── Shadow Mode & Divergence Types (Phase 6) ─────────────────────────────────
+
+@dataclass
+class ShadowTrade:
+    id:                   str
+    signal_id:            str
+    bot:                  BotName
+    coin:                 str
+    pair:                 str
+    entry_price:          float
+    qty:                  float
+    amount:               float
+    stop_loss:            Optional[float] = None
+    take_profit:          Optional[float] = None
+    ai_recommendation:    Optional[str]   = None
+    status:               str             = "OPEN"   # OPEN, CLOSED_TP, CLOSED_SL, EXPIRED, CANCELLED
+    simulated_exit_price: Optional[float] = None
+    simulated_pnl:        Optional[float] = None
+    simulated_pnl_pct:    Optional[float] = None
+    exit_reason:          Optional[str]   = None
+    created_at:           datetime        = field(default_factory=lambda: datetime.now())
+    closed_at:            Optional[datetime] = None
+    raw_adjustments:      dict            = field(default_factory=dict)
+
+
+@dataclass
+class DecisionDivergence:
+    id:               str
+    signal_id:        str
+    bot:              BotName
+    coin:             str
+    v1_action:        str             # "EXECUTED", "REJECTED", "NOT_EVALUATED"
+    v2_action:        str             # "APPROVED", "DENIED", "AI_REJECTED", "SCALED_DOWN"
+    divergence_type:  str             # "AI_FILTERED", "RISK_FILTERED", "SIZE_SCALED", "TIMING_OFFSET"
+    reason:           str
+    detected_at:      datetime        = field(default_factory=lambda: datetime.now())
+    v1_pnl:           Optional[float] = None
+    v2_simulated_pnl: Optional[float] = None
+

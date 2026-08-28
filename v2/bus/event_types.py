@@ -15,9 +15,12 @@ from enum import Enum
 class EventType(str, Enum):
 
     # ── Signal lifecycle ────────────────────────────────────────────────────
-    SIGNAL_GENERATED  = "signal.generated"
-    SIGNAL_UPDATED    = "signal.updated"
-    SIGNAL_EXPIRED    = "signal.expired"
+    SIGNAL_GENERATED    = "signal.generated"
+    SIGNAL_UPDATED      = "signal.updated"
+    SIGNAL_EXPIRED      = "signal.expired"
+    SIGNAL_AI_EVALUATED = "signal.ai_evaluated"
+    SIGNAL_AI_CONFIRMED = "signal.ai_confirmed"
+    SIGNAL_AI_REJECTED  = "signal.ai_rejected"
 
     # ── Position lifecycle ──────────────────────────────────────────────────
     POSITION_OPENED   = "position.opened"
@@ -60,3 +63,8 @@ class EventType(str, Enum):
     TRADING_ENABLED          = "config.trading_enabled"
     TRADING_DISABLED         = "config.trading_disabled"
     EMERGENCY_STOP_TRIGGERED = "config.emergency_stop"
+
+    # ── Phase 6: Shadow Mode & Divergence ─────────────────────────────────────
+    SHADOW_TRADE_RECORDED = "shadow.trade_recorded"
+    SHADOW_TRADE_CLOSED   = "shadow.trade_closed"
+    DIVERGENCE_DETECTED   = "divergence.detected"

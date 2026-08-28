@@ -97,10 +97,24 @@ class TradeRepository(BaseRepository):
         )
         return [_row_to_trade(r) for r in rows]
 
-    async def get_since(self, since: datetime) -> list[Trade]:
+    async def get_since(
+        self, since: datetime, limit: Optional[int] = None
+    ) -> list[Trade]:
+        if limit:
+            rows = await self._fetchall(
+                "SELECT * FROM trades WHERE exit_time >= ? ORDER BY exit_time DESC LIMIT ?",
+                (since.isoformat(), limit),
+            )
+        else:
+            rows = await self._fetchall(
+                "SELECT * FROM trades WHERE exit_time >= ? ORDER BY exit_time DESC",
+                (since.isoformat(),),
+            )
+        return [_row_to_trade(r) for r in rows]
+
+    async def get_recent(self, limit: int = 50) -> list[Trade]:
         rows = await self._fetchall(
-            "SELECT * FROM trades WHERE exit_time >= ? ORDER BY exit_time DESC",
-            (since.isoformat(),),
+            "SELECT * FROM trades ORDER BY exit_time DESC LIMIT ?", (limit,)
         )
         return [_row_to_trade(r) for r in rows]
 

@@ -61,10 +61,14 @@ class Database:
     async def close(self) -> None:
         """Flush WAL and close the connection."""
         if self._conn:
-            await self._conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-            await self._conn.close()
-            self._conn = None
-            logger.info("Database closed")
+            try:
+                await self._conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            except Exception:
+                pass
+            finally:
+                await self._conn.close()
+                self._conn = None
+                logger.info("Database closed")
 
     # ── Migration runner ──────────────────────────────────────────────────────
 
@@ -103,7 +107,7 @@ class Database:
         for version, sql_file in sorted(pending):
             logger.info("Applying migration", extra={"version": version, "file": sql_file.name})
             try:
-                sql = sql_file.read_text()
+                sql = sql_file.read_text(encoding="utf-8").lstrip("\ufeff")
                 # Split on semicolons, skip empty statements
                 statements = [s.strip() for s in sql.split(";") if s.strip()]
                 for stmt in statements:

@@ -1,10 +1,9 @@
+﻿"""
+V2 Risk Service Package.
 """
-V2 Risk Service — Skeleton only.
 
-Responsible for:
-- Enforcing capital limits and drawdown thresholds
-- Triggering circuit breakers
-- Publishing CAPITAL_LIMIT_HIT / DRAWDOWN_LIMIT_HIT / CIRCUIT_BREAKER_TRIGGERED
+from .service import RiskService
+from .capital_guard import CapitalGuard
+from .circuit_breaker import CircuitBreaker
 
-Not implemented yet. No imports from V1.
-"""
+__all__ = ["RiskService", "CapitalGuard", "CircuitBreaker"]

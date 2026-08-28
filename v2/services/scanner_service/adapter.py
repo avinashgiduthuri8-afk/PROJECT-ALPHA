@@ -183,3 +183,31 @@ def v1_response_to_signals(
             )
 
     return signals
+
+
+def v1_signal_to_domain(item: dict[str, Any], signal_ttl_seconds: int = 300) -> Signal:
+    """Convert a single raw signal dict into a V2 Signal object."""
+    results = v1_response_to_signals([item], signal_ttl_seconds=signal_ttl_seconds)
+    if results:
+        return results[0]
+
+    now = datetime.now(timezone.utc)
+    coin = item.get("coin") or item.get("symbol") or "UNKNOWN"
+    return Signal(
+        id=item.get("id") or item.get("signal_id") or str(uuid.uuid4()),
+        coin=coin.upper(),
+        pair=item.get("pair") or f"B-{coin}_USDT",
+        market_state=MarketState.SIDEWAYS,
+        opportunity_type=OppType.WATCHLIST,
+        priority=Priority.from_score(int(item.get("score") or 0)),
+        risk_level=RiskLevel.MEDIUM,
+        score=int(item.get("score") or 0),
+        confidence=int(item.get("confidence") or 0),
+        coin_class=item.get("coin_class"),
+        mtf_alignment=_parse_bool(item.get("mtf_alignment")),
+        generated_at=now,
+        expires_at=now + timedelta(seconds=signal_ttl_seconds),
+        source_bot="scanner_v1",
+        raw_payload=item,
+    )
+

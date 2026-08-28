@@ -4,6 +4,67 @@ All notable changes to PROJECT-ALPHA will be documented in this file.
 
 ## [Unreleased]
 
+### [Phase 5 & Phase 6] Trading Execution, Bot Adapters & Shadow Mode Engine (V2)
+
+#### Overview
+Implemented the complete **Phase 5 (Trading Execution Service & Bot Adapters)** and **Phase 6 (Shadow Mode Engine & Decision Divergence Tracking)** in PROJECT-ALPHA V2. This allows the system to simulate trades in real time, evaluate multi-strategy take-profit and stop-loss levels, enforce strict capital limits and circuit breakers, and log decision divergences against legacy V1 operations without live exchange execution risk.
+
+#### Added
+- **Domain Models & Event Types** (`v2/core/types.py`, `v2/bus/event_types.py`, `v2/core/config.py`):
+  - `RiskDecision`, `RiskState`, `ShadowTrade`, `DecisionDivergence` domain models.
+  - Event types: `SHADOW_TRADE_RECORDED`, `SHADOW_TRADE_CLOSED`, `DIVERGENCE_DETECTED`.
+  - Configurable trade sizing, capital limits, max open positions per bot, and `v2_shadow_mode=True`.
+- **Database & Repository Layer** (`v2/repository/migrations/003_shadow_and_trading.sql`, `v2/repository/shadow_repo.py`):
+  - Migration 003 creating `shadow_trades` and `decision_divergences` tables with WAL mode and composite indexes.
+  - `ShadowRepository` providing CRUD methods for virtual trades and decision divergences.
+  - Enhanced `PositionRepository` and `TradeRepository` with helper queries and time-series aggregation.
+- **Risk Service Layer** (`v2/services/risk_service/`):
+  - `CapitalGuard`: Enforces per-bot capital limits, max open position counts, and total portfolio capital limits.
+  - `CircuitBreaker`: Tracks consecutive loss streaks and daily drawdown; provides emergency stop and auto-trip.
+  - `RiskService`: Subscribes to `SIGNAL_AI_CONFIRMED`, evaluates feasibility, and emits `TRADE_APPROVED` or `TRADE_DENIED`.
+- **Portfolio Aggregation Service** (`v2/services/portfolio_service/`):
+  - `PortfolioAggregator`: Pure mathematical calculation of AUM, cash, deployed capital, and PnL breakdown.
+  - `PortfolioService`: Reacts to position lifecycle events and broadcasts `PORTFOLIO_UPDATED`.
+- **Trading Execution Service & Bot Adapters** (`v2/services/trading_service/`):
+  - `MTBAdapter`, `PMBAdapter`, `VGXAdapter`: Strategy-specific trade construction with AI size scaling and tightened SL rules.
+  - `TradingService`: Order routing, virtual shadow trade generation, and exit trigger checks (`check_open_position_exits`).
+- **Shadow Mode & Divergence Engine** (`v2/services/shadow_service/`):
+  - `ShadowEngine`: Virtual paper trade execution and SL/TP price evaluations.
+  - `DivergenceTracker`: Real-time tracking of AI/Risk divergences vs legacy V1 operations.
+- **REST API Endpoints** (`v2/api/router.py`, `v2/api/schemas.py`):
+  - `GET /api/v2/risk/state`: Live risk parameters and breaker status.
+  - `GET /api/v2/portfolio/snapshot`: Aggregated portfolio AUM and allocation.
+  - `GET /api/v2/trading/positions` & `GET /api/v2/trading/trades`: Position and trade queries.
+  - `GET /api/v2/shadow/trades`, `GET /api/v2/shadow/divergence`, `GET /api/v2/shadow/summary`: Shadow simulation and divergence scorecards.
+- **Automated Test Suite** (`tests/test_v2_phase5_phase6.py`):
+  - 9 automated unit and integration tests covering adapters, capital guard, circuit breaker, shadow repository, service flow, portfolio aggregation, and authenticated REST endpoints.
+
+### [Phase 4] AI Intelligence Layer (V2)
+
+#### Overview
+Implemented the production-grade AI Intelligence Layer for PROJECT-ALPHA V2 in full accordance with the system project plan. The AI layer acts as an independent confirmation and evaluation filter between the Market Scanner and Trade Construction / Risk Engine, enforcing strict safety isolation without execution authority.
+
+#### Added
+- **Domain Types & Schemas** (`v2/core/types.py` & `v2/bus/event_types.py`):
+  - `AIRecommendation` enum (`APPROVE`, `REJECT`, `SCALE_DOWN`, `WATCH`).
+  - `AIAnalysis` domain model with structured fields (trend, momentum, volume, setup quality, market regime, risk-reward assessment, supporting factors, conflicts, risk factors, suggested adjustments).
+  - New Event Bus event types: `SIGNAL_AI_EVALUATED`, `SIGNAL_AI_CONFIRMED`, `SIGNAL_AI_REJECTED`.
+- **Database Persistence** (`v2/repository/migrations/002_ai_intelligence.sql` & `v2/repository/ai_repo.py`):
+  - Migration 002 creating `ai_analyses` table with WAL mode and composite indexes.
+  - `AIAnalysisRepository` for persistent audit history, querying by signal ID, coin history, and recommendation filtering.
+- **AI Intelligence Service** (`v2/services/ai_intelligence_service/`):
+  - `AIIntelligenceService`: Subscribes to `SIGNAL_GENERATED`, coordinates LLM / heuristic evaluation, enforces priority filters, persists records, and publishes confirmation/rejection events.
+  - `GeminiClient`: Asynchronous structured JSON mode client using Google Gemini API (`gemini-2.5-flash`) with retry and timeout handling.
+  - `FallbackEvaluator`: Deterministic, instant, offline-capable rule evaluator ensuring 100% system resilience when API keys are absent or network is partitioned.
+  - `prompt_templates.py`: Quantitative crypto prompt builder enforcing JSON schemas.
+- **API Endpoints** (`v2/api/router.py` & `v2/api/schemas.py`):
+  - `GET /api/v2/ai/health`: AI service health, latency metrics, and throughput.
+  - `GET /api/v2/ai/analyses`: List historical evaluations with coin/recommendation filters.
+  - `GET /api/v2/ai/analyses/{signal_id}`: Fetch AI analysis for a specific signal.
+  - `POST /api/v2/ai/evaluate/{signal_id}`: On-demand signal evaluation.
+- **Full Test Suite** (`tests/test_v2_ai_intelligence.py`):
+  - 10 automated unit and integration tests covering domain types, rule engine, repository CRUD, event bus pub/sub, Gemini client mocking, and authenticated API endpoints.
+
 ### [2026-07-04] Async Blocking I/O Hardening — All Bot Cycles
 
 #### Problem

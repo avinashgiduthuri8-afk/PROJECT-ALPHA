@@ -1,10 +1,8 @@
+﻿"""
+V2 Portfolio Service Package.
 """
-V2 Portfolio Service — Skeleton only.
 
-Responsible for:
-- Tracking open positions across all bots
-- Computing AUM, daily PnL, invested capital
-- Publishing POSITION_OPENED / POSITION_CLOSED / PORTFOLIO_UPDATED
+from .service import PortfolioService
+from .aggregator import PortfolioAggregator
 
-Not implemented yet. No imports from V1.
-"""
+__all__ = ["PortfolioService", "PortfolioAggregator"]

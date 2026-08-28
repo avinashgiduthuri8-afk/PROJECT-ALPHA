@@ -1,0 +1,54 @@
+{
+  "signals": [
+    {
+      "id": "sig-9",
+      "coin": "COIN9",
+      "timestamp": "2026-01-01T00:00:00"
+    },
+    {
+      "id": "sig-0",
+      "coin": "COIN0",
+      "timestamp": "2026-01-01T00:00:00"
+    },
+    {
+      "id": "sig-3",
+      "coin": "COIN3",
+      "timestamp": "2026-01-01T00:00:00"
+    },
+    {
+      "id": "sig-2",
+      "coin": "COIN2",
+      "timestamp": "2026-01-01T00:00:00"
+    },
+    {
+      "id": "sig-1",
+      "coin": "COIN1",
+      "timestamp": "2026-01-01T00:00:00"
+    },
+    {
+      "id": "sig-7",
+      "coin": "COIN7",
+      "timestamp": "2026-01-01T00:00:00"
+    },
+    {
+      "id": "sig-8",
+      "coin": "COIN8",
+      "timestamp": "2026-01-01T00:00:00"
+    },
+    {
+      "id": "sig-5",
+      "coin": "COIN5",
+      "timestamp": "2026-01-01T00:00:00"
+    },
+    {
+      "id": "sig-4",
+      "coin": "COIN4",
+      "timestamp": "2026-01-01T00:00:00"
+    },
+    {
+      "id": "sig-6",
+      "coin": "COIN6",
+      "timestamp": "2026-01-01T00:00:00"
+    }
+  ]
+}

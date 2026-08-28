@@ -59,8 +59,25 @@ def _row_to_snapshot(row: aiosqlite.Row, loads) -> MetricsSnapshot:
 
 class MetricsRepository(BaseRepository):
 
-    async def insert_snapshot(self, snapshot: MetricsSnapshot) -> str:
-        sid = snapshot.id or str(uuid.uuid4())
+    async def insert_snapshot(self, snapshot: Any) -> str:
+        sid = getattr(snapshot, "id", None) or str(uuid.uuid4())
+        total_unrealised = getattr(snapshot, "total_unrealised", None)
+        if total_unrealised is None:
+            total_unrealised = getattr(snapshot, "total_unrealised_pnl", 0.0)
+
+        total_realised = getattr(snapshot, "total_realised", None)
+        if total_realised is None:
+            total_realised = getattr(snapshot, "total_realised_pnl", 0.0)
+
+        capital_util = getattr(snapshot, "capital_util_pct", None)
+        if capital_util is None:
+            capital_util = getattr(snapshot, "capital_utilisation", 0.0)
+
+        per_bot = getattr(snapshot, "per_bot", None)
+        if per_bot is None:
+            positions_by_bot = getattr(snapshot, "positions_by_bot", {})
+            per_bot = {k: len(v) if isinstance(v, list) else v for k, v in positions_by_bot.items()}
+
         await self._execute(
             """
             INSERT INTO metrics_snapshots
@@ -74,11 +91,11 @@ class MetricsRepository(BaseRepository):
                 snapshot.total_aum,
                 snapshot.total_deployed,
                 snapshot.total_cash,
-                snapshot.total_unrealised,
-                snapshot.total_realised,
+                total_unrealised,
+                total_realised,
                 snapshot.daily_pnl,
-                snapshot.capital_util_pct,
-                self._dumps(snapshot.per_bot),
+                capital_util,
+                self._dumps(per_bot),
             ),
         )
         return sid

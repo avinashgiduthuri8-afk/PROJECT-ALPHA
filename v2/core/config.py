@@ -32,6 +32,7 @@ class V2Config(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
+        populate_by_name=True,
     )
 
     # ── Database ──────────────────────────────────────────────────────────────
@@ -45,6 +46,16 @@ class V2Config(BaseSettings):
     mtb_capital_limit:   float = Field(default=0.0, alias="MTB_CAPITAL_LIMIT")
     pmb_capital_limit:   float = Field(default=0.0, alias="PMB_CAPITAL_LIMIT")
     vgx_capital_limit:   float = Field(default=0.0, alias="VGX_CAPITAL_LIMIT")
+
+    # ── Trade sizing & bot limits (Phase 5) ──────────────────────────────────
+    v2_default_trade_amount_mtb: float = Field(default=200.0, alias="MTB_TRADE_AMOUNT")
+    v2_default_trade_amount_pmb: float = Field(default=100.0, alias="PMB_TRADE_AMOUNT")
+    v2_default_trade_amount_vgx: float = Field(default=500.0, alias="VGX_TRADE_AMOUNT")
+    v2_max_positions_mtb:        int   = Field(default=3,     alias="MTB_MAX_POSITIONS")
+    v2_max_positions_pmb:        int   = Field(default=5,     alias="PMB_MAX_POSITIONS")
+    v2_max_positions_vgx:        int   = Field(default=5,     alias="VGX_MAX_POSITIONS")
+    v2_max_consecutive_losses:   int   = Field(default=5,     description="Max consecutive losses before circuit breaker trips.")
+    v2_max_drawdown_pct:         float = Field(default=10.0,  description="Max daily drawdown pct before breaker trips.")
 
     # ── Scanner ───────────────────────────────────────────────────────────────
     v2_scanner_poll_interval: int = Field(
@@ -77,6 +88,15 @@ class V2Config(BaseSettings):
     alert_bot_token: Optional[str] = Field(default=None, alias="ALERT_BOT_TOKEN")
     alert_chat_id:   Optional[str] = Field(default=None, alias="ALERT_CHAT_ID")
 
+    # ── AI Intelligence (Phase 4) ─────────────────────────────────────────────
+    gemini_api_key:             Optional[str] = Field(default=None, alias="GEMINI_API_KEY")
+    v2_ai_enabled:              bool          = Field(default=True, description="Enable AI Intelligence Layer.")
+    v2_ai_model:                str           = Field(default="gemini-2.5-flash", description="Gemini model identifier.")
+    v2_ai_min_priority:         str           = Field(default="Medium", description="Min signal priority to trigger AI evaluation.")
+    v2_ai_confidence_threshold: int           = Field(default=70, description="Confidence threshold (0-100) to confirm trade signals.")
+    v2_ai_timeout_seconds:      float         = Field(default=10.0, description="Timeout in seconds for AI API calls.")
+    v2_ai_max_retries:          int           = Field(default=2, description="Max retries on AI call failures.")
+
     # ── Auth (shared with V1) ─────────────────────────────────────────────────
     dashboard_api_key: Optional[str] = Field(default=None, alias="DASHBOARD_API_KEY")
 
@@ -89,12 +109,12 @@ class V2Config(BaseSettings):
     v2_shadow_mode:       bool = Field(default=False)
     v2_trading_enabled:   bool = Field(default=False)
 
-    @field_validator("v2_scanner_min_priority")
+    @field_validator("v2_scanner_min_priority", "v2_ai_min_priority")
     @classmethod
     def validate_priority(cls, v: str) -> str:
         valid = {"Elite", "High", "Medium", "Watch", "Ignore"}
         if v not in valid:
-            raise ValueError(f"v2_scanner_min_priority must be one of {valid}")
+            raise ValueError(f"Priority must be one of {valid}")
         return v
 
     def apply_override(self, override_path: str | None = None) -> "V2Config":
@@ -113,6 +133,12 @@ class V2Config(BaseSettings):
             "v2_scanner_signal_ttl",
             "v2_metrics_snapshot_interval",
             "v2_health_check_interval",
+            "v2_ai_enabled",
+            "v2_ai_model",
+            "v2_ai_min_priority",
+            "v2_ai_confidence_threshold",
+            "v2_ai_timeout_seconds",
+            "v2_ai_max_retries",
             "alert_bot_token",
             "alert_chat_id",
         }

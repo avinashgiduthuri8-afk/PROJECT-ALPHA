@@ -59,16 +59,175 @@ class JobStatusSchema(BaseModel):
     last_error:         Optional[str]
 
 
+# ── AI Intelligence (Phase 4) ─────────────────────────────────────────────
+
+class AIAnalysisSchema(BaseModel):
+    id:                     str
+    signal_id:              str
+    coin:                   str
+    pair:                   str
+    recommendation:         str
+    confidence_score:       int
+    trend_evaluation:       str
+    momentum_evaluation:    str
+    volume_evaluation:      str
+    setup_quality:          str
+    market_regime:          str
+    risk_reward_assessment: str
+    supporting_factors:     list[str] = Field(default_factory=list)
+    conflicts:              list[str] = Field(default_factory=list)
+    risk_factors:           list[str] = Field(default_factory=list)
+    suggested_adjustments:  dict[str, Any] = Field(default_factory=dict)
+    model_name:             str
+    execution_latency_ms:   float
+    analyzed_at:            datetime
+
+    model_config = {"from_attributes": True}
+
+
+class AIHealthSchema(BaseModel):
+    healthy:              bool
+    ai_enabled:           bool
+    model:                str
+    has_api_key:          bool
+    min_priority:         str
+    confidence_threshold: int
+    total_evaluations:    int
+    confirmed_count:      int
+    rejected_count:       int
+    fallback_count:       int
+    avg_latency_ms:       float
+    last_error:           Optional[str] = None
+
+
 # ── System status ─────────────────────────────────────────────────────────────
 
 class V2StatusSchema(BaseModel):
     version:         str = "2.1.0"
     status:          str = "ok"
     scanner_health:  ScannerHealthSchema
+    ai_health:       Optional[AIHealthSchema] = None
     scheduler_jobs:  list[JobStatusSchema]
     db_path:         str
     uptime_polls:    int
     live_signals:    int
+
+
+# ── Risk & Portfolio (Phase 5) ─────────────────────────────────────────────
+
+class RiskStateSchema(BaseModel):
+    trading_enabled:      bool
+    emergency_stop:       bool
+    circuit_breaker_open: bool
+    per_bot_deployed:     dict[str, float] = Field(default_factory=dict)
+    per_bot_open_count:   dict[str, int] = Field(default_factory=dict)
+    total_capital_limit:  float = 0.0
+    last_checked_at:      Optional[str] = None
+
+
+class PositionSchema(BaseModel):
+    id:             str
+    bot:            str
+    coin:           str
+    pair:           str
+    qty:            float
+    entry_price:    float
+    entry_time:     datetime
+    current_price:  Optional[float] = None
+    unrealised_pnl: Optional[float] = None
+    stop_loss:      Optional[float] = None
+    take_profit:    Optional[float] = None
+    mode:           str
+    status:         str
+    signal_id:      Optional[str] = None
+    exit_price:     Optional[float] = None
+    exit_reason:    Optional[str] = None
+    closed_at:      Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
+class TradeSchema(BaseModel):
+    id:          str
+    position_id: str
+    bot:         str
+    coin:        str
+    pair:        str
+    entry_price: float
+    exit_price:  float
+    qty:         float
+    pnl:         float
+    pnl_pct:     float
+    entry_time:  datetime
+    exit_time:   datetime
+    exit_reason: str
+    mode:        str
+    signal_id:   Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
+class PortfolioSnapshotSchema(BaseModel):
+    total_aum:           float
+    total_deployed:      float
+    total_cash:          float
+    total_unrealised_pnl: float
+    total_realised_pnl:  float
+    daily_pnl:           float
+    capital_utilisation: float
+    positions_by_bot:    dict[str, Any] = Field(default_factory=dict)
+    captured_at:         datetime
+
+
+# ── Shadow Mode & Divergence (Phase 6) ───────────────────────────────────────
+
+class ShadowTradeSchema(BaseModel):
+    id:                   str
+    signal_id:            str
+    bot:                  str
+    coin:                 str
+    pair:                 str
+    entry_price:          float
+    qty:                  float
+    amount:               float
+    stop_loss:            Optional[float] = None
+    take_profit:          Optional[float] = None
+    ai_recommendation:    Optional[str] = None
+    status:               str
+    simulated_exit_price: Optional[float] = None
+    simulated_pnl:        Optional[float] = None
+    simulated_pnl_pct:    Optional[float] = None
+    exit_reason:          Optional[str] = None
+    created_at:           datetime
+    closed_at:            Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
+class DecisionDivergenceSchema(BaseModel):
+    id:               str
+    signal_id:        str
+    bot:              str
+    coin:             str
+    v1_action:        str
+    v2_action:        str
+    divergence_type:  str
+    reason:           str
+    detected_at:      datetime
+    v1_pnl:           Optional[float] = None
+    v2_simulated_pnl: Optional[float] = None
+
+    model_config = {"from_attributes": True}
+
+
+class DivergenceSummarySchema(BaseModel):
+    total_divergences:      int
+    divergences_by_type:    dict[str, int] = Field(default_factory=dict)
+    total_shadow_trades:    int
+    closed_shadow_trades:   int
+    winning_shadow_trades:  int
+    simulated_win_rate_pct: float
+    total_simulated_pnl:    float
 
 
 # ── Generic success ───────────────────────────────────────────────────────────

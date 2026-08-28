@@ -127,6 +127,23 @@ class PositionRepository(BaseRepository):
             )
         return [_row_to_position(r) for r in rows]
 
+    async def close_position(
+        self,
+        position_id: str,
+        exit_price: float,
+        exit_reason: ExitReason,
+    ) -> None:
+        await self.close(position_id, exit_price, exit_reason)
+
+    async def get_open_by_bot(self, bot: BotName) -> list[Position]:
+        return await self.get_open(bot=bot)
+
+    async def get_all(self, limit: int = 50) -> list[Position]:
+        rows = await self._fetchall(
+            "SELECT * FROM positions ORDER BY entry_time DESC LIMIT ?", (limit,)
+        )
+        return [_row_to_position(r) for r in rows]
+
     async def get_deployed_capital(self, bot: BotName) -> float:
         row = await self._fetchone(
             "SELECT COALESCE(SUM(qty * entry_price), 0.0) as total "
