@@ -41,19 +41,22 @@ class V2Config(BaseSettings):
         description="Path to the V2 SQLite database file.",
     )
 
-    # ── Capital limits (read from V1 env vars during transition) ──────────────
-    total_capital_limit: float = Field(default=0.0, alias="TOTAL_CAPITAL_LIMIT")
-    mtb_capital_limit:   float = Field(default=0.0, alias="MTB_CAPITAL_LIMIT")
-    pmb_capital_limit:   float = Field(default=0.0, alias="PMB_CAPITAL_LIMIT")
-    vgx_capital_limit:   float = Field(default=0.0, alias="VGX_CAPITAL_LIMIT")
+    # ── Capital limits (Isolated Sub-Account Wallets) ──────────────────────────
+    total_capital_limit: float = Field(default=100000.0, alias="TOTAL_CAPITAL_LIMIT")
+    ste_capital_limit:   float = Field(default=35000.0,  alias="STE_CAPITAL_LIMIT")
+    hda_capital_limit:   float = Field(default=30000.0,  alias="HDA_CAPITAL_LIMIT")
+    vcp_capital_limit:   float = Field(default=15000.0,  alias="VCP_CAPITAL_LIMIT")
+    bbs_capital_limit:   float = Field(default=20000.0,  alias="BBS_CAPITAL_LIMIT")
 
-    # ── Trade sizing & bot limits (Phase 5) ──────────────────────────────────
-    v2_default_trade_amount_mtb: float = Field(default=200.0, alias="MTB_TRADE_AMOUNT")
-    v2_default_trade_amount_pmb: float = Field(default=100.0, alias="PMB_TRADE_AMOUNT")
-    v2_default_trade_amount_vgx: float = Field(default=500.0, alias="VGX_TRADE_AMOUNT")
-    v2_max_positions_mtb:        int   = Field(default=3,     alias="MTB_MAX_POSITIONS")
-    v2_max_positions_pmb:        int   = Field(default=5,     alias="PMB_MAX_POSITIONS")
-    v2_max_positions_vgx:        int   = Field(default=5,     alias="VGX_MAX_POSITIONS")
+    # ── Trade sizing & bot limits (Phase 5 / Sub-Account Fleet) ───────────────
+    v2_default_trade_amount_ste: float = Field(default=500.0, alias="STE_TRADE_AMOUNT")
+    v2_default_trade_amount_hda: float = Field(default=500.0, alias="HDA_TRADE_AMOUNT")
+    v2_default_trade_amount_vcp: float = Field(default=500.0, alias="VCP_TRADE_AMOUNT")
+    v2_default_trade_amount_bbs: float = Field(default=400.0, alias="BBS_TRADE_AMOUNT")
+    v2_max_positions_ste:        int   = Field(default=3,     alias="STE_MAX_POSITIONS")
+    v2_max_positions_hda:        int   = Field(default=3,     alias="HDA_MAX_POSITIONS")
+    v2_max_positions_vcp:        int   = Field(default=2,     alias="VCP_MAX_POSITIONS")
+    v2_max_positions_bbs:        int   = Field(default=4,     alias="BBS_MAX_POSITIONS")
     v2_max_consecutive_losses:   int   = Field(default=5,     description="Max consecutive losses before circuit breaker trips.")
     v2_max_drawdown_pct:         float = Field(default=10.0,  description="Max daily drawdown pct before breaker trips.")
 
@@ -73,6 +76,22 @@ class V2Config(BaseSettings):
     v2_scanner_min_priority: str = Field(
         default="Medium",
         description="Minimum priority to persist (Elite|High|Medium|Watch|Ignore).",
+    )
+    v2_scanner_max_signals: int = Field(
+        default=2,
+        description="Maximum high-conviction signals allowed per scanner cycle (default 2).",
+    )
+    v2_scanner_strict_confluence_threshold: int = Field(
+        default=85,
+        description="Minimum confluence score (0-100) required to accept a signal.",
+    )
+    v2_scanner_market_sentiment_enabled: bool = Field(
+        default=True,
+        description="Enable BTC/ETH Market Sentiment Layer.",
+    )
+    v2_scanner_news_filter_enabled: bool = Field(
+        default=True,
+        description="Enable News & Risk Event Filtering Layer.",
     )
 
     # ── WebSocket ─────────────────────────────────────────────────────────────

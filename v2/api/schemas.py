@@ -232,6 +232,90 @@ class DivergenceSummarySchema(BaseModel):
 
 # ── Dashboard & Monitoring (Phase 7 & 8) ────────────────────────────────────
 
+class PipelineStageSchema(BaseModel):
+    id:          str
+    number:      int
+    name:        str
+    description: str
+    status:      str
+    category:    str
+    icon:        str
+    metrics:     dict[str, Any] = Field(default_factory=dict)
+    last_event:  Optional[dict[str, Any]] = None
+
+
+class PipelineStageDetailSchema(BaseModel):
+    id:             str
+    number:         int
+    name:           str
+    description:    str
+    status:         str
+    category:       str
+    icon:           str
+    metrics:        dict[str, Any] = Field(default_factory=dict)
+    input_contract: dict[str, Any] = Field(default_factory=dict)
+    output_contract: dict[str, Any] = Field(default_factory=dict)
+    last_event:     Optional[dict[str, Any]] = None
+    telemetry:      dict[str, Any] = Field(default_factory=dict)
+
+
+# ── Bot Pipeline Status (4 Production Bots) ───────────────────────────────────
+
+class BotStatusSchema(BaseModel):
+    bot_name:             str = Field(default="", description="Bot identifier (STE, HDA, VCP, BBS)")
+    bot:                  Optional[str] = None
+    strategy:             str
+    subaccount_id:        Optional[str] = None
+    description:          Optional[str] = None
+    icon:                 str = "🤖"
+    color:                str = "#94a3b8"
+    current_stage:        str
+    stage_label:          Optional[str] = None
+    current_stage_label:  Optional[str] = None
+    stage_index:          int = 0
+    current_stage_index:  Optional[int] = None
+    total_stages:         int = 14
+    stage_status:         str
+    signals_generated:    int = 0
+    ai_evaluations:       int = 0
+    ai_approval_rate_pct: float = 0.0
+    trades_executed:      int = 0
+    open_positions:       int = 0
+    win_rate_pct:         float = 0.0
+    daily_pnl:            float = 0.0
+    total_pnl:            float = 0.0
+    capital_deployed:     float = 0.0
+    capital_limit:        float = 0.0
+    last_action:          Optional[str] = None
+    last_action_time:     Optional[str] = None
+    last_coin:            Optional[str] = None
+
+    def model_post_init(self, __context: Any) -> None:
+        if not self.bot and self.bot_name:
+            self.bot = self.bot_name
+        if not self.bot_name and self.bot:
+            self.bot_name = self.bot
+        if not self.stage_label and self.current_stage_label:
+            self.stage_label = self.current_stage_label
+        if not self.current_stage_label and self.stage_label:
+            self.current_stage_label = self.stage_label
+        if self.current_stage_index is None:
+            self.current_stage_index = self.stage_index
+
+
+class BotDetailSchema(BotStatusSchema):
+    stage_order:               list[str] = Field(default_factory=list)
+    stage_labels:              dict[str, str] = Field(default_factory=dict)
+    strategy_params:           dict[str, Any] = Field(default_factory=dict)
+    stop_loss_pct:             Optional[float] = None
+    take_profit_pct:           Optional[float] = None
+    stop_loss_tightened_pct:   Optional[float] = None
+    default_trade_amount:      Optional[float] = None
+    scan_pairs:                list[str] = Field(default_factory=list)
+    counters:                  dict[str, Any] = Field(default_factory=dict)
+    telemetry:                 dict[str, Any] = Field(default_factory=dict)
+
+
 class DashboardOverviewSchema(BaseModel):
     status:             str = "ok"
     active_ws_clients:  int = 0
@@ -239,6 +323,8 @@ class DashboardOverviewSchema(BaseModel):
     risk:               Optional[dict[str, Any]] = None
     shadow:             Optional[dict[str, Any]] = None
     subsystems:         dict[str, Any] = Field(default_factory=dict)
+    pipeline_stages:    Optional[list[dict[str, Any]]] = None
+    bots:               Optional[list[dict[str, Any]]] = None
 
 
 class MonitoringMetricsSchema(BaseModel):

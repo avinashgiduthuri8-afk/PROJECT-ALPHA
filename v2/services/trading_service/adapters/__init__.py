@@ -1,10 +1,51 @@
-﻿"""
-Bot Execution Adapters Package.
+"""
+Production Fleet Bot Execution Adapters Package.
 """
 
-from .base import BaseBotAdapter
-from .mtb_adapter import MTBAdapter
-from .pmb_adapter import PMBAdapter
-from .vgx_adapter import VGXAdapter
+from __future__ import annotations
 
-__all__ = ["BaseBotAdapter", "MTBAdapter", "PMBAdapter", "VGXAdapter"]
+from typing import Dict
+from v2.core.types import BotName
+from .base import BaseBotAdapter
+from .ste_adapter import STEAdapter
+from .hda_adapter import HDAAdapter
+from .vcp_adapter import VCPAdapter
+from .bbs_adapter import BBSAdapter
+
+
+class StrategyAdapterFactory:
+    """Factory for creating and looking up production strategy adapters."""
+
+    _ADAPTERS: Dict[BotName, BaseBotAdapter] = {
+        BotName.STE: STEAdapter(),
+        BotName.HDA: HDAAdapter(),
+        BotName.VCP: VCPAdapter(),
+        BotName.BBS: BBSAdapter(),
+    }
+
+    @classmethod
+    def get_adapter(cls, bot_name: BotName | str) -> BaseBotAdapter:
+        if isinstance(bot_name, str):
+            bot_name_upper = bot_name.strip().upper()
+            try:
+                bot_name = BotName(bot_name_upper)
+            except ValueError:
+                raise ValueError(f"InvalidStrategyError: Strategy '{bot_name}' is deprecated or unrecognized.")
+
+        if bot_name not in cls._ADAPTERS:
+            raise ValueError(f"InvalidStrategyError: No registered adapter for '{bot_name.value}'.")
+        return cls._ADAPTERS[bot_name]
+
+    @classmethod
+    def get_all_adapters(cls) -> Dict[BotName, BaseBotAdapter]:
+        return dict(cls._ADAPTERS)
+
+
+__all__ = [
+    "BaseBotAdapter",
+    "STEAdapter",
+    "HDAAdapter",
+    "VCPAdapter",
+    "BBSAdapter",
+    "StrategyAdapterFactory",
+]

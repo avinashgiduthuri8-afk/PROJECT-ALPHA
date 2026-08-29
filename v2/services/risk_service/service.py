@@ -1,10 +1,12 @@
-﻿"""
-V2 RiskService — centralized risk gatekeeper and capital manager.
+"""
+V2 Risk Evaluation & Capital Guard Service (Production Fleet Edition).
+
+Enforces hard boundaries, portfolio allocation limits, position caps, and circuit breakers
+for the 4 production bots (STE, HDA, VCP, BBS) before any live or shadow order execution.
 """
 
 from __future__ import annotations
 
-import time
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -14,16 +16,13 @@ from v2.core.config import V2Config
 from v2.core.types import (
     BotName,
     OppType,
-    PositionStatus,
     RiskDecision,
     RiskState,
-    Signal,
 )
 from v2.core.logging import get_logger
 from v2.repository.event_log_repo import EventLogRepository
 from v2.repository.position_repo import PositionRepository
 from v2.repository.trade_repo import TradeRepository
-
 from .capital_guard import CapitalGuard
 from .circuit_breaker import CircuitBreaker
 
@@ -31,7 +30,7 @@ logger = get_logger("v2.services.risk_service")
 
 
 class RiskService:
-    """Manages trade permission checks, capital allocation, and breaker states."""
+    """Central risk evaluation service for multi-bot capital allocation and circuit breaking."""
 
     def __init__(
         self,
@@ -113,9 +112,9 @@ class RiskService:
         try:
             signal_id = payload.get("signal_id")
             coin = payload.get("coin", "UNKNOWN")
-            pair = payload.get("pair") or f"B-{coin}_USDT"
+            pair = payload.get("pair") or f"{coin}/INR"
             ai_adjustments = payload.get("suggested_adjustments") or {}
-            
+
             # Select target bot strategy archetype
             bot = self._select_bot_for_signal(payload)
             default_amount = self._get_default_amount_for_bot(bot)
@@ -132,6 +131,7 @@ class RiskService:
                     "coin": coin,
                     "pair": pair,
                     "bot": bot.value,
+                    "price": float(payload.get("price", 100.0)),
                     "approved_amount": decision.adjusted_amount,
                     "ai_adjustments": ai_adjustments,
                     "approved_at": datetime.now(timezone.utc).isoformat(),
@@ -140,10 +140,10 @@ class RiskService:
                 await self._event_log.append(
                     event_type=EventType.TRADE_APPROVED.value,
                     source_service="risk_service",
-                    entity_id=signal_id,
+                    entity_id=signal_id or "",
                     payload=approved_payload,
                 )
-                logger.info("Trade APPROVED by risk engine", extra={"coin": coin, "bot": bot.value, "amount": decision.adjusted_amount})
+                logger.info("Trade APPROVED by RiskService", extra={"coin": coin, "bot": bot.value, "amount": decision.adjusted_amount})
             else:
                 denied_payload = {
                     "signal_id": signal_id,
@@ -156,26 +156,21 @@ class RiskService:
                     "denied_at": datetime.now(timezone.utc).isoformat(),
                 }
                 await self._bus.publish(EventType.TRADE_DENIED, denied_payload)
-                if decision.code in ("BLOCKED_BOT_CAPITAL", "BLOCKED_TOTAL_CAPITAL"):
-                    await self._bus.publish(EventType.CAPITAL_LIMIT_HIT, denied_payload)
-                elif decision.code in ("BLOCKED_CIRCUIT_BREAKER", "BLOCKED_EMERGENCY_STOP"):
-                    await self._bus.publish(EventType.CIRCUIT_BREAKER_TRIGGERED, denied_payload)
-
                 await self._event_log.append(
                     event_type=EventType.TRADE_DENIED.value,
                     source_service="risk_service",
-                    entity_id=signal_id,
+                    entity_id=signal_id or "",
                     payload=denied_payload,
                 )
-                logger.warning("Trade DENIED by risk engine", extra={"coin": coin, "bot": bot.value, "code": decision.code, "reason": decision.reason})
+                logger.warning("Trade DENIED by RiskService", extra={"coin": coin, "bot": bot.value, "reason": decision.reason})
 
         except Exception as exc:
-            logger.error("Error evaluating risk on SIGNAL_AI_CONFIRMED", exc_info=True)
+            logger.error("Error evaluating trade in RiskService", exc_info=True)
 
     async def on_position_closed(self, event_type: EventType, payload: dict) -> None:
-        """Update consecutive losses and circuit breaker on position close."""
+        """Update circuit breaker metrics with realised PnL on position exit."""
         try:
-            bot_str = payload.get("bot", "MTB")
+            bot_str = payload.get("bot", "")
             pnl = float(payload.get("pnl", 0.0))
             try:
                 bot = BotName(bot_str)
@@ -188,40 +183,54 @@ class RiskService:
     # ── Helpers & State Queries ───────────────────────────────────────────────
 
     def _select_bot_for_signal(self, payload: dict) -> BotName:
-        opp_type = payload.get("opportunity_type") or payload.get("market_state")
-        if opp_type in ("pullback", "accumulation", OppType.ACCUMULATION.value):
-            return BotName.PMB
-        if opp_type in ("sideways", OppType.WATCHLIST.value):
-            return BotName.VGX
-        return BotName.MTB
+        bot_raw = payload.get("bot")
+        if bot_raw:
+            try:
+                return BotName(bot_raw.upper())
+            except ValueError:
+                pass
+
+        opp_type = str(payload.get("opportunity_type") or payload.get("market_state") or "").lower()
+        if any(w in opp_type for w in ("volume", "absorption", "cvd", "delivery")):
+            return BotName.HDA
+        if any(w in opp_type for w in ("contraction", "vcp", "minervini")):
+            return BotName.VCP
+        if any(w in opp_type for w in ("squeeze", "bollinger", "keltner", "bbs")):
+            return BotName.BBS
+        return BotName.STE
 
     def _get_default_amount_for_bot(self, bot: BotName) -> float:
-        if bot == BotName.MTB:
-            return self._config.v2_default_trade_amount_mtb
-        if bot == BotName.PMB:
-            return self._config.v2_default_trade_amount_pmb
-        if bot == BotName.VGX:
-            return self._config.v2_default_trade_amount_vgx
-        return 100.0
+        if bot == BotName.STE:
+            return self._config.v2_default_trade_amount_ste
+        if bot == BotName.HDA:
+            return self._config.v2_default_trade_amount_hda
+        if bot == BotName.VCP:
+            return self._config.v2_default_trade_amount_vcp
+        if bot == BotName.BBS:
+            return self._config.v2_default_trade_amount_bbs
+        return 500.0
 
     async def get_state(self) -> RiskState:
-        open_mtb = await self._position_repo.get_open_by_bot(BotName.MTB)
-        open_pmb = await self._position_repo.get_open_by_bot(BotName.PMB)
-        open_vgx = await self._position_repo.get_open_by_bot(BotName.VGX)
+        open_ste = await self._position_repo.get_open_by_bot(BotName.STE)
+        open_hda = await self._position_repo.get_open_by_bot(BotName.HDA)
+        open_vcp = await self._position_repo.get_open_by_bot(BotName.VCP)
+        open_bbs = await self._position_repo.get_open_by_bot(BotName.BBS)
 
         return RiskState(
             trading_enabled=self._config.v2_trading_enabled,
             emergency_stop=self._circuit_breaker.emergency_stop,
             circuit_breaker_open=self._circuit_breaker.is_open,
             per_bot_deployed={
-                BotName.MTB.value: sum(p.deployed_capital for p in open_mtb),
-                BotName.PMB.value: sum(p.deployed_capital for p in open_pmb),
-                BotName.VGX.value: sum(p.deployed_capital for p in open_vgx),
+                BotName.STE.value: sum(p.deployed_capital for p in open_ste),
+                BotName.HDA.value: sum(p.deployed_capital for p in open_hda),
+                BotName.VCP.value: sum(p.deployed_capital for p in open_vcp),
+                BotName.BBS.value: sum(p.deployed_capital for p in open_bbs),
             },
             per_bot_open_count={
-                BotName.MTB.value: len(open_mtb),
-                BotName.PMB.value: len(open_pmb),
-                BotName.VGX.value: len(open_vgx),
+                BotName.STE.value: len(open_ste),
+                BotName.HDA.value: len(open_hda),
+                BotName.VCP.value: len(open_vcp),
+                BotName.BBS.value: len(open_bbs),
             },
             daily_pnl={},
             last_checked_at=datetime.now(timezone.utc),
@@ -235,7 +244,8 @@ class RiskService:
             "emergency_stop": self._circuit_breaker.emergency_stop,
             "breaker_reason": self._circuit_breaker.reason,
             "total_capital_limit": self._config.total_capital_limit,
-            "mtb_capital_limit": self._config.mtb_capital_limit,
-            "pmb_capital_limit": self._config.pmb_capital_limit,
-            "vgx_capital_limit": self._config.vgx_capital_limit,
+            "ste_capital_limit": self._config.ste_capital_limit,
+            "hda_capital_limit": self._config.hda_capital_limit,
+            "vcp_capital_limit": self._config.vcp_capital_limit,
+            "bbs_capital_limit": self._config.bbs_capital_limit,
         }

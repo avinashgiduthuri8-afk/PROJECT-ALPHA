@@ -1,4 +1,4 @@
-﻿"""
+"""
 V2 CapitalGuard — deterministic capital limit and max-position gating.
 """
 
@@ -86,19 +86,23 @@ class CapitalGuard:
         )
 
     def _get_bot_capital_limit(self, bot: BotName) -> float:
-        if bot == BotName.MTB:
-            return self._config.mtb_capital_limit
-        if bot == BotName.PMB:
-            return self._config.pmb_capital_limit
-        if bot == BotName.VGX:
-            return self._config.vgx_capital_limit
+        if bot == BotName.STE:
+            return self._config.ste_capital_limit
+        if bot == BotName.HDA:
+            return self._config.hda_capital_limit
+        if bot == BotName.VCP:
+            return self._config.vcp_capital_limit
+        if bot == BotName.BBS:
+            return self._config.bbs_capital_limit
         return 0.0
 
     def _get_max_positions(self, bot: BotName) -> int:
-        if bot == BotName.MTB:
-            return self._config.v2_max_positions_mtb
-        if bot == BotName.PMB:
-            return self._config.v2_max_positions_pmb
-        if bot == BotName.VGX:
-            return self._config.v2_max_positions_vgx
+        if bot == BotName.STE:
+            return self._config.v2_max_positions_ste
+        if bot == BotName.HDA:
+            return self._config.v2_max_positions_hda
+        if bot == BotName.VCP:
+            return self._config.v2_max_positions_vcp
+        if bot == BotName.BBS:
+            return self._config.v2_max_positions_bbs
         return 5

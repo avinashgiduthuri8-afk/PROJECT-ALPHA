@@ -1,8 +1,8 @@
-﻿"""
-V2 Trading Execution Service.
+"""
+V2 Trading Execution Service (Production Fleet & CoinDCX Sub-Account Edition).
 
 Translates approved trade candidates into concrete positions, routes to shadow simulation
-or active execution, and manages position exit checks.
+or active execution via isolated CoinDCX Sub-Account clients, and manages position exit checks.
 """
 
 from __future__ import annotations
@@ -26,14 +26,14 @@ from v2.core.logging import get_logger
 from v2.repository.event_log_repo import EventLogRepository
 from v2.repository.position_repo import PositionRepository
 from v2.repository.trade_repo import TradeRepository
-
-from .adapters import BaseBotAdapter, MTBAdapter, PMBAdapter, VGXAdapter
+from v2.trading.subaccount_manager import CoinDCXSubAccountManager
+from .adapters import BaseBotAdapter, StrategyAdapterFactory
 
 logger = get_logger("v2.services.trading_service")
 
 
 class TradingService:
-    """Manages order construction, execution gating, and position exit lifecycle."""
+    """Manages order construction, sub-account execution routing, and position exit lifecycle."""
 
     def __init__(
         self,
@@ -43,6 +43,7 @@ class TradingService:
         event_log_repo: EventLogRepository,
         config: V2Config,
         shadow_engine: Optional[object] = None,
+        subaccount_manager: Optional[CoinDCXSubAccountManager] = None,
     ) -> None:
         self._bus = bus
         self._position_repo = position_repo
@@ -50,12 +51,7 @@ class TradingService:
         self._event_log = event_log_repo
         self._config = config
         self._shadow_engine = shadow_engine
-
-        self._adapters: dict[BotName, BaseBotAdapter] = {
-            BotName.MTB: MTBAdapter(),
-            BotName.PMB: PMBAdapter(),
-            BotName.VGX: VGXAdapter(),
-        }
+        self._subaccount_manager = subaccount_manager or CoinDCXSubAccountManager()
 
         self._total_executed = 0
         self._started = False
@@ -71,7 +67,10 @@ class TradingService:
         self._started = True
         self._bus.subscribe(EventType.TRADE_APPROVED, self.on_trade_approved)
         await self._bus.publish(EventType.SYSTEM_STARTUP, {"service": "trading_service"})
-        logger.info("TradingService started", extra={"shadow_mode": self._config.v2_shadow_mode, "trading_enabled": self._config.v2_trading_enabled})
+        logger.info(
+            "TradingService started with CoinDCX Sub-Account Multi-Client router",
+            extra={"shadow_mode": self._config.v2_shadow_mode, "trading_enabled": self._config.v2_trading_enabled},
+        )
 
     async def stop(self) -> None:
         self._started = False
@@ -81,22 +80,22 @@ class TradingService:
     # ── Order Execution ───────────────────────────────────────────────────────
 
     async def on_trade_approved(self, event_type: EventType, payload: dict) -> None:
-        """Handle TRADE_APPROVED event by routing to shadow engine or execution adapter."""
+        """Handle TRADE_APPROVED event by routing to shadow engine or isolated sub-account client."""
         try:
             signal_id = payload.get("signal_id") or str(uuid.uuid4())
             coin = payload.get("coin", "UNKNOWN")
-            pair = payload.get("pair") or f"B-{coin}_USDT"
-            bot_str = payload.get("bot", "MTB")
-            approved_amount = float(payload.get("approved_amount", 100.0))
+            pair = payload.get("pair") or f"{coin}/INR"
+            bot_str = payload.get("bot", "STE")
+            approved_amount = float(payload.get("approved_amount", 500.0))
             ai_adjustments = payload.get("ai_adjustments") or {}
             price = float(payload.get("price") or payload.get("current_price") or 100.0)
 
             try:
                 bot = BotName(bot_str)
             except ValueError:
-                bot = BotName.MTB
+                bot = BotName.STE
 
-            adapter = self._adapters.get(bot, self._adapters[BotName.MTB])
+            adapter = StrategyAdapterFactory.get_adapter(bot)
             order_data = adapter.calculate_order(
                 coin=coin,
                 pair=pair,
@@ -121,8 +120,21 @@ class TradingService:
                     raw_adjustments=ai_adjustments,
                 )
 
-            # 2. Active Execution (if enabled)
+            # 2. Active Execution through Isolated Sub-Account Client
             if self._config.v2_trading_enabled:
+                # Dispatch order via dedicated Sub-Account Client with HMAC signing
+                sub_client = self._subaccount_manager.get_client(bot)
+                order_result = sub_client.place_order(
+                    pair=pair,
+                    side="BUY",
+                    price=order_data["entry_price"],
+                    qty=order_data["qty"],
+                )
+
+                if not order_result.get("success"):
+                    logger.warning("Sub-account order failed: %s", order_result.get("message"))
+                    return
+
                 now = datetime.now(timezone.utc)
                 pos = Position(
                     id=str(uuid.uuid4()),
@@ -132,7 +144,7 @@ class TradingService:
                     qty=order_data["qty"],
                     entry_price=order_data["entry_price"],
                     entry_time=now,
-                    mode=BotMode.PAPER,  # Paper mode by default for safety
+                    mode=BotMode.LIVE if self._config.v2_trading_enabled else BotMode.PAPER,
                     status=PositionStatus.OPEN,
                     current_price=order_data["entry_price"],
                     unrealised_pnl=0.0,
@@ -146,6 +158,7 @@ class TradingService:
 
                 pos_payload = {
                     "position_id": pos.id,
+                    "subaccount_id": sub_client.subaccount_id,
                     "bot": bot.value,
                     "coin": coin,
                     "pair": pair,
@@ -165,7 +178,10 @@ class TradingService:
                     entity_id=pos.id,
                     payload=pos_payload,
                 )
-                logger.info("Trade EXECUTED and Position OPENED", extra={"coin": coin, "bot": bot.value, "qty": pos.qty})
+                logger.info(
+                    "[%s] Trade EXECUTED and Position OPENED for %s (Qty: %s @ INR %.2f)",
+                    sub_client.subaccount_id, coin, pos.qty, pos.entry_price,
+                )
 
         except Exception as exc:
             logger.error("Error executing trade in TradingService", exc_info=True)
@@ -182,7 +198,7 @@ class TradingService:
             if price is None or price <= 0.0:
                 continue
 
-            adapter = self._adapters.get(pos.bot, self._adapters[BotName.MTB])
+            adapter = StrategyAdapterFactory.get_adapter(pos.bot)
             exit_trigger = adapter.check_exit(
                 entry_price=pos.entry_price,
                 current_price=price,
@@ -218,11 +234,21 @@ class TradingService:
                 await self._trade_repo.insert(trade)
 
                 # 2. Close position record
-                await self._position_repo.close_position(
+                await self._position_repo.close(
                     position_id=pos.id,
                     exit_price=exit_price,
                     exit_reason=exit_reason,
                 )
+
+                # 3. Inform sub-account client of balance restoration
+                try:
+                    sub_client = self._subaccount_manager.get_client(pos.bot)
+                    sub_client.close_position_fill(
+                        notional_returned=pos.entry_price * pos.qty,
+                        realized_pnl=pnl,
+                    )
+                except Exception:
+                    pass
 
                 closed_trades.append(trade)
 
@@ -257,4 +283,5 @@ class TradingService:
             "shadow_mode": self._config.v2_shadow_mode,
             "trading_enabled": self._config.v2_trading_enabled,
             "total_executed": self._total_executed,
+            "subaccounts": self._subaccount_manager.get_all_subaccount_telemetry(),
         }

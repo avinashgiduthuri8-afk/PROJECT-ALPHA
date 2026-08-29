@@ -31,6 +31,8 @@ from .schemas import (
     DecisionDivergenceSchema, DivergenceSummarySchema,
     DashboardOverviewSchema, MonitoringMetricsSchema,
     MonitoringHealthSchema, TestNotificationRequestSchema,
+    PipelineStageSchema, PipelineStageDetailSchema,
+    BotStatusSchema, BotDetailSchema,
 )
 
 router = APIRouter()
@@ -73,6 +75,7 @@ def init_router(
     dashboard_service=None,
     health_checker=None,
     metrics_collector=None,
+    **kwargs,
 ) -> None:
     """Called by app_v2.py lifespan after services are started."""
     global _scanner_service, _scheduler, _config, _ai_service, _ai_repo, _signal_repo
@@ -723,4 +726,76 @@ async def post_test_notification(body: TestNotificationRequestSchema) -> OkSchem
     return OkSchema(ok=True, detail="Notification dispatched" if sent else "Notification recorded locally (Telegram not configured)")
 
 
+# ── Autonomous Pipeline Endpoints ─────────────────────────────────────────────
+
+@router.get(
+    "/pipeline/stages",
+    response_model=list[PipelineStageSchema],
+    dependencies=[Depends(require_api_key)],
+    tags=["pipeline"],
+)
+async def get_pipeline_stages() -> list[PipelineStageSchema]:
+    """Return all 14 stages of the PROJECT-ALPHA Autonomous Pipeline with live metrics."""
+    if _dashboard_service is None:
+        raise HTTPException(status_code=503, detail="Dashboard service not initialized.")
+
+    stages = _dashboard_service.get_pipeline_stages()
+    return [PipelineStageSchema(**s) for s in stages]
+
+
+@router.get(
+    "/pipeline/stages/{stage_id}",
+    response_model=PipelineStageDetailSchema,
+    dependencies=[Depends(require_api_key)],
+    tags=["pipeline"],
+)
+async def get_pipeline_stage_detail(stage_id: str) -> PipelineStageDetailSchema:
+    """Return deep telemetry, data contracts, and last processed events for a specific pipeline stage."""
+    if _dashboard_service is None:
+        raise HTTPException(status_code=503, detail="Dashboard service not initialized.")
+
+    detail = _dashboard_service.get_stage_detail(stage_id)
+    if detail is None:
+        raise HTTPException(status_code=404, detail=f"Pipeline stage '{stage_id}' not found.")
+
+    return PipelineStageDetailSchema(**detail)
+
+
+
+# ── Trading Bot Status Endpoints ──────────────────────────────────────────────
+
+@router.get(
+    "/bots",
+    response_model=list[BotStatusSchema],
+    dependencies=[Depends(require_api_key)],
+    tags=["bots"],
+)
+async def get_all_bots() -> list[BotStatusSchema]:
+    """Return current pipeline stage, status, and live metrics for all 3 trading bots (MTB, PMB, VGX)."""
+    if _dashboard_service is None:
+        raise HTTPException(status_code=503, detail="Dashboard service not initialized.")
+
+    bots = _dashboard_service.get_bot_statuses()
+    return [BotStatusSchema(**b) for b in bots]
+
+
+@router.get(
+    "/bots/{bot_name}",
+    response_model=BotDetailSchema,
+    dependencies=[Depends(require_api_key)],
+    tags=["bots"],
+)
+async def get_bot_detail(bot_name: str) -> BotDetailSchema:
+    """Return full detail — strategy params, pipeline stage, counters, and last action — for one bot (MTB / PMB / VGX)."""
+    if _dashboard_service is None:
+        raise HTTPException(status_code=503, detail="Dashboard service not initialized.")
+
+    detail = _dashboard_service.get_bot_detail(bot_name)
+    if detail is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Bot '{bot_name.upper()}' not found. Valid production options: STE, HDA, VCP, BBS."
+        )
+
+    return BotDetailSchema(**detail)
 

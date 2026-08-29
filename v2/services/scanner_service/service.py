@@ -32,6 +32,7 @@ from v2.repository.signal_repo import SignalRepository
 from v2.repository.event_log_repo import EventLogRepository
 
 from .adapter import v1_response_to_signals
+from .confluence_engine import ConfluenceEngine
 from .signal_filter import (
     filter_by_priority, filter_live, deduplicate, detect_expired,
 )
@@ -73,6 +74,16 @@ class ScannerService:
         self._started = False
 
         self._min_priority = Priority(self._config.v2_scanner_min_priority)
+
+        # C2 High-Conviction Confluence Engine (5-layer evaluation, strict rejection gate, max 1–2 signals)
+        self._confluence_engine = ConfluenceEngine(
+            strict_threshold=getattr(self._config, "v2_scanner_strict_confluence_threshold", 85),
+            max_signals=getattr(self._config, "v2_scanner_max_signals", 2),
+        )
+
+    @property
+    def confluence_engine(self) -> ConfluenceEngine:
+        return self._confluence_engine
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -121,8 +132,14 @@ class ScannerService:
             # 2. Filter by minimum priority
             candidates = filter_by_priority(candidates, self._min_priority)
 
-            # 3. Deduplicate against seen set
-            new_signals, new_keys = deduplicate(candidates, self._seen_keys)
+            # 3. Evaluate through C2 5-Layer Confluence Engine & Strict Rejection Gate
+            high_conviction_signals, eval_results = self._confluence_engine.evaluate_candidates(
+                raw_candidates=raw,
+                signals=candidates,
+            )
+
+            # 4. Deduplicate against seen set
+            new_signals, new_keys = deduplicate(high_conviction_signals, self._seen_keys)
             self._seen_keys.update(new_keys)
 
             # 4. Persist new signals and publish events
@@ -215,6 +232,7 @@ class ScannerService:
             "market_state": sig.market_state.value,
             "expires_at":   sig.expires_at.isoformat(),
             "source":       "scanner_service",
+            "confluence":   sig.confluence_breakdown or {},
         }
         await self._bus.publish(EventType.SIGNAL_GENERATED, payload)
         await self._event_log.append(

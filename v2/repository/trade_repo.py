@@ -50,6 +50,12 @@ def _row_to_trade(row: aiosqlite.Row) -> Trade:
 class TradeRepository(BaseRepository):
 
     async def insert(self, trade: Trade) -> str:
+        entry_time_str = trade.entry_time.isoformat() if hasattr(trade.entry_time, "isoformat") else str(trade.entry_time or datetime.now(timezone.utc).isoformat())
+        exit_time_str = trade.exit_time.isoformat() if hasattr(trade.exit_time, "isoformat") else str(trade.exit_time or datetime.now(timezone.utc).isoformat())
+        exit_reason_val = trade.exit_reason.value if hasattr(trade.exit_reason, "value") else str(trade.exit_reason)
+        mode_val = trade.mode.value if hasattr(trade.mode, "value") else str(trade.mode)
+        bot_val = trade.bot.value if hasattr(trade.bot, "value") else str(trade.bot)
+
         await self._execute(
             """
             INSERT INTO trades
@@ -60,7 +66,7 @@ class TradeRepository(BaseRepository):
             (
                 trade.id,
                 trade.position_id,
-                trade.bot.value,
+                bot_val,
                 trade.coin,
                 trade.pair,
                 trade.entry_price,
@@ -68,10 +74,10 @@ class TradeRepository(BaseRepository):
                 trade.qty,
                 trade.pnl,
                 trade.pnl_pct,
-                trade.entry_time.isoformat(),
-                trade.exit_time.isoformat(),
-                trade.exit_reason.value,
-                trade.mode.value,
+                entry_time_str,
+                exit_time_str,
+                exit_reason_val,
+                mode_val,
                 trade.signal_id,
             ),
         )

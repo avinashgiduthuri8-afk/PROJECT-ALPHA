@@ -1,24 +1,26 @@
-﻿"""
-V2 DashboardService — bridges the internal event bus to real-time WebSockets
-and generates single-call unified dashboard overview snapshots.
+"""
+V2 DashboardService — bridges the internal event bus to real-time WebSockets,
+tracks autonomous pipeline stage telemetry, and generates unified dashboard overview snapshots.
 """
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 from v2.bus.event_bus import EventBus
 from v2.bus.event_types import EventType
 from v2.core.config import V2Config
 from v2.core.logging import get_logger
 
+from .bot_pipeline import BotPipelineTracker
+from .pipeline import PipelineStageCollector
 from .websocket import WebSocketManager
 
 logger = get_logger("v2.services.dashboard_service")
 
 
 class DashboardService:
-    """Manages real-time UI broadcasting and state aggregation."""
+    """Manages real-time UI broadcasting, stage telemetry, and state aggregation."""
 
     def __init__(
         self,
@@ -36,6 +38,8 @@ class DashboardService:
         self._bus = bus
         self._config = config
         self._ws_manager = ws_manager or WebSocketManager()
+        self._pipeline_collector = PipelineStageCollector(bus=bus, config=config)
+        self._bot_tracker = BotPipelineTracker(config=config)
 
         self._scanner_service = scanner_service
         self._ai_service = ai_service
@@ -51,6 +55,14 @@ class DashboardService:
     def ws_manager(self) -> WebSocketManager:
         return self._ws_manager
 
+    @property
+    def pipeline_collector(self) -> PipelineStageCollector:
+        return self._pipeline_collector
+
+    @property
+    def bot_tracker(self) -> BotPipelineTracker:
+        return self._bot_tracker
+
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 
     async def start(self) -> None:
@@ -58,7 +70,7 @@ class DashboardService:
             return
         self._started = True
 
-        # Subscribe to all user-facing live events for real-time push
+        # Subscribe to all user-facing live events for real-time push and pipeline telemetry
         for et in [
             EventType.SIGNAL_GENERATED,
             EventType.SIGNAL_AI_CONFIRMED,
@@ -76,7 +88,7 @@ class DashboardService:
             self._bus.subscribe(et, self._on_event_broadcast)
 
         await self._bus.publish(EventType.SYSTEM_STARTUP, {"service": "dashboard_service"})
-        logger.info("DashboardService started with real-time push enabled")
+        logger.info("DashboardService started with real-time push and pipeline telemetry enabled")
 
     async def stop(self) -> None:
         self._started = False
@@ -98,17 +110,46 @@ class DashboardService:
 
         logger.info("DashboardService stopped")
 
-    # ── Event Relay ───────────────────────────────────────────────────────────
+    # ── Event Relay & Telemetry Feed ──────────────────────────────────────────
 
     async def _on_event_broadcast(self, event_type: EventType, payload: dict) -> None:
-        """Forward any bus event to connected WebSocket clients."""
+        """Forward any bus event to connected WebSocket clients and update pipeline telemetry."""
         try:
+            et_str = event_type.value if hasattr(event_type, "value") else str(event_type)
+
+            # Update live pipeline collector state
+            self._pipeline_collector.handle_bus_event(et_str, payload)
+
+            # Update per-bot pipeline stage tracking
+            self._bot_tracker.handle_bus_event(et_str, payload)
+
+            # Broadcast over WebSocket to all active browser sessions
             await self._ws_manager.broadcast(
-                event_type=event_type.value if hasattr(event_type, "value") else str(event_type),
+                event_type=et_str,
                 payload=payload,
             )
         except Exception as exc:
             logger.warning("Error broadcasting event over WebSocket", extra={"error": str(exc)})
+
+    # ── Pipeline Stages API ───────────────────────────────────────────────────
+
+    def get_pipeline_stages(self) -> List[dict[str, Any]]:
+        """Return structured summary for all 14 pipeline stages."""
+        return self._pipeline_collector.get_all_stages()
+
+    def get_stage_detail(self, stage_id: str) -> Optional[dict[str, Any]]:
+        """Return deep telemetry and contracts for a specific pipeline stage."""
+        return self._pipeline_collector.get_stage_detail(stage_id)
+
+    # ── Bot Status API ────────────────────────────────────────────────────────
+
+    def get_bot_statuses(self) -> List[dict[str, Any]]:
+        """Return current pipeline stage, status, and live metrics for all 3 bots."""
+        return self._bot_tracker.get_all_bots()
+
+    def get_bot_detail(self, bot_name: str) -> Optional[dict[str, Any]]:
+        """Return full detail snapshot for one bot (MTB / PMB / VGX, case-insensitive)."""
+        return self._bot_tracker.get_bot_detail(bot_name)
 
     # ── System Overview Snapshot ──────────────────────────────────────────────
 
@@ -140,10 +181,13 @@ class DashboardService:
                 "ai": self._ai_service.get_health() if self._ai_service else {"healthy": False},
                 "trading": self._trading_service.get_health() if self._trading_service else {"healthy": False},
             },
+            "pipeline_stages": self.get_pipeline_stages(),
+            "bots": self.get_bot_statuses(),
         }
 
     def get_health(self) -> dict:
         return {
             "healthy": self._started,
             "active_clients": self._ws_manager.active_count,
+            "pipeline_stages_tracked": len(self._pipeline_collector.get_all_stages()),
         }

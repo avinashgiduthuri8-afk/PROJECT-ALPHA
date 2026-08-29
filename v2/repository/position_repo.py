@@ -57,6 +57,11 @@ def _row_to_position(row: aiosqlite.Row) -> Position:
 class PositionRepository(BaseRepository):
 
     async def insert(self, position: Position) -> str:
+        entry_time_str = position.entry_time.isoformat() if hasattr(position.entry_time, "isoformat") else str(position.entry_time or datetime.now(timezone.utc).isoformat())
+        bot_val = position.bot.value if hasattr(position.bot, "value") else str(position.bot)
+        mode_val = position.mode.value if hasattr(position.mode, "value") else str(position.mode)
+        status_val = position.status.value if hasattr(position.status, "value") else str(position.status)
+
         await self._execute(
             """
             INSERT INTO positions
@@ -67,19 +72,19 @@ class PositionRepository(BaseRepository):
             """,
             (
                 position.id,
-                position.bot.value,
+                bot_val,
                 position.coin,
                 position.pair,
                 position.qty,
                 position.entry_price,
-                position.entry_time.isoformat(),
+                entry_time_str,
                 position.current_price,
                 position.unrealised_pnl,
                 position.stop_loss,
                 position.take_profit,
-                position.mode.value,
+                mode_val,
                 position.signal_id,
-                position.status.value,
+                status_val,
             ),
         )
         return position.id
@@ -99,14 +104,17 @@ class PositionRepository(BaseRepository):
         exit_reason: ExitReason,
     ) -> None:
         now = datetime.now(timezone.utc).isoformat()
+        reason_val = exit_reason.value if hasattr(exit_reason, "value") else str(exit_reason)
         await self._execute(
             """
             UPDATE positions
             SET status='CLOSED', exit_price=?, exit_reason=?, closed_at=?
             WHERE id=?
             """,
-            (exit_price, exit_reason.value, now, position_id),
+            (exit_price, reason_val, now, position_id),
         )
+
+    close_position = close
 
     async def get_by_id(self, position_id: str) -> Optional[Position]:
         row = await self._fetchone(

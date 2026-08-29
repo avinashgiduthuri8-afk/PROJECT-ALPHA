@@ -16,9 +16,10 @@ from typing import Optional
 # ── Enumerations ──────────────────────────────────────────────────────────────
 
 class BotName(str, Enum):
-    MTB = "MTB"
-    PMB = "PMB"
-    VGX = "VGX"
+    STE = "STE"
+    HDA = "HDA"
+    VCP = "VCP"
+    BBS = "BBS"
 
 
 class BotMode(str, Enum):
@@ -103,6 +104,18 @@ class AIRecommendation(str, Enum):
 # ── Domain Objects ────────────────────────────────────────────────────────────
 
 @dataclass
+class ConfluenceData:
+    """Breakdown of the 5 evaluation layers in C2 High-Conviction Scanner."""
+    chart_score:        int = 0        # Layer 1: Chart Structure
+    indicator_score:    int = 0        # Layer 2: Technical Indicators
+    sentiment_score:    int = 0        # Layer 3: Big-Coin / Market Sentiment
+    news_score:         int = 0        # Layer 4: News & Events
+    confluence_score:   int = 0        # Layer 5: Combined Confluence
+    is_rejected:        bool = False
+    rejection_reasons:  list[str] = field(default_factory=list)
+
+
+@dataclass
 class Signal:
     id:               str
     coin:             str
@@ -119,6 +132,7 @@ class Signal:
     expires_at:       datetime
     source_bot:       str = "scanner_v1"
     raw_payload:      dict = field(default_factory=dict)
+    confluence_breakdown: Optional[dict] = field(default_factory=dict)
 
     @property
     def is_live(self) -> bool:

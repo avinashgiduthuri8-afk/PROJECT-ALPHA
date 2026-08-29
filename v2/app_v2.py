@@ -303,6 +303,7 @@ templates = Jinja2Templates(directory=str(_v2_template_dir)) if _v2_template_dir
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 @app.get("/dashboard", response_class=HTMLResponse, include_in_schema=False)
+@app.get("/v2/dashboard", response_class=HTMLResponse, include_in_schema=False)
 async def serve_dashboard(request: Request):
     """Serve the standalone V2 Mission Control Dashboard UI."""
     if templates is None:

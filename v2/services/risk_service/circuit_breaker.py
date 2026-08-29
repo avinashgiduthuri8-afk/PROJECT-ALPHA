@@ -1,4 +1,4 @@
-﻿"""
+"""
 V2 CircuitBreaker — emergency halts, consecutive loss tracking, and drawdown gates.
 """
 
@@ -25,9 +25,10 @@ class CircuitBreaker:
         self._reason: Optional[str] = None
         self._tripped_at: Optional[datetime] = None
         self._consecutive_losses: dict[str, int] = {
-            BotName.MTB.value: 0,
-            BotName.PMB.value: 0,
-            BotName.VGX.value: 0,
+            BotName.STE.value: 0,
+            BotName.HDA.value: 0,
+            BotName.VCP.value: 0,
+            BotName.BBS.value: 0,
         }
 
     @property

@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PROJECT-ALPHA V2 · Mission Control</title>
+  <title>PROJECT-ALPHA V2 · Autonomous Mission Control</title>
   <link rel="stylesheet" href="/v2-static/css/dashboard.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,8 +16,13 @@
     <div class="brand-title">
       <h1>PROJECT-ALPHA V2</h1>
       <span class="version-pill">MISSION CONTROL</span>
+      <span class="version-pill" style="border-color: rgba(168, 85, 247, 0.4); color: var(--purple);">CLOSED-LOOP AUTONOMOUS</span>
     </div>
     <div class="header-controls">
+      <div class="auto-trade-pill">
+        <span class="pulse-indicator online"></span>
+        <span>AUTO-TRADE: <strong id="header-auto-trade-mode" style="color: var(--cyan);">PAPER ACTIVE</strong></span>
+      </div>
       <div id="ws-connection-pill" class="connection-pill disconnected">
         <span class="status-dot"></span>
         <span id="ws-connection-text">Connecting...</span>
@@ -52,6 +57,48 @@
       <div class="kpi-label">Capital Utilisation</div>
       <div id="kpi-util" class="kpi-value">0.0%</div>
       <div class="kpi-sub">Deployment Efficiency</div>
+    </div>
+  </section>
+
+  <!-- ── 14-Stage Autonomous Pipeline Architecture ────────────────────────── -->
+  <section class="section-card pipeline-section">
+    <div class="card-header">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <h2>🔄 14-Stage Autonomous Trading Pipeline</h2>
+        <span class="card-badge pulse">RECURSIVE FEEDBACK (↺) ACTIVE</span>
+      </div>
+      <div style="font-size: 0.8rem; color: var(--text-muted);">
+        Click any stage to inspect real-time telemetry, data contracts, and live payloads
+      </div>
+    </div>
+
+    <!-- Pipeline Visual Flowchart Grid -->
+    <div id="pipeline-stages-grid" class="pipeline-grid">
+      <!-- Injected dynamically by dashboard.js -->
+      <div style="grid-column: 1 / -1; text-align: center; color: var(--text-dim); padding: 2rem;">
+        Loading autonomous pipeline stages...
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 🤖 3 Trading Bots — Live Pipeline Status ───────────────────────── -->
+  <section class="section-card bot-panel-section" style="margin-bottom: 1.5rem;">
+    <div class="card-header">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <h2>🤖 Trading Bots — Live Pipeline Status</h2>
+        <span class="card-badge pulse">3 BOTS ACTIVE</span>
+      </div>
+      <div style="font-size: 0.8rem; color: var(--text-muted);">
+        Each bot operates at a different pipeline stage simultaneously — click any bot to inspect details
+      </div>
+    </div>
+
+    <!-- 3-Bot Comparison Grid -->
+    <div id="bot-status-grid" class="bot-status-grid">
+      <!-- Injected dynamically by dashboard.js renderBotPanel() -->
+      <div style="grid-column: 1 / -1; text-align: center; color: var(--text-dim); padding: 2rem;">
+        Loading bot pipeline status...
+      </div>
     </div>
   </section>
 
@@ -186,6 +233,95 @@
       <!-- Injected by dashboard.js -->
     </div>
   </section>
+
+  <!-- ── Stage Inspection Modal / Drawer ───────────────────────────────────── -->
+  <div id="stage-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <span id="modal-stage-icon" style="font-size: 1.6rem;">📡</span>
+          <div>
+            <h2 id="modal-stage-title" style="font-size: 1.25rem;">Stage Details</h2>
+            <span id="modal-stage-subtitle" style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">STAGE 01</span>
+          </div>
+        </div>
+        <button id="modal-close-btn" class="modal-close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <p id="modal-stage-description" style="color: var(--text-muted); margin-bottom: 1.25rem; font-size: 0.9rem;"></p>
+
+        <!-- Metrics Grid -->
+        <h3 style="font-size: 0.85rem; text-transform: uppercase; color: var(--cyan); letter-spacing: 0.05em; margin-bottom: 0.75rem;">Live Stage Metrics</h3>
+        <div id="modal-metrics-grid" class="modal-metrics-grid"></div>
+
+        <!-- Data Contracts -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.25rem;">
+          <div class="contract-card">
+            <h4 style="color: var(--green); font-size: 0.8rem; margin-bottom: 0.5rem;">📥 INPUT CONTRACT</h4>
+            <pre id="modal-input-contract" class="contract-code"></pre>
+          </div>
+          <div class="contract-card">
+            <h4 style="color: var(--cyan); font-size: 0.8rem; margin-bottom: 0.5rem;">📤 OUTPUT CONTRACT</h4>
+            <pre id="modal-output-contract" class="contract-code"></pre>
+          </div>
+        </div>
+
+        <!-- Latest Event Payload -->
+        <div style="margin-top: 1.25rem;">
+          <h3 style="font-size: 0.85rem; text-transform: uppercase; color: var(--purple); letter-spacing: 0.05em; margin-bottom: 0.5rem;">Latest Processed Payload</h3>
+          <pre id="modal-last-event" class="contract-code" style="max-height: 180px;"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Bot Detail Modal ─────────────────────────────────────────────────── -->
+  <div id="bot-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-card" style="max-width: 780px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <span id="bot-modal-icon" style="font-size: 1.6rem;">🤖</span>
+          <div>
+            <h2 id="bot-modal-title" style="font-size: 1.25rem;">Bot Details</h2>
+            <span id="bot-modal-subtitle" style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">STRATEGY</span>
+          </div>
+        </div>
+        <button id="bot-modal-close-btn" class="modal-close" onclick="closeBotModal()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Strategy description -->
+        <p id="bot-modal-description" style="color: var(--text-muted); margin-bottom: 1.25rem; font-size: 0.9rem;"></p>
+
+        <!-- Pipeline Progress Bar -->
+        <h3 style="font-size: 0.85rem; text-transform: uppercase; color: var(--cyan); letter-spacing: 0.05em; margin-bottom: 0.5rem;">Current Pipeline Stage</h3>
+        <div id="bot-modal-stage-bar" class="bot-stage-bar" style="margin-bottom: 1.25rem;"></div>
+
+        <!-- Live Metrics Grid -->
+        <h3 style="font-size: 0.85rem; text-transform: uppercase; color: var(--cyan); letter-spacing: 0.05em; margin-bottom: 0.75rem;">Live Metrics</h3>
+        <div id="bot-modal-metrics" class="modal-metrics-grid" style="margin-bottom: 1.25rem;"></div>
+
+        <!-- Strategy Parameters -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 0.75rem;">
+          <div class="contract-card">
+            <h4 style="color: var(--green); font-size: 0.8rem; margin-bottom: 0.5rem;">⚙️ STRATEGY PARAMETERS</h4>
+            <pre id="bot-modal-params" class="contract-code"></pre>
+          </div>
+          <div class="contract-card">
+            <h4 style="color: var(--cyan); font-size: 0.8rem; margin-bottom: 0.5rem;">📊 PERFORMANCE COUNTERS</h4>
+            <pre id="bot-modal-counters" class="contract-code"></pre>
+          </div>
+        </div>
+
+        <!-- Last Action -->
+        <div style="margin-top: 1.25rem;">
+          <h3 style="font-size: 0.85rem; text-transform: uppercase; color: var(--purple); letter-spacing: 0.05em; margin-bottom: 0.5rem;">Last Action</h3>
+          <pre id="bot-modal-last-action" class="contract-code" style="max-height: 100px;"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- ── Toast Notifications ──────────────────────────────────────────────── -->
   <div id="toast-container"></div>

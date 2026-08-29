@@ -1,4 +1,4 @@
-﻿"""
+"""
 V2 PortfolioAggregator — computes cross-bot capital allocation, PnL, and AUM.
 """
 
@@ -21,9 +21,10 @@ class PortfolioAggregator:
     ) -> PortfolioSnapshot:
         """Calculate live AUM, deployed capital, cash, and PnL breakdown."""
         positions_by_bot: dict[str, list[Position]] = {
-            BotName.MTB.value: [],
-            BotName.PMB.value: [],
-            BotName.VGX.value: [],
+            BotName.STE.value: [],
+            BotName.HDA.value: [],
+            BotName.VCP.value: [],
+            BotName.BBS.value: [],
         }
 
         total_deployed = 0.0
