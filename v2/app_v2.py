@@ -169,8 +169,13 @@ async def lifespan(app: FastAPI):
     _notification_service = NotificationService(
         bus            = bus,
         config         = cfg,
+        signal_repo    = signal_repo,
+        position_repo  = position_repo,
+        trade_repo     = trade_repo,
+        portfolio_service = _portfolio_service,
+        risk_service   = _risk_service,
+        trading_service = _trading_service,
     )
-    await _notification_service.start()
 
     _dashboard_service = DashboardService(
         bus               = bus,
@@ -183,6 +188,8 @@ async def lifespan(app: FastAPI):
         shadow_service    = _shadow_service,
     )
     await _dashboard_service.start()
+    _notification_service.wire_dependencies(dashboard_service=_dashboard_service)
+    await _notification_service.start()
 
     # 4. Monitoring & Observability
     _metrics_collector = MetricsCollector()

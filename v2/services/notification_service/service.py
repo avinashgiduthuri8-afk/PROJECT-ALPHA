@@ -1,4 +1,4 @@
-﻿"""
+"""
 V2 NotificationService — central event listener and alert coordinator.
 """
 
@@ -22,6 +22,7 @@ from .formatters import (
     format_trade_denied_alert,
 )
 from .telegram import TelegramClient
+from .telegram_interface import TelegramInteractiveInterface
 
 logger = get_logger("v2.services.notification_service")
 
@@ -34,6 +35,13 @@ class NotificationService:
         bus: EventBus,
         config: V2Config,
         telegram_client: Optional[TelegramClient] = None,
+        signal_repo: Optional[Any] = None,
+        position_repo: Optional[Any] = None,
+        trade_repo: Optional[Any] = None,
+        portfolio_service: Optional[Any] = None,
+        risk_service: Optional[Any] = None,
+        trading_service: Optional[Any] = None,
+        dashboard_service: Optional[Any] = None,
     ) -> None:
         self._bus = bus
         self._config = config
@@ -41,12 +49,54 @@ class NotificationService:
             bot_token=config.alert_bot_token,
             chat_id=config.alert_chat_id,
         )
+        self._interactive_interface = TelegramInteractiveInterface(
+            telegram_client=self._telegram,
+            bus=self._bus,
+            config=self._config,
+            signal_repo=signal_repo,
+            position_repo=position_repo,
+            trade_repo=trade_repo,
+            portfolio_service=portfolio_service,
+            risk_service=risk_service,
+            trading_service=trading_service,
+            dashboard_service=dashboard_service,
+        )
         self._total_dispatched = 0
         self._started = False
 
     @property
     def telegram_client(self) -> TelegramClient:
         return self._telegram
+
+    @property
+    def interactive_interface(self) -> TelegramInteractiveInterface:
+        return self._interactive_interface
+
+    def wire_dependencies(
+        self,
+        signal_repo: Optional[Any] = None,
+        position_repo: Optional[Any] = None,
+        trade_repo: Optional[Any] = None,
+        portfolio_service: Optional[Any] = None,
+        risk_service: Optional[Any] = None,
+        trading_service: Optional[Any] = None,
+        dashboard_service: Optional[Any] = None,
+    ) -> None:
+        """Dynamically wire late-bound subsystem references into the interactive interface."""
+        if signal_repo is not None:
+            self._interactive_interface._signal_repo = signal_repo
+        if position_repo is not None:
+            self._interactive_interface._position_repo = position_repo
+        if trade_repo is not None:
+            self._interactive_interface._trade_repo = trade_repo
+        if portfolio_service is not None:
+            self._interactive_interface._portfolio_service = portfolio_service
+        if risk_service is not None:
+            self._interactive_interface._risk_service = risk_service
+        if trading_service is not None:
+            self._interactive_interface._trading_service = trading_service
+        if dashboard_service is not None:
+            self._interactive_interface._dashboard_service = dashboard_service
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -63,10 +113,12 @@ class NotificationService:
         self._bus.subscribe(EventType.DIVERGENCE_DETECTED, self._on_divergence)
         self._bus.subscribe(EventType.ALERT_GENERATED, self._on_alert_generated)
         await self._bus.publish(EventType.SYSTEM_STARTUP, {"service": "notification_service"})
+        await self._interactive_interface.start()
         logger.info("NotificationService started", extra={"telegram_configured": self._telegram.is_configured})
 
     async def stop(self) -> None:
         self._started = False
+        await self._interactive_interface.stop()
         self._bus.unsubscribe(EventType.SIGNAL_AI_CONFIRMED, self._on_signal_ai_confirmed)
         self._bus.unsubscribe(EventType.TRADE_APPROVED, self._on_trade_approved)
         self._bus.unsubscribe(EventType.TRADE_DENIED, self._on_trade_denied)

@@ -1,4 +1,4 @@
-﻿"""
+"""
 V2 WebSocket API Endpoint.
 
 Mounted at /ws/v2/feed — provides continuous real-time event streaming for connected dashboards.
@@ -49,7 +49,13 @@ async def websocket_feed(
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
-    if not provided_key or not hmac.compare_digest(provided_key, expected_key):
+    # In dev mode with default alpha-dev-key, permit connection even if api_key query param was omitted
+    is_authorized = (
+        (expected_key == "alpha-dev-key" and (not provided_key or provided_key == "alpha-dev-key"))
+        or (provided_key and hmac.compare_digest(provided_key, expected_key))
+    )
+
+    if not is_authorized:
         logger.warning("WebSocket rejected: Invalid API key")
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return

@@ -22,7 +22,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -103,9 +103,23 @@ class V2Config(BaseSettings):
     v2_health_check_interval:     int = Field(default=30)
     v2_event_log_retention_days:  int = Field(default=30)
 
-    # ── Notification ──────────────────────────────────────────────────────────
-    alert_bot_token: Optional[str] = Field(default=None, alias="ALERT_BOT_TOKEN")
-    alert_chat_id:   Optional[str] = Field(default=None, alias="ALERT_CHAT_ID")
+    # ── Notification & Telegram Interactive C2 ───────────────────────────────
+    alert_bot_token: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices("ALERT_BOT_TOKEN", "TELEGRAM_BOT_TOKEN", "alert_bot_token"),
+    )
+    alert_chat_id: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices("ALERT_CHAT_ID", "TELEGRAM_CHAT_ID", "alert_chat_id"),
+    )
+    telegram_interactive_enabled: bool = Field(
+        default=True,
+        description="Enable interactive Telegram polling interface (C2 bot).",
+    )
+    telegram_allowed_chat_ids: Optional[str] = Field(
+        default=None,
+        description="Comma-separated whitelist of allowed Telegram chat/user IDs.",
+    )
 
     # ── AI Intelligence (Phase 4) ─────────────────────────────────────────────
     gemini_api_key:             Optional[str] = Field(default=None, alias="GEMINI_API_KEY")
@@ -117,7 +131,7 @@ class V2Config(BaseSettings):
     v2_ai_max_retries:          int           = Field(default=2, description="Max retries on AI call failures.")
 
     # ── Auth (shared with V1) ─────────────────────────────────────────────────
-    dashboard_api_key: Optional[str] = Field(default=None, alias="DASHBOARD_API_KEY")
+    dashboard_api_key: Optional[str] = Field(default="alpha-dev-key", alias="DASHBOARD_API_KEY")
 
     # ── V2 port ───────────────────────────────────────────────────────────────
     v2_port: int = Field(default=5001, description="Port for the V2 FastAPI app.")

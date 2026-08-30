@@ -5,7 +5,10 @@
 
 class V2DashboardClient {
   constructor() {
-    this.apiKey = localStorage.getItem("v2_api_key") || "";
+    this.apiKey = localStorage.getItem("v2_api_key") || "alpha-dev-key";
+    if (!localStorage.getItem("v2_api_key")) {
+      localStorage.setItem("v2_api_key", "alpha-dev-key");
+    }
     this.ws = null;
     this.reconnectAttempts = 0;
     this.maxReconnectDelay = 10000;
