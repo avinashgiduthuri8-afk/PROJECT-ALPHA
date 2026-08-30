@@ -33,6 +33,7 @@ from .schemas import (
     MonitoringHealthSchema, TestNotificationRequestSchema,
     PipelineStageSchema, PipelineStageDetailSchema,
     BotStatusSchema, BotDetailSchema,
+    AnalyticsWinRatesSchema, AnalyticsCoinsSchema, AnalyticsFunnelSchema,
 )
 
 router = APIRouter()
@@ -675,6 +676,53 @@ async def get_dashboard_overview() -> DashboardOverviewSchema:
 
     overview = await _dashboard_service.get_overview()
     return DashboardOverviewSchema(**overview)
+
+
+# ── Analytics endpoints (Phase 4) ─────────────────────────────────────────────
+
+@router.get(
+    "/analytics/win-rates",
+    response_model=AnalyticsWinRatesSchema,
+    dependencies=[Depends(require_api_key)],
+    tags=["analytics"],
+)
+async def get_analytics_win_rates() -> AnalyticsWinRatesSchema:
+    """Historical accuracy and win rates aggregated across horizons and priority tiers."""
+    if _dashboard_service is None:
+        raise HTTPException(status_code=503, detail="Dashboard service not initialized.")
+
+    data = _dashboard_service.get_win_rates_analytics()
+    return AnalyticsWinRatesSchema(**data)
+
+
+@router.get(
+    "/analytics/coins",
+    response_model=AnalyticsCoinsSchema,
+    dependencies=[Depends(require_api_key)],
+    tags=["analytics"],
+)
+async def get_analytics_coins() -> AnalyticsCoinsSchema:
+    """Per-coin historical win rates, performance metrics, and top/bottom rankings."""
+    if _dashboard_service is None:
+        raise HTTPException(status_code=503, detail="Dashboard service not initialized.")
+
+    data = _dashboard_service.get_coins_analytics()
+    return AnalyticsCoinsSchema(**data)
+
+
+@router.get(
+    "/analytics/funnel",
+    response_model=AnalyticsFunnelSchema,
+    dependencies=[Depends(require_api_key)],
+    tags=["analytics"],
+)
+async def get_analytics_funnel() -> AnalyticsFunnelSchema:
+    """Historical conversion efficiency metrics across all 5 scanner filtering layers."""
+    if _dashboard_service is None:
+        raise HTTPException(status_code=503, detail="Dashboard service not initialized.")
+
+    data = _dashboard_service.get_funnel_analytics()
+    return AnalyticsFunnelSchema(**data)
 
 
 # ── Monitoring endpoints (Phase 8) ────────────────────────────────────────────

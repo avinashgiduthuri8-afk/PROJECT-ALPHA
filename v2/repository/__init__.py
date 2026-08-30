@@ -11,6 +11,7 @@ from .trade_repo import TradeRepository
 from .shadow_repo import ShadowRepository
 from .metrics_repo import MetricsRepository
 from .event_log_repo import EventLogRepository
+from .candle_repo import CandleRepository
 
 __all__ = [
     "Database",
@@ -21,4 +22,5 @@ __all__ = [
     "ShadowRepository",
     "MetricsRepository",
     "EventLogRepository",
+    "CandleRepository",
 ]

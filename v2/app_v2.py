@@ -53,6 +53,7 @@ from v2.repository.trade_repo import TradeRepository
 from v2.repository.shadow_repo import ShadowRepository
 from v2.repository.metrics_repo import MetricsRepository
 from v2.repository.event_log_repo import EventLogRepository
+from v2.repository.candle_repo import CandleRepository
 
 from v2.services.scanner_service import ScannerService
 from v2.services.ai_intelligence_service import AIIntelligenceService
@@ -111,6 +112,7 @@ async def lifespan(app: FastAPI):
     shadow_repo    = ShadowRepository(conn)
     metrics_repo   = MetricsRepository(conn)
     event_log_repo = EventLogRepository(conn)
+    candle_repo    = CandleRepository(conn)
 
     # 3. Services
     _scanner_service = ScannerService(
@@ -118,6 +120,7 @@ async def lifespan(app: FastAPI):
         signal_repo    = signal_repo,
         event_log_repo = event_log_repo,
         config         = cfg,
+        candle_repo    = candle_repo,
     )
     await _scanner_service.start()
 
@@ -220,7 +223,7 @@ async def lifespan(app: FastAPI):
     _health_checker._scheduler = _scheduler
 
     # 6. Wire WebSocket & subscriber registry
-    init_websocket(_dashboard_service.ws_manager)
+    init_websocket(_dashboard_service.ws_manager, dashboard_service=_dashboard_service)
     register_all_subscribers(
         bus,
         scanner_service      = _scanner_service,

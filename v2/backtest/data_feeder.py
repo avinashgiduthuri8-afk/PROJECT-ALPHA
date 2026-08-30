@@ -12,7 +12,9 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
+from pathlib import Path
+import sqlite3
+from typing import Any, Dict, List, Optional, Union
 import numpy as np
 import pandas as pd
 
@@ -81,12 +83,165 @@ def round_qty(pair: str, qty: float) -> float:
         return float(math.floor(qty * factor) / factor)
 
 
+def validate_and_align_ohlcv(df: pd.DataFrame, timeframe: str = "1H") -> pd.DataFrame:
+    """
+    Validates chronological ordering, sorts by timestamp, removes duplicates,
+    and cleans missing values.
+    """
+    if df.empty:
+        return df
+
+    # Ensure timestamp is datetime
+    if not pd.api.types.is_datetime64_any_dtype(df["timestamp"]):
+        if pd.api.types.is_numeric_dtype(df["timestamp"]):
+            first_val = df["timestamp"].dropna().iloc[0] if len(df["timestamp"].dropna()) > 0 else 0
+            unit = "ms" if first_val > 1e11 else "s"
+            df["timestamp"] = pd.to_datetime(df["timestamp"], unit=unit, utc=True)
+        else:
+            df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
+
+    # Sort chronologically ascending and drop duplicate timestamps
+    df = df.sort_values("timestamp").drop_duplicates(subset=["timestamp"]).reset_index(drop=True)
+
+    # Ensure required float columns
+    for col in ["open", "high", "low", "close", "volume"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").ffill().fillna(0.0)
+
+    # Validate price integrity
+    df["high"] = np.maximum(df["high"], np.maximum(df["open"], df["close"]))
+    df["low"] = np.minimum(df["low"], np.minimum(df["open"], df["close"]))
+
+    return df
+
+
 class DataFeeder:
     """Provides historical/synthetic OHLCV dataframes with technical indicators pre-computed."""
 
     def __init__(self, seed: int = 42) -> None:
         self.seed = seed
         self._cache: Dict[str, pd.DataFrame] = {}
+
+    def load_candles_from_records(
+        self,
+        records: List[Dict[str, Any]],
+        pair: str = "BTC/INR",
+        timeframe: str = "1H",
+    ) -> pd.DataFrame:
+        """Load, validate, and compute technical indicators from a list of candle dicts."""
+        if not records:
+            return pd.DataFrame()
+
+        df = pd.DataFrame(records)
+        df = validate_and_align_ohlcv(df, timeframe)
+        df = self._add_technical_indicators(df)
+        return df
+
+    def load_candles_from_csv(
+        self,
+        file_path: Union[str, Path],
+        pair: Optional[str] = None,
+        timeframe: Optional[str] = None,
+    ) -> pd.DataFrame:
+        """
+        Load historical candles from a CSV file (supports timestamp, open, high, low, close, volume).
+        """
+        p = Path(file_path)
+        if not p.exists():
+            raise FileNotFoundError(f"CSV candle file not found: {p}")
+
+        df = pd.read_csv(p)
+        df.columns = [c.strip().lower() for c in df.columns]
+
+        rename_map = {
+            "t": "timestamp", "time": "timestamp", "date": "timestamp", "datetime": "timestamp",
+            "o": "open", "h": "high", "l": "low", "c": "close", "v": "volume", "vol": "volume",
+        }
+        df = df.rename(columns={k: v for k, v in rename_map.items() if k in df.columns and v not in df.columns})
+
+        if "pair" in df.columns and pair:
+            norm_pair = pair.upper().replace("_", "/")
+            df["norm_pair"] = df["pair"].astype(str).str.upper().str.replace("_", "/")
+            df = df[df["norm_pair"] == norm_pair].drop(columns=["norm_pair"])
+
+        if "timeframe" in df.columns and timeframe:
+            df = df[df["timeframe"].astype(str).str.upper() == timeframe.upper()]
+
+        df = validate_and_align_ohlcv(df, timeframe or "1H")
+        df = self._add_technical_indicators(df)
+        return df
+
+    def load_candles_from_db(
+        self,
+        pair: str = "BTC/INR",
+        timeframe: str = "1H",
+        limit: int = 10000,
+        start_time: Optional[int] = None,
+        end_time: Optional[int] = None,
+        db_path: Optional[Union[str, Path]] = None,
+    ) -> pd.DataFrame:
+        """
+        Synchronously load historical candles directly from SQLite market_candles table.
+        """
+        if db_path is None:
+            root = Path(__file__).resolve().parents[2]
+            db_path = root / "data" / "alpha_v2.db"
+
+        p = Path(db_path)
+        if not p.exists():
+            return pd.DataFrame()
+
+        norm_pair = pair.upper().replace("_", "/")
+        conn = sqlite3.connect(str(p))
+        try:
+            clauses = ["UPPER(REPLACE(pair, '_', '/')) = ?", "timeframe = ?"]
+            params: list[Any] = [norm_pair, timeframe]
+
+            if start_time is not None:
+                clauses.append("timestamp >= ?")
+                params.append(start_time)
+            if end_time is not None:
+                clauses.append("timestamp <= ?")
+                params.append(end_time)
+
+            where_sql = " AND ".join(clauses)
+            query = f"""
+                SELECT pair, timeframe, timestamp, open, high, low, close, volume
+                FROM market_candles
+                WHERE {where_sql}
+                ORDER BY timestamp ASC
+                LIMIT ?
+            """
+            params.append(limit)
+            df = pd.read_sql_query(query, conn, params=params)
+        finally:
+            conn.close()
+
+        if df.empty:
+            return pd.DataFrame()
+
+        df = validate_and_align_ohlcv(df, timeframe)
+        df = self._add_technical_indicators(df)
+        return df
+
+    async def load_candles_from_repo(
+        self,
+        candle_repo: Any,
+        pair: str = "BTC/INR",
+        timeframe: str = "1H",
+        start_time: Optional[int] = None,
+        end_time: Optional[int] = None,
+        limit: int = 10000,
+    ) -> pd.DataFrame:
+        """
+        Asynchronously load candles using CandleRepository instance.
+        """
+        if hasattr(candle_repo, "get_candles_range"):
+            candles = await candle_repo.get_candles_range(pair, timeframe, start_time, end_time, limit)
+        else:
+            candles = await candle_repo.get_recent_candles(pair, timeframe, limit)
+
+        return self.load_candles_from_records(candles, pair=pair, timeframe=timeframe)
 
     def generate_ohlcv_dataframe(
         self,

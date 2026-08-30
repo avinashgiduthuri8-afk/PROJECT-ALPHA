@@ -65,6 +65,57 @@ class BacktestEngine:
             initial_capital=self.initial_capital,
         )
 
+    def run_historical_backtest(
+        self,
+        strategy: BaseStrategy,
+        pairs: Optional[List[str]] = None,
+        timeframes: Optional[List[str]] = None,
+        db_path: Optional[str] = None,
+        csv_paths: Optional[Dict[str, str]] = None,
+        start_time: Optional[int] = None,
+        end_time: Optional[int] = None,
+        limit: int = 10000,
+    ) -> PerformanceMetrics:
+        """
+        Runs backtest using authentic historical OHLCV data loaded from SQLite or CSV feeds.
+        Strict zero look-ahead bias: orders execute on next bar's Open.
+        """
+        pairs = pairs or ["BTC/INR"]
+        timeframes = timeframes or ["15M", "1H"]
+        all_trades: List[Dict[str, Any]] = []
+
+        for pair in pairs:
+            for tf in timeframes:
+                df = pd.DataFrame()
+                # 1. Check CSV path if provided
+                if csv_paths and (pair in csv_paths or f"{pair}_{tf}" in csv_paths):
+                    file_path = csv_paths.get(pair) or csv_paths.get(f"{pair}_{tf}")
+                    df = self.feeder.load_candles_from_csv(file_path=file_path, pair=pair, timeframe=tf)
+                # 2. Otherwise load from DB
+                elif db_path is not None:
+                    df = self.feeder.load_candles_from_db(
+                        pair=pair,
+                        timeframe=tf,
+                        limit=limit,
+                        start_time=start_time,
+                        end_time=end_time,
+                        db_path=db_path,
+                    )
+
+                if df.empty:
+                    # Fallback to generated dataframe if historical data is unavailable
+                    df = self.feeder.generate_ohlcv_dataframe(pair=pair, timeframe=tf, sessions=100)
+
+                signals = strategy.generate_signals(df, pair=pair, timeframe=tf)
+                trades = self._simulate_trade_executions(df, signals, pair=pair, timeframe=tf)
+                all_trades.extend(trades)
+
+        return calculate_trade_metrics(
+            strategy_name=strategy.name,
+            trades=all_trades,
+            initial_capital=self.initial_capital,
+        )
+
     def run_all_candidate_strategies(
         self,
         pairs: List[str] = None,

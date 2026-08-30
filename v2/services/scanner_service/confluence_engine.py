@@ -129,11 +129,19 @@ class MarketSentimentEvaluator:
         self.btc_trend: str = "BULLISH"
         self.eth_trend: str = "BULLISH"
         self.market_regime: str = "RISK_ON"
+        self.fear_greed: int = 50
 
-    def update_market_state(self, btc_trend: str, eth_trend: str, market_regime: str) -> None:
+    def update_market_state(
+        self,
+        btc_trend: str,
+        eth_trend: str,
+        market_regime: str,
+        fear_greed: int = 50,
+    ) -> None:
         self.btc_trend = btc_trend.upper()
         self.eth_trend = eth_trend.upper()
         self.market_regime = market_regime.upper()
+        self.fear_greed = int(fear_greed)
 
     def evaluate(self, candidate: Dict[str, Any], signal: Signal) -> LayerEvaluation:
         reasons = []
@@ -149,6 +157,10 @@ class MarketSentimentEvaluator:
             score -= 35
             reasons.append("Global crypto market regime is RISK_OFF")
 
+        if self.fear_greed < 25:
+            score -= 10
+            reasons.append(f"Extreme fear in market ({self.fear_greed}/100)")
+
         score = max(0, min(100, score))
         passed = score >= 70 and self.market_regime != "RISK_OFF"
 
@@ -160,6 +172,7 @@ class MarketSentimentEvaluator:
                 "btc_trend": self.btc_trend,
                 "eth_trend": self.eth_trend,
                 "market_regime": self.market_regime,
+                "fear_greed": self.fear_greed,
             },
             reasons=reasons,
         )
@@ -175,12 +188,16 @@ class NewsEventsEvaluator:
         news_payload = candidate.get("news", {}) or {}
         has_negative_news = news_payload.get("has_negative_news", False)
         is_delisting = news_payload.get("delisting_risk", False)
+        sentiment_score = news_payload.get("sentiment_score", None)
+
+        if sentiment_score is not None:
+            score = int(float(sentiment_score) * 100)
 
         if has_negative_news:
             score -= 40
             reasons.append("Negative news/event detected for coin")
         if is_delisting:
-            score -= 80
+            score = 0
             reasons.append("Delisting risk / regulatory alert")
 
         score = max(0, min(100, score))
@@ -193,6 +210,8 @@ class NewsEventsEvaluator:
             details={
                 "has_negative_news": has_negative_news,
                 "delisting_risk": is_delisting,
+                "sentiment_score": sentiment_score,
+                "headlines": news_payload.get("headlines", []),
             },
             reasons=reasons,
         )
@@ -211,14 +230,21 @@ class ConfluenceEngine:
     ) -> None:
         self.strict_threshold = strict_threshold
         self.max_signals = max_signals
+        self.coin_penalties: Dict[str, int] = {}
 
         self.chart_evaluator = ChartStructureEvaluator()
         self.indicator_evaluator = IndicatorEvaluator()
         self.sentiment_evaluator = MarketSentimentEvaluator()
         self.news_evaluator = NewsEventsEvaluator()
 
-    def update_market_sentiment(self, btc_trend: str = "BULLISH", eth_trend: str = "BULLISH", regime: str = "RISK_ON") -> None:
-        self.sentiment_evaluator.update_market_state(btc_trend, eth_trend, regime)
+    def update_market_sentiment(
+        self,
+        btc_trend: str = "BULLISH",
+        eth_trend: str = "BULLISH",
+        regime: str = "RISK_ON",
+        fear_greed: int = 50,
+    ) -> None:
+        self.sentiment_evaluator.update_market_state(btc_trend, eth_trend, regime, fear_greed)
 
     def evaluate_candidates(
         self,
@@ -253,8 +279,14 @@ class ConfluenceEngine:
                 (l4.score * 0.15)
             )
 
-            # Layer 5: Strict Rejection Gate
+            # Apply dynamic calibration coin penalty if active
+            coin_key = sig.coin.upper()
             rejection_reasons = []
+            if coin_key in self.coin_penalties:
+                penalty = self.coin_penalties[coin_key]
+                combined_score = max(0, combined_score + penalty)
+                if penalty <= -15:
+                    rejection_reasons.append(f"[Calibration] Underperforming coin 7d win-rate penalty ({penalty})")
             if not l1.passed: rejection_reasons.extend([f"[Chart] {r}" for r in l1.reasons])
             if not l2.passed: rejection_reasons.extend([f"[Indicator] {r}" for r in l2.reasons])
             if not l3.passed: rejection_reasons.extend([f"[Sentiment] {r}" for r in l3.reasons])

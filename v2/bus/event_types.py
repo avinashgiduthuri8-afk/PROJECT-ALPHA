@@ -68,3 +68,6 @@ class EventType(str, Enum):
     SHADOW_TRADE_RECORDED = "shadow.trade_recorded"
     SHADOW_TRADE_CLOSED   = "shadow.trade_closed"
     DIVERGENCE_DETECTED   = "divergence.detected"
+
+    # ── Dynamic Calibration ──────────────────────────────────────────────────
+    CALIBRATION_UPDATED   = "calibration.updated"

@@ -349,3 +349,24 @@ class TestNotificationRequestSchema(BaseModel):
 class OkSchema(BaseModel):
     ok: bool = True
     detail: Optional[str] = None
+
+
+# ── Analytics schemas (Phase 4) ──────────────────────────────────────────────
+
+class AnalyticsWinRatesSchema(BaseModel):
+    time_horizons:    dict[str, Any] = Field(default_factory=dict)
+    tier_accuracy:    dict[str, Any] = Field(default_factory=dict)
+    overall_win_rate: float = 0.0
+
+
+class AnalyticsCoinsSchema(BaseModel):
+    total_coins:      int = 0
+    coins:            list[dict[str, Any]] = Field(default_factory=list)
+    best_performing:  list[dict[str, Any]] = Field(default_factory=list)
+    worst_performing: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class AnalyticsFunnelSchema(BaseModel):
+    layers:                   list[dict[str, Any]] = Field(default_factory=list)
+    dispatched_signals_count: int = 0
+    final_conversion_pct:     float = 0.0

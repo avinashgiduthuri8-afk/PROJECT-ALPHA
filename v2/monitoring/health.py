@@ -41,53 +41,39 @@ class HealthChecker:
         db_healthy = self._db is not None and self._db.is_open
         services["database"] = {"healthy": db_healthy}
 
+        # Helper to probe health safely
+        def probe_service(svc: Any) -> dict[str, Any]:
+            if svc is None:
+                return {"healthy": True, "registered": False}
+            if hasattr(svc, "get_health"):
+                return svc.get_health()
+            if hasattr(svc, "running"):
+                return {"healthy": bool(svc.running), "registered": True}
+            return {"healthy": True, "registered": True}
+
         # 2. Scanner
-        if self._scanner_service:
-            services["scanner"] = self._scanner_service.get_health()
-        else:
-            services["scanner"] = {"healthy": True, "registered": False}
+        services["scanner"] = probe_service(self._scanner_service)
 
         # 3. AI Intelligence
-        if self._ai_service:
-            services["ai"] = self._ai_service.get_health()
-        else:
-            services["ai"] = {"healthy": True, "registered": False}
+        services["ai"] = probe_service(self._ai_service)
 
         # 4. Risk Engine
-        if self._risk_service:
-            services["risk"] = self._risk_service.get_health()
-        else:
-            services["risk"] = {"healthy": True, "registered": False}
+        services["risk"] = probe_service(self._risk_service)
 
         # 5. Portfolio
-        if self._portfolio_service:
-            services["portfolio"] = self._portfolio_service.get_health()
-        else:
-            services["portfolio"] = {"healthy": True, "registered": False}
+        services["portfolio"] = probe_service(self._portfolio_service)
 
         # 6. Trading
-        if self._trading_service:
-            services["trading"] = self._trading_service.get_health()
-        else:
-            services["trading"] = {"healthy": True, "registered": False}
+        services["trading"] = probe_service(self._trading_service)
 
         # 7. Shadow Engine
-        if self._shadow_service:
-            services["shadow"] = self._shadow_service.get_health()
-        else:
-            services["shadow"] = {"healthy": True, "registered": False}
+        services["shadow"] = probe_service(self._shadow_service)
 
         # 8. Notification
-        if self._notification_service:
-            services["notification"] = self._notification_service.get_health()
-        else:
-            services["notification"] = {"healthy": True, "registered": False}
+        services["notification"] = probe_service(self._notification_service)
 
         # 9. Scheduler
-        if self._scheduler:
-            services["scheduler"] = self._scheduler.get_health()
-        else:
-            services["scheduler"] = {"healthy": True, "registered": False}
+        services["scheduler"] = probe_service(self._scheduler)
 
         unhealthy = [
             k for k, v in services.items()
