@@ -4,6 +4,25 @@ All notable changes to PROJECT-ALPHA will be documented in this file.
 
 ## [Unreleased]
 
+### [Market Data] Standalone CoinDCX Public REST Client & Ingestion Pipeline
+
+#### Overview
+Implemented a modular, asynchronous **CoinDCX Public REST Client (`v2/market/public_client.py`)** and **Live Streaming Feeder Worker (`v2/market/feeder.py`)** that consumes real market data from CoinDCX endpoints without requiring API credentials. Includes a token-bucket rate limiter (8 req/s) and exponential backoff retry resilience for zero-downtime streaming.
+
+#### Added
+- **CoinDCX Public REST Client** (`v2/market/public_client.py`):
+  - `get_tickers()`: Pulls 24-hour price statistics (`last_price`, `bid`, `ask`, `high`, `low`, `volume`, `change_24_hour`) across active INR and USDT markets.
+  - `get_candles(pair, interval, limit)`: Fetches multi-timeframe OHLCV candles (`5m`, `15m`, `1h`, `1d`), normalizes timestamps to epoch seconds, and sorts chronologically (`oldest -> newest`).
+  - `get_orderbook(pair)`: Fetches top-of-book depth, extracts best bid/ask, and calculates spread and spread percentage.
+  - `TokenBucketRateLimiter`: Enforces maximum 8 requests/second rate limit with burst control.
+  - Exponential backoff retry logic handling transient HTTP 429 and 5xx errors.
+- **Market Data Feeder Pipeline** (`v2/market/feeder.py`):
+  - Async background worker pulling live tickers, multi-timeframe candles (`5m`, `15m`, `1h`), and orderbook depth for the active scanning universe.
+  - Maintains in-memory caches and persists candles idempotently to SQLite `market_candles` via `CandleRepository`.
+  - Publishes `MARKET_DATA_UPDATED` and `ORDERBOOK_UPDATED` events over `EventBus`.
+- **Automated Test Suite** (`tests/test_v2_coindcx_public_feed.py`):
+  - 7 automated unit and integration tests covering ticker parsing, candle normalization, orderbook spread calculation, rate limiter compliance, HTTP error retries, and feeder ingestion with repository persistence.
+
 ### [Frontend & UI] V2 Mission Control Web Dashboard & Real-Time WebSocket Client
 
 #### Overview

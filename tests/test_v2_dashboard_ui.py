@@ -1,4 +1,4 @@
-﻿"""
+"""
 Unit and Integration Tests for V2 Mission Control Dashboard UI and Static Assets.
 """
 
@@ -65,6 +65,10 @@ def test_websocket_connection_and_auth():
 
         # 2. Authorized WebSocket connection
         with client.websocket_connect("/ws/v2/feed?api_key=test-ui-key") as ws:
+            # First frame sent upon connect is the initial telemetry snapshot
+            init_frame = ws.receive_text()
+            assert "TELEMETRY_SNAPSHOT" in init_frame or "data" in init_frame
+
             ws.send_text("ping")
             data = ws.receive_text()
             assert "pong" in data

@@ -71,3 +71,8 @@ class EventType(str, Enum):
 
     # ── Dynamic Calibration ──────────────────────────────────────────────────
     CALIBRATION_UPDATED   = "calibration.updated"
+
+    # ── Public Market Data Stream ────────────────────────────────────────────
+    MARKET_DATA_UPDATED   = "market_data.updated"
+    ORDERBOOK_UPDATED     = "orderbook.updated"
+
