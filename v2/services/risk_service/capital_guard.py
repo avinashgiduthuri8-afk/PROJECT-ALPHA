@@ -27,10 +27,44 @@ class CapitalGuard:
         current_bot_deployed: float,
         total_deployed: float,
         current_bot_positions: int,
+        active_positions: Optional[list] = None,
+        current_coin: Optional[str] = None,
     ) -> RiskDecision:
         t0 = time.perf_counter()
-        
-        # 1. Check Max Open Positions
+
+        # 1. Single-Coin Asset Deduplication & Fleet Lock Check
+        if self._config.enforce_single_coin_lock and current_coin and active_positions:
+            coin_clean = current_coin.upper().replace("/INR", "").replace("/USDT", "").replace("B-", "")
+            for pos in active_positions:
+                pos_coin = getattr(pos, "coin", "") or ""
+                pos_pair = getattr(pos, "pair", "") or ""
+                pos_clean = pos_coin.upper().replace("/INR", "").replace("/USDT", "").replace("B-", "")
+                if pos_clean == coin_clean or coin_clean in pos_pair.upper():
+                    ms = (time.perf_counter() - t0) * 1000.0
+                    return RiskDecision(
+                        allowed=False,
+                        code="OPPORTUNITY_LOCKED_ACTIVE_PAIR",
+                        reason=f"Asset {coin_clean} already has an active open position in the fleet ({getattr(pos, 'bot', 'BOT')}).",
+                        bot=bot,
+                        amount=requested_amount,
+                        adjusted_amount=0.0,
+                        check_ms=round(ms, 2),
+                    )
+
+        # 2. Max Fleet-Wide Concurrency Cap Check
+        if active_positions is not None and len(active_positions) >= self._config.max_concurrent_positions:
+            ms = (time.perf_counter() - t0) * 1000.0
+            return RiskDecision(
+                allowed=False,
+                code="BLOCKED_MAX_FLEET_POSITIONS",
+                reason=f"Max fleet-wide concurrent positions reached ({len(active_positions)}/{self._config.max_concurrent_positions}).",
+                bot=bot,
+                amount=requested_amount,
+                adjusted_amount=0.0,
+                check_ms=round(ms, 2),
+            )
+
+        # 3. Check Max Open Positions (Per Strategy)
         max_pos = self._get_max_positions(bot)
         if current_bot_positions >= max_pos:
             ms = (time.perf_counter() - t0) * 1000.0
@@ -44,7 +78,7 @@ class CapitalGuard:
                 check_ms=round(ms, 2),
             )
 
-        # 2. Check Per-Bot Capital Limit
+        # 4. Check Per-Bot Capital Limit (if discrete allocation configured)
         bot_limit = self._get_bot_capital_limit(bot)
         if bot_limit > 0 and (current_bot_deployed + requested_amount) > bot_limit:
             available = max(0.0, bot_limit - current_bot_deployed)
@@ -59,7 +93,7 @@ class CapitalGuard:
                 check_ms=round(ms, 2),
             )
 
-        # 3. Check Total Global Portfolio Capital Limit
+        # 5. Check Unified Global Capital Pool Limit (₹10,000 Shared Ceiling)
         total_limit = self._config.total_capital_limit
         if total_limit > 0 and (total_deployed + requested_amount) > total_limit:
             available = max(0.0, total_limit - total_deployed)

@@ -81,6 +81,8 @@ class RiskService:
         self,
         bot: BotName,
         requested_amount: float,
+        coin: Optional[str] = None,
+        pair: Optional[str] = None,
     ) -> RiskDecision:
         """Run complete risk evaluation (CircuitBreaker + CapitalGuard) against live repository state."""
         # 1. Circuit breaker check
@@ -96,13 +98,15 @@ class RiskService:
         total_deployed = sum(p.deployed_capital for p in all_open)
         bot_pos_count = len(open_positions)
 
-        # 3. CapitalGuard evaluation
+        # 3. CapitalGuard evaluation with single-coin lock and fleet capacity checks
         return self._capital_guard.check_trade(
             bot=bot,
             requested_amount=requested_amount,
             current_bot_deployed=bot_deployed,
             total_deployed=total_deployed,
             current_bot_positions=bot_pos_count,
+            active_positions=all_open,
+            current_coin=coin or pair,
         )
 
     # ── Event Handlers ────────────────────────────────────────────────────────
@@ -123,7 +127,7 @@ class RiskService:
             size_multiplier = float(ai_adjustments.get("size_multiplier", 1.0))
             scaled_amount = max(0.0, default_amount * size_multiplier)
 
-            decision = await self.check_trade_allowed(bot, scaled_amount)
+            decision = await self.check_trade_allowed(bot, scaled_amount, coin=coin, pair=pair)
 
             if decision.allowed:
                 approved_payload = {

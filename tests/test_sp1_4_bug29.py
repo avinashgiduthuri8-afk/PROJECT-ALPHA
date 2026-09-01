@@ -30,7 +30,7 @@ from bots.scanner_bot.main import market_state
 # =============================================================================
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 def _call_market_state() -> dict:

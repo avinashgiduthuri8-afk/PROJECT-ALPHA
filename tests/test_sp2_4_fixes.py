@@ -21,7 +21,10 @@ class TestBug32MarketIntelligence:
     def _call_market_intelligence(self, score: int) -> dict:
         from bots.volatile_gridX.risk_engine import market_intelligence
         mock_result = {"score": score, "trend": "neutral", "rsi": 50, "ema": "flat"}
-        with patch("bots.volatile_gridX.risk_engine.analyze_coin", return_value=mock_result):
+        mock_scanner = MagicMock()
+        mock_scanner.price_history.get.return_value = [100.0, 101.0, 102.0, 103.0, 104.0, 105.0]
+        with patch("bots.scanner_bot.main._SCANNER", mock_scanner), \
+             patch("bots.volatile_gridX.risk_engine.analyze_coin", return_value=mock_result):
             return market_intelligence()
 
     def test_bull_regime_when_score_ge_80(self):

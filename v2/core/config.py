@@ -41,22 +41,52 @@ class V2Config(BaseSettings):
         description="Path to the V2 SQLite database file.",
     )
 
-    # ── Capital limits (Isolated Sub-Account Wallets) ──────────────────────────
-    total_capital_limit: float = Field(default=100000.0, alias="TOTAL_CAPITAL_LIMIT")
-    ste_capital_limit:   float = Field(default=35000.0,  alias="STE_CAPITAL_LIMIT")
-    hda_capital_limit:   float = Field(default=30000.0,  alias="HDA_CAPITAL_LIMIT")
-    vcp_capital_limit:   float = Field(default=15000.0,  alias="VCP_CAPITAL_LIMIT")
-    bbs_capital_limit:   float = Field(default=20000.0,  alias="BBS_CAPITAL_LIMIT")
+    # ── Unified Capital Pool & Sizing (Shared ₹10,000 Ceiling) ───────────────
+    total_capital_limit: float = Field(
+        default=10000.0,
+        validation_alias=AliasChoices("TOTAL_CAPITAL_LIMIT", "CAPITAL_POOL", "total_capital_limit"),
+        description="Unified Capital Pool shared ceiling across all strategy bots (₹10,000).",
+    )
+    trading_capital_pool: float = Field(
+        default=10000.0,
+        validation_alias=AliasChoices("CAPITAL_POOL", "TRADING_CAPITAL_POOL", "trading_capital_pool"),
+        description="Alias for unified capital pool.",
+    )
+    order_size_inr: float = Field(
+        default=200.0,
+        validation_alias=AliasChoices("ORDER_SIZE_INR", "DEFAULT_TRADE_AMOUNT", "order_size_inr"),
+        description="Fixed standard micro-order allocation (₹200 per trade).",
+    )
+    max_concurrent_positions: int = Field(
+        default=10,
+        validation_alias=AliasChoices("MAX_CONCURRENT_POSITIONS", "max_concurrent_positions"),
+        description="Maximum concurrent fleet-wide open positions.",
+    )
+    enforce_single_coin_lock: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("ENFORCE_SINGLE_COIN_LOCK", "enforce_single_coin_lock"),
+        description="Enforce single-position asset lock across all strategies.",
+    )
 
-    # ── Trade sizing & bot limits (Phase 5 / Sub-Account Fleet) ───────────────
-    v2_default_trade_amount_ste: float = Field(default=500.0, alias="STE_TRADE_AMOUNT")
-    v2_default_trade_amount_hda: float = Field(default=500.0, alias="HDA_TRADE_AMOUNT")
-    v2_default_trade_amount_vcp: float = Field(default=500.0, alias="VCP_TRADE_AMOUNT")
-    v2_default_trade_amount_bbs: float = Field(default=400.0, alias="BBS_TRADE_AMOUNT")
-    v2_max_positions_ste:        int   = Field(default=3,     alias="STE_MAX_POSITIONS")
-    v2_max_positions_hda:        int   = Field(default=3,     alias="HDA_MAX_POSITIONS")
-    v2_max_positions_vcp:        int   = Field(default=2,     alias="VCP_MAX_POSITIONS")
-    v2_max_positions_bbs:        int   = Field(default=4,     alias="BBS_MAX_POSITIONS")
+    # Master CoinDCX API Credentials
+    coindcx_api_key:    Optional[str] = Field(default=None, alias="COINDCX_API_KEY")
+    coindcx_api_secret: Optional[str] = Field(default=None, alias="COINDCX_API_SECRET")
+
+    # Strategy bot capital limits (defaults to unified pool)
+    ste_capital_limit:   float = Field(default=10000.0,  alias="STE_CAPITAL_LIMIT")
+    hda_capital_limit:   float = Field(default=10000.0,  alias="HDA_CAPITAL_LIMIT")
+    vcp_capital_limit:   float = Field(default=10000.0,  alias="VCP_CAPITAL_LIMIT")
+    bbs_capital_limit:   float = Field(default=10000.0,  alias="BBS_CAPITAL_LIMIT")
+
+    # ── Trade sizing & bot limits (Phase 5 / Unified Fleet) ───────────────────
+    v2_default_trade_amount_ste: float = Field(default=200.0, alias="STE_TRADE_AMOUNT")
+    v2_default_trade_amount_hda: float = Field(default=200.0, alias="HDA_TRADE_AMOUNT")
+    v2_default_trade_amount_vcp: float = Field(default=200.0, alias="VCP_TRADE_AMOUNT")
+    v2_default_trade_amount_bbs: float = Field(default=200.0, alias="BBS_TRADE_AMOUNT")
+    v2_max_positions_ste:        int   = Field(default=10,    alias="STE_MAX_POSITIONS")
+    v2_max_positions_hda:        int   = Field(default=10,    alias="HDA_MAX_POSITIONS")
+    v2_max_positions_vcp:        int   = Field(default=10,    alias="VCP_MAX_POSITIONS")
+    v2_max_positions_bbs:        int   = Field(default=10,    alias="BBS_MAX_POSITIONS")
     v2_max_consecutive_losses:   int   = Field(default=5,     description="Max consecutive losses before circuit breaker trips.")
     v2_max_drawdown_pct:         float = Field(default=10.0,  description="Max daily drawdown pct before breaker trips.")
 

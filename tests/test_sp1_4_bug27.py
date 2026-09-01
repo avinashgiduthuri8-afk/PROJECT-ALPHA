@@ -28,7 +28,7 @@ from bots.scanner_bot.main import scanner_signals
 # =============================================================================
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 def _make_tracker_with_signals(signals: list) -> MagicMock:

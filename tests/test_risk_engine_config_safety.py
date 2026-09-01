@@ -16,8 +16,28 @@ from unittest.mock import MagicMock, patch
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Helpers & Module Isolation
 # ---------------------------------------------------------------------------
+
+_ORIGINAL_MODULES = {}
+
+def setUpModule():
+    global _ORIGINAL_MODULES
+    for mod in ("bots.pmb_bot.storage", "bots.mtb_bot.storage",
+                "bots.volatile_gridX.storage", "bots.risk_engine.config", "bots.risk_engine.engine"):
+        if mod in sys.modules:
+            _ORIGINAL_MODULES[mod] = sys.modules[mod]
+
+def tearDownModule():
+    for key in list(sys.modules):
+        if (
+            key.startswith("bots.risk_engine")
+            or key in ("bots.pmb_bot.storage", "bots.mtb_bot.storage", "bots.volatile_gridX.storage")
+        ):
+            del sys.modules[key]
+
+    for mod, m in _ORIGINAL_MODULES.items():
+        sys.modules[mod] = m
 
 def _reload_risk_engine(env: dict):
     """Re-import risk_engine.config and risk_engine.engine under a given env."""

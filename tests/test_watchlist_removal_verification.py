@@ -559,10 +559,10 @@ class TestStartup:
 
         tmpdir = tempfile.mkdtemp()
         try:
-            with patch("bots.mtb_bot.storage.DATA_DIR", Path(tmpdir)):
-                with patch("bots.mtb_bot.storage.POSITIONS_FILE", Path(tmpdir) / "positions.json"):
-                    with patch("bots.mtb_bot.storage.TRADES_FILE", Path(tmpdir) / "trades.json"):
-                        with patch("bots.mtb_bot.storage.STATS_FILE", Path(tmpdir) / "stats.json"):
+            with patch("bots.mtb_bot.storage.DATA_DIR", Path(tmpdir), create=True):
+                with patch("bots.mtb_bot.storage.POSITIONS_FILE", Path(tmpdir) / "positions.json", create=True):
+                    with patch("bots.mtb_bot.storage.TRADES_FILE", Path(tmpdir) / "trades.json", create=True):
+                        with patch("bots.mtb_bot.storage.STATS_FILE", Path(tmpdir) / "stats.json", create=True):
                             mtb_storage.ensure_storage()
                             assert (Path(tmpdir) / "positions.json").exists()
                             assert (Path(tmpdir) / "trades.json").exists()
@@ -577,10 +577,10 @@ class TestStartup:
 
         tmpdir = tempfile.mkdtemp()
         try:
-            with patch("bots.pmb_bot.storage.DATA_DIR", Path(tmpdir)):
-                with patch("bots.pmb_bot.storage.POSITIONS_FILE", Path(tmpdir) / "positions.json"):
-                    with patch("bots.pmb_bot.storage.TRADES_FILE", Path(tmpdir) / "trades.json"):
-                        with patch("bots.pmb_bot.storage.STATS_FILE", Path(tmpdir) / "stats.json"):
+            with patch("bots.pmb_bot.storage.DATA_DIR", Path(tmpdir), create=True):
+                with patch("bots.pmb_bot.storage.POSITIONS_FILE", Path(tmpdir) / "positions.json", create=True):
+                    with patch("bots.pmb_bot.storage.TRADES_FILE", Path(tmpdir) / "trades.json", create=True):
+                        with patch("bots.pmb_bot.storage.STATS_FILE", Path(tmpdir) / "stats.json", create=True):
                             pmb_storage.ensure_storage()
                             assert (Path(tmpdir) / "positions.json").exists()
         finally:
@@ -597,7 +597,7 @@ class TestStartup:
             for py_file in Path(f"bots/{bot}").rglob("*.py"):
                 if "__pycache__" in str(py_file):
                     continue
-                source = py_file.read_text()
+                source = py_file.read_text(encoding="utf-8")
                 tree = ast.parse(source)
                 for node in ast.walk(tree):
                     if isinstance(node, ast.Name) and node.id in bad:
@@ -617,7 +617,7 @@ class TestStartup:
             for py_file in bot_dir.rglob("*.py"):
                 if "__pycache__" in str(py_file):
                     continue
-                text = py_file.read_text()
+                text = py_file.read_text(encoding="utf-8")
                 # Allow docstring references and _scanner_watchlist wrapper
                 # but ban direct file I/O on watchlist.json
                 tree = ast.parse(text)
@@ -681,9 +681,13 @@ class TestRiskEngine:
     def test_risk_engine_allows_when_paper_mode(self):
         """Risk engine allows when bot mode is PAPER."""
         from bots.risk_engine import engine as risk_engine
+        from bots.risk_engine import config as risk_config
         with patch.object(risk_engine, "get_trading_enabled", return_value=True):
-            with patch.object(risk_engine, "_load_bot_positions", return_value=[]):
-                decision = risk_engine.check_trade_allowed("MTB", 100)
+            with patch.object(risk_config, "TOTAL_CAPITAL_LIMIT", 10000.0), \
+                 patch.object(risk_config, "BOT_CAPITAL_LIMIT", {"MTB": 5000.0, "PMB": 5000.0, "VGX": 5000.0}), \
+                 patch.object(risk_config, "BOT_MODE", {"MTB": "PAPER", "PMB": "PAPER", "VGX": "PAPER"}):
+                with patch.object(risk_engine, "_load_bot_positions", return_value=[]):
+                    decision = risk_engine.check_trade_allowed("MTB", 100)
         assert decision.allowed
         assert decision.code == "OK"
 

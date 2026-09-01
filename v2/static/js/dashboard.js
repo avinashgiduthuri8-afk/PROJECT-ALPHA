@@ -180,6 +180,19 @@ class V2DashboardClient {
         const pData = await posRes.json();
         this.renderPositions(pData);
       }
+
+      // 4. Fetch recent AI analyses if feed is empty
+      const aiRes = await fetch("/api/v2/ai/analyses?limit=10", { headers });
+      if (aiRes.ok) {
+        const analyses = await aiRes.json();
+        if (Array.isArray(analyses) && analyses.length > 0 && this.elAiFeed) {
+          // Clear default placeholder if real analyses exist
+          if (this.elAiFeed.innerHTML.includes("Listening for live signals")) {
+            this.elAiFeed.innerHTML = "";
+          }
+          analyses.forEach(a => this.appendAiCard(a, a.recommendation === "APPROVE"));
+        }
+      }
     } catch (err) {
       console.warn("Initial state fetch warning:", err);
     }

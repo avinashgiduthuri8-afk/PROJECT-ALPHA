@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
+from . import config as risk_config
 from .config import (
     BOT_CAPITAL_LIMIT,
     BOT_MODE,
@@ -117,14 +118,16 @@ def check_trade_allowed(bot: str, amount: float) -> RiskDecision:
         return RiskDecision(False, "EMERGENCY_STOP",
                             "EMERGENCY_STOP is active — no new trades allowed.")
 
-    mode = BOT_MODE.get(bot, "DISABLED")
+    bot_modes = getattr(risk_config, "BOT_MODE", BOT_MODE)
+    mode = bot_modes.get(bot, "DISABLED")
     if mode in ("DISABLED", "PAUSED"):
         return RiskDecision(False, "BOT_INACTIVE",
                             f"{bot} is {mode}. Set {bot}_BOT_MODE=PAPER or LIVE to enable.")
 
     # ── Deny-by-default: capital limits must be explicitly configured ─────────
     # A limit of 0 means "not set" — never trade with an unconfigured limit.
-    if TOTAL_CAPITAL_LIMIT == 0:
+    total_cap = getattr(risk_config, "TOTAL_CAPITAL_LIMIT", TOTAL_CAPITAL_LIMIT)
+    if total_cap == 0:
         logger.error(
             "[RiskEngine] TOTAL_CAPITAL_LIMIT is 0 or not configured — "
             "denying %s trade of %.0f. Set TOTAL_CAPITAL_LIMIT env var to enable trading.",
@@ -135,7 +138,8 @@ def check_trade_allowed(bot: str, amount: float) -> RiskDecision:
             "TOTAL_CAPITAL_LIMIT is 0 or not set — configure capital limits before trading.",
         )
 
-    bot_limit = BOT_CAPITAL_LIMIT.get(bot, 0)
+    bot_limits = getattr(risk_config, "BOT_CAPITAL_LIMIT", BOT_CAPITAL_LIMIT)
+    bot_limit = bot_limits.get(bot, 0)
     if bot_limit == 0:
         logger.error(
             "[RiskEngine] %s_CAPITAL_LIMIT is 0 or not configured — "

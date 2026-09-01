@@ -104,6 +104,19 @@ class TradingService:
                 ai_adjustments=ai_adjustments,
             )
 
+            # Strict Single-Position Asset Deduplication Check (Fleet-wide single coin lock)
+            if self._config.enforce_single_coin_lock:
+                open_positions = await self._position_repo.get_open()
+                coin_clean = coin.upper().replace("/INR", "").replace("/USDT", "").replace("B-", "")
+                for op in open_positions:
+                    op_clean = op.coin.upper().replace("/INR", "").replace("/USDT", "").replace("B-", "")
+                    if op_clean == coin_clean or coin_clean in op.pair.upper():
+                        logger.warning(
+                            "Order skipped by Single-Coin Lock: %s already has active position in %s",
+                            coin_clean, op.bot.value,
+                        )
+                        return
+
             # 1. Shadow Simulation Routing
             if self._config.v2_shadow_mode and self._shadow_engine is not None:
                 await self._shadow_engine.record_approved_trade(

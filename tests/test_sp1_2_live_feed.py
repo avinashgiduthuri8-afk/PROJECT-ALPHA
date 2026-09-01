@@ -9,6 +9,7 @@ Run:
 from __future__ import annotations
 
 import asyncio
+import time
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -32,7 +33,7 @@ from bots.scanner_bot.scanner import (
 # =============================================================================
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 def _make_ticker(market: str = "BTCINR", price: str = "50000", volume: str = "1000000") -> dict:
@@ -213,7 +214,7 @@ class TestScannerGetTickers:
         tickers = [_make_ticker("BTCINR")]
         sc = _make_scanner()
         sc._ticker_cache = tickers
-        sc._ticker_cache_at = asyncio.get_event_loop().time()   # just set
+        sc._ticker_cache_at = time.monotonic()   # just set
         sc.client.fetch_tickers = MagicMock()
 
         result = _run(sc.get_tickers(force=False))
@@ -225,7 +226,7 @@ class TestScannerGetTickers:
         new = [_make_ticker("ETHINR")]
         sc = _make_scanner()
         sc._ticker_cache = old
-        sc._ticker_cache_at = asyncio.get_event_loop().time()
+        sc._ticker_cache_at = time.monotonic()
         sc.client.fetch_tickers = MagicMock(return_value=new)
 
         result = _run(sc.get_tickers(force=True))
@@ -289,7 +290,7 @@ class TestScannerGetTickers:
         fresh = [_make_ticker("BTCINR")]
         sc = _make_scanner()
         sc.client.fetch_tickers = MagicMock(return_value=fresh)
-        before = asyncio.get_event_loop().time()
+        before = time.monotonic()
         _run(sc.get_tickers(force=True))
         assert sc._ticker_cache_at >= before
 

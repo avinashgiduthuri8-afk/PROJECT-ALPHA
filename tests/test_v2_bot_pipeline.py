@@ -219,11 +219,11 @@ class TestCoinDCXSubAccountArchitecture:
         assert "VCP" in telemetry
         assert "BBS" in telemetry
 
-        # Wallet balance allocations
-        assert telemetry["STE"]["wallet_balance_inr"] == 35000.0
-        assert telemetry["HDA"]["wallet_balance_inr"] == 30000.0
-        assert telemetry["VCP"]["wallet_balance_inr"] == 15000.0
-        assert telemetry["BBS"]["wallet_balance_inr"] == 20000.0
+        # Unified wallet balance allocation (₹10,000 shared pool)
+        assert telemetry["STE"]["wallet_balance_inr"] == 10000.0
+        assert telemetry["HDA"]["wallet_balance_inr"] == 10000.0
+        assert telemetry["VCP"]["wallet_balance_inr"] == 10000.0
+        assert telemetry["BBS"]["wallet_balance_inr"] == 10000.0
 
     def test_subaccount_hmac_signing(self):
         mgr = CoinDCXSubAccountManager()
@@ -244,9 +244,9 @@ class TestCoinDCXSubAccountArchitecture:
         assert res["order"]["auth_headers_verified"] is True
         assert ste_client.available_balance_inr < initial_avail
 
-        # Other sub-accounts remain untouched
+        # Shared pool available balance is synchronized across all bot clients
         hda_client = mgr.get_client(BotName.HDA)
-        assert hda_client.available_balance_inr == 30000.0
+        assert hda_client.available_balance_inr == 9375.0
 
     def test_order_rejection_below_min_notional(self):
         mgr = CoinDCXSubAccountManager()

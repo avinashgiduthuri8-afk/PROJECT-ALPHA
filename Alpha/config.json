@@ -1,9 +1,15 @@
 {
   "project": "PROJECT-ALPHA",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "exchange": "CoinDCX",
   "quote_currency": "INR",
-  "total_portfolio_capital_inr": 100000.0,
+  "total_portfolio_capital_inr": 10000.0,
+  "trading": {
+    "capital_pool": 10000.0,
+    "order_size_inr": 200.0,
+    "max_concurrent_positions": 10,
+    "enforce_single_coin_lock": true
+  },
   "friction_model": {
     "exchange_fee_pct": 0.20,
     "gst_rate_pct": 18.0,
@@ -11,15 +17,45 @@
     "slippage_per_side_pct": 0.05,
     "total_round_trip_drag_pct": 1.572
   },
+  "strategies": {
+    "STE": {
+      "name": "SuperTrend ATR Range Expansion",
+      "stop_loss_pct": 2.0,
+      "take_profit_pct": 4.6,
+      "min_net_rr": 1.50,
+      "allowed_pairs": ["BTC/INR", "ETH/INR", "SOL/INR", "AVAX/INR", "LINK/INR", "BNB/INR"]
+    },
+    "HDA": {
+      "name": "High Delivery & CVD Volume Absorption",
+      "stop_loss_pct": 2.2,
+      "take_profit_pct": 5.28,
+      "min_net_rr": 1.50,
+      "allowed_pairs": ["BTC/INR", "ETH/INR", "SOL/INR", "MATIC/INR", "XRP/INR", "ADA/INR"]
+    },
+    "VCP": {
+      "name": "Minervini Volatility Contraction Pattern",
+      "stop_loss_pct": 2.0,
+      "take_profit_pct": 5.0,
+      "min_net_rr": 1.50,
+      "allowed_pairs": ["SOL/INR", "AVAX/INR", "LINK/INR", "ADA/INR", "MATIC/INR"]
+    },
+    "BBS": {
+      "name": "Bollinger Band Squeeze Breakout",
+      "stop_loss_pct": 2.5,
+      "take_profit_pct": 6.0,
+      "min_net_rr": 1.50,
+      "allowed_pairs": ["BTC/INR", "ETH/INR", "SOL/INR", "DOGE/INR", "TRX/INR", "SHIB/INR"]
+    }
+  },
   "subaccounts": {
     "STE": {
       "name": "SuperTrend ATR Range Expansion",
       "subaccount_id": "ALPHA_STE_01",
-      "api_key_env": "COINDCX_STE_API_KEY",
-      "secret_key_env": "COINDCX_STE_API_SECRET",
-      "allocated_wallet_inr": 35000.0,
-      "max_positions": 3,
-      "default_trade_amount_inr": 500.0,
+      "api_key_env": "COINDCX_API_KEY",
+      "secret_key_env": "COINDCX_API_SECRET",
+      "allocated_wallet_inr": 10000.0,
+      "max_positions": 10,
+      "default_trade_amount_inr": 200.0,
       "stop_loss_pct": 2.0,
       "take_profit_pct": 4.6,
       "min_net_rr": 1.50,
@@ -28,11 +64,11 @@
     "HDA": {
       "name": "High Delivery & CVD Volume Absorption",
       "subaccount_id": "ALPHA_HDA_01",
-      "api_key_env": "COINDCX_HDA_API_KEY",
-      "secret_key_env": "COINDCX_HDA_API_SECRET",
-      "allocated_wallet_inr": 30000.0,
-      "max_positions": 3,
-      "default_trade_amount_inr": 500.0,
+      "api_key_env": "COINDCX_API_KEY",
+      "secret_key_env": "COINDCX_API_SECRET",
+      "allocated_wallet_inr": 10000.0,
+      "max_positions": 10,
+      "default_trade_amount_inr": 200.0,
       "stop_loss_pct": 2.2,
       "take_profit_pct": 5.28,
       "min_net_rr": 1.50,
@@ -41,11 +77,11 @@
     "VCP": {
       "name": "Minervini Volatility Contraction Pattern",
       "subaccount_id": "ALPHA_VCP_01",
-      "api_key_env": "COINDCX_VCP_API_KEY",
-      "secret_key_env": "COINDCX_VCP_API_SECRET",
-      "allocated_wallet_inr": 15000.0,
-      "max_positions": 2,
-      "default_trade_amount_inr": 500.0,
+      "api_key_env": "COINDCX_API_KEY",
+      "secret_key_env": "COINDCX_API_SECRET",
+      "allocated_wallet_inr": 10000.0,
+      "max_positions": 10,
+      "default_trade_amount_inr": 200.0,
       "stop_loss_pct": 2.0,
       "take_profit_pct": 5.0,
       "min_net_rr": 1.50,
@@ -54,11 +90,11 @@
     "BBS": {
       "name": "Bollinger Band Squeeze Breakout",
       "subaccount_id": "ALPHA_BBS_01",
-      "api_key_env": "COINDCX_BBS_API_KEY",
-      "secret_key_env": "COINDCX_BBS_API_SECRET",
-      "allocated_wallet_inr": 20000.0,
-      "max_positions": 4,
-      "default_trade_amount_inr": 400.0,
+      "api_key_env": "COINDCX_API_KEY",
+      "secret_key_env": "COINDCX_API_SECRET",
+      "allocated_wallet_inr": 10000.0,
+      "max_positions": 10,
+      "default_trade_amount_inr": 200.0,
       "stop_loss_pct": 2.5,
       "take_profit_pct": 6.0,
       "min_net_rr": 1.50,

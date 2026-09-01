@@ -4,6 +4,27 @@ All notable changes to PROJECT-ALPHA will be documented in this file.
 
 ## [Unreleased]
 
+### [Trading Execution & Risk] Single Unified Capital Pool (₹10,000) & Single-Coin Asset Lock
+
+#### Overview
+Refactored the CoinDCX execution and risk management layer from segregated sub-account wallets to a **Single Unified Capital Pool (₹10,000 Shared Ceiling)** with standardized **₹200 Micro-Order Allocation**, fleet-wide single-coin asset locking, and master API key HMAC-SHA256 request signing.
+
+#### Added & Changed
+- **Unified Capital Pool & Sizing** (`Alpha/config.json`, `.env`, `v2/core/config.py`):
+  - Shared ₹10,000 capital pool across all strategy bots (`STE`, `HDA`, `VCP`, `BBS`).
+  - Standardized micro-order sizing: ₹200 base notional per trade.
+  - Fleet-wide capacity constraint: max 10 concurrent open positions.
+  - Master `COINDCX_API_KEY` and `COINDCX_API_SECRET` credential management.
+- **Unified Execution Manager** (`v2/trading/subaccount_manager.py`):
+  - Created `CoinDCXExecutionManager` and `CoinDCXExecutionClient` (with backwards-compatible aliases).
+  - Synchronized available balance tracking across all strategies drawing from the single pool.
+  - Enforced precision rounding (`round_price`, `round_qty`) and hard ₹100 minimum notional validation.
+- **Single-Coin Asset Lock & Fleet Concurrency Gate** (`v2/services/risk_service/capital_guard.py`, `v2/services/risk_service/service.py`, `v2/services/trading_service/service.py`):
+  - Prevents multi-setup clashes by rejecting new signals on any asset/coin that already has an active open position in any bot (`OPPORTUNITY_LOCKED_ACTIVE_PAIR`).
+  - Blocks incoming trade candidates when fleet-wide open positions reach maximum capacity (`BLOCKED_MAX_FLEET_POSITIONS`).
+- **Automated Verification Suite** (`tests/test_v2_unified_pool_execution.py`):
+  - 7 comprehensive tests covering unified sizing, precision rounding, min notional rejection, single-coin asset deduplication, fleet capacity caps, and simultaneous signal gating.
+
 ### [Market Data] Standalone CoinDCX Public REST Client & Ingestion Pipeline
 
 #### Overview

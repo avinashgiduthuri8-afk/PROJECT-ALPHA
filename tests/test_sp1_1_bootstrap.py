@@ -65,7 +65,7 @@ def _make_history(n: int) -> list[dict]:
 
 def _run(coro):
     """Run a coroutine synchronously (helper for non-async tests)."""
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 # =============================================================================

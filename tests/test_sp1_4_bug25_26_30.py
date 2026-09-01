@@ -35,7 +35,7 @@ import bots.scanner_bot.main as main_mod
 # =============================================================================
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 def _tmp_watchlist_store() -> tuple[WatchlistStore, Path]:

@@ -216,6 +216,26 @@ async def get_signal_by_id(signal_id: str) -> SignalSchema:
     )
 
 
+@router.post(
+    "/scanner/poll",
+    response_model=dict,
+    dependencies=[Depends(require_api_key)],
+    tags=["scanner"],
+)
+@router.post(
+    "/scanner/refresh",
+    response_model=dict,
+    dependencies=[Depends(require_api_key)],
+    tags=["scanner"],
+)
+async def trigger_scanner_poll() -> dict:
+    """Manually trigger an immediate market scanner polling cycle."""
+    if _scanner_service is None:
+        raise HTTPException(status_code=503, detail="Scanner service not ready.")
+    summary = await _scanner_service.poll()
+    return {"ok": True, "summary": summary}
+
+
 @router.get(
     "/scanner/health",
     response_model=ScannerHealthSchema,
@@ -230,6 +250,30 @@ async def scanner_health() -> ScannerHealthSchema:
             last_poll_at=None, last_error="not started",
         )
     return ScannerHealthSchema(**_scanner_service.get_health())
+
+
+@router.get(
+    "/dashboard/signals",
+    response_model=list[SignalSchema],
+    dependencies=[Depends(require_api_key)],
+    tags=["dashboard"],
+)
+async def get_dashboard_signals() -> list[SignalSchema]:
+    """Live scanner signals for the dashboard."""
+    if _scanner_service is None:
+        return []
+    signals = _scanner_service.get_live_signals()
+    return [
+        SignalSchema(
+            id=s.id, coin=s.coin, pair=s.pair,
+            market_state=s.market_state.value, opportunity_type=s.opportunity_type.value,
+            priority=s.priority.value, risk_level=s.risk_level.value,
+            score=s.score, confidence=s.confidence, coin_class=s.coin_class,
+            mtf_alignment=s.mtf_alignment, generated_at=s.generated_at,
+            expires_at=s.expires_at, source_bot=s.source_bot,
+        )
+        for s in signals
+    ]
 
 
 # ── AI Intelligence endpoints (Phase 4) ───────────────────────────────────────

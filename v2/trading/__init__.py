@@ -13,6 +13,8 @@ from .precision_rules import (
     validate_order_notional,
 )
 from .subaccount_manager import (
+    CoinDCXExecutionClient,
+    CoinDCXExecutionManager,
     CoinDCXSubAccountClient,
     CoinDCXSubAccountManager,
     SubAccountConfig,
@@ -25,7 +27,10 @@ __all__ = [
     "round_price",
     "round_qty",
     "validate_order_notional",
+    "CoinDCXExecutionClient",
+    "CoinDCXExecutionManager",
     "CoinDCXSubAccountClient",
     "CoinDCXSubAccountManager",
     "SubAccountConfig",
 ]
+

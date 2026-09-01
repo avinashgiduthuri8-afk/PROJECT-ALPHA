@@ -1,8 +1,8 @@
 {
-  "cash_balance": 99760.0,
-  "daily_pnl": 12.0,
-  "daily_pnl_date": "2026-08-31",
-  "last_updated": "2026-08-31T22:10:28.662061+00:00",
+  "cash_balance": 100640.0,
+  "daily_pnl": 48.0,
+  "daily_pnl_date": "2026-09-01",
+  "last_updated": "2026-09-01T05:09:31.304535+00:00",
   "total_invested": 2000.0,
-  "total_pnl": 96.0
+  "total_pnl": 144.0
 }
