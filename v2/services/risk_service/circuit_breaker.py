@@ -36,6 +36,10 @@ class CircuitBreaker:
         return self._is_open or self._emergency_stop
 
     @property
+    def is_tripped(self) -> bool:
+        return self.is_open
+
+    @property
     def emergency_stop(self) -> bool:
         return self._emergency_stop
 

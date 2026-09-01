@@ -62,6 +62,15 @@ class PositionRepository(BaseRepository):
         mode_val = position.mode.value if hasattr(position.mode, "value") else str(position.mode)
         status_val = position.status.value if hasattr(position.status, "value") else str(position.status)
 
+        sig_id = position.signal_id
+        if sig_id:
+            try:
+                row = await self._query_one("SELECT 1 FROM signals WHERE id = ?", (sig_id,))
+                if not row:
+                    sig_id = None
+            except Exception:
+                sig_id = None
+
         await self._execute(
             """
             INSERT INTO positions
@@ -83,7 +92,7 @@ class PositionRepository(BaseRepository):
                 position.stop_loss,
                 position.take_profit,
                 mode_val,
-                position.signal_id,
+                sig_id,
                 status_val,
             ),
         )

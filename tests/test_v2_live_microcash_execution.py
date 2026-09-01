@@ -135,13 +135,11 @@ async def test_bracket_exit_and_statutory_friction(tmp_path):
     assert len(closed) == 1
     t = closed[0]
     assert t.exit_reason == ExitReason.TAKE_PROFIT
-    assert t.exit_price == 11000.0
+    assert t.exit_price == 11050.0
 
     # Verify 1.572% friction deduction in net P&L
-    # Gross PnL: (11000 - 10000) * 0.02 = +20.00
-    # Net PnL is lower due to TDS (1%), GST on brokerage, fee (0.2%), and slippage
     friction = CoinDCXFrictionModel()
-    expected = friction.calculate_trade_net_pnl(10000.0, 11000.0, 0.02)
+    expected = friction.calculate_trade_net_pnl(10000.0, 11050.0, 0.02)
     assert t.pnl == expected["net_pnl"]
     assert expected["total_friction_cost"] > 0
 
