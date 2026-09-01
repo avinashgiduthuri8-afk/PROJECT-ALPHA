@@ -257,7 +257,9 @@ async def lifespan(app: FastAPI):
         metrics_collector    = _metrics_collector,
     )
 
-    logger.info("V2 startup complete")
+    # Trigger initial warm-up scanner poll in background
+    asyncio.create_task(_scanner_service.poll())
+    logger.info("V2 startup complete — background scanner warm-up triggered")
 
     yield  # ── application is running ──────────────────────────────────────
 

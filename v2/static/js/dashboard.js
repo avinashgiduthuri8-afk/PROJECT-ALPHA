@@ -5,10 +5,9 @@
 
 class V2DashboardClient {
   constructor() {
-    this.apiKey = localStorage.getItem("v2_api_key") || "alpha-dev-key";
-    if (!localStorage.getItem("v2_api_key")) {
-      localStorage.setItem("v2_api_key", "alpha-dev-key");
-    }
+    const urlParams = new URLSearchParams(window.location.search);
+    this.apiKey = urlParams.get("api_key") || localStorage.getItem("v2_api_key") || "alpha-dev-key";
+    localStorage.setItem("v2_api_key", this.apiKey);
     this.ws = null;
     this.reconnectAttempts = 0;
     this.maxReconnectDelay = 10000;
@@ -204,6 +203,13 @@ class V2DashboardClient {
     const { type, data } = frame;
     this.appendEventRow(type, data);
 
+    if (type === "TELEMETRY_SNAPSHOT" && data) {
+      if (data.fleet_telemetry && Array.isArray(data.fleet_telemetry)) {
+        this.renderBotPanel(data.fleet_telemetry);
+      }
+      return;
+    }
+
     if (type === "signal.ai_confirmed" || type === "signal.ai_rejected") {
       this.appendAiCard(data, type === "signal.ai_confirmed");
       const emoji = data.recommendation === "APPROVE" ? "🟢" : data.recommendation === "SCALE_DOWN" ? "🟡" : "🔴";
@@ -212,7 +218,7 @@ class V2DashboardClient {
       this.patchBotCard(data.bot, "AI_EVALUATING", `AI ${type === "signal.ai_confirmed" ? "✓" : "✗"} ${data.coin || ""}`);
     } else if (type === "signal.generated") {
       this.patchStageStatus("signal_engine", "ACTIVE", `${data.coin || "COIN"} (${data.score || 0} pts)`);
-      this.patchBotCard(data.bot, "SCANNING", `Signal: ${data.coin || ""}`);
+      this.patchBotCard(data.bot, "SCANNING", `Signal: ${data.coin || ""}`, true);
     } else if (type === "trade.approved") {
       this.patchStageStatus("risk_engine", "ACTIVE", `Approved ${data.coin || ""}`);
       this.patchStageStatus("trade_constructor", "ACTIVE", `Sized ${data.coin || ""}`);
@@ -543,75 +549,89 @@ class V2DashboardClient {
     this.botsCache = bots;
 
     this.elBotGrid.innerHTML = bots.map(bot => {
-      const capitalPct = bot.capital_limit > 0
-        ? Math.min(100, (bot.capital_deployed / bot.capital_limit) * 100).toFixed(1)
+      const botName = bot.bot || bot.bot_name || bot.name || "BOT";
+      const strategy = bot.strategy || botName;
+      const stageLabel = bot.current_stage_label || bot.stage_label || bot.stage || "Scanner";
+      const stageStatus = bot.stage_status || bot.status || "IDLE";
+      const signals = bot.signals_generated ?? bot.signals ?? bot.signals_count ?? 0;
+      const openPositions = bot.open_positions ?? bot.open_pos ?? 0;
+      const winRate = bot.win_rate_pct != null ? bot.win_rate_pct : (parseFloat(bot.win_rate) || 0);
+      const dailyPnl = typeof bot.daily_pnl === "number" ? bot.daily_pnl : (parseFloat(bot.day_pnl) || 0);
+      const capDeployed = Number(bot.capital_deployed || 0);
+      const capLimit = Number(bot.capital_limit || 10000);
+      const capitalPct = capLimit > 0
+        ? Math.min(100, (capDeployed / capLimit) * 100).toFixed(1)
         : 0;
-      const statusCss = this._stageStatusCssClass(bot.stage_status);
-      const pnlSign = bot.daily_pnl >= 0 ? "+" : "";
-      const pnlClass = bot.daily_pnl >= 0 ? "positive" : "negative";
+      const statusCss = this._stageStatusCssClass(stageStatus);
+      const pnlSign = dailyPnl >= 0 ? "+" : "";
+      const pnlClass = dailyPnl >= 0 ? "positive" : "negative";
+      const lastAction = bot.last_action || bot.status_text || "Awaiting signals...";
 
       return `
-        <div class="bot-card" style="--bot-color: ${this.esc(bot.color)}"
-             onclick="window.v2Dashboard.openBotModal('${this.esc(bot.bot)}')">
+        <div class="bot-card" style="--bot-color: ${this.esc(bot.color || '#94a3b8')}"
+             onclick="window.v2Dashboard.openBotModal('${this.esc(botName)}')">
           <div class="bot-card-header">
             <div class="bot-card-identity">
               <span class="bot-card-icon">${bot.icon || "🤖"}</span>
               <div>
-                <div class="bot-card-name">${this.esc(bot.bot)}</div>
-                <div class="bot-card-strategy">${this.esc(bot.strategy)}</div>
+                <div class="bot-card-name">${this.esc(botName)}</div>
+                <div class="bot-card-strategy">${this.esc(strategy)}</div>
               </div>
             </div>
             <div class="bot-stage-badge">
               <span class="bot-stage-label">STAGE</span>
-              <span class="bot-stage-pill">${this.esc(bot.current_stage_label)}</span>
-              <span class="bot-stage-status ${statusCss}">${this.esc(bot.stage_status)}</span>
+              <span class="bot-stage-pill">${this.esc(stageLabel)}</span>
+              <span class="bot-stage-status ${statusCss}">${this.esc(stageStatus)}</span>
             </div>
           </div>
 
           <div class="bot-metrics-row">
             <div class="bot-metric-item">
               <div class="bot-metric-label">Signals</div>
-              <div class="bot-metric-value">${bot.signals_generated}</div>
+              <div class="bot-metric-value">${signals}</div>
             </div>
             <div class="bot-metric-item">
               <div class="bot-metric-label">Open Pos</div>
-              <div class="bot-metric-value">${bot.open_positions}</div>
+              <div class="bot-metric-value">${openPositions}</div>
             </div>
             <div class="bot-metric-item">
               <div class="bot-metric-label">Win Rate</div>
-              <div class="bot-metric-value">${bot.win_rate_pct}%</div>
+              <div class="bot-metric-value">${winRate}%</div>
             </div>
             <div class="bot-metric-item">
               <div class="bot-metric-label">Day PnL</div>
-              <div class="bot-metric-value ${pnlClass}">${pnlSign}₹${Number(bot.daily_pnl).toFixed(2)}</div>
+              <div class="bot-metric-value ${pnlClass}">${pnlSign}₹${Number(dailyPnl).toFixed(2)}</div>
             </div>
           </div>
 
           <div class="bot-capital-bar-wrap">
             <div class="bot-capital-label">
               <span>Capital Deployed</span>
-              <span>₹${Number(bot.capital_deployed).toFixed(0)} / ₹${Number(bot.capital_limit).toFixed(0)}</span>
+              <span>₹${Number(capDeployed).toFixed(0)} / ₹${Number(capLimit).toFixed(0)}</span>
             </div>
             <div class="bot-capital-bar">
               <div class="bot-capital-fill" style="width: ${capitalPct}%;"></div>
             </div>
           </div>
 
-          ${bot.last_action ? `<div class="bot-last-action" title="${this.esc(bot.last_action)}">▶ ${this.esc(bot.last_action)}</div>` : ""}
+          ${lastAction ? `<div class="bot-last-action" title="${this.esc(lastAction)}">▶ ${this.esc(lastAction)}</div>` : ""}
         </div>
       `;
     }).join("");
   }
 
-  patchBotCard(botName, newStatus, lastAction) {
+  patchBotCard(botName, newStatus, lastAction, incrementSignal = false) {
     if (!botName) return;
     const bn = String(botName).toUpperCase();
 
     // Update cache
-    const cached = this.botsCache.find(b => b.bot === bn);
+    const cached = this.botsCache.find(b => (b.bot || b.bot_name || b.name) === bn);
     if (cached) {
       cached.stage_status = newStatus;
       cached.last_action = lastAction;
+      if (incrementSignal) {
+        cached.signals_generated = (cached.signals_generated || 0) + 1;
+      }
     }
 
     // Update DOM
@@ -625,6 +645,14 @@ class V2DashboardClient {
     if (badge) {
       badge.className = `bot-stage-status ${this._stageStatusCssClass(newStatus)}`;
       badge.textContent = newStatus;
+    }
+
+    if (incrementSignal) {
+      const sigVal = card.querySelector(".bot-metric-item .bot-metric-value");
+      if (sigVal) {
+        const cur = parseInt(sigVal.textContent) || 0;
+        sigVal.textContent = String(cur + 1);
+      }
     }
 
     const lastActionEl = card.querySelector(".bot-last-action");

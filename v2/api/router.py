@@ -570,6 +570,17 @@ async def get_positions(
 
 
 @router.get(
+    "/positions/open",
+    response_model=list[PositionSchema],
+    dependencies=[Depends(require_api_key)],
+    tags=["trading"],
+)
+async def get_open_positions_alias() -> list[PositionSchema]:
+    """Convenience alias for /trading/positions?status=OPEN."""
+    return await get_positions(status="OPEN")
+
+
+@router.get(
     "/trading/trades",
     response_model=list[TradeSchema],
     dependencies=[Depends(require_api_key)],
