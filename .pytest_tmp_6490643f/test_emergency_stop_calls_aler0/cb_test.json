@@ -1,0 +1,18 @@
+{
+  "trading_state": "EMERGENCY_STOP",
+  "peak_equity": 100000,
+  "current_equity": 75000.0,
+  "daily_pnl": -25000.0,
+  "weekly_pnl": -25000.0,
+  "monthly_pnl": -25000.0,
+  "daily_reset_time": "2026-09-01T00:00:00+00:00",
+  "weekly_reset_time": "2026-08-31T00:00:00+00:00",
+  "monthly_reset_time": "2026-09-01T00:00:00+00:00",
+  "last_update": "2026-09-01T05:53:33.274606+00:00",
+  "daily_limit_triggered_at": null,
+  "weekly_limit_triggered_at": null,
+  "monthly_limit_triggered_at": null,
+  "emergency_stop_triggered_at": "2026-09-01T05:53:33.273717+00:00",
+  "total_trades_blocked": 0,
+  "circuit_breaks_count": 1
+}

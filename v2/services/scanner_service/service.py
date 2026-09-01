@@ -106,6 +106,8 @@ class ScannerService:
 
         # In-memory live signal cache  {signal_id: Signal}
         self._live: dict[str, Signal] = {}
+        # In-memory latest scan evaluated coins snapshot {symbol_or_pair: dict}
+        self._latest_evaluated_coins: dict[str, dict] = {}
         # Dedup set — {coin::generated_at} for signals already seen this session
         self._seen_keys: set[str] = set()
 
@@ -467,6 +469,77 @@ class ScannerService:
                 signals=candidates,
             )
 
+            # 8. Retain latest-scan evaluation snapshot in memory (atomic replacement)
+            new_eval_snapshot: dict[str, dict] = {}
+            for res in eval_results:
+                coin_sym = res.signal.coin.upper()
+                cand_raw = cand_by_coin.get(coin_sym, {})
+                
+                # Determine EMA trend
+                if coin_sym == "BTC":
+                    ema_trend = self._market_context_service.get_current_sentiment().get("btc_trend", "SIDEWAYS")
+                elif coin_sym == "ETH":
+                    ema_trend = self._market_context_service.get_current_sentiment().get("eth_trend", "SIDEWAYS")
+                else:
+                    ema_trend = "BULLISH" if res.signal.mtf_alignment else "SIDEWAYS"
+
+                raw_payload = res.signal.raw_payload or {}
+                price_val = float(cand_raw.get("price") or raw_payload.get("price") or raw_payload.get("close") or 0.0)
+                vol_24h = float(cand_raw.get("volume_24h") or cand_raw.get("volume") or raw_payload.get("volume_24h") or 0.0)
+                vol_ratio = float(cand_raw.get("volume_spike_ratio") or cand_raw.get("volume_ratio") or raw_payload.get("volume_spike_ratio") or 1.0)
+                rsi_val = float(cand_raw.get("rsi") or raw_payload.get("rsi_14") or raw_payload.get("rsi") or 50.0)
+
+                eval_item = {
+                    "symbol": coin_sym,
+                    "coin": coin_sym,
+                    "pair": res.signal.pair,
+                    "price": price_val,
+                    "volume_24h": vol_24h,
+                    "volume_ratio": vol_ratio,
+                    "ema_trend": ema_trend,
+                    "rsi": rsi_val,
+                    "mtf_alignment": "15m_1h" if res.signal.mtf_alignment else "none",
+                    "is_mtf_aligned": bool(res.signal.mtf_alignment),
+                    "confluence_score": res.confluence_score,
+                    "status": "PASSED" if res.accepted else "REJECTED",
+                    "accepted": res.accepted,
+                    "eval_breakdown": {
+                        "chart": {
+                            "score": res.layer_evaluations["chart"].score,
+                            "passed": res.layer_evaluations["chart"].passed,
+                            "details": res.layer_evaluations["chart"].details,
+                            "reasons": res.layer_evaluations["chart"].reasons,
+                        } if "chart" in res.layer_evaluations else {},
+                        "indicator": {
+                            "score": res.layer_evaluations["indicator"].score,
+                            "passed": res.layer_evaluations["indicator"].passed,
+                            "details": res.layer_evaluations["indicator"].details,
+                            "reasons": res.layer_evaluations["indicator"].reasons,
+                        } if "indicator" in res.layer_evaluations else {},
+                        "sentiment": {
+                            "score": res.layer_evaluations["sentiment"].score,
+                            "passed": res.layer_evaluations["sentiment"].passed,
+                            "details": res.layer_evaluations["sentiment"].details,
+                            "reasons": res.layer_evaluations["sentiment"].reasons,
+                        } if "sentiment" in res.layer_evaluations else {},
+                        "news": {
+                            "score": res.layer_evaluations["news"].score,
+                            "passed": res.layer_evaluations["news"].passed,
+                            "details": res.layer_evaluations["news"].details,
+                            "reasons": res.layer_evaluations["news"].reasons,
+                        } if "news" in res.layer_evaluations else {},
+                    },
+                    "rejection_reasons": res.rejection_reasons,
+                    "rejection_reason": "; ".join(res.rejection_reasons) if res.rejection_reasons else None,
+                    "evaluated_at": datetime.now(timezone.utc).isoformat(),
+                }
+                new_eval_snapshot[coin_sym] = eval_item
+                new_eval_snapshot[res.signal.pair.upper()] = eval_item
+                clean_pair = res.signal.pair.replace("/", "").replace("_", "").replace("-", "").upper()
+                new_eval_snapshot[clean_pair] = eval_item
+
+            self._latest_evaluated_coins = new_eval_snapshot
+
             # 4. Deduplicate against seen set
             new_signals, new_keys = deduplicate(high_conviction_signals, self._seen_keys)
             self._seen_keys.update(new_keys)
@@ -493,7 +566,7 @@ class ScannerService:
             self._last_error = None
             logger.info(
                 "Scanner poll complete",
-                extra={**summary, "live_count": len(self._live)},
+                extra={**summary, "live_count": len(self._live), "evaluated_count": len(eval_results)},
             )
 
         except Exception as exc:
@@ -522,13 +595,60 @@ class ScannerService:
         """Return current live signals sorted by score desc."""
         return sorted(self._live.values(), key=lambda s: s.score, reverse=True)
 
+    def get_scanned_coins(
+        self,
+        min_score: Optional[int] = None,
+        limit: int = 50,
+        sort_by: str = "confluence_score",
+    ) -> list[dict]:
+        """Return unique evaluated coins from the latest scan pass."""
+        unique_coins: dict[str, dict] = {}
+        for k, item in self._latest_evaluated_coins.items():
+            pair = item.get("pair") or item.get("symbol")
+            if pair not in unique_coins:
+                unique_coins[pair] = item
+
+        items = list(unique_coins.values())
+        if min_score is not None:
+            items = [c for c in items if c.get("confluence_score", 0) >= min_score]
+
+        if sort_by == "confluence_score":
+            items.sort(key=lambda c: c.get("confluence_score", 0), reverse=True)
+        elif sort_by == "price":
+            items.sort(key=lambda c: c.get("price", 0.0), reverse=True)
+        elif sort_by == "symbol":
+            items.sort(key=lambda c: c.get("symbol", ""))
+
+        return items[:limit]
+
+    def get_scanned_coin_detail(self, symbol: str) -> Optional[dict]:
+        """Return detail for a specific scanned coin (case-insensitive, handles BTC, BTCINR, BTC/INR)."""
+        if not symbol:
+            return None
+        sym_clean = symbol.strip().upper()
+        # Direct lookup
+        if sym_clean in self._latest_evaluated_coins:
+            return self._latest_evaluated_coins[sym_clean]
+
+        # Clean alphanumeric lookup
+        sym_alpha = sym_clean.replace("/", "").replace("_", "").replace("-", "")
+        if sym_alpha in self._latest_evaluated_coins:
+            return self._latest_evaluated_coins[sym_alpha]
+
+        # Suffix / symbol matching
+        for k, v in self._latest_evaluated_coins.items():
+            if k.upper() == sym_clean or v.get("symbol", "").upper() == sym_clean:
+                return v
+        return None
+
     def get_health(self) -> dict:
         return {
-            "poll_count":    self._poll_count,
-            "last_poll_at":  self._last_poll_at.isoformat() if self._last_poll_at else None,
-            "live_signals":  len(self._live),
-            "last_error":    self._last_error,
-            "healthy":       self._last_error is None and self._poll_count > 0,
+            "poll_count":         self._poll_count,
+            "last_poll_at":       self._last_poll_at.isoformat() if self._last_poll_at else None,
+            "live_signals":       len(self._live),
+            "evaluated_coins":    len(self.get_scanned_coins()),
+            "last_error":         self._last_error,
+            "healthy":            self._last_error is None and self._poll_count > 0,
         }
 
     # ── Internal helpers ──────────────────────────────────────────────────────

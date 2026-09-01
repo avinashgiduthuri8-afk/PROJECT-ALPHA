@@ -44,6 +44,9 @@ class V2DashboardClient {
     // Section elements
     this.elAiFeed = document.getElementById("ai-feed");
     this.elPositionsTbody = document.getElementById("positions-tbody");
+    this.elScannedCoinsTbody = document.getElementById("scanned-coins-tbody");
+    this.elWatchlistBadge = document.getElementById("watchlist-count-badge");
+    this.scannedCoinsCache = [];
     this.elEventStream = document.getElementById("event-stream");
     this.elHealthMatrix = document.getElementById("health-matrix");
     this.elToastContainer = document.getElementById("toast-container");
@@ -180,7 +183,14 @@ class V2DashboardClient {
         this.renderPositions(pData);
       }
 
-      // 4. Fetch recent AI analyses if feed is empty
+      // 4. Fetch evaluated scanned coins
+      const coinsRes = await fetch("/api/v2/scanner/coins", { headers });
+      if (coinsRes.ok) {
+        const coins = await coinsRes.json();
+        this.renderScannedCoins(coins);
+      }
+
+      // 5. Fetch recent AI analyses if feed is empty
       const aiRes = await fetch("/api/v2/ai/analyses?limit=10", { headers });
       if (aiRes.ok) {
         const analyses = await aiRes.json();
@@ -206,6 +216,9 @@ class V2DashboardClient {
     if (type === "TELEMETRY_SNAPSHOT" && data) {
       if (data.fleet_telemetry && Array.isArray(data.fleet_telemetry)) {
         this.renderBotPanel(data.fleet_telemetry);
+      }
+      if (data.watchlist_summary && Array.isArray(data.watchlist_summary.top_candidates)) {
+        this.renderScannedCoins(data.watchlist_summary.top_candidates);
       }
       return;
     }
@@ -754,6 +767,154 @@ class V2DashboardClient {
         : "No recent action.";
 
     document.getElementById("bot-modal").style.display = "flex";
+  }
+
+  async pollScanner() {
+    const headers = {};
+    if (this.apiKey) headers["X-API-Key"] = this.apiKey;
+    this.showToast("Scanner Poll Triggered", "Executing market scanner cycle...");
+    try {
+      const res = await fetch("/api/v2/scanner/poll", { method: "POST", headers });
+      if (res.ok) {
+        this.showToast("Scanner Complete", "Refreshing evaluation snapshot...");
+        setTimeout(() => this.fetchInitialState(), 800);
+      }
+    } catch (e) {
+      console.warn("Poll error:", e);
+    }
+  }
+
+  renderScannedCoins(coins) {
+    if (!this.elScannedCoinsTbody) return;
+    if (!coins || !Array.isArray(coins) || coins.length === 0) {
+      this.elScannedCoinsTbody.innerHTML = `
+        <tr>
+          <td colspan="9" style="text-align: center; color: var(--text-dim); padding: 1.5rem;">
+            No coin evaluations in latest scan snapshot.
+          </td>
+        </tr>
+      `;
+      if (this.elWatchlistBadge) this.elWatchlistBadge.textContent = "0 EVALUATED";
+      return;
+    }
+
+    this.scannedCoinsCache = coins;
+    if (this.elWatchlistBadge) {
+      const passed = coins.filter(c => c.status === "PASSED" || c.accepted === true).length;
+      this.elWatchlistBadge.textContent = `${coins.length} EVALUATED (${passed} PASSED)`;
+    }
+
+    this.elScannedCoinsTbody.innerHTML = coins.map(coin => {
+      const isPassed = coin.status === "PASSED" || coin.accepted === true;
+      const statusBadgeCls = isPassed ? "positive" : "negative";
+      const statusText = isPassed ? "PASSED (>= 85)" : "FILTERED";
+      const trendColor = coin.ema_trend === "BULLISH" ? "var(--green)" : coin.ema_trend === "BEARISH" ? "var(--red)" : "var(--text-muted)";
+      const mtfBadge = coin.is_mtf_aligned || coin.mtf_alignment === "15m_1h" ? "🟢 15m ✓ / 1h ✓" : "🟡 Not Aligned";
+      const scoreColor = coin.confluence_score >= 85 ? "var(--green)" : coin.confluence_score >= 70 ? "var(--amber)" : "var(--text-dim)";
+      const rejection = coin.rejection_reason || (isPassed ? "None (Approved)" : "Score < 85 or Gate Veto");
+
+      return `
+        <tr style="cursor: pointer;" onclick="window.v2Dashboard.openCoinModal('${this.esc(coin.symbol)}')">
+          <td style="font-weight: 700; font-family: var(--font-mono); color: var(--cyan);">
+            ${this.esc(coin.pair || coin.symbol)}
+          </td>
+          <td>₹${Number(coin.price || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</td>
+          <td style="color: ${trendColor}; font-weight: 600;">${this.esc(coin.ema_trend || "SIDEWAYS")}</td>
+          <td>${Number(coin.rsi || 50).toFixed(1)}</td>
+          <td style="font-size: 0.8rem;">${mtfBadge}</td>
+          <td style="font-weight: 700; color: ${scoreColor};">${coin.confluence_score}/100</td>
+          <td>
+            <span class="bot-stage-status ${statusBadgeCls}" style="font-size: 0.7rem; padding: 0.15rem 0.5rem;">
+              ${statusText}
+            </span>
+          </td>
+          <td style="font-size: 0.75rem; color: var(--text-muted); max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${this.esc(rejection)}">
+            ${this.esc(rejection)}
+          </td>
+          <td>
+            <button class="btn btn-secondary" style="font-size: 0.7rem; padding: 0.15rem 0.5rem;" onclick="event.stopPropagation(); window.v2Dashboard.openCoinModal('${this.esc(coin.symbol)}')">
+              Inspect
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join("");
+  }
+
+  async openCoinModal(symbol) {
+    const modal = document.getElementById("coin-modal");
+    if (!modal || !symbol) return;
+
+    const headers = {};
+    if (this.apiKey) headers["X-API-Key"] = this.apiKey;
+
+    try {
+      const res = await fetch(`/api/v2/scanner/coins/${encodeURIComponent(symbol)}`, { headers });
+      if (res.ok) {
+        const coin = await res.json();
+        this._renderCoinModal(coin);
+      } else {
+        const cached = this.scannedCoinsCache.find(c => c.symbol === symbol || c.coin === symbol || c.pair === symbol);
+        if (cached) this._renderCoinModal(cached);
+      }
+    } catch (err) {
+      const cached = this.scannedCoinsCache.find(c => c.symbol === symbol || c.coin === symbol || c.pair === symbol);
+      if (cached) this._renderCoinModal(cached);
+    }
+  }
+
+  _renderCoinModal(coin) {
+    const modal = document.getElementById("coin-modal");
+    if (!modal) return;
+
+    document.getElementById("coin-modal-title").textContent = `${coin.pair || coin.symbol} Inspection`;
+    document.getElementById("coin-modal-subtitle").textContent = `EVALUATED AT: ${coin.evaluated_at || new Date().toISOString()}`;
+    document.getElementById("coin-modal-price").textContent = `₹${Number(coin.price || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+    document.getElementById("coin-modal-score").textContent = `${coin.confluence_score} / 100`;
+    
+    const statusEl = document.getElementById("coin-modal-status");
+    const isPassed = coin.status === "PASSED" || coin.accepted === true;
+    statusEl.textContent = isPassed ? "PASSED (CONFLUENCE ✓)" : "REJECTED (GATE VETO)";
+    statusEl.style.color = isPassed ? "var(--green)" : "var(--amber)";
+
+    document.getElementById("coin-modal-rsi").textContent = Number(coin.rsi || 50).toFixed(1);
+
+    // Render 4 Layers
+    const layersEl = document.getElementById("coin-modal-layers");
+    const breakdown = coin.eval_breakdown || {};
+    const layers = [
+      { name: "Layer 1: Chart Structure", key: "chart", weight: "30%" },
+      { name: "Layer 2: Technical Indicators", key: "indicator", weight: "35%" },
+      { name: "Layer 3: Market Sentiment", key: "sentiment", weight: "20%" },
+      { name: "Layer 4: News & Events", key: "news", weight: "15%" },
+    ];
+
+    layersEl.innerHTML = layers.map(l => {
+      const data = breakdown[l.key] || {};
+      const score = data.score ?? "—";
+      const passed = data.passed ? "🟢 PASS" : "🔴 VETO";
+      return `
+        <div class="metric-chip" style="display: flex; flex-direction: column; gap: 0.25rem;">
+          <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700;">${l.name} (${l.weight})</div>
+          <div style="font-size: 1.1rem; font-weight: 700; color: var(--cyan);">${score} / 100</div>
+          <div style="font-size: 0.75rem; font-weight: 600;">${passed}</div>
+        </div>
+      `;
+    }).join("");
+
+    // Rejection reasons
+    const reasonsEl = document.getElementById("coin-modal-reasons");
+    const reasons = coin.rejection_reasons || (coin.rejection_reason ? [coin.rejection_reason] : []);
+    if (reasons.length > 0) {
+      reasonsEl.innerHTML = `<ul style="margin: 0; padding-left: 1.25rem;">${reasons.map(r => `<li style="color: var(--amber);">${this.esc(r)}</li>`).join("")}</ul>`;
+    } else {
+      reasonsEl.innerHTML = `<div style="color: var(--green);">✓ No gate vetoes. Signal qualified for high-conviction pool.</div>`;
+    }
+
+    // Raw payload
+    document.getElementById("coin-modal-raw").textContent = JSON.stringify(coin, null, 2);
+
+    modal.style.display = "flex";
   }
 }
 

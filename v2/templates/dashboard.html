@@ -212,6 +212,43 @@
 
   </main>
 
+  <!-- ── Scanned Market Watchlist & Funnel Inspector ──────────────────────── -->
+  <section class="section-card" style="margin-bottom: 1.5rem;">
+    <div class="card-header">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <h2>📡 Scanned Market Watchlist & Funnel Inspector</h2>
+        <span id="watchlist-count-badge" class="card-badge" style="background: var(--surface-2); color: var(--cyan); border: 1px solid var(--border);">0 EVALUATED</span>
+      </div>
+      <button class="btn btn-secondary" onclick="window.v2Dashboard.pollScanner()" style="font-size: 0.75rem; padding: 0.25rem 0.75rem;">
+        ⚡ Force Scan Pass
+      </button>
+    </div>
+    <div style="overflow-x: auto;">
+      <table class="custom-table">
+        <thead>
+          <tr>
+            <th>Symbol / Pair</th>
+            <th>Live Price</th>
+            <th>EMA Trend</th>
+            <th>RSI (14)</th>
+            <th>MTF Alignment</th>
+            <th>C2 Score</th>
+            <th>Gate Status</th>
+            <th>Rejection Reason / Veto</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="scanned-coins-tbody">
+          <tr>
+            <td colspan="9" style="text-align: center; color: var(--text-dim); padding: 1.5rem;">
+              Awaiting latest scanner evaluation snapshot...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
   <!-- ── Subsystems Diagnostic Matrix ──────────────────────────────────────── -->
   <section class="section-card" style="margin-bottom: 1.5rem;">
     <div class="card-header">
@@ -318,6 +355,60 @@
         <div style="margin-top: 1.25rem;">
           <h3 style="font-size: 0.85rem; text-transform: uppercase; color: var(--purple); letter-spacing: 0.05em; margin-bottom: 0.5rem;">Last Action</h3>
           <pre id="bot-modal-last-action" class="contract-code" style="max-height: 100px;"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Coin Inspector Modal ──────────────────────────────────────────────── -->
+  <div id="coin-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-card" style="max-width: 840px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <span id="coin-modal-icon" style="font-size: 1.6rem;">🪙</span>
+          <div>
+            <h2 id="coin-modal-title" style="font-size: 1.25rem;">BTC/INR Inspection</h2>
+            <span id="coin-modal-subtitle" style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">C2 CONFLUENCE EVALUATION</span>
+          </div>
+        </div>
+        <button id="coin-modal-close-btn" class="modal-close" onclick="document.getElementById('coin-modal').style.display='none'">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Coin Top KPI Bar -->
+        <div class="divergence-stat-row" style="margin-bottom: 1.25rem;">
+          <div class="divergence-mini-stat">
+            <div id="coin-modal-price" class="val" style="color: var(--cyan);">₹0.00</div>
+            <div class="lbl">Live Price</div>
+          </div>
+          <div class="divergence-mini-stat">
+            <div id="coin-modal-score" class="val" style="color: var(--green);">0 / 100</div>
+            <div class="lbl">Confluence Score</div>
+          </div>
+          <div class="divergence-mini-stat">
+            <div id="coin-modal-status" class="val" style="color: var(--amber);">REJECTED</div>
+            <div class="lbl">C2 Gate Status</div>
+          </div>
+          <div class="divergence-mini-stat">
+            <div id="coin-modal-rsi" class="val" style="color: var(--purple);">50.0</div>
+            <div class="lbl">RSI (14)</div>
+          </div>
+        </div>
+
+        <!-- 4-Layer C2 Funnel Grid -->
+        <h3 style="font-size: 0.85rem; text-transform: uppercase; color: var(--cyan); letter-spacing: 0.05em; margin-bottom: 0.75rem;">C2 4-Layer Funnel Scores</h3>
+        <div id="coin-modal-layers" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; margin-bottom: 1.25rem;"></div>
+
+        <!-- Rejection Reasons / Filter Hurdles -->
+        <div class="contract-card" style="margin-bottom: 1.25rem;">
+          <h4 style="color: var(--amber); font-size: 0.8rem; margin-bottom: 0.5rem;">⚠️ GATE VETO / REJECTION REASONS</h4>
+          <div id="coin-modal-reasons" style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;"></div>
+        </div>
+
+        <!-- Raw Diagnostic Breakdown -->
+        <div class="contract-card">
+          <h4 style="color: var(--cyan); font-size: 0.8rem; margin-bottom: 0.5rem;">🔬 EVALUATION PAYLOAD</h4>
+          <pre id="coin-modal-raw" class="contract-code" style="max-height: 180px;"></pre>
         </div>
       </div>
     </div>

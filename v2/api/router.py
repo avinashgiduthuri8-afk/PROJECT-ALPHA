@@ -34,6 +34,7 @@ from .schemas import (
     PipelineStageSchema, PipelineStageDetailSchema,
     BotStatusSchema, BotDetailSchema,
     AnalyticsWinRatesSchema, AnalyticsCoinsSchema, AnalyticsFunnelSchema,
+    ScannedCoinSchema, ScannedCoinDetailSchema,
 )
 
 router = APIRouter()
@@ -234,6 +235,40 @@ async def trigger_scanner_poll() -> dict:
         raise HTTPException(status_code=503, detail="Scanner service not ready.")
     summary = await _scanner_service.poll()
     return {"ok": True, "summary": summary}
+
+
+@router.get(
+    "/scanner/coins",
+    response_model=list[ScannedCoinSchema],
+    dependencies=[Depends(require_api_key)],
+    tags=["scanner"],
+)
+async def get_scanned_coins(
+    min_score: Optional[int] = Query(default=None, ge=0, le=100, description="Filter by minimum confluence score"),
+    limit: int = Query(default=50, ge=1, le=200, description="Max coins to return"),
+    sort_by: str = Query(default="confluence_score", description="Sort field: confluence_score | price | symbol"),
+) -> list[ScannedCoinSchema]:
+    """Return evaluated candidate coins from the latest scan pass."""
+    if _scanner_service is None:
+        raise HTTPException(status_code=503, detail="Scanner service not ready.")
+    items = _scanner_service.get_scanned_coins(min_score=min_score, limit=limit, sort_by=sort_by)
+    return [ScannedCoinSchema(**item) for item in items]
+
+
+@router.get(
+    "/scanner/coins/{symbol}",
+    response_model=ScannedCoinDetailSchema,
+    dependencies=[Depends(require_api_key)],
+    tags=["scanner"],
+)
+async def get_scanned_coin_detail(symbol: str) -> ScannedCoinDetailSchema:
+    """Return comprehensive technical, MTF, and C2 4-layer evaluation breakdown for a coin."""
+    if _scanner_service is None:
+        raise HTTPException(status_code=503, detail="Scanner service not ready.")
+    detail = _scanner_service.get_scanned_coin_detail(symbol)
+    if detail is None:
+        raise HTTPException(status_code=404, detail=f"Coin '{symbol}' was not found in the latest scan snapshot.")
+    return ScannedCoinDetailSchema(**detail)
 
 
 @router.get(

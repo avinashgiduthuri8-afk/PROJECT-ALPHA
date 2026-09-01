@@ -325,6 +325,9 @@ class DashboardOverviewSchema(BaseModel):
     subsystems:         dict[str, Any] = Field(default_factory=dict)
     pipeline_stages:    Optional[list[dict[str, Any]]] = None
     bots:               Optional[list[dict[str, Any]]] = None
+    scanned_coins:      Optional[list[dict[str, Any]]] = Field(default_factory=list)
+    watchlist_summary:  Optional[dict[str, Any]] = Field(default_factory=dict)
+    telemetry:          Optional[dict[str, Any]] = None
 
 
 class MonitoringMetricsSchema(BaseModel):
@@ -370,3 +373,43 @@ class AnalyticsFunnelSchema(BaseModel):
     layers:                   list[dict[str, Any]] = Field(default_factory=list)
     dispatched_signals_count: int = 0
     final_conversion_pct:     float = 0.0
+
+
+# ── Scanned Coins & Latest Evaluation Snapshot schemas ────────────────────────
+
+class ScannedCoinLayerDetailSchema(BaseModel):
+    score:   int = 0
+    passed:  bool = False
+    details: dict[str, Any] = Field(default_factory=dict)
+    reasons: list[str] = Field(default_factory=list)
+
+
+class ScannedCoinSchema(BaseModel):
+    symbol:           str
+    coin:             str
+    pair:             str
+    price:            float
+    volume_24h:       float = 0.0
+    volume_ratio:     float = 1.0
+    ema_trend:        str = "SIDEWAYS"
+    rsi:              float = 50.0
+    mtf_alignment:    str = "none"
+    is_mtf_aligned:   bool = False
+    confluence_score: int = 0
+    status:           str = "REJECTED"
+    accepted:         bool = False
+    rejection_reason: Optional[str] = None
+    evaluated_at:     str
+
+
+class ScannedCoinDetailSchema(ScannedCoinSchema):
+    eval_breakdown:    dict[str, Any] = Field(default_factory=dict)
+    rejection_reasons: list[str] = Field(default_factory=list)
+
+
+class WatchlistSummarySchema(BaseModel):
+    total_evaluated:         int = 0
+    passed_confluence_count: int = 0
+    top_candidates:          list[ScannedCoinSchema] = Field(default_factory=list)
+    last_scan_at:            Optional[str] = None
+

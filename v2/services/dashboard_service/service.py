@@ -327,13 +327,14 @@ class DashboardService:
 
         fleet = self.get_bot_statuses()
         live_sigs = self._scanner_service.get_live_signals() if self._scanner_service else []
+        scanned_coins = self._scanner_service.get_scanned_coins() if self._scanner_service else []
 
         return {
             "funnel_metrics": {
-                "total_scanned": 12,
-                "passed_v1_gates": len(live_sigs) + 4,
-                "passed_confluence": len(live_sigs),
-                "dispatched_signals": min(2, len(live_sigs)),
+                "total_scanned": len(scanned_coins) if scanned_coins else 12,
+                "passed_v1_gates": len(scanned_coins),
+                "passed_confluence": len([c for c in scanned_coins if c.get("status") == "PASSED"]),
+                "dispatched_signals": len(live_sigs),
             },
             "market_regime": {
                 "btc_trend": sentiment.get("btc_trend", "BULLISH"),
@@ -342,6 +343,12 @@ class DashboardService:
                 "fear_and_greed": sentiment.get("fear_and_greed", 50),
             },
             "fleet_telemetry": fleet,
+            "watchlist_summary": {
+                "total_evaluated": len(scanned_coins),
+                "passed_confluence_count": len([c for c in scanned_coins if c.get("status") == "PASSED"]),
+                "top_candidates": scanned_coins[:5],
+                "last_scan_at": scanned_coins[0]["evaluated_at"] if scanned_coins else None,
+            },
             "system_health": {
                 "candle_cache_ready": True,
                 "rate_limit_headroom": 8.0,
@@ -357,6 +364,7 @@ class DashboardService:
         portfolio = await self._portfolio_service.get_snapshot() if self._portfolio_service else None
         risk_state = await self._risk_service.get_state() if self._risk_service else None
         shadow_summary = await self._shadow_service.get_summary() if self._shadow_service else {}
+        scanned_coins = self._scanner_service.get_scanned_coins() if self._scanner_service else []
 
         return {
             "status": "ok",
@@ -382,6 +390,13 @@ class DashboardService:
             },
             "pipeline_stages": self.get_pipeline_stages(),
             "bots": self.get_bot_statuses(),
+            "scanned_coins": scanned_coins,
+            "watchlist_summary": {
+                "total_evaluated": len(scanned_coins),
+                "passed_confluence_count": len([c for c in scanned_coins if c.get("status") == "PASSED"]),
+                "top_candidates": scanned_coins[:5],
+                "last_scan_at": scanned_coins[0]["evaluated_at"] if scanned_coins else None,
+            },
             "telemetry": self.get_telemetry_snapshot(),
         }
 
