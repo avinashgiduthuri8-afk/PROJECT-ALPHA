@@ -1,26 +1,18 @@
 """
-V2 API Router — all /api/v2/* endpoints.
-
+V2 API Router - all /api/v2/* endpoints.
 Mounted in v2/app_v2.py under the prefix /api/v2.
-
-V2.1 endpoints:
-  GET /api/v2/health                  — liveness (no auth)
-  GET /api/v2/status                  — full system status (auth required)
-  GET /api/v2/scanner/signals         — live signal list (auth required)
-  GET /api/v2/scanner/signals/{id}    — single signal (auth required)
-  GET /api/v2/scanner/health          — scanner sub-health (auth required)
-  GET /api/v2/scheduler/jobs          — scheduler job statuses (auth required)
-
-Later phases add /api/v2/portfolio, /api/v2/risk, /api/v2/trades, etc.
 """
 
 from __future__ import annotations
 
+import uuid
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from v2.core.types import Priority
+from v2.bus.event_types import EventType
+from v2.core.types import MarketState, OppType, Priority, RiskLevel, Signal
 from .auth import require_api_key
 from .schemas import (
     OkSchema, JobStatusSchema, ScannerHealthSchema,
@@ -35,6 +27,9 @@ from .schemas import (
     BotStatusSchema, BotDetailSchema,
     AnalyticsWinRatesSchema, AnalyticsCoinsSchema, AnalyticsFunnelSchema,
     ScannedCoinSchema, ScannedCoinDetailSchema,
+    SimulateSignalRequestSchema, SimulateSignalResponseSchema,
+    SetModeRequestSchema, SetModeResponseSchema,
+    KillSwitchResponseSchema, ProductionStatusSchema,
 )
 
 router = APIRouter()
@@ -908,8 +903,14 @@ async def get_pipeline_stage_detail(stage_id: str) -> PipelineStageDetailSchema:
     dependencies=[Depends(require_api_key)],
     tags=["bots"],
 )
+@router.get(
+    "/dashboard/fleet",
+    response_model=list[BotStatusSchema],
+    dependencies=[Depends(require_api_key)],
+    tags=["bots"],
+)
 async def get_all_bots() -> list[BotStatusSchema]:
-    """Return current pipeline stage, status, and live metrics for all 3 trading bots (MTB, PMB, VGX)."""
+    """Return current pipeline stage, status, and live metrics for all production trading bots (STE, HDA, VCP, BBS)."""
     if _dashboard_service is None:
         raise HTTPException(status_code=503, detail="Dashboard service not initialized.")
 
@@ -936,4 +937,243 @@ async def get_bot_detail(bot_name: str) -> BotDetailSchema:
         )
 
     return BotDetailSchema(**detail)
+
+
+# ── Simulation & Learning Endpoints ───────────────────────────────────────────
+
+@router.post(
+    "/learning/simulate-signal",
+    response_model=SimulateSignalResponseSchema,
+    dependencies=[Depends(require_api_key)],
+    tags=["simulation", "learning"],
+)
+async def simulate_signal_emission(body: SimulateSignalRequestSchema) -> SimulateSignalResponseSchema:
+    """
+    Emit a synthetic high-conviction signal across EventBus and trigger real-time AI evaluation,
+    dashboard telemetry push, and WebSocket distribution without live capital risk.
+    """
+    if _ai_service is None or _dashboard_service is None:
+        raise HTTPException(status_code=503, detail="AI Intelligence / Dashboard service not initialized.")
+
+    raw_pair = body.pair or "SOL/INR"
+    coin = (body.coin or raw_pair.split("/")[0]).upper()
+    pair = raw_pair if "/" in raw_pair else f"{coin}/INR"
+    score = int(body.score if body.score is not None else 89)
+    bot_name = (body.bot_name or "STE").upper()
+    now = datetime.now(timezone.utc)
+    sig_id = f"SIG-SIM-{coin}-{uuid.uuid4().hex[:6].upper()}"
+
+    signal = Signal(
+        id=sig_id,
+        coin=coin,
+        pair=pair,
+        market_state=MarketState.BULL_TREND if score >= 80 else MarketState.SIDEWAYS,
+        opportunity_type=OppType.MOMENTUM_TRADE,
+        priority=Priority.from_score(score),
+        risk_level=RiskLevel.LOW if score >= 85 else RiskLevel.MEDIUM,
+        score=score,
+        confidence=min(99, max(50, score + 2)),
+        coin_class="A",
+        mtf_alignment=True,
+        generated_at=now,
+        expires_at=now + timedelta(minutes=15),
+        source_bot=bot_name,
+        raw_payload={
+            "price": body.price or 10140.0,
+            "bot_name": bot_name,
+            "regime": body.regime or "RISK_ON",
+            "suggested_allocation_inr": body.suggested_allocation_inr or 200.0,
+            "stop_loss": body.stop_loss or 9980.0,
+            "take_profit": body.take_profit or 10450.0,
+            "eval_breakdown": body.eval_breakdown or {
+                "chart_structure": 28.0,
+                "technical_indicators": 32.0,
+                "market_sentiment": 16.0,
+                "news_events": 13.0,
+            },
+        },
+        confluence_breakdown=body.eval_breakdown or {},
+    )
+
+    if _signal_repo:
+        await _signal_repo.insert(signal)
+
+    # 1. Publish SIGNAL_GENERATED event to EventBus
+    bus = _ai_service._bus
+    await bus.publish(
+        EventType.SIGNAL_GENERATED,
+        {
+            "signal_id": signal.id,
+            "id": signal.id,
+            "bot": bot_name,
+            "coin": coin,
+            "pair": pair,
+            "score": score,
+            "confidence": signal.confidence,
+            "price": body.price or 10140.0,
+            "action": "BUY",
+            "suggested_allocation_inr": body.suggested_allocation_inr or 200.0,
+            "stop_loss": body.stop_loss or 9980.0,
+            "take_profit": body.take_profit or 10450.0,
+            "timestamp": now.isoformat(),
+        },
+    )
+
+    # 2. Evaluate signal through AIIntelligenceService
+    analysis = await _ai_service.evaluate_signal(signal)
+
+    return SimulateSignalResponseSchema(
+        ok=True,
+        signal_id=signal.id,
+        pair=pair,
+        bot_name=bot_name,
+        confluence_score=score,
+        ai_recommendation=analysis.recommendation.value,
+        confidence_score=analysis.confidence_score,
+        setup_quality=analysis.setup_quality,
+        supporting_factors=analysis.supporting_factors,
+        risk_factors=analysis.risk_factors,
+        model_name=analysis.model_name,
+        event_published=True,
+    )
+
+
+# ── Production Mode Controller & Live Microcash Endpoints ─────────────────────
+
+@router.post(
+    "/production/set-mode",
+    response_model=SetModeResponseSchema,
+    dependencies=[Depends(require_api_key)],
+    tags=["production"],
+)
+async def set_execution_mode(body: SetModeRequestSchema) -> SetModeResponseSchema:
+    """
+    Dynamically toggle execution mode between SHADOW and LIVE_MICROCASH without server restart.
+    """
+    if _config is None:
+        raise HTTPException(status_code=503, detail="Configuration not initialized.")
+
+    target_mode = body.mode.upper().strip()
+    if target_mode not in ("LIVE_MICROCASH", "SHADOW"):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid mode. Must be 'LIVE_MICROCASH' or 'SHADOW'.",
+        )
+
+    _config.v2_deployment_mode = target_mode
+    if target_mode == "LIVE_MICROCASH":
+        _config.v2_trading_enabled = True
+        _config.v2_shadow_mode = False
+        msg = "Switched to LIVE_MICROCASH. Real micro-orders (₹200 notional) will dispatch to CoinDCX."
+    else:
+        _config.v2_trading_enabled = False
+        _config.v2_shadow_mode = True
+        msg = "Switched to SHADOW. Executions will be recorded to paper ledger without placing exchange orders."
+
+    return SetModeResponseSchema(
+        ok=True,
+        mode=target_mode,
+        trading_enabled=_config.v2_trading_enabled,
+        shadow_mode=_config.v2_shadow_mode,
+        message=msg,
+    )
+
+
+@router.post(
+    "/production/kill-switch",
+    response_model=KillSwitchResponseSchema,
+    dependencies=[Depends(require_api_key)],
+    tags=["production"],
+)
+async def trigger_emergency_kill_switch() -> KillSwitchResponseSchema:
+    """
+    Emergency kill-switch: Immediately trips the global circuit breaker and halts all outbound orders.
+    """
+    if _risk_service:
+        _risk_service.circuit_breaker.trip("EMERGENCY_KILL_SWITCH_TRIGGERED")
+
+    if _config:
+        _config.v2_trading_enabled = False
+        _config.v2_deployment_mode = "SHADOW"
+        _config.v2_shadow_mode = True
+
+    return KillSwitchResponseSchema(
+        ok=True,
+        circuit_breaker="TRIPPED",
+        trading_enabled=False,
+        status="ALL_ORDERS_BLOCKED",
+        message="Circuit breaker tripped. All live order dispatch blocked immediately.",
+    )
+
+
+@router.get(
+    "/trading/positions",
+    response_model=list[PositionSchema],
+    dependencies=[Depends(require_api_key)],
+    tags=["trading"],
+)
+async def get_active_positions() -> list[PositionSchema]:
+    """
+    List all active open positions (live or shadow) with current unrealized P&L and bracket targets.
+    """
+    if _position_repo is None:
+        raise HTTPException(status_code=503, detail="Position repository not initialized.")
+
+    positions = await _position_repo.get_open()
+    out = []
+    for p in positions:
+        out.append(PositionSchema(
+            id=p.id,
+            bot=p.bot.value if hasattr(p.bot, "value") else str(p.bot),
+            coin=p.coin,
+            pair=p.pair,
+            qty=p.qty,
+            entry_price=p.entry_price,
+            entry_time=p.entry_time.isoformat() if hasattr(p.entry_time, "isoformat") else str(p.entry_time or ""),
+            current_price=p.current_price or p.entry_price,
+            unrealised_pnl=p.unrealised_pnl or 0.0,
+            stop_loss=p.stop_loss,
+            take_profit=p.take_profit,
+            mode=p.mode.value if hasattr(p.mode, "value") else str(p.mode),
+            signal_id=p.signal_id,
+        ))
+    return out
+
+
+@router.get(
+    "/production/status",
+    response_model=ProductionStatusSchema,
+    dependencies=[Depends(require_api_key)],
+    tags=["production"],
+)
+async def get_production_status() -> ProductionStatusSchema:
+    """
+    Return comprehensive operational status: deployment mode, trading flag, unified capital pool headroom, open positions count.
+    """
+    mode = getattr(_config, "v2_deployment_mode", "SHADOW") if _config else "SHADOW"
+    trading_enabled = getattr(_config, "v2_trading_enabled", False) if _config else False
+    shadow_mode = getattr(_config, "v2_shadow_mode", True) if _config else True
+    cap_limit = getattr(_config, "total_capital_limit", 10000.0) if _config else 10000.0
+
+    deployed = 0.0
+    open_count = 0
+    if _position_repo:
+        open_pos = await _position_repo.get_open()
+        deployed = sum(p.deployed_capital for p in open_pos)
+        open_count = len(open_pos)
+
+    breaker_status = "NORMAL"
+    if _risk_service and _risk_service.circuit_breaker.is_tripped:
+        breaker_status = "TRIPPED"
+
+    return ProductionStatusSchema(
+        mode=mode,
+        trading_enabled=trading_enabled,
+        shadow_mode=shadow_mode,
+        capital_pool_limit=cap_limit,
+        capital_pool_deployed=round(deployed, 2),
+        capital_pool_available=round(max(0.0, cap_limit - deployed), 2),
+        open_positions_count=open_count,
+        circuit_breaker_status=breaker_status,
+    )
 

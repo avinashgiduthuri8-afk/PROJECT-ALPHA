@@ -413,3 +413,68 @@ class WatchlistSummarySchema(BaseModel):
     top_candidates:          list[ScannedCoinSchema] = Field(default_factory=list)
     last_scan_at:            Optional[str] = None
 
+
+# ── Simulation & Learning Schemas ─────────────────────────────────────────────
+
+class SimulateSignalRequestSchema(BaseModel):
+    pair:                     Optional[str] = "SOL/INR"
+    coin:                     Optional[str] = None
+    bot_name:                 Optional[str] = "STE"
+    score:                    Optional[int] = 89
+    price:                    Optional[float] = 10140.0
+    suggested_allocation_inr: Optional[float] = 200.0
+    stop_loss:                Optional[float] = 9980.0
+    take_profit:              Optional[float] = 10450.0
+    regime:                   Optional[str] = "RISK_ON"
+    eval_breakdown:           Optional[dict[str, Any]] = None
+
+
+class SimulateSignalResponseSchema(BaseModel):
+    ok:                       bool = True
+    signal_id:                str
+    pair:                     str
+    bot_name:                 str
+    confluence_score:         int
+    ai_recommendation:        str
+    confidence_score:         int
+    setup_quality:            str
+    supporting_factors:       list[str] = Field(default_factory=list)
+    risk_factors:             list[str] = Field(default_factory=list)
+    model_name:               str
+    event_published:          bool = True
+
+
+# ── Production Mode Controller Schemas ────────────────────────────────────────
+
+class SetModeRequestSchema(BaseModel):
+    mode: str = Field(description="'LIVE_MICROCASH' or 'SHADOW'")
+
+
+class SetModeResponseSchema(BaseModel):
+    ok:              bool = True
+    mode:            str
+    trading_enabled: bool
+    shadow_mode:     bool
+    message:         str
+
+
+class KillSwitchResponseSchema(BaseModel):
+    ok:              bool = True
+    circuit_breaker: str
+    trading_enabled: bool
+    status:          str
+    message:         str
+
+
+class ProductionStatusSchema(BaseModel):
+    mode:                   str
+    trading_enabled:        bool
+    shadow_mode:            bool
+    capital_pool_limit:     float
+    capital_pool_deployed:  float
+    capital_pool_available: float
+    open_positions_count:   int
+    circuit_breaker_status: str
+
+
+

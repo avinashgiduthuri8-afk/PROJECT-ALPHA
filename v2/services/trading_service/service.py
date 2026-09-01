@@ -117,25 +117,84 @@ class TradingService:
                         )
                         return
 
+            deployment_mode = getattr(self._config, "v2_deployment_mode", "SHADOW").upper()
+            is_live = (deployment_mode == "LIVE_MICROCASH" or self._config.v2_trading_enabled)
+
             # 1. Shadow Simulation Routing
-            if self._config.v2_shadow_mode and self._shadow_engine is not None:
-                await self._shadow_engine.record_approved_trade(
-                    signal_id=signal_id,
+            if not is_live:
+                if self._shadow_engine is not None:
+                    try:
+                        await self._shadow_engine.record_approved_trade(
+                            signal_id=signal_id,
+                            bot=bot,
+                            coin=coin,
+                            pair=pair,
+                            entry_price=order_data["entry_price"],
+                            qty=order_data["qty"],
+                            amount=order_data["amount"],
+                            stop_loss=order_data["stop_loss"],
+                            take_profit=order_data["take_profit"],
+                            ai_recommendation=payload.get("recommendation", "APPROVE"),
+                            raw_adjustments=ai_adjustments,
+                        )
+                    except Exception as e:
+                        logger.debug("Shadow engine record warning: %s", e)
+
+                # Persist paper position for asset lock & lifecycle reconciliation
+                now = datetime.now(timezone.utc)
+                pos = Position(
+                    id=str(uuid.uuid4()),
                     bot=bot,
                     coin=coin,
                     pair=pair,
-                    entry_price=order_data["entry_price"],
                     qty=order_data["qty"],
-                    amount=order_data["amount"],
+                    entry_price=order_data["entry_price"],
+                    entry_time=now,
+                    mode=BotMode.PAPER,
+                    status=PositionStatus.OPEN,
+                    current_price=order_data["entry_price"],
+                    unrealised_pnl=0.0,
                     stop_loss=order_data["stop_loss"],
                     take_profit=order_data["take_profit"],
-                    ai_recommendation=payload.get("recommendation", "APPROVE"),
-                    raw_adjustments=ai_adjustments,
+                    signal_id=signal_id,
                 )
+                await self._position_repo.insert(pos)
+                self._total_executed += 1
 
-            # 2. Active Execution through Isolated Sub-Account Client
-            if self._config.v2_trading_enabled:
-                # Dispatch order via dedicated Sub-Account Client with HMAC signing
+                # Update subaccount manager headroom
+                sub_client = self._subaccount_manager.get_client(bot)
+                sub_client._shared_state["deployed_capital_inr"] += order_data["amount"]
+
+                pos_payload = {
+                    "position_id": pos.id,
+                    "subaccount_id": sub_client.subaccount_id,
+                    "bot": bot.value,
+                    "coin": coin,
+                    "pair": pair,
+                    "qty": pos.qty,
+                    "entry_price": pos.entry_price,
+                    "stop_loss": pos.stop_loss,
+                    "take_profit": pos.take_profit,
+                    "signal_id": signal_id,
+                    "mode": "PAPER",
+                    "opened_at": now.isoformat(),
+                }
+                await self._bus.publish(EventType.TRADE_EXECUTED, pos_payload)
+                await self._bus.publish(EventType.POSITION_OPENED, pos_payload)
+                await self._event_log.append(
+                    event_type=EventType.TRADE_EXECUTED.value,
+                    source_service="trading_service",
+                    entity_id=pos.id,
+                    payload=pos_payload,
+                )
+                logger.info(
+                    "[SHADOW] Paper trade EXECUTED and Position OPENED for %s (Qty: %s @ INR %.2f)",
+                    coin, pos.qty, pos.entry_price,
+                )
+                return
+
+            # 2. Live Microcash Execution with HMAC signing and precision validation
+            if is_live:
                 sub_client = self._subaccount_manager.get_client(bot)
                 order_result = sub_client.place_order(
                     pair=pair,
@@ -145,7 +204,7 @@ class TradingService:
                 )
 
                 if not order_result.get("success"):
-                    logger.warning("Sub-account order failed: %s", order_result.get("message"))
+                    logger.warning("Live sub-account order failed: %s", order_result.get("message"))
                     return
 
                 now = datetime.now(timezone.utc)
@@ -157,7 +216,7 @@ class TradingService:
                     qty=order_data["qty"],
                     entry_price=order_data["entry_price"],
                     entry_time=now,
-                    mode=BotMode.LIVE if self._config.v2_trading_enabled else BotMode.PAPER,
+                    mode=BotMode.LIVE,
                     status=PositionStatus.OPEN,
                     current_price=order_data["entry_price"],
                     unrealised_pnl=0.0,
@@ -180,6 +239,7 @@ class TradingService:
                     "stop_loss": pos.stop_loss,
                     "take_profit": pos.take_profit,
                     "signal_id": signal_id,
+                    "mode": "LIVE",
                     "opened_at": now.isoformat(),
                 }
 
@@ -192,7 +252,7 @@ class TradingService:
                     payload=pos_payload,
                 )
                 logger.info(
-                    "[%s] Trade EXECUTED and Position OPENED for %s (Qty: %s @ INR %.2f)",
+                    "[%s] Live trade EXECUTED and Position OPENED for %s (Qty: %s @ INR %.2f)",
                     sub_client.subaccount_id, coin, pos.qty, pos.entry_price,
                 )
 
@@ -202,7 +262,9 @@ class TradingService:
     # ── Position Exit Monitoring ──────────────────────────────────────────────
 
     async def check_open_position_exits(self, current_prices: dict[str, float]) -> list[Trade]:
-        """Check all live open positions against current market prices for SL/TP exit triggers."""
+        """Check all live/shadow open positions against current market prices for SL/TP exit triggers with 1.572% statutory friction."""
+        from v2.backtest.friction import CoinDCXFrictionModel
+        friction_model = CoinDCXFrictionModel()
         closed_trades: list[Trade] = []
         open_positions = await self._position_repo.get_open()
 
@@ -221,8 +283,15 @@ class TradingService:
 
             if exit_trigger is not None:
                 exit_reason, exit_price = exit_trigger
-                pnl = (exit_price - pos.entry_price) * pos.qty
-                pnl_pct = ((exit_price - pos.entry_price) / pos.entry_price) * 100.0
+
+                # Apply exact 1.572% round-trip statutory friction model
+                pnl_data = friction_model.calculate_trade_net_pnl(
+                    entry_price=pos.entry_price,
+                    exit_price=exit_price,
+                    position_size_qty=pos.qty,
+                )
+                net_pnl = pnl_data["net_pnl"]
+                net_pnl_pct = pnl_data["net_pnl_pct"]
                 now = datetime.now(timezone.utc)
 
                 trade = Trade(
@@ -234,8 +303,8 @@ class TradingService:
                     entry_price=pos.entry_price,
                     exit_price=exit_price,
                     qty=pos.qty,
-                    pnl=round(pnl, 2),
-                    pnl_pct=round(pnl_pct, 2),
+                    pnl=round(net_pnl, 2),
+                    pnl_pct=round(net_pnl_pct, 2),
                     entry_time=pos.entry_time,
                     exit_time=now,
                     exit_reason=exit_reason,
@@ -243,22 +312,35 @@ class TradingService:
                     signal_id=pos.signal_id,
                 )
 
-                # 1. Insert trade history
+                # 1. If live position, dispatch sell order
+                if pos.mode == BotMode.LIVE and self._config.v2_trading_enabled:
+                    try:
+                        sub_client = self._subaccount_manager.get_client(pos.bot)
+                        sub_client.place_order(
+                            pair=pos.pair,
+                            side="SELL",
+                            price=exit_price,
+                            qty=pos.qty,
+                        )
+                    except Exception as e:
+                        logger.warning("Error dispatching exit order to CoinDCX: %s", e)
+
+                # 2. Insert trade history
                 await self._trade_repo.insert(trade)
 
-                # 2. Close position record
+                # 3. Close position record (releases single-coin lock)
                 await self._position_repo.close(
                     position_id=pos.id,
                     exit_price=exit_price,
                     exit_reason=exit_reason,
                 )
 
-                # 3. Inform sub-account client of balance restoration
+                # 4. Inform sub-account client of balance restoration
                 try:
                     sub_client = self._subaccount_manager.get_client(pos.bot)
                     sub_client.close_position_fill(
                         notional_returned=pos.entry_price * pos.qty,
-                        realized_pnl=pnl,
+                        realized_pnl=net_pnl,
                     )
                 except Exception:
                     pass
@@ -273,8 +355,10 @@ class TradingService:
                     "pair": pos.pair,
                     "pnl": trade.pnl,
                     "pnl_pct": trade.pnl_pct,
+                    "friction_cost": pnl_data.get("total_friction_cost", 0.0),
                     "exit_reason": exit_reason.value,
                     "exit_price": exit_price,
+                    "mode": pos.mode.value if hasattr(pos.mode, "value") else str(pos.mode),
                     "closed_at": now.isoformat(),
                 }
 
@@ -286,7 +370,10 @@ class TradingService:
                     entity_id=trade.id,
                     payload=trade_payload,
                 )
-                logger.info("Position CLOSED", extra={"coin": pos.coin, "bot": pos.bot.value, "pnl": trade.pnl, "reason": exit_reason.value})
+                logger.info(
+                    "Position CLOSED (%s): %s %s PnL=INR %.2f (%.2f%%) [Friction=INR %.2f, Reason=%s]",
+                    trade_payload["mode"], pos.bot.value, pos.coin, trade.pnl, trade.pnl_pct, pnl_data.get("total_friction_cost", 0.0), exit_reason.value,
+                )
 
         return closed_trades
 

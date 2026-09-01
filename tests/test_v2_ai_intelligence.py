@@ -414,8 +414,36 @@ async def test_ai_api_endpoints(tmp_path, monkeypatch):
             eval_data = resp.json()
             assert eval_data["coin"] == "DOT"
             assert eval_data["confidence_score"] > 0
+
+            # 5. Synthetic signal simulation endpoint
+            from v2.services.dashboard_service.service import DashboardService
+            from v2.services.dashboard_service.websocket import WebSocketManager
+            ws_mgr = WebSocketManager()
+            dash_service = DashboardService(bus=bus, ws_manager=ws_mgr, config=cfg)
+            init_router(
+                ai_service=service,
+                ai_repo=ai_repo,
+                signal_repo=signal_repo,
+                dashboard_service=dash_service,
+            )
+
+            sim_resp = await client.post(
+                "/api/v2/learning/simulate-signal",
+                json={"pair": "SOL/INR", "bot_name": "STE", "score": 89, "price": 10140.0},
+                headers=headers,
+            )
+            assert sim_resp.status_code == 200
+            sim_data = sim_resp.json()
+            assert sim_data["ok"] is True
+            assert sim_data["pair"] == "SOL/INR"
+            assert sim_data["bot_name"] == "STE"
+            assert sim_data["confluence_score"] == 89
+            assert "ai_recommendation" in sim_data
+            assert "confidence_score" in sim_data
+            assert sim_data["confidence_score"] > 0
     finally:
         if service:
             await service.stop()
         await db.close()
         invalidate_config()
+

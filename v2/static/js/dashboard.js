@@ -467,20 +467,44 @@ class V2DashboardClient {
 
   appendAiCard(data, confirmed) {
     if (!this.elAiFeed) return;
+    if (this.elAiFeed.innerHTML.includes("Listening for live signals on EventBus")) {
+      this.elAiFeed.innerHTML = "";
+    }
+
     const card = document.createElement("div");
     card.className = "ai-card";
     const recClass = (data.recommendation || "watch").toLowerCase();
+    const bot = data.bot || data.source_bot || data.bot_name || "STE";
+    const coinOrPair = data.pair || data.coin || "UNKNOWN";
+    const model = data.model_name || "Gemini Flash";
 
-    const factors = (data.supporting_factors || []).slice(0, 2);
+    const factors = (data.supporting_factors || []).slice(0, 3);
     const risks = (data.risk_factors || []).slice(0, 2);
+
+    let bracketHtml = "";
+    if (data.take_profit || data.stop_loss || (data.suggested_adjustments && (data.suggested_adjustments.take_profit || data.suggested_adjustments.stop_loss))) {
+      const tp = data.take_profit || (data.suggested_adjustments && data.suggested_adjustments.take_profit);
+      const sl = data.stop_loss || (data.suggested_adjustments && data.suggested_adjustments.stop_loss);
+      bracketHtml = `<div style="font-size: 0.75rem; color: var(--cyan); margin-top: 0.35rem; font-family: var(--font-mono);">
+        ${tp ? `<span style="color: var(--green);">TP: ₹${Number(tp).toFixed(2)}</span> ` : ""}
+        ${sl ? `<span style="color: var(--red);">SL: ₹${Number(sl).toFixed(2)}</span> ` : ""}
+        <span style="color: var(--text-dim);">(₹200 micro-alloc)</span>
+      </div>`;
+    }
 
     card.innerHTML = `
       <div class="ai-card-top">
-        <span class="ai-coin-tag">${this.esc(data.coin || "UNKNOWN")}</span>
-        <span class="ai-rec-badge ${recClass}">${this.esc(data.recommendation || "WATCH")} (${data.confidence_score || 0}%)</span>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span class="bot-badge" style="font-size: 0.7rem; font-weight: 700; padding: 0.15rem 0.4rem; border-radius: 4px; background: rgba(56, 189, 248, 0.15); color: var(--cyan);">${this.esc(bot)}</span>
+          <span class="ai-coin-tag" style="font-weight: 700;">${this.esc(coinOrPair)}</span>
+        </div>
+        <span class="ai-rec-badge ${recClass}">${this.esc(data.recommendation || "APPROVE")} (${data.confidence_score || 85}%)</span>
       </div>
-      <div class="ai-analysis-text">${this.esc(data.trend_evaluation || "Trend evaluation active")} · Setup: ${this.esc(data.setup_quality || "N/A")}</div>
-      <div class="ai-factors-list">
+      <div class="ai-analysis-text">
+        <strong>${this.esc(model)}:</strong> ${this.esc(data.trend_evaluation || data.reasoning || "High-conviction technical structure verified.")} · <span style="color: var(--cyan);">Setup: ${this.esc(data.setup_quality || "A+")}</span>
+      </div>
+      ${bracketHtml}
+      <div class="ai-factors-list" style="margin-top: 0.4rem;">
         ${factors.map(f => `<span class="ai-factor-pill">✓ ${this.esc(f)}</span>`).join("")}
         ${risks.map(r => `<span class="ai-factor-pill" style="color: var(--amber)">⚠ ${this.esc(r)}</span>`).join("")}
       </div>

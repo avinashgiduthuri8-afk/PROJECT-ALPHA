@@ -167,7 +167,8 @@ class V2Config(BaseSettings):
     v2_port: int = Field(default=5001, description="Port for the V2 FastAPI app.")
     v2_host: str = Field(default="0.0.0.0")
 
-    # ── Feature flags (all off by default) ───────────────────────────────────
+    # ── Feature flags & Deployment Mode ──────────────────────────────────────
+    v2_deployment_mode:   str  = Field(default="SHADOW", validation_alias=AliasChoices("V2_DEPLOYMENT_MODE", "DEPLOYMENT_MODE", "v2_deployment_mode"))
     v2_websocket_enabled: bool = Field(default=False)
     v2_shadow_mode:       bool = Field(default=False)
     v2_trading_enabled:   bool = Field(default=False)
@@ -189,6 +190,7 @@ class V2Config(BaseSettings):
         are ignored so capital limits cannot be changed at runtime.
         """
         HOT_RELOAD_KEYS = {
+            "v2_deployment_mode",
             "v2_websocket_enabled",
             "v2_shadow_mode",
             "v2_trading_enabled",
