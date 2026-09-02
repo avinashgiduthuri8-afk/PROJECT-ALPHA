@@ -105,11 +105,11 @@ class TestStrategyParamAccepted:
 class TestStrategyParamRejected:
 
     def test_different_strategy_returns_empty(self):
-        result = _call_signals("VGX")
+        result = _call_signals("UNKNOWN")
         assert result == []
 
-    def test_pmb_strategy_returns_empty(self):
-        result = _call_signals("PMB")
+    def test_invalid_strategy_returns_empty(self):
+        result = _call_signals("INVALID")
         assert result == []
 
     def test_empty_string_returns_empty(self):

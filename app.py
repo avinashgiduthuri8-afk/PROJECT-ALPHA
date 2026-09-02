@@ -21,14 +21,9 @@ from bots.scanner_bot.scanner import get_market_state, get_signal_stats, get_per
 import bots.scanner_bot.main as scanner_main
 from bots.scanner_bot.main import scanner_router
 import bots.mtb_bot.main as mtb_main
-import bots.pmb_bot.main as pmb_main
-import bots.volatile_gridX.main as vgx_main
 import bots.scanner_bot.telegram_bot as scanner_tg
-import bots.volatile_gridX.vgx_telegram_bot as vgx_tg
-import bots.pmb_bot.pmb_telegram_bot as pmb_tg
 import bots.mtb_bot.mtb_telegram_bot as mtb_tg
 from bots.mtb_bot.storage import snapshot as mtb_snapshot
-from bots.pmb_bot.storage import snapshot as pmb_snapshot
 from bots.risk_engine.engine import snapshot as risk_snapshot
 from bots.risk_engine.runtime_state import set_trading_enabled as _risk_set_trading_enabled
 from bots.risk_engine.config import (
@@ -39,15 +34,6 @@ from bots.risk_engine.config import (
 
 from bots.scanner_bot.scanner import get_watchlist as _scanner_get_watchlist, resolve_coin_pair as _resolve_coin_pair
 from bots.scanner_bot import watchlist_ops as _watchlist_ops
-from bots.volatile_gridX.config import get_vgx_storage_file as _get_vgx_storage_file
-from bots.volatile_gridX.storage import (
-    get_grid_config       as _vgx_get_grid_config,
-    get_coin_base_price   as _vgx_get_coin_base_price,  # noqa: F401 — available for future engine use
-    set_coin_base_price   as _vgx_set_coin_base_price,
-    remove_coin_base_price as _vgx_remove_coin_base_price,
-    get_grid_coins        as _vgx_get_grid_coins,
-    set_grid_coins        as _vgx_set_grid_coins,
-)
 
 # ── In-memory trading-toggle metadata ─────────────────────────────────────────
 # Tracks who last changed the toggle and when (for /api/v1/trading/status).
@@ -55,103 +41,6 @@ from bots.volatile_gridX.storage import (
 _trading_meta_lock: threading.Lock = threading.Lock()
 _trading_changed_by: str = "env_var"
 _trading_changed_at: str = datetime.now(timezone.utc).isoformat()
-
-
-def vgx_snapshot() -> dict:
-    """
-    Build a dashboard-ready VGX snapshot by reading the storage JSON directly.
-    Uses get_vgx_storage_file() so the path is always consistent with what the
-    VGX bot and risk engine use.  Returns safe defaults if the file is absent.
-    """
-    raw: dict = {}
-    _vgx_file = _get_vgx_storage_file()
-    try:
-        if os.path.exists(_vgx_file) and os.path.getsize(_vgx_file) > 0:
-            with open(_vgx_file, "r", encoding="utf-8") as f:
-                raw = json.load(f)
-    except (OSError, json.JSONDecodeError):
-        raw = {}
-
-    virtual_balance = float(raw.get("virtual_balance", 1_000_000))
-    positions_dict  = raw.get("positions", {})
-    trade_log       = raw.get("trade_log",  [])
-
-    open_positions = [
-        {
-            "coin":             p.get("coin", key.split("_")[0]),
-            "buy_price":        round(float(p.get("buy_price", 0)), 4),
-            "qty":              round(float(p.get("qty",       0)), 8),
-            "amount":           round(float(p.get("amount",    0)), 2),
-            "trailing_active":  bool(p.get("trailing_active", False)),
-            "source":           p.get("trade_source", "SCANNER"),
-        }
-        for key, p in (positions_dict.items() if isinstance(positions_dict, dict) else [])
-    ]
-
-    sell_trades = [t for t in trade_log if "SELL" in str(t.get("action", "")).upper()]
-    wins   = sum(1 for t in sell_trades if float(t.get("pnl", 0)) > 0)
-    losses = sum(1 for t in sell_trades if float(t.get("pnl", 0)) < 0)
-    total  = len(sell_trades)
-    win_rate = round(wins / total * 100, 1) if total > 0 else 0.0
-
-    from datetime import date
-    today_str = date.today().isoformat()
-    daily_pnl = round(sum(
-        float(t.get("pnl", 0))
-        for t in sell_trades
-        if str(t.get("time", "")).startswith(today_str)
-    ), 2)
-    total_pnl = round(sum(float(t.get("pnl", 0)) for t in sell_trades), 2)
-
-    last_trade: dict = {}
-    if trade_log:
-        lt = trade_log[-1]
-        last_trade = {
-            "time":   lt.get("time",   ""),
-            "coin":   lt.get("coin",   ""),
-            "action": lt.get("action", ""),
-            "price":  lt.get("price",  0),
-            "amount": lt.get("amount", 0),
-            "pnl":    lt.get("pnl",    0),
-        }
-
-    vgx_mode = os.getenv("VGX_BOT_MODE", "PAPER")
-    trade_amount = float(os.getenv("VGX_TRADE_AMOUNT", os.getenv("TRADE_AMOUNT", "110")))
-
-    portfolio_hist = raw.get("portfolio_history", [])
-    if portfolio_hist:
-        _recent = portfolio_hist[-60:]
-        equity_labels = [str(h.get("time", ""))[:16] for h in _recent]
-        equity_data   = [round(float(h.get("portfolio", virtual_balance)), 2) for h in _recent]
-    else:
-        equity_labels = ["Start"]
-        equity_data   = [round(virtual_balance, 2)]
-
-    return {
-        "status":          vgx_mode,
-        "virtual_balance": round(virtual_balance, 2),
-        "daily_pnl":       daily_pnl,
-        "total_pnl":       total_pnl,
-        "open_positions":  open_positions,
-        "grid_levels":     len(_vgx_get_grid_coins()),
-        "grid_coins":      _vgx_get_grid_coins(),
-        "last_trade":      last_trade,
-        "win_rate":        win_rate,
-        "wins":            wins,
-        "losses":          losses,
-        "paper_trades":    len(trade_log),
-        "trade_amount":    trade_amount,
-        "target_pct":      5.0,
-        "stop_loss_pct":   5.0,
-        "equity_curve": {
-            "labels": equity_labels,
-            "data":   equity_data,
-        },
-        "win_loss_chart": {
-            "labels": ["Wins", "Losses"],
-            "data":   [wins, losses],
-        },
-    }
 
 
 from contextlib import asynccontextmanager
@@ -249,20 +138,10 @@ async def _app_lifespan(app: FastAPI):
     """Root dashboard lifespan — starts all bot background tasks."""
     await scanner_main.startup_event()
     await mtb_main.startup_event()
-    await pmb_main.startup_event()
-    await vgx_main.startup_event()
     try:
         await scanner_tg.startup_event()
     except Exception as e:
         logger.warning("Scanner Telegram bot failed to start: %s", e)
-    try:
-        await vgx_tg.startup_event()
-    except Exception as e:
-        logger.warning("VGX Telegram bot failed to start: %s", e)
-    try:
-        await pmb_tg.startup_event()
-    except Exception as e:
-        logger.warning("PMB Telegram bot failed to start: %s", e)
     try:
         await mtb_tg.startup_event()
     except Exception as e:
@@ -277,11 +156,7 @@ async def _app_lifespan(app: FastAPI):
         logger.warning("AlertManager not available: %s", e)
     yield
     await mtb_tg.shutdown_event()
-    await pmb_tg.shutdown_event()
-    await vgx_tg.shutdown_event()
     await scanner_tg.shutdown_event()
-    await vgx_main.shutdown_event()
-    await pmb_main.shutdown_event()
     await mtb_main.shutdown_event()
     # scanner shutdown handled by its own _do_shutdown_save in scanner_main
 
@@ -357,8 +232,6 @@ def _get_health_pct() -> int:
         )
         tg_ok = any([
             getattr(scanner_tg, "_SCANNER_TG_APP", None),
-            getattr(vgx_tg, "_VGX_TG_APP", None),
-            getattr(pmb_tg, "_PMB_TG_APP", None),
             getattr(mtb_tg, "_MTB_TG_APP", None),
         ])
         return 100 if (scanner_ok and tg_ok) else 50
@@ -600,78 +473,6 @@ def _read_scanner_ticker_cache() -> dict[str, float]:
     return prices
 
 
-async def _get_scanner_ticker_prices_only(coins: list[str]) -> dict[str, float | None]:
-    """Return ``{coin: price | None}`` for each requested coin, ticker-cache-only.
-
-    Unlike ``_get_current_prices_safe`` (which falls back to a live CoinDCX
-    API call), this NEVER makes a network request. Used by any feature that
-    is explicitly scoped to "no CoinDCX API calls" — e.g. PMB Open Positions
-    live PnL — so a cold/empty ticker cache correctly surfaces as "price
-    unavailable" rather than triggering a blocking HTTP fetch.
-    """
-    if not coins:
-        return {}
-    try:
-        prices = await asyncio.to_thread(_read_scanner_ticker_cache)
-    except Exception:
-        prices = {}
-    return {c: prices.get(str(c).upper()) for c in coins}
-
-
-def _enrich_open_positions_live_pnl(
-    positions: list[dict],
-    prices: dict[str, float | None],
-) -> list[dict]:
-    """Decorate PMB open positions with live current_price / live_pnl fields.
-
-    Open trade log fields (avg_entry_price, total_quantity, total_invested,
-    dip_count, ...) come straight from storage and are left untouched — this
-    only *adds* display-only keys on top:
-
-      current_price   — from the scanner ticker cache (or None if unavailable)
-      live_pnl         — current_value - invested_amount
-      live_pnl_pct     — ((current_price - avg_entry_price) / avg_entry_price) * 100
-      live_pnl_status  — "profit" | "loss" | "flat" | "unavailable" (for badge color)
-
-    If a price is unavailable for a coin, current_price / live_pnl /
-    live_pnl_pct are all set to ``None`` (rendered as "—") — no partial or
-    guessed values, per spec. Does not mutate the input list.
-    """
-    enriched: list[dict] = []
-    for pos in positions:
-        p = dict(pos)
-        coin      = str(p.get("coin", "")).upper()
-        avg_entry = float(p.get("avg_entry_price", 0) or 0)
-        qty_held  = float(p.get("total_quantity", 0) or 0)
-        invested  = float(p.get("total_invested", 0) or 0)
-
-        price = prices.get(coin) if coin else None
-
-        if price is None or avg_entry <= 0:
-            p["current_price"]  = None
-            p["live_pnl"]       = None
-            p["live_pnl_pct"]   = None
-            p["live_pnl_status"] = "unavailable"
-        else:
-            current_value = price * qty_held
-            live_pnl      = current_value - invested
-            live_pnl_pct  = ((price - avg_entry) / avg_entry) * 100
-
-            p["current_price"] = round(price, 6)
-            p["live_pnl"]      = round(live_pnl, 4)
-            p["live_pnl_pct"]  = round(live_pnl_pct, 2)
-
-            if live_pnl > 0:
-                p["live_pnl_status"] = "profit"
-            elif live_pnl < 0:
-                p["live_pnl_status"] = "loss"
-            else:
-                p["live_pnl_status"] = "flat"
-
-        enriched.append(p)
-    return enriched
-
-
 async def _get_current_prices_safe(coins: list[str]) -> dict[str, float | None]:
     """Return ``{coin: price}`` for each coin.
 
@@ -717,73 +518,34 @@ async def _get_current_prices_safe(coins: list[str]) -> dict[str, float | None]:
 
 async def pull_state_payload():
 
-    (watchlist, stats), (mtb_state, pmb_state) = await asyncio.gather(
+    (watchlist, stats), mtb_state = await asyncio.gather(
         asyncio.gather(
             asyncio.to_thread(get_watchlist),
             asyncio.to_thread(get_stats),
         ),
-        asyncio.gather(
-            _cached_snapshot("mtb", mtb_snapshot),
-            _cached_snapshot("pmb", pmb_snapshot),
-        ),
+        _cached_snapshot("mtb", mtb_snapshot),
     )
 
     # Enrich closed trade records with pnl_pct, holding_time, entry_price,
     # exit_reason, and current_price.
-    # We load the full trade log (not just the snapshot slice) so the buy record
-    # that corresponds to each close can always be found.
     try:
-        import bots.pmb_bot.storage as _pmb_st
         import bots.mtb_bot.storage as _mtb_st
-        _pmb_all, _mtb_all = await asyncio.gather(
-            asyncio.to_thread(_pmb_st.load_trades),
-            asyncio.to_thread(_mtb_st.load_trades),
-        )
+        _mtb_all = await asyncio.to_thread(_mtb_st.load_trades)
 
-        # Collect unique coins across both bots for a single price fetch
-        _pmb_closed = pmb_state.get("closed_trades", [])
         _mtb_closed = mtb_state.get("closed_trades", [])
         _coins: set[str] = set()
-        for _t in _pmb_closed:
-            if _t.get("coin"):
-                _coins.add(_t["coin"])
         for _t in _mtb_closed:
             _c = _t.get("coin") or str(_t.get("symbol", "")).replace("B-", "").split("_")[0]
             if _c:
                 _coins.add(_c)
         _prices = await _get_current_prices_safe(list(_coins))
 
-        pmb_state = {**pmb_state,
-                     "closed_trades": _enrich_closed_trades(
-                         _pmb_closed, _pmb_all, prices=_prices)}
         mtb_state = {**mtb_state,
                      "closed_trades": _enrich_closed_trades(
                          _mtb_closed, _mtb_all, prices=_prices)}
     except Exception:
-        # NF-3: enrichment is best-effort; raw data still renders fine.
-        # Log so operators know which step failed without impacting the page.
         logger.exception("Trade enrichment failed — dashboard will show raw (unenriched) trade data")
 
-    # ── PMB Open Positions — live current price / live PnL ────────────────
-    # NOTE: this only decorates the *open* positions list with read-only,
-    # display-only fields (current_price / live_pnl / live_pnl_pct /
-    # live_pnl_status). It never touches the PMB trading engine, storage
-    # files, scanner logic, or trade history — those all remain exactly as
-    # loaded from pmb_snapshot() above.
-    try:
-        _pmb_open = pmb_state.get("open_positions", [])
-        _pmb_open_coins = [p.get("coin") for p in _pmb_open if p.get("coin")]
-        # Ticker-cache-only lookup — zero CoinDCX API calls, per requirement.
-        _pmb_live_prices = await _get_scanner_ticker_prices_only(_pmb_open_coins)
-        pmb_state = {**pmb_state,
-                     "open_positions": _enrich_open_positions_live_pnl(
-                         _pmb_open, _pmb_live_prices)}
-    except Exception:
-        # NF-3: live-PnL decoration is best-effort; raw positions still render.
-        # Log so operators know which step failed without impacting the page.
-        logger.exception("PMB open-positions live-PnL enrichment failed — dashboard will show positions without live price decoration")
-
-    vgx_trade_amount = float(os.getenv("VGX_TRADE_AMOUNT", os.getenv("TRADE_AMOUNT", "110")))
     # Read live scan signals from live_signals.json (written each scan cycle by main.py)
     signal_data, latest_market_state, signal_stats = await asyncio.gather(
         asyncio.to_thread(get_live_signals),
@@ -846,45 +608,19 @@ async def pull_state_payload():
     ]
 
     # ── Portfolio aggregation from live bot snapshots ─────────────────────
-    vgx_state = await _cached_snapshot("vgx", vgx_snapshot)
-
-    _vgx_cash       = float(vgx_state.get("virtual_balance", 0))
-    _pmb_cash       = float(pmb_state.get("cash_balance", 0))
     _mtb_cash       = float(mtb_state.get("cash_balance", 0))
-    _available_cash = round(_vgx_cash + _pmb_cash + _mtb_cash, 2)
+    _available_cash = round(_mtb_cash, 2)
 
-    _vgx_invested    = round(sum(float(p.get("amount", 0))         for p in vgx_state.get("open_positions", [])), 2)
-    _pmb_invested    = round(sum(float(p.get("total_invested", 0)) for p in pmb_state.get("open_positions", [])), 2)
-    _mtb_invested    = round(sum(float(p.get("trade_amount", 0))   for p in mtb_state.get("open_positions", [])), 2)
-    _invested_amount = round(_vgx_invested + _pmb_invested + _mtb_invested, 2)
+    _mtb_invested    = round(sum(float(p.get("trade_amount", 0)) for p in mtb_state.get("open_positions", [])), 2)
+    _invested_amount = round(_mtb_invested, 2)
 
-    _total_pnl   = round(float(vgx_state.get("total_pnl", 0)) + float(pmb_state.get("total_pnl", 0)) + float(mtb_state.get("total_pnl", 0)), 2)
-    _daily_pnl   = round(float(vgx_state.get("daily_pnl", 0)) + float(pmb_state.get("daily_pnl", 0)) + float(mtb_state.get("daily_pnl", 0)), 2)
+    _total_pnl   = round(float(mtb_state.get("total_pnl", 0)), 2)
+    _daily_pnl   = round(float(mtb_state.get("daily_pnl", 0)), 2)
     _total_value = round(_available_cash + _invested_amount + _total_pnl, 2)
-    _open_pos_count = (len(vgx_state.get("open_positions", [])) +
-                       len(pmb_state.get("open_positions", [])) +
-                       len(mtb_state.get("open_positions", [])))
+    _open_pos_count = len(mtb_state.get("open_positions", []))
 
-    # ── Normalize open positions from all bots into unified schema ─────────
+    # ── Normalize open positions into unified schema ─────────
     _all_open_positions: list[dict] = []
-    for p in vgx_state.get("open_positions", []):
-        _all_open_positions.append({
-            "bot":       "VGX",
-            "coin":      p.get("coin", ""),
-            "quantity":  round(float(p.get("qty", 0)), 8),
-            "buy_price": round(float(p.get("buy_price", 0)), 4),
-            "pnl_pct":   0,
-            "status":    "OPEN",
-        })
-    for p in pmb_state.get("open_positions", []):
-        _all_open_positions.append({
-            "bot":       "PMB",
-            "coin":      p.get("coin", ""),
-            "quantity":  round(float(p.get("total_quantity", 0)), 8),
-            "buy_price": round(float(p.get("avg_entry_price", 0)), 4),
-            "pnl_pct":   0,
-            "status":    p.get("status", "OPEN"),
-        })
     for p in mtb_state.get("open_positions", []):
         _all_open_positions.append({
             "bot":       "MTB",
@@ -917,10 +653,7 @@ async def pull_state_payload():
         "mtb_daily_pnl": mtb_state["daily_pnl"],
         "mtb_trade_amount": mtb_state["trade_amount"],
         "mtb_overview": mtb_state,
-        "vgx_overview":  vgx_state,
-        "pmb_overview": pmb_state,
         "risk_engine":  await _cached_snapshot("risk", risk_snapshot),
-        "vgx_trade_amount": vgx_trade_amount,
 
         "scanner_overview": {
             "coins":           _scanned_wl.get("coins", []),
@@ -960,29 +693,14 @@ async def pull_state_payload():
                 and not getattr(scanner_main, "_SCANNER_TASK").done()
                 else "OFFLINE"
             ),
-            "vgx": (await _cached_snapshot("vgx", vgx_snapshot)).get("status", "OFFLINE"),
             "mtb": (
                 "ONLINE"
                 if getattr(mtb_main, "_MTB_TASK", None)
                 and not getattr(mtb_main, "_MTB_TASK").done()
                 else "OFFLINE"
             ),
-            "pmb": (
-                "ONLINE"
-                if getattr(pmb_main, "_PMB_TASK", None)
-                and not getattr(pmb_main, "_PMB_TASK").done()
-                else "OFFLINE"
-            ),
             "scanner_telegram": (
                 "ONLINE" if getattr(scanner_tg, "_SCANNER_TG_APP", None) is not None
-                else "OFFLINE"
-            ),
-            "vgx_telegram": (
-                "ONLINE" if getattr(vgx_tg, "_VGX_TG_APP", None) is not None
-                else "OFFLINE"
-            ),
-            "pmb_telegram": (
-                "ONLINE" if getattr(pmb_tg, "_PMB_TG_APP", None) is not None
                 else "OFFLINE"
             ),
             "mtb_telegram": (
@@ -1479,14 +1197,12 @@ async def get_live_prices():
 # ═══════════════════════════════════════════════════════════════
 
 def _unified_stats(
-    vgx: dict | None = None,
     mtbs: dict | None = None,
-    pmbs: dict | None = None,
 ) -> dict:
     """
-    Single source of truth for all analytics across VGX, PMB, MTB.
+    Single source of truth for all analytics.
     Win rate, best/worst signal, coin leaderboard — computed fresh each call.
-    Accepts pre-fetched snapshot dicts so async callers can supply them via
+    Accepts pre-fetched snapshot dict so async callers can supply it via
     asyncio.to_thread instead of blocking here.
     """
     from bots.scanner_bot.scanner import get_signals as _get_signals
@@ -1542,12 +1258,8 @@ def _unified_stats(
         n = entry["wins"] + entry["losses"]
         entry["win_rate"] = round(entry["wins"] / n * 100, 1) if n else 0.0
 
-    if vgx is None:
-        vgx  = vgx_snapshot()
     if mtbs is None:
         mtbs = mtb_snapshot()
-    if pmbs is None:
-        pmbs = pmb_snapshot()
 
     return {
         "signals_total":     len(raw_signals),
@@ -1559,9 +1271,7 @@ def _unified_stats(
         "worst_signal":      worst_signal,
         "coin_leaderboard":  leaderboard[:20],
         "bot_pnl": {
-            "vgx": {"daily_pnl": vgx.get("daily_pnl", 0),  "total_pnl": vgx.get("total_pnl", 0)},
             "mtb": {"daily_pnl": mtbs.get("daily_pnl", 0), "total_pnl": mtbs.get("total_pnl", 0)},
-            "pmb": {"daily_pnl": pmbs.get("daily_pnl", 0), "total_pnl": pmbs.get("total_pnl", 0)},
         },
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
@@ -1571,12 +1281,8 @@ def _unified_stats(
 async def unified_statistics():
     """Unified statistics engine — win rate, best/worst signal, coin leaderboard."""
     try:
-        vgx, mtbs, pmbs = await asyncio.gather(
-            _cached_snapshot("vgx", vgx_snapshot),
-            _cached_snapshot("mtb", mtb_snapshot),
-            _cached_snapshot("pmb", pmb_snapshot),
-        )
-        return await asyncio.to_thread(_unified_stats, vgx, mtbs, pmbs)
+        mtbs = await _cached_snapshot("mtb", mtb_snapshot)
+        return await asyncio.to_thread(_unified_stats, mtbs)
     except Exception as exc:
         return JSONResponse(status_code=500, content={"error": str(exc)})
 
@@ -1585,15 +1291,9 @@ async def unified_statistics():
 async def coin_leaderboard():
     """Coin leaderboard sorted by total return across all evaluated signals."""
     try:
-        # Pre-fetch snapshots via the cache (uses asyncio.to_thread internally) so
-        # _unified_stats never falls back to its own synchronous file-I/O path.
-        vgx, mtbs, pmbs = await asyncio.gather(
-            _cached_snapshot("vgx", vgx_snapshot),
-            _cached_snapshot("mtb", mtb_snapshot),
-            _cached_snapshot("pmb", pmb_snapshot),
-        )
+        mtbs = await _cached_snapshot("mtb", mtb_snapshot)
         logger.debug("[dashboard] offloading _unified_stats (leaderboard) to thread")
-        stats = await asyncio.to_thread(_unified_stats, vgx, mtbs, pmbs)
+        stats = await asyncio.to_thread(_unified_stats, mtbs)
         return {"leaderboard": stats["coin_leaderboard"], "timestamp": stats["timestamp"]}
     except Exception as exc:
         return JSONResponse(status_code=500, content={"error": str(exc)})
@@ -1637,35 +1337,9 @@ async def paper_trading_validation_status():
             is_complete  = False
 
         # ── Bot snapshots ───────────────────────────────────────────────────
-        vgx, mtbs, pmbs = await asyncio.gather(
-            _cached_snapshot("vgx", vgx_snapshot),
-            _cached_snapshot("mtb", mtb_snapshot),
-            _cached_snapshot("pmb", pmb_snapshot),
-        )
-
-        vgx_mode = str(vgx.get("status", "UNKNOWN")).upper()
-        mtb_mode = str(mtbs.get("mode",   "UNKNOWN")).upper()
-        pmb_mode = str(pmbs.get("mode",   "UNKNOWN")).upper()
-        all_paper = all(m == "PAPER" for m in (vgx_mode, mtb_mode, pmb_mode))
-
-        # ── Circuit-breaker state (read persisted JSON; no live instance) ───
-        cb_state  = "UNKNOWN"
-        cb_breaks = 0
-        try:
-            from bots.volatile_gridX.circuit_breaker import CIRCUIT_BREAKER_FILE
-            import json as _json
-            if CIRCUIT_BREAKER_FILE.exists():
-                def _read_cb_file():
-                    with open(CIRCUIT_BREAKER_FILE) as _f:
-                        return _json.load(_f)
-                _cb = await asyncio.to_thread(_read_cb_file)
-                cb_state  = _cb.get("trading_state", "UNKNOWN")
-                cb_breaks = int(_cb.get("circuit_breaks_count", 0))
-            else:
-                cb_state = "ACTIVE"
-        except Exception:
-            # NF-4: circuit breaker file read failed — status panel shows stale/default values.
-            logger.exception("Circuit breaker file read failed — cb_state will remain at default")
+        mtbs = await _cached_snapshot("mtb", mtb_snapshot)
+        mtb_mode = str(mtbs.get("mode", "UNKNOWN")).upper()
+        all_paper = (mtb_mode == "PAPER")
 
         return {
             "phase":                   "Phase 7 — V1 Freeze",
@@ -1676,14 +1350,6 @@ async def paper_trading_validation_status():
             "validation_complete":     is_complete,
             "all_bots_in_paper_mode":  all_paper,
             "bots": {
-                "vgx": {
-                    "mode":           vgx_mode,
-                    "daily_pnl":      vgx.get("daily_pnl",    0),
-                    "total_pnl":      vgx.get("total_pnl",    0),
-                    "open_positions": len(vgx.get("open_positions", [])),
-                    "paper_trades":   vgx.get("paper_trades",  0),
-                    "win_rate":       vgx.get("win_rate",       0),
-                },
                 "mtb": {
                     "mode":           mtb_mode,
                     "daily_pnl":      mtbs.get("daily_pnl",    0),
@@ -1692,21 +1358,11 @@ async def paper_trading_validation_status():
                     "closed_trades":  len(mtbs.get("closed_trades",  [])),
                     "cash_balance":   mtbs.get("cash_balance",  0),
                 },
-                "pmb": {
-                    "mode":           pmb_mode,
-                    "daily_pnl":      pmbs.get("daily_pnl",    0),
-                    "total_pnl":      pmbs.get("total_pnl",    0),
-                    "open_positions": len(pmbs.get("open_positions", [])),
-                    "closed_trades":  len(pmbs.get("closed_trades",  [])),
-                    "cash_balance":   pmbs.get("cash_balance",  0),
-                },
-            },
-            "circuit_breaker": {
-                "state":        cb_state,
-                "total_breaks": cb_breaks,
             },
             "timestamp": now.isoformat(),
         }
+    except Exception as exc:
+        return JSONResponse(status_code=500, content={"error": str(exc)})
     except Exception as exc:
         return JSONResponse(status_code=500, content={"error": str(exc)})
 
@@ -1795,13 +1451,11 @@ async def error_log_viewer(limit: int = 50):
 async def telegram_analytics():
     """Telegram-ready analytics summary — compact format for bot /stats command."""
     try:
-        risk, vgx, mtbs, pmbs = await asyncio.gather(
+        risk, mtbs = await asyncio.gather(
             _cached_snapshot("risk", risk_snapshot),
-            _cached_snapshot("vgx",  vgx_snapshot),
             _cached_snapshot("mtb",  mtb_snapshot),
-            _cached_snapshot("pmb",  pmb_snapshot),
         )
-        stats = await asyncio.to_thread(_unified_stats, vgx, mtbs, pmbs)
+        stats = await asyncio.to_thread(_unified_stats, mtbs)
 
         lines = [
             "📊 PROJECT-ALPHA ANALYTICS",
@@ -1818,17 +1472,9 @@ async def telegram_analytics():
             lines.append(f"  Worst: {w['coin']} {w['return']}%")
         lines += [
             "",
-            f"🤖 VGX  [{vgx.get('status','?')}]",
-            f"  Daily PnL: ₹{vgx.get('daily_pnl', 0):.2f}  Total: ₹{vgx.get('total_pnl', 0):.2f}",
-            f"  Positions: {len(vgx.get('open_positions', []))}  Win Rate: {vgx.get('win_rate', 0)}%",
-            "",
             f"🤖 MTB  [{mtbs.get('status','?')}]",
             f"  Daily PnL: ₹{mtbs.get('daily_pnl', 0):.4f}  Cash: ₹{mtbs.get('cash_balance', 0):.2f}",
             f"  Positions: {len(mtbs.get('open_positions', []))}",
-            "",
-            f"🤖 PMB  [{pmbs.get('status','?')}]",
-            f"  Daily PnL: ₹{pmbs.get('daily_pnl', 0):.4f}  Cash: ₹{pmbs.get('cash_balance', 0):.2f}",
-            f"  Positions: {len(pmbs.get('open_positions', []))}",
             "",
             "⚡ Risk Engine",
             f"  Trading: {'✅' if risk.get('trading_enabled') else '❌'}  Emergency Stop: {'🔴' if risk.get('emergency_stop') else '✅'}",
@@ -1908,26 +1554,16 @@ async def export_signals_csv():
 
 @app.get("/api/v1/export/trades.csv")
 async def export_trades_csv():
-    """Download all trades from VGX, MTB, PMB as unified CSV."""
+    """Download all trades from MTB as CSV."""
     try:
         from bots.mtb_bot.storage import load_trades as mtb_trades
-        from bots.pmb_bot.storage import load_trades as pmb_trades
         output = io.StringIO()
         fieldnames = ["bot", "coin", "symbol", "action", "status", "price", "amount", "pnl", "timestamp"]
         writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
-        vgx_raw = await _cached_snapshot("vgx", vgx_snapshot)
-        for t in vgx_raw.get("open_positions", []):
-            writer.writerow({"bot": "VGX", "coin": t.get("coin"), "action": "BUY",
-                             "status": "OPEN", "price": t.get("buy_price"), "amount": t.get("amount")})
-        _mtb_rows, _pmb_rows = await asyncio.gather(
-            asyncio.to_thread(mtb_trades),
-            asyncio.to_thread(pmb_trades),
-        )
+        _mtb_rows = await asyncio.to_thread(mtb_trades)
         for trade in _mtb_rows:
             row = dict(trade); row["bot"] = "MTB"; writer.writerow(row)
-        for trade in _pmb_rows:
-            row = dict(trade); row["bot"] = "PMB"; writer.writerow(row)
         return StreamingResponse(
             io.BytesIO(output.getvalue().encode("utf-8")),
             media_type="text/csv",
@@ -1942,18 +1578,14 @@ async def export_stats_json():
     """Download unified stats snapshot as JSON."""
     try:
         import json as _json
-        risk, vgx, mtbs, pmbs = await asyncio.gather(
+        risk, mtbs = await asyncio.gather(
             _cached_snapshot("risk", risk_snapshot),
-            _cached_snapshot("vgx",  vgx_snapshot),
             _cached_snapshot("mtb",  mtb_snapshot),
-            _cached_snapshot("pmb",  pmb_snapshot),
         )
         payload = {
-            "unified":     await asyncio.to_thread(_unified_stats, vgx, mtbs, pmbs),
+            "unified":     await asyncio.to_thread(_unified_stats, mtbs),
             "risk":        risk,
-            "vgx":         vgx,
             "mtb":         mtbs,
-            "pmb":         pmbs,
             "exported_at": datetime.now(timezone.utc).isoformat(),
         }
         content = _json.dumps(payload, indent=2, ensure_ascii=False)
@@ -1966,101 +1598,7 @@ async def export_stats_json():
         return JSONResponse(status_code=500, content={"error": str(exc)})
 
 
-# ── VGX Grid Management Endpoints ─────────────────────────────────────────────
-
-
-@app.get("/api/vgx/grid-config", response_class=JSONResponse)
-async def vgx_get_grid_config():
-    """Return current grid_config and grid_coins. Requires X-API-Key."""
-    grid_cfg = await asyncio.to_thread(_vgx_get_grid_config)
-    coins    = await asyncio.to_thread(_vgx_get_grid_coins)
-    return JSONResponse(content={"grid_coins": coins, "grid_config": grid_cfg})
-
-
-@app.get("/api/vgx/grid-coins", response_class=JSONResponse)
-async def vgx_get_grid_coins():
-    """Return the active VGX grid coin list. Requires X-API-Key."""
-    coins = await asyncio.to_thread(_vgx_get_grid_coins)
-    return JSONResponse(content={"coins": coins, "count": len(coins)})
-
-
-@app.post("/api/vgx/base-price", response_class=JSONResponse)
-async def vgx_set_coin_base_price(request: Request):
-    """Set or update manual grid-centre base price for a coin. Requires X-API-Key."""
-    try:
-        body = await request.json()
-    except Exception:
-        return JSONResponse(content={"status": "error", "reason": "invalid JSON body"})
-
-    coin = str(body.get("coin", "")).strip().upper()
-    if not coin or not coin.isalnum() or len(coin) > 10:
-        return JSONResponse(content={
-            "status": "error",
-            "reason": "coin must be alphanumeric and at most 10 characters",
-        })
-
-    try:
-        base_price = float(body.get("base_price", 0))
-    except (TypeError, ValueError):
-        return JSONResponse(content={"status": "error", "reason": "base_price must be a number"})
-
-    if base_price <= 0:
-        return JSONResponse(content={"status": "error", "reason": "base_price must be > 0"})
-
-    ok = await asyncio.to_thread(_vgx_set_coin_base_price, coin, base_price, "dashboard")
-    if not ok:
-        return JSONResponse(content={"status": "error", "reason": "write failed"})
-
-    logger.info("[VGX API] Base price set: coin=%s price=%s", coin, base_price)
-    return JSONResponse(content={"status": "ok", "coin": coin, "base_price": base_price})
-
-
-@app.delete("/api/vgx/base-price", response_class=JSONResponse)
-async def vgx_remove_coin_base_price(request: Request):
-    """Remove manual base price override for a coin. Coin supplied as query param. Requires X-API-Key."""
-    coin = (request.query_params.get("coin", "")).strip().upper()
-    if not coin or not coin.isalnum() or len(coin) > 10:
-        return JSONResponse(content={
-            "status": "error",
-            "reason": "coin query param must be alphanumeric and at most 10 characters",
-        })
-    removed = await asyncio.to_thread(_vgx_remove_coin_base_price, coin)
-    if not removed:
-        logger.info("[VGX API] Base price remove: coin=%s not found", coin)
-        return JSONResponse(content={"status": "not_found", "coin": coin})
-    logger.info("[VGX API] Base price removed: coin=%s", coin)
-    return JSONResponse(content={"status": "ok", "coin": coin})
-
-
-@app.post("/api/vgx/grid-coins", response_class=JSONResponse)
-async def vgx_set_grid_coins(request: Request):
-    """Replace the active VGX grid coin list. Requires X-API-Key."""
-    try:
-        body = await request.json()
-    except Exception:
-        return JSONResponse(content={"status": "error", "reason": "invalid JSON body"})
-
-    coins = body.get("coins")
-    if not isinstance(coins, list):
-        return JSONResponse(content={"status": "error", "reason": "coins must be a list"})
-
-    ok = await asyncio.to_thread(_vgx_set_grid_coins, coins)
-    if not ok:
-        return JSONResponse(content={
-            "status": "error",
-            "reason": "validation failed — list must be non-empty, each coin alphanumeric, max 20 coins",
-        })
-
-    # Return the persisted state (deduped, normalised) rather than the raw input.
-    persisted = await asyncio.to_thread(_vgx_get_grid_coins)
-    logger.info("[VGX API] Grid coins updated via API: %s", persisted)
-    return JSONResponse(content={"status": "ok", "coins": persisted, "count": len(persisted)})
-
-
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", "5000"))
-    # proxy_headers=False: do not rewrite request.client from X-Forwarded-For.
-    # This app is not behind a reverse proxy, so trusting that header would let
-    # any client spoof its IP and bypass the failed-login throttle.
     uvicorn.run(app, host="0.0.0.0", port=port, proxy_headers=False)

@@ -574,7 +574,7 @@ class NotificationManager:
             NotificationType.BOT_STARTED,
             "Bot Started 🚀",
             "PROJECT ALPHA trading bot is now online.",
-            {"Version": "1.0", "Mode": os.getenv("VGX_BOT_MODE", "PAPER")}
+            {"Version": "1.0", "Mode": os.getenv("MTB_BOT_MODE", "PAPER")}
         )
     
     async def high_cpu_alert(self, cpu_pct: float) -> bool:
@@ -598,65 +598,59 @@ class NotificationManager:
 # COMMAND HANDLERS
 # =============================================================================
 
+@require_auth
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /start command."""
-    user = update.effective_user
-    await update.message.reply_text(
-        f"👋 *Welcome to PROJECT ALPHA Bot!*\n\n"
-        f"Hello, {user.first_name}!\n\n"
-        f"Use /help to see available commands.",
-        parse_mode="Markdown"
+    welcome_message = (
+        "🚀 *Welcome to PROJECT ALPHA Bot*\n\n"
+        "Your institutional-grade quantitative trading companion.\n\n"
+        "*Available Commands:*\n"
+        "📊 `/status` - System & bot status\n"
+        "📈 `/positions` - Current open positions\n"
+        "💰 `/pnl` - Profit & Loss summary\n"
+        "📡 `/signals` - Latest trading signals\n"
+        "🔍 `/scan` - Scanned market watchlist\n"
+        "💼 `/portfolio` - Portfolio overview\n"
+        "📈 `/stats` - Trading statistics\n"
+        "🛡️ `/risk` - Risk engine metrics\n"
+        "🏥 `/health` - Health check status\n"
+        "ℹ️ `/help` - Show all commands\n\n"
+        "_Use /help for advanced commands._"
     )
+    await update.message.reply_text(welcome_message, parse_mode="Markdown")
 
 
 @require_auth
 async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /help command."""
-    security = get_security_manager()
-    is_admin = security.is_admin(update.effective_user.id)
-    
-    commands = """
-📋 *Available Commands*
-
-*General:*
-/start - Start the bot
-/help - Show this help
-/ping - Check bot status
-/version - Show version info
-
-*Status:*
-/status - System status overview
-/health - Health check results
-/dashboard - Dashboard summary
-
-*Trading:*
-/pnl - Profit/Loss summary
-/stats - Trading statistics
-/positions - Open positions
-/portfolio - Portfolio overview
-
-*Signals:*
-/signals - Active trading signals
-/watchlist - Current watchlist
-
-*Risk:*
-/risk - Risk engine status
-"""
-    
-    if is_admin:
-        commands += """
-*Admin Commands:*
-/pause - Pause trading
-/resume - Resume trading
-/emergency - Emergency stop
-/restart - Restart services
-/logs - View recent logs
-"""
-    
-    await update.message.reply_text(commands, parse_mode="Markdown")
+    help_message = (
+        "📖 *PROJECT ALPHA Command Reference*\n\n"
+        "*Trading Information:*\n"
+        "• `/status` - System, bot & service status\n"
+        "• `/positions` - View open positions\n"
+        "• `/pnl` - Daily and total PnL\n"
+        "• `/stats` - Win rate and trade metrics\n"
+        "• `/portfolio` - Balances and allocation\n\n"
+        "*Market & Signals:*\n"
+        "• `/signals` - Recent trading signals\n"
+        "• `/scan` - Scanned coins\n"
+        "• `/price <COIN>` - Current coin price\n\n"
+        "*System & Risk:*\n"
+        "• `/risk` - Risk limits and utilization\n"
+        "• `/health` - Service health checks\n"
+        "• `/metrics` - System resource usage\n"
+        "• `/dashboard` - Dashboard URL & info\n"
+        "• `/ping` - Check bot responsiveness\n"
+        "• `/version` - Bot version info\n\n"
+        "*Admin Only:*\n"
+        "• `/pause` - Pause trading\n"
+        "• `/resume` - Resume trading\n"
+        "• `/emergencystop` - Emergency halt\n"
+        "• `/logs [lines]` - View recent logs"
+    )
+    await update.message.reply_text(help_message, parse_mode="Markdown")
 
 
-@require_auth
 async def cmd_ping(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /ping command."""
     start = time.time()
@@ -671,7 +665,7 @@ async def cmd_version(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     await update.message.reply_text(
         "📦 *PROJECT ALPHA*\n\n"
         f"Version: `1.0.0`\n"
-        f"Mode: `{os.getenv('VGX_BOT_MODE', 'PAPER')}`\n"
+        f"Mode: `{os.getenv('MTB_BOT_MODE', 'PAPER')}`\n"
         f"Environment: `{os.getenv('RAILWAY_ENVIRONMENT', 'DEVELOPMENT')}`",
         parse_mode="Markdown"
     )
@@ -683,12 +677,10 @@ async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     try:
         # Get data from various sources
         from bots.mtb_bot.storage import snapshot as mtb_snapshot
-        from bots.pmb_bot.storage import snapshot as pmb_snapshot
         from bots.risk_engine.engine import snapshot as risk_snapshot
         from bots.scanner_bot.scanner import get_stats
         
         mtb = mtb_snapshot()
-        pmb = pmb_snapshot()
         risk = risk_snapshot()
         scanner_stats = get_stats() or {}
         
@@ -709,7 +701,6 @@ async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             f"*Services:*\n"
             f"├ Scanner: `{scanner_stats.get('api_status', 'ONLINE')}`\n"
             f"├ MTB Bot: `{mtb.get('status', 'UNKNOWN')}`\n"
-            f"├ PMB Bot: `{pmb.get('status', 'UNKNOWN')}`\n"
             f"└ Risk Engine: `{'ACTIVE' if not emergency_stop else 'EMERGENCY'}`\n\n"
             f"*Risk Status:*\n"
             f"├ Kill Switch: `{'ON' if risk.get('kill_switch_active') else 'OFF'}`\n"
@@ -807,24 +798,21 @@ async def cmd_dashboard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 async def cmd_pnl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /pnl command."""
     try:
-        # Get VGX data
-        from app import vgx_snapshot
-        vgx = vgx_snapshot()
+        from bots.mtb_bot.storage import snapshot as mtb_snapshot
+        mtb = mtb_snapshot()
         
-        daily_pnl = vgx.get("daily_pnl", 0)
-        total_pnl = vgx.get("total_pnl", 0)
-        win_rate = vgx.get("win_rate", 0)
+        daily_pnl = mtb.get("daily_pnl", 0)
+        total_pnl = mtb.get("total_pnl", 0)
         
         daily_emoji = "📈" if daily_pnl >= 0 else "📉"
         total_emoji = "📈" if total_pnl >= 0 else "📉"
         
         message = (
             f"💰 *Profit & Loss Summary*\n\n"
-            f"*VGX Bot:*\n"
+            f"*MTB Bot:*\n"
             f"{daily_emoji} Daily: `₹{daily_pnl:,.2f}`\n"
             f"{total_emoji} Total: `₹{total_pnl:,.2f}`\n"
-            f"📊 Win Rate: `{win_rate:.1f}%`\n"
-            f"📝 Trades: `{vgx.get('paper_trades', 0)}`"
+            f"📝 Closed Trades: `{len(mtb.get('closed_trades', []))}`"
         )
         
         await update.message.reply_text(message, parse_mode="Markdown")
@@ -837,25 +825,28 @@ async def cmd_pnl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /stats command."""
     try:
-        from app import vgx_snapshot
-        vgx = vgx_snapshot()
+        from bots.mtb_bot.storage import snapshot as mtb_snapshot
+        from app import _unified_stats
         
-        wins = vgx.get("wins", 0)
-        losses = vgx.get("losses", 0)
+        mtb = mtb_snapshot()
+        stats = _unified_stats(mtb)
+        
+        wins = stats.get("wins", 0)
+        losses = stats.get("losses", 0)
         total = wins + losses
-        win_rate = vgx.get("win_rate", 0)
+        win_rate = stats.get("win_rate", 0)
         
         message = (
             f"📊 *Trading Statistics*\n\n"
-            f"*Trade Results:*\n"
-            f"├ Total Trades: `{total}`\n"
+            f"*Scanner Signals:*\n"
+            f"├ Evaluated: `{total}`\n"
             f"├ Wins: `{wins}` ✅\n"
             f"├ Losses: `{losses}` ❌\n"
             f"└ Win Rate: `{win_rate:.1f}%`\n\n"
-            f"*Balance:*\n"
-            f"├ Virtual: `₹{vgx.get('virtual_balance', 0):,.2f}`\n"
-            f"├ Daily PnL: `₹{vgx.get('daily_pnl', 0):,.2f}`\n"
-            f"└ Total PnL: `₹{vgx.get('total_pnl', 0):,.2f}`"
+            f"*MTB Bot:*\n"
+            f"├ Cash Balance: `₹{mtb.get('cash_balance', 0):,.2f}`\n"
+            f"├ Daily PnL: `₹{mtb.get('daily_pnl', 0):,.2f}`\n"
+            f"└ Total PnL: `₹{mtb.get('total_pnl', 0):,.2f}`"
         )
         
         await update.message.reply_text(message, parse_mode="Markdown")
@@ -868,40 +859,25 @@ async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def cmd_positions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /positions command."""
     try:
-        from app import vgx_snapshot
         from bots.mtb_bot.storage import snapshot as mtb_snapshot
-        
-        vgx = vgx_snapshot()
         mtb = mtb_snapshot()
         
-        vgx_positions = vgx.get("open_positions", [])
         mtb_positions = mtb.get("open_positions", [])
-        
-        total_positions = len(vgx_positions) + len(mtb_positions)
+        total_positions = len(mtb_positions)
         
         if total_positions == 0:
             await update.message.reply_text("📭 No open positions.")
             return
         
         message = f"📈 *Open Positions ({total_positions})*\n\n"
-        
-        if vgx_positions:
-            message += "*VGX Positions:*\n"
-            for pos in vgx_positions[:5]:
-                message += (
-                    f"├ {pos.get('coin', 'N/A')}: "
-                    f"`₹{pos.get('buy_price', 0):,.2f}` x `{pos.get('qty', 0):.4f}`\n"
-                )
-            if len(vgx_positions) > 5:
-                message += f"└ ... and {len(vgx_positions) - 5} more\n"
-        
-        if mtb_positions:
-            message += "\n*MTB Positions:*\n"
-            for pos in mtb_positions[:5]:
-                message += (
-                    f"├ {pos.get('coin', 'N/A')}: "
-                    f"`₹{pos.get('entry_price', 0):,.2f}`\n"
-                )
+        message += "*MTB Positions:*\n"
+        for pos in mtb_positions[:10]:
+            message += (
+                f"├ {pos.get('coin', pos.get('symbol', 'N/A'))}: "
+                f"`₹{pos.get('entry_price', pos.get('buy_price', 0)):,.2f}`\n"
+            )
+        if len(mtb_positions) > 10:
+            message += f"└ ... and {len(mtb_positions) - 10} more\n"
         
         await update.message.reply_text(message, parse_mode="Markdown")
     except Exception as e:
@@ -988,11 +964,10 @@ async def cmd_risk(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             f"├ Trading Enabled: `{risk.get('trading_enabled', True)}`\n"
             f"├ Kill Switch: `{'ACTIVE' if kill_switch else 'OFF'}`\n"
             f"└ Emergency Stop: `{'ACTIVE' if emergency else 'OFF'}`\n\n"
-            f"*Circuit Breaker:*\n"
-            f"├ Status: `{risk.get('circuit_breaker_status', 'CLOSED')}`\n"
-            f"├ Daily Loss: `{risk.get('daily_loss_pct', 0):.2f}%`\n"
-            f"├ Weekly Loss: `{risk.get('weekly_loss_pct', 0):.2f}%`\n"
-            f"└ Monthly Loss: `{risk.get('monthly_loss_pct', 0):.2f}%`"
+            f"*Capital Limits:*\n"
+            f"├ Total Capital Limit: `₹{risk.get('total_capital_limit', 0):,.2f}`\n"
+            f"├ Total Deployed: `₹{risk.get('total_deployed', 0):,.2f}`\n"
+            f"└ Capital Utilisation: `{risk.get('capital_utilisation_pct', 0):.1f}%`"
         )
         
         await update.message.reply_text(message, parse_mode="Markdown")
@@ -1005,26 +980,24 @@ async def cmd_risk(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def cmd_portfolio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /portfolio command."""
     try:
-        from app import vgx_snapshot, pull_state_payload
+        from bots.mtb_bot.storage import snapshot as mtb_snapshot
+        mtb = mtb_snapshot()
         
-        vgx = vgx_snapshot()
-        state = pull_state_payload()
-        
-        total_positions = len(vgx.get("open_positions", []))
-        virtual_balance = vgx.get("virtual_balance", 0)
-        total_pnl = vgx.get("total_pnl", 0)
+        total_positions = len(mtb.get("open_positions", []))
+        cash_balance = mtb.get("cash_balance", 0)
+        total_pnl = mtb.get("total_pnl", 0)
+        daily_pnl = mtb.get("daily_pnl", 0)
         
         message = (
             f"💼 *Portfolio Overview*\n\n"
             f"*Balances:*\n"
-            f"├ Virtual Balance: `₹{virtual_balance:,.2f}`\n"
+            f"├ Cash Balance: `₹{cash_balance:,.2f}`\n"
+            f"├ Daily PnL: `₹{daily_pnl:,.2f}`\n"
             f"├ Total PnL: `₹{total_pnl:,.2f}`\n"
             f"└ Open Positions: `{total_positions}`\n\n"
-            f"*Grid Configuration:*\n"
-            f"├ Coins: `{', '.join(vgx.get('grid_coins', []))}`\n"
-            f"├ Trade Amount: `₹{vgx.get('trade_amount', 0):,.2f}`\n"
-            f"├ Target: `{vgx.get('target_pct', 5)}%`\n"
-            f"└ Stop Loss: `{vgx.get('stop_loss_pct', 5)}%`"
+            f"*Bot Status:*\n"
+            f"├ Mode: `{mtb.get('mode', 'PAPER')}`\n"
+            f"└ Trade Amount: `₹{mtb.get('trade_amount', 0):,.2f}`"
         )
         
         await update.message.reply_text(message, parse_mode="Markdown")

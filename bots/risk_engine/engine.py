@@ -37,49 +37,18 @@ class RiskDecision:
 def _load_bot_positions(bot: str) -> list[dict]:
     """Return current open positions for `bot`.
 
-    For PMB/MTB: swallows import/IO errors and returns [] (same behaviour
-    as before — those modules have their own safe fallbacks).
-
-    For VGX: VGXStorageError (file exists but is corrupt/unreadable) is
-    intentionally re-raised so callers can implement fail-closed logic.
-    All other VGX exceptions are caught and logged as warnings, returning [].
-
-    Each bot has its own try/except so VGXStorageError is never accidentally
-    swallowed by a shared outer handler.
+    For MTB: swallows import/IO errors and returns [].
     """
-    if bot == "PMB":
-        try:
-            from bots.pmb_bot.storage import get_open_positions
-            return get_open_positions()
-        except Exception as exc:
-            # T3.6: re-raise so check_trade_allowed() returns STORAGE_UNREADABLE.
-            # Returning [] would report ₹0 deployed capital and approve trades that
-            # should be blocked — a violation of deny-by-default.
-            logger.error(
-                "Risk engine could not load PMB positions — denying trade: %s", exc
-            )
-            raise
-
     if bot == "MTB":
         try:
             from bots.mtb_bot.storage import get_open_positions
             return get_open_positions()
         except Exception as exc:
-            # T3.6: same deny-by-default guarantee as PMB above.
+            # T3.6: deny-by-default guarantee.
             logger.error(
                 "Risk engine could not load MTB positions — denying trade: %s", exc
             )
             raise
-
-    if bot == "VGX":
-        from bots.volatile_gridX.storage import VGXStorageError, get_open_positions
-        try:
-            return get_open_positions()
-        except VGXStorageError:
-            raise   # propagate — callers deny fail-closed
-        except Exception as exc:
-            logger.warning("Risk engine could not load VGX positions: %s", exc)
-            return []
 
     return []
 
@@ -168,7 +137,7 @@ def check_trade_allowed(bot: str, amount: float) -> RiskDecision:
                             f"{bot} deployed={bot_deployed:.0f} + {amount:.0f} "
                             f"> limit={bot_limit:.0f}")
 
-    all_bots = ["VGX", "PMB", "MTB"]
+    all_bots = ["MTB"]
     try:
         total_deployed = sum(_deployed_capital(_load_bot_positions(b)) for b in all_bots)
     except Exception as exc:
@@ -192,7 +161,7 @@ def snapshot() -> dict[str, Any]:
     """Return a dashboard-ready risk engine status snapshot."""
     bot_states: dict[str, Any] = {}
     total_deployed = 0.0
-    for bot in ["VGX", "PMB", "MTB"]:
+    for bot in ["MTB"]:
         try:
             positions = _load_bot_positions(bot)
             storage_error = False

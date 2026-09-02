@@ -12,7 +12,7 @@ from v2.backtest.fleet_selector import FleetSelector
 from v2.backtest.friction import CoinDCXFrictionModel, FrictionConfig
 from v2.backtest.metrics import PerformanceMetrics, calculate_trade_metrics
 from v2.backtest.risk_gate import Stage06RiskGate
-from v2.backtest.strategies import MTBStrategy, PMBStrategy, HDAStrategy, STEStrategy
+from v2.backtest.strategies import MTBStrategy, HDAStrategy, STEStrategy
 
 
 class TestFrictionModel:

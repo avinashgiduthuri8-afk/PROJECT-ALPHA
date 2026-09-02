@@ -285,7 +285,7 @@ async def run_mtb_bot():
 
 
 # ============================================================
-# LIFESPAN HOOKS — used by app.py alongside scanner/vgx/pmb bots
+# LIFESPAN HOOKS — used by app.py alongside scanner bot
 # ============================================================
 
 _MTB_TG_APP = None

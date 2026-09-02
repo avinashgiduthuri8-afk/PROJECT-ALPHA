@@ -202,7 +202,7 @@ class HealthChecker:
                 Path(__file__).resolve().parent.parent / "data",
                 Path(__file__).resolve().parent.parent / "storage",
                 Path(__file__).resolve().parent.parent / "bots" / "scanner_bot" / "data",
-                Path(__file__).resolve().parent.parent / "bots" / "volatile_gridX" / "data",
+                Path(__file__).resolve().parent.parent / "bots" / "mtb_bot" / "data",
             ]
             file_path = None
             for base in base_paths:
@@ -643,25 +643,6 @@ class HealthChecker:
                     checked_at=datetime.now(timezone.utc),
                 ))
 
-            # PMB storage checks
-            try:
-                from bots.pmb_bot.config import POSITIONS_FILE as PMB_POS, \
-                    TRADES_FILE as PMB_TRD, STATS_FILE as PMB_STA
-                for path, label in [(PMB_POS, "pmb_positions.json"),
-                                    (PMB_TRD, "pmb_trades.json"),
-                                    (PMB_STA, "pmb_stats.json")]:
-                    result = self.check_storage_file(label, path)
-                    checks.append(result)
-                    self._trigger_alerts(result)
-            except Exception:
-                checks.append(HealthCheckResult(
-                    name="pmb_config",
-                    status=HealthStatus.DEGRADED,
-                    severity=CheckSeverity.WARNING,
-                    message="PMB config unavailable",
-                    checked_at=datetime.now(timezone.utc),
-                ))
-            
             # Safety checks
             checks.append(self.check_circuit_breaker())
             checks.append(self.check_trading_status())

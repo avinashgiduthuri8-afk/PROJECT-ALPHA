@@ -477,4 +477,54 @@ class ProductionStatusSchema(BaseModel):
     circuit_breaker_status: str
 
 
+# ── Execution & Error Center Schemas ──────────────────────────────────────────
+
+class UnifiedOrderSchema(BaseModel):
+    id:                str
+    exchange_order_id: Optional[str] = None
+    coin:              str
+    pair:              str
+    side:              str = "BUY"
+    qty:               float
+    price:             float
+    executed_price:    Optional[float] = None
+    mode:              str = "SHADOW"
+    status:            str = "FILLED"
+    created_at:        Optional[str] = None
+    filled_at:         Optional[str] = None
+    bot:               Optional[str] = None
+    signal_id:         Optional[str] = None
+    error_reason:      Optional[str] = None
+
+
+class OrderLifecycleSchema(BaseModel):
+    entity_id:         str
+    coin:              str
+    pair:              str
+    status:            str
+    current_stage:     str
+    client_order_id:   Optional[str] = None
+    exchange_order_id: Optional[str] = None
+    subaccount_id:     Optional[str] = None
+    requested_qty:     float = 0.0
+    filled_qty:        float = 0.0
+    requested_price:   float = 0.0
+    executed_price:    Optional[float] = None
+    slippage_pct:      Optional[float] = None
+    mode:              str = "SHADOW"
+    timestamps:        dict[str, Any] = Field(default_factory=dict)
+    stages:            list[dict[str, Any]] = Field(default_factory=list)
+    rejection_reason:  Optional[str] = None
+
+
+class ErrorLogItemSchema(BaseModel):
+    id:        str
+    timestamp: str
+    service:   str
+    severity:  str = "ERROR"
+    message:   str
+    status:    str = "ACTIVE"
+    payload:   dict[str, Any] = Field(default_factory=dict)
+
+
 

@@ -85,35 +85,6 @@ def validate_trading_engine() -> ValidationResult:
     """Validate trading engine components."""
     result = ValidationResult("Trading Engine")
     
-    # Check VGX trading engine
-    try:
-        from bots.volatile_gridX.trading_engine import emergency_close_all
-        result.add_check("VGX emergency_close_all available", callable(emergency_close_all))
-
-        # Check circuit breaker integration directly
-        from bots.volatile_gridX.circuit_breaker import check_can_trade, get_breaker_status
-        result.add_check("VGX circuit_breaker integration", callable(check_can_trade) and callable(get_breaker_status))
-    except Exception as e:
-        result.add_check("VGX emergency_close_all available", False, str(e))
-    
-    # Check thread safety
-    try:
-        from bots.volatile_gridX import thread_safety
-        result.add_check("Thread safety module", True)
-    except Exception as e:
-        result.add_check("Thread safety module", False, str(e))
-    
-    # Check circuit breaker
-    try:
-        from bots.volatile_gridX import circuit_breaker
-        result.add_check("Circuit breaker module", True)
-        
-        # Verify thresholds
-        if hasattr(circuit_breaker, 'TIER_THRESHOLDS'):
-            result.add_check("Circuit breaker thresholds defined", True)
-    except Exception as e:
-        result.add_check("Circuit breaker module", False, str(e))
-    
     # Check MTB
     try:
         from bots.mtb_bot import storage as mtb_storage
@@ -121,14 +92,6 @@ def validate_trading_engine() -> ValidationResult:
         result.add_check("MTB storage snapshot", True)
     except Exception as e:
         result.add_check("MTB storage snapshot", False, str(e))
-    
-    # Check PMB
-    try:
-        from bots.pmb_bot import storage as pmb_storage
-        snapshot = pmb_storage.snapshot()
-        result.add_check("PMB storage snapshot", True)
-    except Exception as e:
-        result.add_check("PMB storage snapshot", False, str(e))
     
     # Check risk engine
     try:
@@ -252,7 +215,6 @@ def validate_storage() -> ValidationResult:
         base_path / "data",
         base_path / "bots" / "scanner_bot" / "data",
         base_path / "bots" / "mtb_bot" / "data",
-        base_path / "bots" / "pmb_bot" / "data",
     ]
     
     for dir_path in data_dirs:
@@ -274,13 +236,6 @@ def validate_storage() -> ValidationResult:
         else:
             result.add_check(f"{name} exists", True, "Optional file", warning=True)
     
-    # Check safe_storage module
-    try:
-        from bots.volatile_gridX import safe_storage
-        result.add_check("SafeStorage module", True)
-    except Exception as e:
-        result.add_check("SafeStorage module", False, str(e))
-    
     return result
 
 
@@ -290,7 +245,7 @@ def validate_security() -> ValidationResult:
     
     # Check telegram security
     try:
-        from bots.volatile_gridX import telegram_security
+        from telegram_core.production_bot import SecurityManager
         result.add_check("Telegram security module", True)
     except Exception as e:
         result.add_check("Telegram security module", False, str(e))

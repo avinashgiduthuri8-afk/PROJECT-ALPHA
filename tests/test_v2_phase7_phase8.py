@@ -1,4 +1,4 @@
-﻿"""
+"""
 Comprehensive Unit and Integration Tests for Phase 7 (Notification Service & Telegram Dispatcher)
 and Phase 8 (WebSocket Real-Time Push Feed & Observability Engine).
 """
@@ -101,7 +101,7 @@ def test_notification_formatters():
 
     pos_opened = format_position_opened_alert({
         "coin": "ETH",
-        "bot": "PMB",
+        "bot": "STE",
         "entry_price": 2500.0,
         "qty": 0.1,
         "stop_loss": 2450.0,
@@ -113,7 +113,7 @@ def test_notification_formatters():
 
     pos_closed = format_position_closed_alert({
         "coin": "ETH",
-        "bot": "PMB",
+        "bot": "STE",
         "pnl": 15.50,
         "pnl_pct": 2.4,
         "exit_reason": "TAKE_PROFIT",

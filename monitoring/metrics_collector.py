@@ -396,9 +396,7 @@ class MetricsCollector:
             self._data_dir / filename,
             self._storage_dir / filename,
             Path(__file__).resolve().parent.parent / "bots" / "scanner_bot" / "data" / filename,
-            Path(__file__).resolve().parent.parent / "bots" / "volatile_gridX" / "data" / filename,
             Path(__file__).resolve().parent.parent / "bots" / "mtb_bot" / "data" / filename,
-            Path(__file__).resolve().parent.parent / "bots" / "pmb_bot" / "data" / filename,
         ]
         
         file_path = None

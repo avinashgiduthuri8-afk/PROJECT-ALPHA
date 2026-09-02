@@ -29,21 +29,23 @@ def _dt(s: str | None) -> Optional[datetime]:
 def _row_to_trade(row: aiosqlite.Row) -> Trade:
     d = dict(row)
     return Trade(
-        id          = d["id"],
-        position_id = d["position_id"],
-        bot         = BotName(d["bot"]),
-        coin        = d["coin"],
-        pair        = d["pair"],
-        entry_price = d["entry_price"],
-        exit_price  = d["exit_price"],
-        qty         = d["qty"],
-        pnl         = d["pnl"],
-        pnl_pct     = d["pnl_pct"],
-        entry_time  = _dt(d["entry_time"]),
-        exit_time   = _dt(d["exit_time"]),
-        exit_reason = ExitReason(d["exit_reason"]),
-        mode        = BotMode(d["mode"]),
-        signal_id   = d.get("signal_id"),
+        id                = d["id"],
+        position_id       = d["position_id"],
+        bot               = BotName(d["bot"]),
+        coin              = d["coin"],
+        pair              = d["pair"],
+        entry_price       = d["entry_price"],
+        exit_price        = d["exit_price"],
+        qty               = d["qty"],
+        pnl               = d["pnl"],
+        pnl_pct           = d["pnl_pct"],
+        entry_time        = _dt(d["entry_time"]),
+        exit_time         = _dt(d["exit_time"]),
+        exit_reason       = ExitReason(d["exit_reason"]),
+        mode              = BotMode(d["mode"]),
+        signal_id         = d.get("signal_id"),
+        exchange_order_id = d.get("exchange_order_id"),
+        client_order_id   = d.get("client_order_id"),
     )
 
 
@@ -60,8 +62,9 @@ class TradeRepository(BaseRepository):
             """
             INSERT INTO trades
             (id, position_id, bot, coin, pair, entry_price, exit_price,
-             qty, pnl, pnl_pct, entry_time, exit_time, exit_reason, mode, signal_id)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+             qty, pnl, pnl_pct, entry_time, exit_time, exit_reason, mode, signal_id,
+             exchange_order_id, client_order_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """,
             (
                 trade.id,
@@ -79,6 +82,8 @@ class TradeRepository(BaseRepository):
                 exit_reason_val,
                 mode_val,
                 trade.signal_id,
+                trade.exchange_order_id,
+                trade.client_order_id,
             ),
         )
         return trade.id

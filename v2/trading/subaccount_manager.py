@@ -1,4 +1,4 @@
-﻿"""
+"""
 CoinDCX Unified Capital Pool & Execution Manager Architecture.
 
 Migrated from isolated sub-accounts to a Single Unified Capital Pool (₹10,000 shared ceiling)
@@ -320,26 +320,66 @@ class CoinDCXSubAccountClient:
             resp = await http.post(url, json=payload, headers=headers)
             if resp.status_code in (200, 201):
                 data = resp.json()
+                raw_order: Dict[str, Any] = {}
+                if isinstance(data, dict):
+                    if "orders" in data and isinstance(data["orders"], list) and len(data["orders"]) > 0:
+                        raw_order = data["orders"][0]
+                    else:
+                        raw_order = data
+                elif isinstance(data, list) and len(data) > 0:
+                    raw_order = data[0] if isinstance(data[0], dict) else {}
+
+                exchange_order_id = str(raw_order.get("id") or raw_order.get("order_id") or "")
+                raw_status = str(raw_order.get("status", "open")).upper()
+
+                # If status is open/pending, perform a fast follow-up status check
+                if raw_status not in ("FILLED", "REJECTED", "CANCELLED") and exchange_order_id:
+                    try:
+                        await asyncio.sleep(0.1)
+                        status_resp = await self.get_order_status(exchange_order_id, client=http)
+                        if status_resp.get("success"):
+                            st_order = status_resp.get("order")
+                            if isinstance(st_order, dict):
+                                raw_status = str(st_order.get("status", raw_status)).upper()
+                    except Exception:
+                        pass
+
+                is_filled = (raw_status == "FILLED")
                 with self._lock:
-                    if side.upper() == "BUY":
+                    if side.upper() == "BUY" and is_filled:
                         self._shared_state["deployed_capital_inr"] += notional
 
                 return {
                     "success": True,
                     "status_code": resp.status_code,
-                    "order": data,
+                    "order": raw_order,
+                    "exchange_order_id": exchange_order_id or None,
+                    "client_order_id": order_id,
+                    "status": raw_status,
+                    "is_filled": is_filled,
                     "price": rounded_price,
                     "qty": rounded_qty,
                     "notional_inr": notional,
                 }
             elif resp.status_code == 401:
-                return {"success": False, "status_code": 401, "error": "AUTH_FAILED", "message": "Invalid API Key or HMAC Signature"}
+                return {"success": False, "status_code": 401, "error": "AUTH_FAILED", "message": "Invalid API Key or HMAC Signature", "client_order_id": order_id}
             elif resp.status_code == 429:
-                return {"success": False, "status_code": 429, "error": "RATE_LIMIT_EXCEEDED", "message": "Rate limit exceeded"}
+                return {"success": False, "status_code": 429, "error": "RATE_LIMIT_EXCEEDED", "message": "Rate limit exceeded", "client_order_id": order_id}
             else:
-                return {"success": False, "status_code": resp.status_code, "error": "ORDER_REJECTED", "details": resp.text}
+                return {"success": False, "status_code": resp.status_code, "error": "ORDER_REJECTED", "details": resp.text, "client_order_id": order_id}
+        except httpx.TimeoutException as te:
+            logger.warning("[%s] Timeout placing order on CoinDCX for %s: %s", self.subaccount_id, pair, te)
+            return {
+                "success": False,
+                "status_code": 408,
+                "error": "TIMEOUT",
+                "message": f"Timeout contacting CoinDCX: {te}",
+                "client_order_id": order_id,
+                "requires_reconciliation": True,
+            }
         except Exception as e:
             return {"success": False, "status_code": 0, "error": "NETWORK_ERROR", "message": str(e)}
+            return {"success": False, "status_code": 0, "error": "NETWORK_ERROR", "message": str(e), "client_order_id": order_id}
         finally:
             if owns_client:
                 await http.aclose()

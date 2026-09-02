@@ -23,8 +23,7 @@ _ORIGINAL_MODULES = {}
 
 def setUpModule():
     global _ORIGINAL_MODULES
-    for mod in ("bots.pmb_bot.storage", "bots.mtb_bot.storage",
-                "bots.volatile_gridX.storage", "bots.risk_engine.config", "bots.risk_engine.engine"):
+    for mod in ("bots.mtb_bot.storage", "bots.risk_engine.config", "bots.risk_engine.engine"):
         if mod in sys.modules:
             _ORIGINAL_MODULES[mod] = sys.modules[mod]
 
@@ -32,7 +31,7 @@ def tearDownModule():
     for key in list(sys.modules):
         if (
             key.startswith("bots.risk_engine")
-            or key in ("bots.pmb_bot.storage", "bots.mtb_bot.storage", "bots.volatile_gridX.storage")
+            or key in ("bots.mtb_bot.storage",)
         ):
             del sys.modules[key]
 
@@ -41,16 +40,10 @@ def tearDownModule():
 
 def _reload_risk_engine(env: dict):
     """Re-import risk_engine.config and risk_engine.engine under a given env."""
-    # Stub out the bot storage modules so engine.py can import cleanly.
-    for mod in ("bots.pmb_bot.storage", "bots.mtb_bot.storage",
-                "bots.volatile_gridX.storage"):
-        stub = types.ModuleType(mod)
-        stub.get_open_positions = lambda: []          # type: ignore[attr-defined]
-        if mod.endswith("volatile_gridX.storage"):
-            stub.VGXStorageError = Exception          # type: ignore[attr-defined]
-        sys.modules[mod] = stub
+    stub = types.ModuleType("bots.mtb_bot.storage")
+    stub.get_open_positions = lambda: []
+    sys.modules["bots.mtb_bot.storage"] = stub
 
-    # Remove cached risk_engine modules so they re-execute with the new env.
     for key in list(sys.modules):
         if key.startswith("bots.risk_engine"):
             del sys.modules[key]
@@ -63,10 +56,9 @@ def _reload_risk_engine(env: dict):
     return cfg, eng
 
 
-def _decision(env: dict, bot: str = "PMB", amount: float = 100.0):
+def _decision(env: dict, bot: str = "MTB", amount: float = 100.0):
     """Return (cfg, engine, RiskDecision) under the given env."""
     cfg, eng = _reload_risk_engine(env)
-    # Patch get_trading_enabled to return True so we test capital-limit path.
     with patch.object(eng, "get_trading_enabled", return_value=True), \
          patch.object(eng, "EMERGENCY_STOP", False), \
          patch.object(eng, "BOT_MODE", {bot: "PAPER"}), \
@@ -88,13 +80,13 @@ class TestDenyByDefaultCapitalLimits(unittest.TestCase):
         env = {
             "TRADING_ENABLED": "true",
             "TOTAL_CAPITAL_LIMIT": "10000",
-            "PMB_CAPITAL_LIMIT": "3000",
-            "PMB_BOT_MODE": "PAPER",
+            "MTB_CAPITAL_LIMIT": "3000",
+            "MTB_BOT_MODE": "PAPER",
         }
-        cfg, eng, decision = _decision(env, bot="PMB", amount=100.0)
+        cfg, eng, decision = _decision(env, bot="MTB", amount=100.0)
 
         self.assertEqual(cfg.TOTAL_CAPITAL_LIMIT, 10000.0)
-        self.assertEqual(cfg.BOT_CAPITAL_LIMIT["PMB"], 3000.0)
+        self.assertEqual(cfg.BOT_CAPITAL_LIMIT["MTB"], 3000.0)
         self.assertTrue(decision.allowed, f"Expected allowed=True, got: {decision}")
         self.assertEqual(decision.code, "OK")
 
@@ -102,11 +94,10 @@ class TestDenyByDefaultCapitalLimits(unittest.TestCase):
     def test_missing_total_capital_limit_denies_trade(self):
         env = {
             "TRADING_ENABLED": "true",
-            "PMB_CAPITAL_LIMIT": "3000",
-            "PMB_BOT_MODE": "PAPER",
-            # TOTAL_CAPITAL_LIMIT intentionally absent
+            "MTB_CAPITAL_LIMIT": "3000",
+            "MTB_BOT_MODE": "PAPER",
         }
-        cfg, eng, decision = _decision(env, bot="PMB", amount=100.0)
+        cfg, eng, decision = _decision(env, bot="MTB", amount=100.0)
 
         self.assertEqual(cfg.TOTAL_CAPITAL_LIMIT, 0.0,
                          "Missing env var must default to 0")
@@ -118,12 +109,11 @@ class TestDenyByDefaultCapitalLimits(unittest.TestCase):
         env = {
             "TRADING_ENABLED": "true",
             "TOTAL_CAPITAL_LIMIT": "10000",
-            "PMB_BOT_MODE": "PAPER",
-            # PMB_CAPITAL_LIMIT intentionally absent
+            "MTB_BOT_MODE": "PAPER",
         }
-        cfg, eng, decision = _decision(env, bot="PMB", amount=100.0)
+        cfg, eng, decision = _decision(env, bot="MTB", amount=100.0)
 
-        self.assertEqual(cfg.BOT_CAPITAL_LIMIT["PMB"], 0.0,
+        self.assertEqual(cfg.BOT_CAPITAL_LIMIT["MTB"], 0.0,
                          "Missing env var must default to 0")
         self.assertFalse(decision.allowed)
         self.assertEqual(decision.code, "CAPITAL_LIMIT_NOT_CONFIGURED")
@@ -133,10 +123,10 @@ class TestDenyByDefaultCapitalLimits(unittest.TestCase):
         env = {
             "TRADING_ENABLED": "true",
             "TOTAL_CAPITAL_LIMIT": "0",
-            "PMB_CAPITAL_LIMIT": "3000",
-            "PMB_BOT_MODE": "PAPER",
+            "MTB_CAPITAL_LIMIT": "3000",
+            "MTB_BOT_MODE": "PAPER",
         }
-        cfg, eng, decision = _decision(env, bot="PMB", amount=100.0)
+        cfg, eng, decision = _decision(env, bot="MTB", amount=100.0)
 
         self.assertEqual(cfg.TOTAL_CAPITAL_LIMIT, 0.0)
         self.assertFalse(decision.allowed)
@@ -147,12 +137,12 @@ class TestDenyByDefaultCapitalLimits(unittest.TestCase):
         env = {
             "TRADING_ENABLED": "true",
             "TOTAL_CAPITAL_LIMIT": "10000",
-            "PMB_CAPITAL_LIMIT": "0",
-            "PMB_BOT_MODE": "PAPER",
+            "MTB_CAPITAL_LIMIT": "0",
+            "MTB_BOT_MODE": "PAPER",
         }
-        cfg, eng, decision = _decision(env, bot="PMB", amount=100.0)
+        cfg, eng, decision = _decision(env, bot="MTB", amount=100.0)
 
-        self.assertEqual(cfg.BOT_CAPITAL_LIMIT["PMB"], 0.0)
+        self.assertEqual(cfg.BOT_CAPITAL_LIMIT["MTB"], 0.0)
         self.assertFalse(decision.allowed)
         self.assertEqual(decision.code, "CAPITAL_LIMIT_NOT_CONFIGURED")
 
@@ -161,12 +151,11 @@ class TestDenyByDefaultCapitalLimits(unittest.TestCase):
         env = {
             "TRADING_ENABLED": "true",
             "TOTAL_CAPITAL_LIMIT": "not_a_number",
-            "PMB_CAPITAL_LIMIT": "3000",
-            "PMB_BOT_MODE": "PAPER",
+            "MTB_CAPITAL_LIMIT": "3000",
+            "MTB_BOT_MODE": "PAPER",
         }
-        cfg, eng, decision = _decision(env, bot="PMB", amount=100.0)
+        cfg, eng, decision = _decision(env, bot="MTB", amount=100.0)
 
-        # Bad value must parse to 0, not crash.
         self.assertEqual(cfg.TOTAL_CAPITAL_LIMIT, 0.0,
                          "Invalid env var must fall to 0")
         self.assertFalse(decision.allowed)
@@ -177,12 +166,12 @@ class TestDenyByDefaultCapitalLimits(unittest.TestCase):
         env = {
             "TRADING_ENABLED": "true",
             "TOTAL_CAPITAL_LIMIT": "10000",
-            "PMB_CAPITAL_LIMIT": "three_thousand",
-            "PMB_BOT_MODE": "PAPER",
+            "MTB_CAPITAL_LIMIT": "three_thousand",
+            "MTB_BOT_MODE": "PAPER",
         }
-        cfg, eng, decision = _decision(env, bot="PMB", amount=100.0)
+        cfg, eng, decision = _decision(env, bot="MTB", amount=100.0)
 
-        self.assertEqual(cfg.BOT_CAPITAL_LIMIT["PMB"], 0.0,
+        self.assertEqual(cfg.BOT_CAPITAL_LIMIT["MTB"], 0.0,
                          "Invalid env var must fall to 0")
         self.assertFalse(decision.allowed)
         self.assertEqual(decision.code, "CAPITAL_LIMIT_NOT_CONFIGURED")
@@ -192,18 +181,18 @@ class TestDenyByDefaultCapitalLimits(unittest.TestCase):
         env = {
             "TRADING_ENABLED": "true",
             "TOTAL_CAPITAL_LIMIT": "0",
-            "PMB_CAPITAL_LIMIT": "3000",
-            "PMB_BOT_MODE": "PAPER",
+            "MTB_CAPITAL_LIMIT": "3000",
+            "MTB_BOT_MODE": "PAPER",
         }
-        _, _, decision = _decision(env, bot="PMB", amount=100.0)
+        _, _, decision = _decision(env, bot="MTB", amount=100.0)
         self.assertIn("TOTAL_CAPITAL_LIMIT", decision.reason)
 
-    # ── All three bots denied when limits are unconfigured ───────────────────
+    # ── Bot denied when limits are unconfigured ───────────────────────────────
     def test_all_bots_denied_when_no_limits_configured(self):
         env = {"TRADING_ENABLED": "true"}
         cfg, eng = _reload_risk_engine(env)
 
-        for bot in ("VGX", "PMB", "MTB"):
+        for bot in ("MTB",):
             with patch.object(eng, "get_trading_enabled", return_value=True), \
                  patch.object(eng, "EMERGENCY_STOP", False), \
                  patch.object(eng, "BOT_MODE", {bot: "PAPER"}), \
@@ -219,3 +208,4 @@ class TestDenyByDefaultCapitalLimits(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+

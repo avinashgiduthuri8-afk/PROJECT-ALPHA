@@ -116,7 +116,7 @@ class PipelineStageCollector:
                 },
                 "last_event": None,
                 "telemetry": {
-                    "active_algorithms": ["MTB (MACD Bounce)", "PMB (Portfolio DCA)", "VGX (Grid)"],
+                    "active_algorithms": ["STE (SuperTrend)", "HDA (Absorption)", "VCP (Contraction)", "BBS (Squeeze)"],
                 },
             },
             "ai_intelligence": {
@@ -172,7 +172,7 @@ class PipelineStageCollector:
                 },
                 "last_event": None,
                 "telemetry": {
-                    "active_adapters": ["MTBAdapter", "PMBAdapter", "VGXAdapter"],
+                    "active_adapters": ["STEAdapter", "HDAAdapter", "VCPAdapter", "BBSAdapter"],
                 },
             },
             "risk_engine": {

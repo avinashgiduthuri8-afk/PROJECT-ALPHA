@@ -3,7 +3,7 @@ PROJECT ALPHA - Telegram Module
 ================================
 
 Production Telegram bot integration with:
-- Multi-bot support (Scanner, VGX, PMB, MTB)
+- Multi-bot support (Scanner, MTB)
 - User authentication and rate limiting
 - Trading/Risk/System notifications
 - Interactive commands
@@ -31,8 +31,6 @@ from .multi_bot_config import (
     BotType,
     get_multi_bot_config,
     get_scanner_config,
-    get_vgx_config,
-    get_pmb_config,
     get_mtb_config,
     get_alerts_config,
 )
@@ -57,8 +55,6 @@ __all__ = [
     "BotType",
     "get_multi_bot_config",
     "get_scanner_config",
-    "get_vgx_config",
-    "get_pmb_config",
     "get_mtb_config",
     "get_alerts_config",
 ]

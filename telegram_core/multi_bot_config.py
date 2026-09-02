@@ -4,8 +4,6 @@ PROJECT ALPHA - Multi-Bot Telegram Configuration
 
 Centralized configuration for multiple Telegram bots:
 - Scanner Bot
-- VGX Bot (Volatile Grid X)
-- PMB Bot (Price Movement Bot)
 - MTB Bot (MACD Trend Bounce)
 
 Each bot uses dedicated environment variables for token and chat ID.
@@ -29,8 +27,6 @@ logger = logging.getLogger("telegram.config")
 class BotType:
     """Bot type identifiers."""
     SCANNER = "scanner"
-    VGX = "vgx"
-    PMB = "pmb"
     MTB = "mtb"
     ALERTS = "alerts"  # Global monitoring alerts
 
@@ -72,14 +68,6 @@ class MultiBotConfig:
     SCANNER_BOT_TOKEN   - Telegram bot token for Scanner
     SCANNER_CHAT_ID     - Chat ID for Scanner notifications
     
-    # Volatile Grid X Bot
-    VGX_BOT_TOKEN       - Telegram bot token for VGX
-    VGX_CHAT_ID         - Chat ID for VGX notifications
-    
-    # Price Movement Bot
-    PMB_BOT_TOKEN       - Telegram bot token for PMB
-    PMB_CHAT_ID         - Chat ID for PMB notifications
-    
     # MACD Trend Bounce Bot
     MTB_BOT_TOKEN       - Telegram bot token for MTB
     MTB_CHAT_ID         - Chat ID for MTB notifications
@@ -113,41 +101,17 @@ class MultiBotConfig:
         """Load all bot configurations from environment variables."""
         
         # Legacy fallback token (deprecated but supported)
-        # ENV: BOT_TOKEN - Legacy fallback, prefer bot-specific tokens
         legacy_token = os.getenv("BOT_TOKEN", "")
-        # ENV: TELEGRAM_CHAT_ID - Legacy fallback chat ID
         legacy_chat_id = os.getenv("TELEGRAM_CHAT_ID", "")
         
         # Scanner Bot Configuration
-        # ENV: SCANNER_BOT_TOKEN - Telegram bot token for Scanner module
-        # ENV: SCANNER_CHAT_ID - Chat ID for Scanner notifications
         self._bots[BotType.SCANNER] = BotConfig(
             bot_type=BotType.SCANNER,
             token=os.getenv("SCANNER_BOT_TOKEN", "") or legacy_token,
             chat_id=os.getenv("SCANNER_CHAT_ID", "") or legacy_chat_id,
         )
         
-        # VGX Bot Configuration
-        # ENV: VGX_BOT_TOKEN - Telegram bot token for Volatile Grid X
-        # ENV: VGX_CHAT_ID - Chat ID for VGX notifications
-        self._bots[BotType.VGX] = BotConfig(
-            bot_type=BotType.VGX,
-            token=os.getenv("VGX_BOT_TOKEN", "") or legacy_token,
-            chat_id=os.getenv("VGX_CHAT_ID", "") or legacy_chat_id,
-        )
-        
-        # PMB Bot Configuration
-        # ENV: PMB_BOT_TOKEN - Telegram bot token for Price Movement Bot
-        # ENV: PMB_CHAT_ID - Chat ID for PMB notifications
-        self._bots[BotType.PMB] = BotConfig(
-            bot_type=BotType.PMB,
-            token=os.getenv("PMB_BOT_TOKEN", "") or legacy_token,
-            chat_id=os.getenv("PMB_CHAT_ID", "") or legacy_chat_id,
-        )
-        
         # MTB Bot Configuration
-        # ENV: MTB_BOT_TOKEN - Telegram bot token for MACD Trend Bounce
-        # ENV: MTB_CHAT_ID - Chat ID for MTB notifications
         self._bots[BotType.MTB] = BotConfig(
             bot_type=BotType.MTB,
             token=os.getenv("MTB_BOT_TOKEN", "") or legacy_token,
@@ -155,8 +119,6 @@ class MultiBotConfig:
         )
         
         # Alerts Bot Configuration (for monitoring/system alerts)
-        # ENV: ALERT_BOT_TOKEN - Telegram bot token for system alerts
-        # ENV: ALERT_CHAT_ID - Chat ID for system alerts
         self._bots[BotType.ALERTS] = BotConfig(
             bot_type=BotType.ALERTS,
             token=os.getenv("ALERT_BOT_TOKEN", "") or legacy_token,
@@ -262,16 +224,6 @@ def get_multi_bot_config() -> MultiBotConfig:
 def get_scanner_config() -> BotConfig:
     """Get Scanner bot configuration."""
     return get_multi_bot_config().get_config(BotType.SCANNER)
-
-
-def get_vgx_config() -> BotConfig:
-    """Get VGX bot configuration."""
-    return get_multi_bot_config().get_config(BotType.VGX)
-
-
-def get_pmb_config() -> BotConfig:
-    """Get PMB bot configuration."""
-    return get_multi_bot_config().get_config(BotType.PMB)
 
 
 def get_mtb_config() -> BotConfig:

@@ -118,9 +118,9 @@ class TradingService:
                         return
 
             deployment_mode = getattr(self._config, "v2_deployment_mode", "SHADOW").upper()
-            is_live = (deployment_mode == "LIVE_MICROCASH" or self._config.v2_trading_enabled)
+            is_live = (deployment_mode == "LIVE_MICROCASH" and self._config.v2_trading_enabled)
 
-            # 1. Shadow Simulation Routing
+            # 1. Shadow / Paper Simulation Routing
             if not is_live:
                 if self._shadow_engine is not None:
                     try:
@@ -196,7 +196,7 @@ class TradingService:
             # 2. Live Microcash Execution with HMAC signing and precision validation
             if is_live:
                 sub_client = self._subaccount_manager.get_client(bot)
-                order_result = sub_client.place_order(
+                order_result = await sub_client.place_live_order(
                     pair=pair,
                     side="BUY",
                     price=order_data["entry_price"],
@@ -205,24 +205,46 @@ class TradingService:
 
                 if not order_result.get("success"):
                     logger.warning("Live sub-account order failed: %s", order_result.get("message"))
+                    logger.warning(
+                        "Live CoinDCX order placement failed for %s (%s): %s",
+                        coin, bot.value, order_result.get("message") or order_result.get("error"),
+                    )
+                    return
+
+                # Fill Confirmation Gate: Only create local OPEN position if confirmed FILLED on exchange
+                exchange_order_id = order_result.get("exchange_order_id")
+                order_status = str(order_result.get("status", "OPEN")).upper()
+                is_filled = order_result.get("is_filled", False) or (order_status == "FILLED")
+
+                if not is_filled:
+                    logger.warning(
+                        "Live order submitted (Exchange ID: %s) but not FILLED (Status: %s). Position NOT opened.",
+                        exchange_order_id, order_status,
+                    )
                     return
 
                 now = datetime.now(timezone.utc)
+                fill_price = float(order_result.get("price", order_data["entry_price"]))
+                fill_qty = float(order_result.get("qty", order_data["qty"]))
+
                 pos = Position(
                     id=str(uuid.uuid4()),
                     bot=bot,
                     coin=coin,
                     pair=pair,
-                    qty=order_data["qty"],
-                    entry_price=order_data["entry_price"],
+                    qty=fill_qty,
+                    entry_price=fill_price,
                     entry_time=now,
                     mode=BotMode.LIVE,
                     status=PositionStatus.OPEN,
-                    current_price=order_data["entry_price"],
+                    current_price=fill_price,
                     unrealised_pnl=0.0,
                     stop_loss=order_data["stop_loss"],
                     take_profit=order_data["take_profit"],
                     signal_id=signal_id,
+                    exchange_order_id=exchange_order_id,
+                    client_order_id=order_result.get("client_order_id"),
+                    filled_qty=fill_qty,
                 )
 
                 await self._position_repo.insert(pos)
@@ -231,6 +253,7 @@ class TradingService:
                 pos_payload = {
                     "position_id": pos.id,
                     "subaccount_id": sub_client.subaccount_id,
+                    "exchange_order_id": exchange_order_id,
                     "bot": bot.value,
                     "coin": coin,
                     "pair": pair,
@@ -254,6 +277,8 @@ class TradingService:
                 logger.info(
                     "[%s] Live trade EXECUTED and Position OPENED for %s (Qty: %s @ INR %.2f)",
                     sub_client.subaccount_id, coin, pos.qty, pos.entry_price,
+                    "[%s] Confirmed Live CoinDCX Trade EXECUTED (Exchange ID: %s) and Position OPENED for %s (Qty: %s @ INR %.2f)",
+                    sub_client.subaccount_id, exchange_order_id, coin, pos.qty, pos.entry_price,
                 )
 
         except Exception as exc:
@@ -283,6 +308,39 @@ class TradingService:
 
             if exit_trigger is not None:
                 exit_reason, exit_price = exit_trigger
+                exchange_sell_order_id = None
+
+                # 1. If live position, dispatch real CoinDCX sell order
+                if pos.mode == BotMode.LIVE and (self._config.v2_trading_enabled or getattr(self._config, "v2_deployment_mode", "").upper() == "LIVE_MICROCASH"):
+                    sub_client = self._subaccount_manager.get_client(pos.bot)
+                    try:
+                        sell_result = await sub_client.place_live_order(
+                            pair=pos.pair,
+                            side="SELL",
+                            price=exit_price,
+                            qty=pos.qty,
+                        )
+                    except Exception as e:
+                        logger.error("Network error dispatching live SELL order to CoinDCX for %s: %s", pos.coin, e)
+                        continue  # DO NOT close position if order failed
+
+                    if not sell_result.get("success"):
+                        logger.warning(
+                            "Live SELL order failed on CoinDCX for %s (Reason: %s, Details: %s). Position remains OPEN.",
+                            pos.coin, sell_result.get("error"), sell_result.get("message") or sell_result.get("details"),
+                        )
+                        continue  # DO NOT close position on exchange rejection / failure
+
+                    exchange_sell_order_id = sell_result.get("exchange_order_id")
+                    sell_status = str(sell_result.get("status", "OPEN")).upper()
+                    is_sell_filled = sell_result.get("is_filled", False) or (sell_status == "FILLED")
+
+                    if not is_sell_filled:
+                        logger.warning(
+                            "Live SELL order submitted (Exchange ID: %s) but not yet FILLED (Status: %s). Position remains OPEN.",
+                            exchange_sell_order_id, sell_status,
+                        )
+                        continue
 
                 # Apply exact 1.572% round-trip statutory friction model
                 pnl_data = friction_model.calculate_trade_net_pnl(
@@ -310,6 +368,8 @@ class TradingService:
                     exit_reason=exit_reason,
                     mode=pos.mode,
                     signal_id=pos.signal_id,
+                    exchange_order_id=exchange_sell_order_id or pos.exchange_order_id,
+                    client_order_id=pos.client_order_id,
                 )
 
                 # 1. If live position, dispatch sell order
@@ -350,6 +410,7 @@ class TradingService:
                 trade_payload = {
                     "trade_id": trade.id,
                     "position_id": pos.id,
+                    "exchange_order_id": trade.exchange_order_id,
                     "bot": pos.bot.value,
                     "coin": pos.coin,
                     "pair": pos.pair,
@@ -371,11 +432,81 @@ class TradingService:
                     payload=trade_payload,
                 )
                 logger.info(
-                    "Position CLOSED (%s): %s %s PnL=INR %.2f (%.2f%%) [Friction=INR %.2f, Reason=%s]",
-                    trade_payload["mode"], pos.bot.value, pos.coin, trade.pnl, trade.pnl_pct, pnl_data.get("total_friction_cost", 0.0), exit_reason.value,
+                    "Position CLOSED (%s): %s %s PnL=INR %.2f (%.2f%%) [Friction=INR %.2f, Reason=%s, Exchange ID=%s]",
+                    trade_payload["mode"], pos.bot.value, pos.coin, trade.pnl, trade.pnl_pct, pnl_data.get("total_friction_cost", 0.0), exit_reason.value, trade.exchange_order_id,
                 )
 
         return closed_trades
+
+    async def poll_exits(self, price_provider: Optional[dict[str, float]] = None) -> list[Trade]:
+        """
+        Scheduled background task: checks open positions against live market prices.
+        """
+        open_positions = await self._position_repo.get_open()
+        if not open_positions:
+            return []
+
+        current_prices = dict(price_provider) if price_provider else {}
+        if not current_prices:
+            try:
+                import httpx
+                async with httpx.AsyncClient(timeout=4.0) as client:
+                    resp = await client.get("https://api.coindcx.com/exchange/ticker")
+                    if resp.status_code == 200:
+                        for item in resp.json():
+                            m = item.get("market", "")
+                            last_p = float(item.get("last_price", 0.0) or 0.0)
+                            if last_p > 0:
+                                current_prices[m] = last_p
+                                if m.endswith("INR"):
+                                    coin = m[:-3]
+                                    current_prices[coin] = last_p
+                                    current_prices[f"{coin}/INR"] = last_p
+            except Exception as e:
+                logger.debug("Failed to fetch fresh ticker prices for exit check: %s", e)
+
+        return await self.check_open_position_exits(current_prices)
+
+    async def reconcile_live_orders(self) -> dict[str, Any]:
+        """
+        Periodically reconciles local open positions against CoinDCX exchange state.
+        Detects orphaned, cancelled, or out-of-sync exchange orders.
+        """
+        open_positions = await self._position_repo.get_open()
+        reconciliation_report = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "open_positions_count": len(open_positions),
+            "reconciled": 0,
+            "discrepancies": [],
+        }
+
+        for pos in open_positions:
+            if pos.mode != BotMode.LIVE or not pos.exchange_order_id:
+                continue
+
+            sub_client = self._subaccount_manager.get_client(pos.bot)
+            try:
+                status_res = await sub_client.get_order_status(pos.exchange_order_id)
+                if status_res.get("success"):
+                    st = status_res.get("order") or {}
+                    ex_status = str(st.get("status", "")).upper()
+                    reconciliation_report["reconciled"] += 1
+                    if ex_status in ("CANCELLED", "REJECTED"):
+                        disc = {
+                            "position_id": pos.id,
+                            "coin": pos.coin,
+                            "exchange_order_id": pos.exchange_order_id,
+                            "local_status": "OPEN",
+                            "exchange_status": ex_status,
+                            "action": "AUTO_REPAIRED_TO_CLOSED",
+                        }
+                        reconciliation_report["discrepancies"].append(disc)
+                        logger.warning("Order Reconciliation discrepancy detected: %s", disc)
+                        await self._position_repo.close(pos.id, exit_price=pos.entry_price, exit_reason=ExitReason.MANUAL)
+            except Exception as e:
+                logger.error("Error reconciling position %s: %s", pos.id, e)
+
+        return reconciliation_report
 
     def get_health(self) -> dict:
         return {

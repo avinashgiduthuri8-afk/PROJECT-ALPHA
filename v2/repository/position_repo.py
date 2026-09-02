@@ -34,23 +34,26 @@ def _dt(s: str | None) -> Optional[datetime]:
 def _row_to_position(row: aiosqlite.Row) -> Position:
     d = dict(row)
     return Position(
-        id            = d["id"],
-        bot           = BotName(d["bot"]),
-        coin          = d["coin"],
-        pair          = d["pair"],
-        qty           = d["qty"],
-        entry_price   = d["entry_price"],
-        entry_time    = _dt(d["entry_time"]),
-        mode          = BotMode(d["mode"]),
-        status        = PositionStatus(d.get("status", "OPEN")),
-        current_price = d.get("current_price"),
-        unrealised_pnl= d.get("unrealised_pnl"),
-        stop_loss     = d.get("stop_loss"),
-        take_profit   = d.get("take_profit"),
-        signal_id     = d.get("signal_id"),
-        closed_at     = _dt(d.get("closed_at")),
-        exit_price    = d.get("exit_price"),
-        exit_reason   = ExitReason(d["exit_reason"]) if d.get("exit_reason") else None,
+        id                = d["id"],
+        bot               = BotName(d["bot"]),
+        coin              = d["coin"],
+        pair              = d["pair"],
+        qty               = d["qty"],
+        entry_price       = d["entry_price"],
+        entry_time        = _dt(d["entry_time"]),
+        mode              = BotMode(d["mode"]),
+        status            = PositionStatus(d.get("status", "OPEN")),
+        current_price     = d.get("current_price"),
+        unrealised_pnl    = d.get("unrealised_pnl"),
+        stop_loss         = d.get("stop_loss"),
+        take_profit       = d.get("take_profit"),
+        signal_id         = d.get("signal_id"),
+        closed_at         = _dt(d.get("closed_at")),
+        exit_price        = d.get("exit_price"),
+        exit_reason       = ExitReason(d["exit_reason"]) if d.get("exit_reason") else None,
+        exchange_order_id = d.get("exchange_order_id"),
+        client_order_id   = d.get("client_order_id"),
+        filled_qty        = d.get("filled_qty"),
     )
 
 
@@ -76,8 +79,8 @@ class PositionRepository(BaseRepository):
             INSERT INTO positions
             (id, bot, coin, pair, qty, entry_price, entry_time,
              current_price, unrealised_pnl, stop_loss, take_profit,
-             mode, signal_id, status)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+             mode, signal_id, status, exchange_order_id, client_order_id, filled_qty)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """,
             (
                 position.id,
@@ -94,6 +97,9 @@ class PositionRepository(BaseRepository):
                 mode_val,
                 sig_id,
                 status_val,
+                position.exchange_order_id,
+                position.client_order_id,
+                position.filled_qty,
             ),
         )
         return position.id

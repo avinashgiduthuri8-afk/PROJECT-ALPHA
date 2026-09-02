@@ -86,11 +86,11 @@ class TestCollectSystemMetrics:
 
 
 # =============================================================================
-# FIX 2 (BUG-56) — run_all_checks() includes MTB and PMB storage results
+# FIX 2 (BUG-56) — run_all_checks() includes MTB storage results
 # =============================================================================
 
-class TestRunAllChecksIncludesMTBPMB:
-    """BUG-56: HealthChecker.run_all_checks() now checks MTB and PMB storage files."""
+class TestRunAllChecksIncludesMTB:
+    """BUG-56: HealthChecker.run_all_checks() now checks MTB storage files."""
 
     def _make_checker(self):
         import monitoring.health_check as hc
@@ -128,21 +128,14 @@ class TestRunAllChecksIncludesMTBPMB:
         fake_config.TRADES_FILE    = Path("/tmp/mtb_trd.json")
         fake_config.STATS_FILE     = Path("/tmp/mtb_sta.json")
 
-        fake_pmb_config = types.ModuleType("bots.pmb_bot.config")
-        fake_pmb_config.POSITIONS_FILE = Path("/tmp/pmb_pos.json")
-        fake_pmb_config.TRADES_FILE    = Path("/tmp/pmb_trd.json")
-        fake_pmb_config.STATS_FILE     = Path("/tmp/pmb_sta.json")
-
         with patch.object(checker, "check_storage_file", side_effect=fake_check), \
              patch.dict(sys.modules, {
                  "bots.mtb_bot.config": fake_config,
-                 "bots.pmb_bot.config": fake_pmb_config,
              }):
             report = checker.run_all_checks()
 
-        # MTB and PMB file labels must appear in calls
+        # MTB file labels must appear in calls
         assert any("mtb" in c for c in calls), f"MTB storage not checked; calls={calls}"
-        assert any("pmb" in c for c in calls), f"PMB storage not checked; calls={calls}"
 
     def test_run_all_checks_does_not_raise_when_mtb_config_import_fails(self):
         """run_all_checks does not raise when MTB config cannot be imported."""
@@ -161,141 +154,18 @@ class TestRunAllChecksIncludesMTBPMB:
             r.checked_at = datetime.now(timezone.utc)
             return r
 
-        # Simulate import failure for both MTB and PMB configs
         with patch.object(checker, "check_storage_file", side_effect=fake_check), \
              patch.dict(sys.modules, {
                  "bots.mtb_bot.config": None,
-                 "bots.pmb_bot.config": None,
              }):
             try:
                 report = checker.run_all_checks()
             except Exception as exc:
                 pytest.fail(f"run_all_checks raised on missing bot config: {exc}")
 
-        # Should still get a report with WARNING entries for unavailable configs
         names = [c.name for c in report.checks]
-        assert any("mtb" in n or "pmb" in n for n in names), \
+        assert any("mtb" in n for n in names), \
             f"Expected warning entries for unavailable configs; got names={names}"
-
-    def test_run_all_checks_does_not_raise_when_pmb_config_import_fails(self):
-        """run_all_checks does not raise when PMB config cannot be imported."""
-        checker = self._make_checker()
-
-        def fake_check(filename, path=None):
-            from monitoring.health_check import HealthCheckResult, HealthStatus, CheckSeverity
-            from datetime import datetime, timezone
-            r = HealthCheckResult.__new__(HealthCheckResult)
-            r.name = f"storage_{filename}"
-            r.status = HealthStatus.HEALTHY
-            r.severity = CheckSeverity.INFO
-            r.message = "ok"
-            r.details = {}
-            r.duration_ms = 0.0
-            r.checked_at = datetime.now(timezone.utc)
-            return r
-
-        from pathlib import Path
-        fake_mtb = types.ModuleType("bots.mtb_bot.config")
-        fake_mtb.POSITIONS_FILE = Path("/tmp/mtb_pos.json")
-        fake_mtb.TRADES_FILE    = Path("/tmp/mtb_trd.json")
-        fake_mtb.STATS_FILE     = Path("/tmp/mtb_sta.json")
-
-        with patch.object(checker, "check_storage_file", side_effect=fake_check), \
-             patch.dict(sys.modules, {
-                 "bots.mtb_bot.config": fake_mtb,
-                 "bots.pmb_bot.config": None,
-             }):
-            try:
-                checker.run_all_checks()
-            except Exception as exc:
-                pytest.fail(f"run_all_checks raised when PMB config missing: {exc}")
-
-
-# =============================================================================
-# FIX 3 (BUG-55) — AlertManager wiring in circuit breaker
-# =============================================================================
-
-class TestCircuitBreakerAlertManager:
-    """BUG-55: AlertManager is lazily initialized and called on state changes."""
-
-    def _make_breaker(self, tmp_path_str: str):
-        """Create a fresh CircuitBreaker backed by a temp file (no stale state)."""
-        from bots.volatile_gridX.circuit_breaker import CircuitBreaker
-        import bots.volatile_gridX.circuit_breaker as cb_mod
-        import pathlib
-        # Point to a non-existent temp file so the breaker starts with clean state
-        cb_mod.CIRCUIT_BREAKER_FILE = pathlib.Path(tmp_path_str) / "cb_test.json"
-        cb_mod._alert_manager = None
-        return CircuitBreaker(initial_capital=100_000)
-
-    def test_get_alert_manager_returns_none_on_import_error(self):
-        """_get_alert_manager() returns None gracefully when AlertManager can't be imported."""
-        import bots.volatile_gridX.circuit_breaker as cb_mod
-        cb_mod._alert_manager = None
-
-        with patch.dict(sys.modules, {"monitoring.telegram_alerts": None}):
-            result = cb_mod._get_alert_manager()
-
-        assert result is None
-
-    def test_daily_limit_hit_calls_alert_daily_loss_limit(self, tmp_path):
-        """When DAILY_LIMIT_HIT is triggered, alert_daily_loss_limit is called."""
-        import bots.volatile_gridX.circuit_breaker as cb_mod
-
-        breaker = self._make_breaker(str(tmp_path))
-
-        # Set mock AFTER _make_breaker resets _alert_manager
-        mock_am = MagicMock()
-        cb_mod._alert_manager = mock_am
-
-        # 5% loss exceeds 3% daily limit but stays below monthly (12%)
-        breaker.record_trade_pnl(-breaker.initial_capital * 0.04)
-
-        mock_am.alert_daily_loss_limit.assert_called()
-
-    def test_emergency_stop_calls_alert_circuit_breaker_activated(self, tmp_path):
-        """When EMERGENCY_STOP is triggered, alert_circuit_breaker_activated is called."""
-        import bots.volatile_gridX.circuit_breaker as cb_mod
-
-        breaker = self._make_breaker(str(tmp_path))
-
-        # Set mock AFTER _make_breaker resets _alert_manager
-        mock_am = MagicMock()
-        cb_mod._alert_manager = mock_am
-
-        # 25% loss exceeds 20% max drawdown — triggers EMERGENCY_STOP first
-        breaker.record_trade_pnl(-breaker.initial_capital * 0.25)
-
-        mock_am.alert_circuit_breaker_activated.assert_called()
-
-    def test_manual_reset_calls_alert_circuit_breaker_reset(self, tmp_path):
-        """When manual_reset() is called, alert_circuit_breaker_reset is called."""
-        import bots.volatile_gridX.circuit_breaker as cb_mod
-
-        breaker = self._make_breaker(str(tmp_path))
-
-        # Set mock AFTER _make_breaker resets _alert_manager
-        mock_am = MagicMock()
-        cb_mod._alert_manager = mock_am
-
-        breaker.manual_reset()
-
-        mock_am.alert_circuit_breaker_reset.assert_called_once()
-
-    def test_alert_failure_does_not_affect_circuit_breaker(self, tmp_path):
-        """AlertManager errors never propagate into circuit breaker logic."""
-        import bots.volatile_gridX.circuit_breaker as cb_mod
-
-        breaker = self._make_breaker(str(tmp_path))
-
-        mock_am = MagicMock()
-        mock_am.alert_daily_loss_limit.side_effect = RuntimeError("telegram down")
-        cb_mod._alert_manager = mock_am
-
-        try:
-            breaker.record_trade_pnl(-breaker.initial_capital * 0.04)
-        except Exception as exc:
-            pytest.fail(f"AlertManager error propagated into circuit breaker: {exc}")
 
 
 # =============================================================================
@@ -435,47 +305,11 @@ class TestCheckCandlesConnectivity:
 
 
 # =============================================================================
-# FIX 6 — SCANNER_API_URL defaults to port 8080
+# FIX 6 — SCANNER_API_URL defaults
 # =============================================================================
 
-class TestCircuitBreakerCleanStartup:
-    """Verify circuit breaker initialises to ACTIVE when no state file is present."""
-
-    def test_default_startup_state_is_active(self, tmp_path):
-        """Fresh CircuitBreaker (no state file) must start in ACTIVE trading state."""
-        import pathlib
-        import bots.volatile_gridX.circuit_breaker as cb_mod
-
-        # Point to a guaranteed-absent file
-        cb_mod.CIRCUIT_BREAKER_FILE = tmp_path / "cb_clean.json"
-        cb_mod._alert_manager = None
-
-        from bots.volatile_gridX.circuit_breaker import CircuitBreaker, TradingState
-        breaker = CircuitBreaker(initial_capital=1_000_000)
-
-        assert breaker.state.trading_state == TradingState.ACTIVE.value, (
-            f"Expected ACTIVE on clean startup, got {breaker.state.trading_state}"
-        )
-
-    def test_committed_state_file_does_not_pre_trip_breaker(self, tmp_path):
-        """A missing or empty state file path must not leave the breaker in a halted state."""
-        import bots.volatile_gridX.circuit_breaker as cb_mod
-
-        # Simulate the gitignored file being absent (fresh Railway deployment)
-        cb_mod.CIRCUIT_BREAKER_FILE = tmp_path / "nonexistent_cb.json"
-        cb_mod._alert_manager = None
-
-        from bots.volatile_gridX.circuit_breaker import CircuitBreaker, TradingState
-        breaker = CircuitBreaker(initial_capital=1_000_000)
-
-        can_trade, reason = breaker.can_trade()
-        assert can_trade, (
-            f"Expected trading to be allowed on fresh startup; reason: {reason}"
-        )
-
-
 class TestScannerApiUrlDefault:
-    """FIX 6: MTB and PMB configs default to port 8080, not 5000."""
+    """FIX 6: MTB config defaults to port 5000."""
 
     def test_mtb_scanner_api_url_defaults_to_5000(self):
         """MTB config SCANNER_API_URL default port must be 5000 (app runs on 5000)."""
@@ -490,17 +324,3 @@ class TestScannerApiUrlDefault:
             f"Expected port 5000 in MTB SCANNER_API_URL, got: {mtb_cfg.SCANNER_API_URL}"
         assert "8080" not in mtb_cfg.SCANNER_API_URL, \
             f"MTB SCANNER_API_URL unexpectedly contains 8080: {mtb_cfg.SCANNER_API_URL}"
-
-    def test_pmb_scanner_api_url_defaults_to_5000(self):
-        """PMB config SCANNER_API_URL default port must be 5000 (app runs on 5000)."""
-        import os
-        with patch.dict(os.environ, {}, clear=False):
-            os.environ.pop("SCANNER_API_URL", None)
-            import importlib
-            import bots.pmb_bot.config as pmb_cfg
-            importlib.reload(pmb_cfg)
-
-        assert "5000" in pmb_cfg.SCANNER_API_URL, \
-            f"Expected port 5000 in PMB SCANNER_API_URL, got: {pmb_cfg.SCANNER_API_URL}"
-        assert "8080" not in pmb_cfg.SCANNER_API_URL, \
-            f"PMB SCANNER_API_URL unexpectedly contains 8080: {pmb_cfg.SCANNER_API_URL}"

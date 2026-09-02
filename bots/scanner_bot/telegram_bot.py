@@ -314,7 +314,7 @@ async def run_scanner_bot():
 
 
 # ============================================================
-# LIFESPAN HOOKS — used by app.py alongside vgx/mtb/pmb bots
+# LIFESPAN HOOKS — used by app.py alongside mtb bot
 # ============================================================
 
 _SCANNER_TG_TASK = None

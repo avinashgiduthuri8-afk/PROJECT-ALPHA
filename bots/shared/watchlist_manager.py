@@ -33,8 +33,6 @@ _SCANNER_WATCHLIST_FILE = os.path.join(
 
 # Old bot watchlist files for one-time migration
 _OLD_BOT_FILES = {
-    "vgx": os.path.join(os.path.dirname(os.path.dirname(__file__)), "volatile_gridX", "data", "watchlist.json"),
-    "pmb": os.path.join(os.path.dirname(os.path.dirname(__file__)), "pmb_bot", "data", "watchlist.json"),
     "mtb": os.path.join(os.path.dirname(os.path.dirname(__file__)), "mtb_bot", "data", "watchlist.json"),
 }
 

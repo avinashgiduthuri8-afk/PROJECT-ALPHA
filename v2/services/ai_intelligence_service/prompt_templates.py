@@ -1,4 +1,4 @@
-﻿"""
+"""
 AI Intelligence Prompt Templates & Schema Builders.
 
 Provides structured prompt generation and JSON schemas for LLM-based
@@ -40,7 +40,7 @@ AI_EVALUATION_SCHEMA = {
         },
         "setup_quality": {
             "type": "string",
-            "description": "Quality of the pattern / setup archetype (MTB breakout, PMB pullback, etc.)",
+            "description": "Quality of the pattern / setup archetype (STE momentum, HDA absorption, MTB breakout, etc.)",
         },
         "market_regime": {
             "type": "string",

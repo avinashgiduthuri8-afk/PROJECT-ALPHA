@@ -1,246 +1,328 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PROJECT-ALPHA V2 · Autonomous Mission Control</title>
+  <title>PROJECT-ALPHA V2 · Institutional Quantitative Trading Terminal</title>
   <link rel="stylesheet" href="/v2-static/css/dashboard.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
-  <!-- ── Header Bar ──────────────────────────────────────────────────────── -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <!-- 1. GLOBAL DASHBOARD HEADER                                                  -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
   <header class="header-bar">
-    <div class="brand-title">
-      <h1>PROJECT-ALPHA V2</h1>
-      <span class="version-pill">MISSION CONTROL</span>
-      <span class="version-pill" style="border-color: rgba(168, 85, 247, 0.4); color: var(--purple);">CLOSED-LOOP AUTONOMOUS</span>
-    </div>
-    <div class="header-controls">
-      <div class="auto-trade-pill">
-        <span class="pulse-indicator online"></span>
-        <span>AUTO-TRADE: <strong id="header-auto-trade-mode" style="color: var(--cyan);">PAPER ACTIVE</strong></span>
+    <div class="header-left">
+      <div class="brand-title">
+        <span class="brand-glyph">⬡</span>
+        <div>
+          <h1>PROJECT-ALPHA V2</h1>
+          <span class="brand-sub">MISSION CONTROL · INSTITUTIONAL QUANT TERMINAL</span>
+        </div>
       </div>
+
+      <!-- 6 Core Subsystem Indicators -->
+      <div class="subsystem-indicators">
+        <div class="indicator-pill" id="ind-system" title="Core Application & Event Loop">
+          <span class="status-dot green"></span>
+          <span class="ind-label">SYSTEM</span>
+          <span class="ind-status" id="txt-ind-system">CONNECTED</span>
+        </div>
+        <div class="indicator-pill" id="ind-scanner" title="C2 Confluence Scanner">
+          <span class="status-dot green"></span>
+          <span class="ind-label">SCANNER</span>
+          <span class="ind-status" id="txt-ind-scanner">CONNECTED</span>
+        </div>
+        <div class="indicator-pill" id="ind-ai" title="Gemini AI Intelligence Service">
+          <span class="status-dot green"></span>
+          <span class="ind-label">AI</span>
+          <span class="ind-status" id="txt-ind-ai">CONNECTED</span>
+        </div>
+        <div class="indicator-pill" id="ind-risk" title="Risk Engine & Circuit Breaker">
+          <span class="status-dot green"></span>
+          <span class="ind-label">RISK</span>
+          <span class="ind-status" id="txt-ind-risk">CONNECTED</span>
+        </div>
+        <div class="indicator-pill" id="ind-execution" title="Order Router & CoinDCX Execution">
+          <span class="status-dot green"></span>
+          <span class="ind-label">EXECUTION</span>
+          <span class="ind-status" id="txt-ind-execution">CONNECTED</span>
+        </div>
+        <div class="indicator-pill" id="ind-db" title="SQLite WAL Database">
+          <span class="status-dot green"></span>
+          <span class="ind-label">DATABASE</span>
+          <span class="ind-status" id="txt-ind-db">CONNECTED</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <!-- Time & Last Update -->
+      <div class="header-meta-clock">
+        <div class="clock-display" id="header-utc-clock">--:--:-- UTC</div>
+        <div class="clock-sub">
+          <span id="header-local-clock">--:--:-- Local</span> · 
+          <span id="header-last-update" class="text-cyan">Updated: Just now</span>
+        </div>
+      </div>
+
+      <!-- WS Connection Pill -->
       <div id="ws-connection-pill" class="connection-pill disconnected">
         <span class="status-dot"></span>
         <span id="ws-connection-text">Connecting...</span>
       </div>
-      <button id="btn-set-api-key" class="btn-ghost">⚙ API Key</button>
+
+      <!-- Quick Action Toolbar -->
+      <div class="header-actions">
+        <button id="btn-force-scan" class="btn btn-secondary" onclick="window.v2Dashboard.pollScanner()" title="Trigger immediate scan pass">
+          ⚡ Scan Pass
+        </button>
+        <button id="btn-kill-switch" class="btn btn-danger" onclick="window.v2Dashboard.openKillSwitchModal()" title="Emergency Halt all orders">
+          🚨 Kill-Switch
+        </button>
+        <button id="btn-set-api-key" class="btn btn-ghost" title="Configure API Key">
+          ⚙ Key
+        </button>
+      </div>
     </div>
   </header>
 
-  <!-- ── KPI Stats Bar ────────────────────────────────────────────────────── -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <!-- 2. CRITICAL SAFETY BAR                                                      -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <section id="safety-bar" class="safety-bar shadow-mode">
+    <div class="safety-bar-left">
+      <div class="safety-mode-badge" id="safety-mode-badge">
+        <span class="mode-dot"></span>
+        <span id="safety-mode-text">SHADOW / SIMULATION</span>
+      </div>
+      <div class="safety-mode-desc" id="safety-mode-desc">
+        🛡️ ZERO CAPITAL RISK — SIMULATION LEDGER ACTIVE. Orders evaluated and recorded to shadow ledger without exchange execution.
+      </div>
+    </div>
+    <div class="safety-bar-right">
+      <div class="safety-stat">
+        <span class="stat-label">CAPITAL POOL LIMIT</span>
+        <span class="stat-value font-mono" id="safety-cap-limit">₹10,000.00</span>
+      </div>
+      <div class="safety-stat">
+        <span class="stat-label">DEPLOYED</span>
+        <span class="stat-value font-mono text-cyan" id="safety-cap-deployed">₹0.00</span>
+      </div>
+      <div class="safety-stat">
+        <span class="stat-label">HEADROOM</span>
+        <span class="stat-value font-mono text-green" id="safety-cap-available">₹10,000.00</span>
+      </div>
+      <div class="safety-stat">
+        <span class="stat-label">CIRCUIT BREAKER</span>
+        <span class="stat-value font-mono text-green" id="safety-breaker-status">NORMAL</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <!-- TOP KPI METRICS STRIP                                                       -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
   <section class="kpi-grid">
     <div class="kpi-card">
-      <div class="kpi-label">Total Portfolio AUM</div>
-      <div id="kpi-aum" class="kpi-value cyan">₹0.00</div>
-      <div class="kpi-sub">Consolidated Capital</div>
+      <div class="kpi-header">
+        <span class="kpi-label">Total Portfolio AUM</span>
+        <span class="kpi-tag text-cyan">Consolidated</span>
+      </div>
+      <div id="kpi-aum" class="kpi-value cyan font-mono">₹0.00</div>
+      <div class="kpi-sub">Total Managed Capital</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-label">Deployed Capital</div>
-      <div id="kpi-deployed" class="kpi-value">₹0.00</div>
-      <div class="kpi-sub">Across All Bots</div>
+      <div class="kpi-header">
+        <span class="kpi-label">Deployed Capital</span>
+        <span class="kpi-tag" id="kpi-util-tag">0.0% Util</span>
+      </div>
+      <div id="kpi-deployed" class="kpi-value font-mono">₹0.00</div>
+      <div class="kpi-sub">Across Active Strategies</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-label">Cash Reserve</div>
-      <div id="kpi-cash" class="kpi-value">₹0.00</div>
-      <div class="kpi-sub">Available Liquidity</div>
+      <div class="kpi-header">
+        <span class="kpi-label">Cash Reserve</span>
+        <span class="kpi-tag text-green">Available</span>
+      </div>
+      <div id="kpi-cash" class="kpi-value font-mono">₹0.00</div>
+      <div class="kpi-sub">Instant Liquidity Headroom</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-label">Daily Realized PnL</div>
-      <div id="kpi-pnl" class="kpi-value positive">+₹0.00</div>
-      <div class="kpi-sub">Current 24h Session</div>
+      <div class="kpi-header">
+        <span class="kpi-label">Daily Realized P&L</span>
+        <span class="kpi-tag text-muted">24h Session</span>
+      </div>
+      <div id="kpi-pnl" class="kpi-value positive font-mono">+₹0.00</div>
+      <div class="kpi-sub" id="kpi-pnl-sub">0 closed trades today</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-label">Capital Utilisation</div>
-      <div id="kpi-util" class="kpi-value">0.0%</div>
-      <div class="kpi-sub">Deployment Efficiency</div>
+      <div class="kpi-header">
+        <span class="kpi-label">Win Rate & Conviction</span>
+        <span class="kpi-tag text-purple">Historical</span>
+      </div>
+      <div id="kpi-winrate" class="kpi-value font-mono">0.0%</div>
+      <div class="kpi-sub" id="kpi-winrate-sub">Based on verified outcomes</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-header">
+        <span class="kpi-label">Live Active Signals</span>
+        <span class="kpi-tag text-amber" id="kpi-high-conv-tag">0 High Conv</span>
+      </div>
+      <div id="kpi-signals-count" class="kpi-value text-amber font-mono">0</div>
+      <div class="kpi-sub">In Active Signal Pool</div>
     </div>
   </section>
 
-  <!-- ── 14-Stage Autonomous Pipeline Architecture ────────────────────────── -->
-  <section class="section-card pipeline-section">
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <!-- 3. SYSTEM HEALTH & 13. MARKET REGIME OVERVIEW (Row 1)                        -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <div class="dual-column-grid">
+
+    <!-- 3. System Health Diagnostics Panel -->
+    <section class="section-card">
+      <div class="card-header">
+        <div class="header-title-group">
+          <h2>🩺 System Health & Diagnostic Probes</h2>
+          <span class="card-badge">9 SERVICES MONITORED</span>
+        </div>
+        <span class="card-hint">Click any subsystem to inspect heartbeat & error telemetry</span>
+      </div>
+      <div id="health-matrix" class="health-grid">
+        <!-- Injected dynamically by dashboard.js -->
+        <div class="loading-placeholder">Probing subsystem health diagnostics...</div>
+      </div>
+    </section>
+
+    <!-- 13. Market Regime & Macro Risk Card -->
+    <section class="section-card">
+      <div class="card-header">
+        <div class="header-title-group">
+          <h2>🌐 Market Regime & Macro Context</h2>
+          <span class="card-badge" id="regime-badge">RISK_ON</span>
+        </div>
+        <span class="card-hint">Real-time confluence market state & sentiment</span>
+      </div>
+      <div class="regime-grid">
+        <div class="regime-item">
+          <div class="regime-label">BTC MACRO TREND</div>
+          <div class="regime-val text-green font-mono" id="regime-btc-trend">BULLISH</div>
+          <div class="regime-sub">EMA Alignment + Volume</div>
+        </div>
+        <div class="regime-item">
+          <div class="regime-label">ETH MACRO TREND</div>
+          <div class="regime-val text-green font-mono" id="regime-eth-trend">BULLISH</div>
+          <div class="regime-sub">Beta Momentum</div>
+        </div>
+        <div class="regime-item">
+          <div class="regime-label">FEAR & GREED INDEX</div>
+          <div class="regime-val text-purple font-mono" id="regime-fear-greed">50 / 100</div>
+          <div class="regime-sub" id="regime-fear-greed-label">Neutral Zone</div>
+        </div>
+        <div class="regime-item">
+          <div class="regime-label">PLATFORM RISK MODE</div>
+          <div class="regime-val text-cyan font-mono" id="regime-risk-mode">RISK_ON</div>
+          <div class="regime-sub">Execution Sizing Active</div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <!-- 4. SCANNER COMMAND CENTER & SCANNED MARKET WATCHLIST                          -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <section class="section-card" id="scanner-command-center">
     <div class="card-header">
-      <div style="display: flex; align-items: center; gap: 0.75rem;">
-        <h2>🔄 14-Stage Autonomous Trading Pipeline</h2>
-        <span class="card-badge pulse">RECURSIVE FEEDBACK (↺) ACTIVE</span>
+      <div class="header-title-group">
+        <h2>📡 Scanner Command Center & Confluence Watchlist</h2>
+        <span id="scanner-evaluated-count" class="card-badge">0 EVALUATED</span>
       </div>
-      <div style="font-size: 0.8rem; color: var(--text-muted);">
-        Click any stage to inspect real-time telemetry, data contracts, and live payloads
-      </div>
-    </div>
-
-    <!-- Pipeline Visual Flowchart Grid -->
-    <div id="pipeline-stages-grid" class="pipeline-grid">
-      <!-- Injected dynamically by dashboard.js -->
-      <div style="grid-column: 1 / -1; text-align: center; color: var(--text-dim); padding: 2rem;">
-        Loading autonomous pipeline stages...
-      </div>
-    </div>
-  </section>
-
-  <!-- ── 🤖 4 Production Trading Bots — Live Pipeline Status ────────────────── -->
-  <section class="section-card bot-panel-section" style="margin-bottom: 1.5rem;">
-    <div class="card-header">
-      <div style="display: flex; align-items: center; gap: 0.75rem;">
-        <h2>🤖 Trading Bots — Live Pipeline Status</h2>
-        <span class="card-badge pulse">4 BOTS ACTIVE</span>
-      </div>
-      <div style="font-size: 0.8rem; color: var(--text-muted);">
-        Each bot operates at a different pipeline stage simultaneously — click any bot to inspect details
-      </div>
-    </div>
-
-    <!-- 3-Bot Comparison Grid -->
-    <div id="bot-status-grid" class="bot-status-grid">
-      <!-- Injected dynamically by dashboard.js renderBotPanel() -->
-      <div style="grid-column: 1 / -1; text-align: center; color: var(--text-dim); padding: 2rem;">
-        Loading bot pipeline status...
+      <!-- Scanner Summary Metrics Strip -->
+      <div class="scanner-summary-strip">
+        <div class="scan-metric">
+          <span class="sm-lbl">QUALIFIED:</span>
+          <span class="sm-val text-green font-mono" id="sm-qualified">0</span>
+        </div>
+        <div class="scan-metric">
+          <span class="sm-lbl">REJECTED:</span>
+          <span class="sm-val text-amber font-mono" id="sm-rejected">0</span>
+        </div>
+        <div class="scan-metric">
+          <span class="sm-lbl">HIGH CONVICTION (≥85):</span>
+          <span class="sm-val text-cyan font-mono" id="sm-high-conv">0</span>
+        </div>
+        <div class="scan-metric">
+          <span class="sm-lbl">LAST SCAN:</span>
+          <span class="sm-val text-muted font-mono" id="sm-last-scan">—</span>
+        </div>
+        <div class="scan-metric">
+          <span class="sm-lbl">DURATION:</span>
+          <span class="sm-val text-muted font-mono" id="sm-duration">0 ms</span>
+        </div>
       </div>
     </div>
-  </section>
 
-  <!-- ── Main Grid ────────────────────────────────────────────────────────── -->
-  <main class="dashboard-main-grid">
-
-    <!-- Column 1: AI Feed & Active Positions -->
-    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-      
-      <!-- AI Intelligence Real-Time Stream -->
-      <section class="section-card">
-        <div class="card-header">
-          <h2>🧠 AI Intelligence Evaluation Feed</h2>
-          <span class="card-badge">GEMINI 2.5 FLASH</span>
-        </div>
-        <div id="ai-feed" class="ai-feed-container">
-          <div style="color: var(--text-dim); text-align: center; padding: 2rem; font-size: 0.85rem;">
-            Listening for live signals on EventBus...
-          </div>
-        </div>
-      </section>
-
-      <!-- Active Positions -->
-      <section class="section-card">
-        <div class="card-header">
-          <h2>⚡ Active Trading Positions</h2>
-          <span class="card-badge">MTB · PMB · VGX</span>
-        </div>
-        <div style="overflow-x: auto;">
-          <table class="custom-table">
-            <thead>
-              <tr>
-                <th>Coin</th>
-                <th>Bot</th>
-                <th>Entry</th>
-                <th>Qty</th>
-                <th>PnL</th>
-                <th>Take Profit</th>
-                <th>Stop Loss</th>
-              </tr>
-            </thead>
-            <tbody id="positions-tbody">
-              <tr>
-                <td colspan="7" style="text-align: center; color: var(--text-dim); padding: 1.5rem;">
-                  No active open positions
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-    </div>
-
-    <!-- Column 2: Shadow Mode & Risk Engine -->
-    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-
-      <!-- Shadow Mode Scorecard -->
-      <section class="section-card">
-        <div class="card-header">
-          <h2>📊 Shadow Mode & Alpha Divergence</h2>
-          <span class="card-badge">ZERO RISK SIMULATION</span>
-        </div>
-        <div class="divergence-stat-row">
-          <div class="divergence-mini-stat">
-            <div id="shadow-win-rate" class="val" style="color: var(--cyan);">0%</div>
-            <div class="lbl">Simulated Win Rate</div>
-          </div>
-          <div class="divergence-mini-stat">
-            <div id="shadow-pnl" class="val" style="color: var(--green);">₹0.00</div>
-            <div class="lbl">Hypothetical PnL</div>
-          </div>
-          <div class="divergence-mini-stat">
-            <div id="shadow-divergences-count" class="val" style="color: var(--amber);">0</div>
-            <div class="lbl">Divergences Avoided</div>
-          </div>
-        </div>
-
-        <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">
-          Recent Decision Divergences (V2 Filter vs V1 Action)
-        </div>
-        <div id="divergence-logs" class="divergence-log-list">
-          <div style="color: var(--text-dim); text-align: center; padding: 1.5rem; font-size: 0.8rem;">
-            No divergences recorded yet
-          </div>
-        </div>
-      </section>
-
-      <!-- Risk Engine & Circuit Breaker -->
-      <section class="section-card">
-        <div class="card-header">
-          <h2>🛡️ Capital Guard & Circuit Breaker</h2>
-          <span class="card-badge">RISK ENGINE V2</span>
-        </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
-          <div class="divergence-mini-stat">
-            <div id="risk-breaker-status" class="val" style="color: var(--green);">NORMAL</div>
-            <div class="lbl">Circuit Breaker</div>
-          </div>
-          <div class="divergence-mini-stat">
-            <div class="val" style="color: var(--cyan);">STRICT</div>
-            <div class="lbl">AI Sizing Gate</div>
-          </div>
-        </div>
-        <p style="font-size: 0.8rem; color: var(--text-muted);">
-          Risk Engine evaluates maximum per-bot limits, global capital limits, and consecutive loss streaks before approving any trade for execution.
-        </p>
-      </section>
-
-    </div>
-
-  </main>
-
-  <!-- ── Scanned Market Watchlist & Funnel Inspector ──────────────────────── -->
-  <section class="section-card" style="margin-bottom: 1.5rem;">
-    <div class="card-header">
-      <div style="display: flex; align-items: center; gap: 0.75rem;">
-        <h2>📡 Scanned Market Watchlist & Funnel Inspector</h2>
-        <span id="watchlist-count-badge" class="card-badge" style="background: var(--surface-2); color: var(--cyan); border: 1px solid var(--border);">0 EVALUATED</span>
+    <!-- Scanner Filter & Search Controls -->
+    <div class="table-controls-bar">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="scanner-search-input" placeholder="Filter by coin ticker (e.g. BTC, SOL, ETH)..." oninput="window.v2Dashboard.filterScannedCoins()">
       </div>
-      <button class="btn btn-secondary" onclick="window.v2Dashboard.pollScanner()" style="font-size: 0.75rem; padding: 0.25rem 0.75rem;">
-        ⚡ Force Scan Pass
+      <div class="filter-group">
+        <label>Min Score:</label>
+        <select id="scanner-min-score-select" onchange="window.v2Dashboard.filterScannedCoins()">
+          <option value="0">All Scores (0+)</option>
+          <option value="50">50+ (Watchlist)</option>
+          <option value="75">75+ (Medium+)</option>
+          <option value="85" selected>85+ (Qualified / High)</option>
+          <option value="90">90+ (Elite Only)</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Gate Status:</label>
+        <select id="scanner-gate-filter" onchange="window.v2Dashboard.filterScannedCoins()">
+          <option value="ALL">All Statuses</option>
+          <option value="PASSED">Passed / Approved Only</option>
+          <option value="REJECTED">Rejected Only</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Sort By:</label>
+        <select id="scanner-sort-select" onchange="window.v2Dashboard.filterScannedCoins()">
+          <option value="score_desc">C2 Score (High → Low)</option>
+          <option value="price_desc">Price (High → Low)</option>
+          <option value="symbol_asc">Symbol (A → Z)</option>
+        </select>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="window.v2Dashboard.pollScanner()">
+        ⚡ Refresh Scanner
       </button>
     </div>
-    <div style="overflow-x: auto;">
-      <table class="custom-table">
+
+    <!-- Scanned Market Table -->
+    <div class="table-responsive">
+      <table class="custom-table" id="scanned-coins-table">
         <thead>
           <tr>
-            <th>Symbol / Pair</th>
+            <th>Coin / Pair</th>
             <th>Live Price</th>
-            <th>EMA Trend</th>
-            <th>RSI (14)</th>
-            <th>MTF Alignment</th>
+            <th>24h Trend</th>
             <th>C2 Score</th>
-            <th>Gate Status</th>
-            <th>Rejection Reason / Veto</th>
+            <th style="width: 90px; text-align: center;">Sparkline</th>
+            <th>Technical Indicators</th>
+            <th>Sentiment</th>
+            <th>News Risk</th>
+            <th>Decision Gate</th>
             <th>Action</th>
           </tr>
         </thead>
         <tbody id="scanned-coins-tbody">
           <tr>
-            <td colspan="9" style="text-align: center; color: var(--text-dim); padding: 1.5rem;">
+            <td colspan="10" class="table-empty-cell">
               Awaiting latest scanner evaluation snapshot...
             </td>
           </tr>
@@ -249,174 +331,724 @@
     </div>
   </section>
 
-  <!-- ── Subsystems Diagnostic Matrix ──────────────────────────────────────── -->
-  <section class="section-card" style="margin-bottom: 1.5rem;">
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <!-- 6. SIGNAL PIPELINE & 7. SIGNAL FEED (Row 3)                                 -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <div class="dual-column-grid">
+
+    <!-- 6. Signal Pipeline Visualizer -->
+    <section class="section-card">
+      <div class="card-header">
+        <div class="header-title-group">
+          <h2>⚡ Real-Time Signal Processing Pipeline</h2>
+          <span class="card-badge pulse">6 ACTIVE GATES</span>
+        </div>
+        <span class="card-hint">Flow progression from market tick to order authorization</span>
+      </div>
+
+      <div class="pipeline-flow-container" id="signal-pipeline-flow">
+        <div class="pipe-node active" id="pipe-node-market">
+          <div class="pipe-node-title">1. MARKET DATA</div>
+          <div class="pipe-node-status text-green" id="pipe-status-market">STREAMING</div>
+          <div class="pipe-node-sub" id="pipe-sub-market">Tick Ingestion</div>
+        </div>
+        <div class="pipe-arrow">➔</div>
+        <div class="pipe-node active" id="pipe-node-scanner">
+          <div class="pipe-node-title">2. SCANNER</div>
+          <div class="pipe-node-status text-green" id="pipe-status-scanner">ACTIVE</div>
+          <div class="pipe-node-sub" id="pipe-sub-scanner">Multi-Coin Loop</div>
+        </div>
+        <div class="pipe-arrow">➔</div>
+        <div class="pipe-node active" id="pipe-node-confluence">
+          <div class="pipe-node-title">3. C2 CONFLUENCE</div>
+          <div class="pipe-node-status text-cyan" id="pipe-status-confluence">EVALUATING</div>
+          <div class="pipe-node-sub" id="pipe-sub-confluence">4-Layer Filter</div>
+        </div>
+        <div class="pipe-arrow">➔</div>
+        <div class="pipe-node active" id="pipe-node-ai">
+          <div class="pipe-node-title">4. AI INTELLIGENCE</div>
+          <div class="pipe-node-status text-purple" id="pipe-status-ai">READY</div>
+          <div class="pipe-node-sub" id="pipe-sub-ai">Gemini Flash</div>
+        </div>
+        <div class="pipe-arrow">➔</div>
+        <div class="pipe-node active" id="pipe-node-risk">
+          <div class="pipe-node-title">5. RISK GATE</div>
+          <div class="pipe-node-status text-green" id="pipe-status-risk">NORMAL</div>
+          <div class="pipe-node-sub" id="pipe-sub-risk">Headroom Gate</div>
+        </div>
+        <div class="pipe-arrow">➔</div>
+        <div class="pipe-node" id="pipe-node-exec">
+          <div class="pipe-node-title">6. APPROVED</div>
+          <div class="pipe-node-status text-muted" id="pipe-status-exec">STANDBY</div>
+          <div class="pipe-node-sub" id="pipe-sub-exec">Order Authorization</div>
+        </div>
+      </div>
+
+      <div class="pipeline-telemetry-strip" id="pipeline-last-telemetry">
+        <span class="lbl">LAST PIPELINE EVENT:</span>
+        <span class="val font-mono" id="pipeline-last-event-desc">System listening for live ticks across EventBus</span>
+        <span class="time font-mono" id="pipeline-last-event-time">—</span>
+      </div>
+    </section>
+
+    <!-- 7. Real-Time Signal & Event Feed Terminal -->
+    <section class="section-card">
+      <div class="card-header">
+        <div class="header-title-group">
+          <h2>📜 Signal & Execution Event Feed</h2>
+          <span class="card-badge">EVENT BUS STREAM</span>
+        </div>
+        <div class="event-feed-actions">
+          <button class="btn btn-ghost btn-xs" id="btn-toggle-feed-pause" onclick="window.v2Dashboard.toggleFeedPause()">⏸ Pause</button>
+          <button class="btn btn-ghost btn-xs" onclick="window.v2Dashboard.clearFeed()">🧹 Clear</button>
+        </div>
+      </div>
+      <div class="event-feed-filters">
+        <button class="feed-filter-btn active" data-filter="ALL" onclick="window.v2Dashboard.setFeedFilter('ALL')">ALL</button>
+        <button class="feed-filter-btn" data-filter="SIGNALS" onclick="window.v2Dashboard.setFeedFilter('SIGNALS')">SIGNALS</button>
+        <button class="feed-filter-btn" data-filter="AI" onclick="window.v2Dashboard.setFeedFilter('AI')">AI</button>
+        <button class="feed-filter-btn" data-filter="RISK" onclick="window.v2Dashboard.setFeedFilter('RISK')">RISK</button>
+        <button class="feed-filter-btn" data-filter="ORDERS" onclick="window.v2Dashboard.setFeedFilter('ORDERS')">ORDERS</button>
+      </div>
+      <div id="event-feed-terminal" class="event-terminal-box">
+        <div id="ai-feed" class="ai-feed-stream"></div>
+        <div class="terminal-empty-msg">Listening for live telemetry frames on EventBus...</div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <!-- 8. EXECUTION CENTER & 10. LIVE POSITIONS                                     -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <section class="section-card" id="execution-center">
     <div class="card-header">
-      <h2>🩺 Subsystem Diagnostic Health Matrix</h2>
-      <span class="card-badge">8 SERVICES PROBED</span>
+      <div class="header-title-group">
+        <h2>⚡ Execution Center & Order Ledger</h2>
+        <span class="card-badge" id="exec-status-badge">ROUTER ONLINE</span>
+      </div>
+      <!-- Execution KPI Counters -->
+      <div class="exec-kpi-strip">
+        <div class="exec-kpi"><span class="lbl">BUYS:</span> <span class="val text-green font-mono" id="cnt-buys">0</span></div>
+        <div class="exec-kpi"><span class="lbl">SELLS:</span> <span class="val text-cyan font-mono" id="cnt-sells">0</span></div>
+        <div class="exec-kpi"><span class="lbl">PENDING:</span> <span class="val text-amber font-mono" id="cnt-pending">0</span></div>
+        <div class="exec-kpi"><span class="lbl">FILLED:</span> <span class="val text-green font-mono" id="cnt-filled">0</span></div>
+        <div class="exec-kpi"><span class="lbl">REJECTED:</span> <span class="val text-red font-mono" id="cnt-rejected">0</span></div>
+        <div class="exec-kpi"><span class="lbl">FAILED:</span> <span class="val text-red font-mono" id="cnt-failed">0</span></div>
+      </div>
     </div>
-    <div id="health-matrix" class="health-grid">
-      <!-- Injected by dashboard.js -->
+
+    <!-- Dual Tab: Open Positions vs Order Feed -->
+    <div class="tab-header-strip">
+      <button class="tab-btn active" id="tab-btn-positions" onclick="window.v2Dashboard.switchExecTab('positions')">
+        ⚡ Live Active Positions (<span id="open-positions-tab-cnt">0</span>)
+      </button>
+      <button class="tab-btn" id="tab-btn-orders" onclick="window.v2Dashboard.switchExecTab('orders')">
+        📋 Order Audit Trail & History (<span id="orders-tab-cnt">0</span>)
+      </button>
+    </div>
+
+    <!-- Tab 1: Live Positions Table -->
+    <div id="tab-content-positions" class="table-responsive">
+      <table class="custom-table" id="positions-table">
+        <thead>
+          <tr>
+            <th>Coin / Pair</th>
+            <th>Strategy / Bot</th>
+            <th>Side</th>
+            <th>Entry Price</th>
+            <th>Current Price</th>
+            <th>Qty</th>
+            <th>Stop Loss</th>
+            <th>Take Profit</th>
+            <th>Unrealized P&L</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="positions-tbody">
+          <tr>
+            <td colspan="10" class="table-empty-cell">
+              No active open positions
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Tab 2: Orders Table -->
+    <div id="tab-content-orders" class="table-responsive" style="display: none;">
+      <table class="custom-table" id="orders-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Coin / Pair</th>
+            <th>Side</th>
+            <th>Qty</th>
+            <th>Price</th>
+            <th>Execution Mode</th>
+            <th>Status</th>
+            <th>Exchange Order ID</th>
+            <th>Lifecycle</th>
+          </tr>
+        </thead>
+        <tbody id="orders-tbody">
+          <tr>
+            <td colspan="9" class="table-empty-cell">
+              No executed orders recorded
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </section>
 
-  <!-- ── Live Event Stream Terminal ────────────────────────────────────────── -->
-  <section class="section-card">
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <!-- 11. P&L CENTER & 12. RISK CENTER (Row 5)                                     -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <div class="dual-column-grid">
+
+    <!-- 11. P&L Center -->
+    <section class="section-card">
+      <div class="card-header">
+        <div class="header-title-group">
+          <h2>📊 Quantitative P&L Center</h2>
+          <span class="card-badge" id="pnl-mode-tag">PAPER & SHADOW</span>
+        </div>
+        <!-- Period Filter -->
+        <div class="period-toggle-group">
+          <button class="period-btn active" data-period="TODAY" onclick="window.v2Dashboard.setPnlPeriod('TODAY')">TODAY</button>
+          <button class="period-btn" data-period="WEEK" onclick="window.v2Dashboard.setPnlPeriod('WEEK')">WEEK</button>
+          <button class="period-btn" data-period="MONTH" onclick="window.v2Dashboard.setPnlPeriod('MONTH')">MONTH</button>
+          <button class="period-btn" data-period="TOTAL" onclick="window.v2Dashboard.setPnlPeriod('TOTAL')">TOTAL</button>
+        </div>
+      </div>
+
+      <div class="pnl-metrics-grid">
+        <div class="pnl-metric-box">
+          <div class="pnl-box-lbl">REALIZED P&L</div>
+          <div class="pnl-box-val font-mono positive" id="pnl-realized">₹0.00</div>
+          <div class="pnl-box-sub">After 1.572% Statutory Friction</div>
+        </div>
+        <div class="pnl-metric-box">
+          <div class="pnl-box-lbl">UNREALIZED P&L</div>
+          <div class="pnl-box-val font-mono" id="pnl-unrealized">₹0.00</div>
+          <div class="pnl-box-sub">Mark-to-Market Open Positions</div>
+        </div>
+        <div class="pnl-metric-box">
+          <div class="pnl-box-lbl">WIN RATE / LOSS RATE</div>
+          <div class="pnl-box-val font-mono" id="pnl-win-loss-rate">0% / 0%</div>
+          <div class="pnl-box-sub" id="pnl-win-loss-counts">0 Wins · 0 Losses</div>
+        </div>
+        <div class="pnl-metric-box">
+          <div class="pnl-box-lbl">PROFIT FACTOR / AVG WIN</div>
+          <div class="pnl-box-val font-mono text-cyan" id="pnl-avg-win-loss">₹0.00 / ₹0.00</div>
+          <div class="pnl-box-sub" id="pnl-profit-factor">Profit Factor: 0.00</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 12. Risk Center & Capital Guard -->
+    <section class="section-card">
+      <div class="card-header">
+        <div class="header-title-group">
+          <h2>🛡️ Risk Center & Capital Guard</h2>
+          <span class="card-badge text-green" id="risk-gate-badge">GATES ARMED</span>
+        </div>
+        <span class="card-hint">Real-time exposure limits, drawdowns & loss limits</span>
+      </div>
+
+      <div class="risk-meters-container">
+        <!-- Daily Loss Meter -->
+        <div class="risk-meter-row">
+          <div class="risk-meter-header">
+            <span>Daily Loss Limit (Max ₹1,500.00)</span>
+            <span class="font-mono text-green" id="meter-daily-loss-val">₹0.00 (0%)</span>
+          </div>
+          <div class="risk-progress-bar">
+            <div class="risk-progress-fill green" id="meter-daily-loss-fill" style="width: 0%;"></div>
+          </div>
+        </div>
+
+        <!-- Capital Pool Exposure Meter -->
+        <div class="risk-meter-row">
+          <div class="risk-meter-header">
+            <span>Capital Pool Exposure (Max ₹10,000.00)</span>
+            <span class="font-mono text-cyan" id="meter-exposure-val">₹0.00 (0%)</span>
+          </div>
+          <div class="risk-progress-bar">
+            <div class="risk-progress-fill cyan" id="meter-exposure-fill" style="width: 0%;"></div>
+          </div>
+        </div>
+
+        <!-- Open Positions Ceiling -->
+        <div class="risk-meter-row">
+          <div class="risk-meter-header">
+            <span>Max Open Positions (4 Max)</span>
+            <span class="font-mono text-purple" id="meter-positions-val">0 / 4</span>
+          </div>
+          <div class="risk-progress-bar">
+            <div class="risk-progress-fill purple" id="meter-positions-fill" style="width: 0%;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="risk-status-footer">
+        <div class="risk-badge-item">
+          <span class="lbl">ASSET LOCK:</span>
+          <span class="val text-green font-mono" id="risk-asset-lock-status">ENFORCED (SINGLE-COIN)</span>
+        </div>
+        <div class="risk-badge-item">
+          <span class="lbl">CIRCUIT BREAKER:</span>
+          <span class="val text-green font-mono" id="risk-breaker-state">NORMAL (ACTIVE)</span>
+        </div>
+        <div class="risk-badge-item">
+          <span class="lbl">EMERGENCY STOP:</span>
+          <span class="val text-muted font-mono" id="risk-estop-state">READY</span>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <!-- 14. EXIT MONITOR & 15. RECONCILIATION MONITOR (Row 6)                       -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <div class="dual-column-grid">
+
+    <!-- 14. Exit Monitor Card -->
+    <section class="section-card">
+      <div class="card-header">
+        <div class="header-title-group">
+          <h2>🎯 Position Exit Monitor</h2>
+          <span class="card-badge text-green" id="exit-monitor-status-badge">🟢 RUNNING</span>
+        </div>
+        <span class="card-hint">Sub-second stop loss & take profit trigger monitor</span>
+      </div>
+
+      <div class="monitor-card-body">
+        <div class="monitor-stat-row">
+          <div class="monitor-stat">
+            <div class="lbl">LAST CHECK</div>
+            <div class="val font-mono" id="exit-mon-last-check">—</div>
+          </div>
+          <div class="monitor-stat">
+            <div class="lbl">NEXT CHECK</div>
+            <div class="val font-mono" id="exit-mon-next-check">In ~5s</div>
+          </div>
+          <div class="monitor-stat">
+            <div class="lbl">POSITIONS CHECKED</div>
+            <div class="val font-mono text-cyan" id="exit-mon-pos-count">0</div>
+          </div>
+        </div>
+
+        <div class="monitor-triggers-grid">
+          <div class="trigger-box">
+            <span class="t-lbl">TAKE PROFIT TRIGGERS:</span>
+            <span class="t-val text-green font-mono" id="exit-mon-tp-count">0</span>
+          </div>
+          <div class="trigger-box">
+            <span class="t-lbl">STOP LOSS TRIGGERS:</span>
+            <span class="t-val text-red font-mono" id="exit-mon-sl-count">0</span>
+          </div>
+          <div class="trigger-box">
+            <span class="t-lbl">TRAILING STOPS:</span>
+            <span class="t-val text-purple font-mono" id="exit-mon-trailing-count">0</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 15. Reconciliation Monitor Card -->
+    <section class="section-card">
+      <div class="card-header">
+        <div class="header-title-group">
+          <h2>🔄 Exchange Reconciliation Monitor</h2>
+          <span class="card-badge text-green" id="reconcile-status-badge">🟢 IN SYNC</span>
+        </div>
+        <span class="card-hint">Comparing local SQLite positions with CoinDCX exchange state</span>
+      </div>
+
+      <div class="monitor-card-body">
+        <div class="monitor-stat-row">
+          <div class="monitor-stat">
+            <div class="lbl">LAST RECONCILIATION</div>
+            <div class="val font-mono" id="recon-last-run">—</div>
+          </div>
+          <div class="monitor-stat">
+            <div class="lbl">NEXT RUN</div>
+            <div class="val font-mono" id="recon-next-run">In ~60s</div>
+          </div>
+          <div class="monitor-stat">
+            <div class="lbl">ORDERS CHECKED</div>
+            <div class="val font-mono text-cyan" id="recon-orders-checked">0</div>
+          </div>
+        </div>
+
+        <div class="monitor-triggers-grid">
+          <div class="trigger-box">
+            <span class="t-lbl">MISMATCHES:</span>
+            <span class="t-val text-green font-mono" id="recon-mismatches">0</span>
+          </div>
+          <div class="trigger-box">
+            <span class="t-lbl">UNKNOWN ORDERS:</span>
+            <span class="t-val text-green font-mono" id="recon-unknown-orders">0</span>
+          </div>
+          <div class="trigger-box">
+            <span class="t-lbl">BALANCE DIFFERENCE:</span>
+            <span class="t-val text-green font-mono" id="recon-bal-diff">₹0.00</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <!-- 17. 14-STAGE AUTONOMOUS PIPELINE VISUALIZATION                              -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <section class="section-card pipeline-section">
     <div class="card-header">
-      <h2>📜 Real-Time Event Stream Terminal</h2>
-      <span class="card-badge">EVENT BUS PUSH</span>
+      <div class="header-title-group">
+        <h2>🔄 14-Stage Autonomous Trading Pipeline</h2>
+        <span class="card-badge pulse">RECURSIVE FEEDBACK (↺) ACTIVE</span>
+      </div>
+      <span class="card-hint">Click any stage to inspect live telemetry, data contracts, and payloads</span>
     </div>
-    <div id="event-stream" class="event-stream-box">
-      <!-- Injected by dashboard.js -->
+
+    <!-- Pipeline Visual Flowchart Grid -->
+    <div id="pipeline-stages-grid" class="pipeline-grid">
+      <div class="loading-placeholder">Loading autonomous pipeline architecture stages...</div>
     </div>
   </section>
 
-  <!-- ── Stage Inspection Modal / Drawer ───────────────────────────────────── -->
-  <div id="stage-modal" class="modal-overlay" style="display: none;">
-    <div class="modal-card">
-      <div class="modal-header">
-        <div style="display: flex; align-items: center; gap: 0.75rem;">
-          <span id="modal-stage-icon" style="font-size: 1.6rem;">📡</span>
-          <div>
-            <h2 id="modal-stage-title" style="font-size: 1.25rem;">Stage Details</h2>
-            <span id="modal-stage-subtitle" style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">STAGE 01</span>
-          </div>
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <!-- 16. LEARNING / ANALYTICS & 4 PRODUCTION TRADING BOTS FLEET                  -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <div class="dual-column-grid">
+
+    <!-- 16. Learning Engine & Horizon Analytics -->
+    <section class="section-card">
+      <div class="card-header">
+        <div class="header-title-group">
+          <h2>🧠 Learning Engine & Performance Horizon</h2>
+          <span class="card-badge">ANALYTICS V2</span>
         </div>
-        <button id="modal-close-btn" class="modal-close">&times;</button>
+        <span class="card-hint">Multi-horizon accuracy & recursive improvement</span>
       </div>
 
-      <div class="modal-body">
-        <p id="modal-stage-description" style="color: var(--text-muted); margin-bottom: 1.25rem; font-size: 0.9rem;"></p>
-
-        <!-- Metrics Grid -->
-        <h3 style="font-size: 0.85rem; text-transform: uppercase; color: var(--cyan); letter-spacing: 0.05em; margin-bottom: 0.75rem;">Live Stage Metrics</h3>
-        <div id="modal-metrics-grid" class="modal-metrics-grid"></div>
-
-        <!-- Data Contracts -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.25rem;">
-          <div class="contract-card">
-            <h4 style="color: var(--green); font-size: 0.8rem; margin-bottom: 0.5rem;">📥 INPUT CONTRACT</h4>
-            <pre id="modal-input-contract" class="contract-code"></pre>
-          </div>
-          <div class="contract-card">
-            <h4 style="color: var(--cyan); font-size: 0.8rem; margin-bottom: 0.5rem;">📤 OUTPUT CONTRACT</h4>
-            <pre id="modal-output-contract" class="contract-code"></pre>
-          </div>
-        </div>
-
-        <!-- Latest Event Payload -->
-        <div style="margin-top: 1.25rem;">
-          <h3 style="font-size: 0.85rem; text-transform: uppercase; color: var(--purple); letter-spacing: 0.05em; margin-bottom: 0.5rem;">Latest Processed Payload</h3>
-          <pre id="modal-last-event" class="contract-code" style="max-height: 180px;"></pre>
-        </div>
+      <!-- Recursive Learning Loop -->
+      <div class="learning-loop-bar">
+        <div class="loop-step"><span class="step-num">1</span> PATTERN DETECTED</div>
+        <div class="loop-arrow">➔</div>
+        <div class="loop-step"><span class="step-num">2</span> ERROR CATEGORY</div>
+        <div class="loop-arrow">➔</div>
+        <div class="loop-step"><span class="step-num">3</span> RECURSIVE LEARNING</div>
+        <div class="loop-arrow">➔</div>
+        <div class="loop-step"><span class="step-num">4</span> CALIBRATION UPDATED ↺</div>
       </div>
-    </div>
+
+      <!-- Horizon Accuracy Table -->
+      <div class="table-responsive" style="margin-top: 1rem;">
+        <table class="custom-table table-compact">
+          <thead>
+            <tr>
+              <th>Time Horizon</th>
+              <th>Total Signals</th>
+              <th>Winning</th>
+              <th>Losing</th>
+              <th>Win Rate %</th>
+            </tr>
+          </thead>
+          <tbody id="learning-horizon-tbody">
+            <tr>
+              <td colspan="5" class="table-empty-cell">Loading horizon accuracy telemetry...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 4 Production Trading Bots Fleet Matrix -->
+    <section class="section-card">
+      <div class="card-header">
+        <div class="header-title-group">
+          <h2>🤖 Production Trading Fleet Status</h2>
+          <span class="card-badge pulse">4 STRATEGIES ACTIVE</span>
+        </div>
+        <span class="card-hint">STE · HDA · VCP · BBS Execution Telemetry</span>
+      </div>
+
+      <div id="bot-status-grid" class="bot-status-grid">
+        <div class="loading-placeholder">Loading fleet status telemetry...</div>
+      </div>
+    </section>
+
   </div>
 
-  <!-- ── Bot Detail Modal ─────────────────────────────────────────────────── -->
-  <div id="bot-modal" class="modal-overlay" style="display: none;">
-    <div class="modal-card" style="max-width: 780px;">
-      <div class="modal-header">
-        <div style="display: flex; align-items: center; gap: 0.75rem;">
-          <span id="bot-modal-icon" style="font-size: 1.6rem;">🤖</span>
-          <div>
-            <h2 id="bot-modal-title" style="font-size: 1.25rem;">Bot Details</h2>
-            <span id="bot-modal-subtitle" style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">STRATEGY</span>
-          </div>
-        </div>
-        <button id="bot-modal-close-btn" class="modal-close" onclick="closeBotModal()">&times;</button>
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <!-- 18. CENTRALIZED ERROR CENTER                                                -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <section class="section-card" id="error-center">
+    <div class="card-header">
+      <div class="header-title-group">
+        <h2>🚨 Centralized Diagnostic Error & Warning Log</h2>
+        <span class="card-badge text-green" id="error-center-badge">0 ACTIVE ERRORS</span>
       </div>
-
-      <div class="modal-body">
-        <!-- Strategy description -->
-        <p id="bot-modal-description" style="color: var(--text-muted); margin-bottom: 1.25rem; font-size: 0.9rem;"></p>
-
-        <!-- Pipeline Progress Bar -->
-        <h3 style="font-size: 0.85rem; text-transform: uppercase; color: var(--cyan); letter-spacing: 0.05em; margin-bottom: 0.5rem;">Current Pipeline Stage</h3>
-        <div id="bot-modal-stage-bar" class="bot-stage-bar" style="margin-bottom: 1.25rem;"></div>
-
-        <!-- Live Metrics Grid -->
-        <h3 style="font-size: 0.85rem; text-transform: uppercase; color: var(--cyan); letter-spacing: 0.05em; margin-bottom: 0.75rem;">Live Metrics</h3>
-        <div id="bot-modal-metrics" class="modal-metrics-grid" style="margin-bottom: 1.25rem;"></div>
-
-        <!-- Strategy Parameters -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 0.75rem;">
-          <div class="contract-card">
-            <h4 style="color: var(--green); font-size: 0.8rem; margin-bottom: 0.5rem;">⚙️ STRATEGY PARAMETERS</h4>
-            <pre id="bot-modal-params" class="contract-code"></pre>
-          </div>
-          <div class="contract-card">
-            <h4 style="color: var(--cyan); font-size: 0.8rem; margin-bottom: 0.5rem;">📊 PERFORMANCE COUNTERS</h4>
-            <pre id="bot-modal-counters" class="contract-code"></pre>
-          </div>
-        </div>
-
-        <!-- Last Action -->
-        <div style="margin-top: 1.25rem;">
-          <h3 style="font-size: 0.85rem; text-transform: uppercase; color: var(--purple); letter-spacing: 0.05em; margin-bottom: 0.5rem;">Last Action</h3>
-          <pre id="bot-modal-last-action" class="contract-code" style="max-height: 100px;"></pre>
-        </div>
+      <div class="error-center-actions">
+        <button class="btn btn-ghost btn-xs" onclick="window.v2Dashboard.fetchErrors()">🔄 Refresh Logs</button>
       </div>
     </div>
-  </div>
+    <div class="table-responsive">
+      <table class="custom-table table-compact" id="error-center-table">
+        <thead>
+          <tr>
+            <th style="width: 140px;">Timestamp</th>
+            <th style="width: 120px;">Subsystem</th>
+            <th style="width: 90px;">Severity</th>
+            <th>Diagnostic Message / Reason</th>
+            <th style="width: 90px;">Status</th>
+          </tr>
+        </thead>
+        <tbody id="error-center-tbody">
+          <tr>
+            <td colspan="5" class="table-empty-cell text-green">
+              ✓ All subsystems operating nominally. Zero active diagnostic errors.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
 
-  <!-- ── Coin Inspector Modal ──────────────────────────────────────────────── -->
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <!-- MODALS & DRAWERS                                                            -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+
+  <!-- 5. Coin Inspector Modal -->
   <div id="coin-modal" class="modal-overlay" style="display: none;">
-    <div class="modal-card" style="max-width: 840px;">
+    <div class="modal-card" style="max-width: 860px;">
       <div class="modal-header">
-        <div style="display: flex; align-items: center; gap: 0.75rem;">
-          <span id="coin-modal-icon" style="font-size: 1.6rem;">🪙</span>
+        <div class="modal-header-left">
+          <span class="modal-glyph">🪙</span>
           <div>
-            <h2 id="coin-modal-title" style="font-size: 1.25rem;">BTC/INR Inspection</h2>
-            <span id="coin-modal-subtitle" style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">C2 CONFLUENCE EVALUATION</span>
+            <h2 id="coin-modal-title">BTC/INR Evaluation Snapshot</h2>
+            <span class="modal-subtitle" id="coin-modal-subtitle">C2 CONFLUENCE & TECHNICAL INSPECTOR</span>
           </div>
         </div>
-        <button id="coin-modal-close-btn" class="modal-close" onclick="document.getElementById('coin-modal').style.display='none'">&times;</button>
+        <button class="modal-close-btn" onclick="document.getElementById('coin-modal').style.display='none'">&times;</button>
       </div>
 
       <div class="modal-body">
         <!-- Coin Top KPI Bar -->
-        <div class="divergence-stat-row" style="margin-bottom: 1.25rem;">
+        <div class="divergence-stat-row">
           <div class="divergence-mini-stat">
-            <div id="coin-modal-price" class="val" style="color: var(--cyan);">₹0.00</div>
+            <div id="coin-modal-price" class="val text-cyan font-mono">₹0.00</div>
             <div class="lbl">Live Price</div>
           </div>
           <div class="divergence-mini-stat">
-            <div id="coin-modal-score" class="val" style="color: var(--green);">0 / 100</div>
-            <div class="lbl">Confluence Score</div>
+            <div id="coin-modal-score" class="val text-green font-mono">0 / 100</div>
+            <div class="lbl">C2 Confluence Score</div>
           </div>
           <div class="divergence-mini-stat">
-            <div id="coin-modal-status" class="val" style="color: var(--amber);">REJECTED</div>
-            <div class="lbl">C2 Gate Status</div>
+            <div id="coin-modal-status" class="val text-amber font-mono">REJECTED</div>
+            <div class="lbl">Gate Decision</div>
           </div>
           <div class="divergence-mini-stat">
-            <div id="coin-modal-rsi" class="val" style="color: var(--purple);">50.0</div>
+            <div id="coin-modal-rsi" class="val text-purple font-mono">50.0</div>
             <div class="lbl">RSI (14)</div>
           </div>
         </div>
 
         <!-- 4-Layer C2 Funnel Grid -->
-        <h3 style="font-size: 0.85rem; text-transform: uppercase; color: var(--cyan); letter-spacing: 0.05em; margin-bottom: 0.75rem;">C2 4-Layer Funnel Scores</h3>
-        <div id="coin-modal-layers" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; margin-bottom: 1.25rem;"></div>
+        <h3 class="modal-section-title text-cyan">C2 4-Layer Scoring Breakdown</h3>
+        <div id="coin-modal-layers" class="coin-layers-grid"></div>
 
-        <!-- Rejection Reasons / Filter Hurdles -->
-        <div class="contract-card" style="margin-bottom: 1.25rem;">
-          <h4 style="color: var(--amber); font-size: 0.8rem; margin-bottom: 0.5rem;">⚠️ GATE VETO / REJECTION REASONS</h4>
-          <div id="coin-modal-reasons" style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;"></div>
+        <!-- Why Accepted / Why Rejected Rationale -->
+        <div class="contract-card" style="margin-top: 1.25rem;">
+          <h4 id="coin-modal-rationale-title" class="text-amber">⚠️ GATE EVALUATION RATIONALE</h4>
+          <div id="coin-modal-reasons" class="coin-reasons-text"></div>
         </div>
 
-        <!-- Raw Diagnostic Breakdown -->
-        <div class="contract-card">
-          <h4 style="color: var(--cyan); font-size: 0.8rem; margin-bottom: 0.5rem;">🔬 EVALUATION PAYLOAD</h4>
+        <!-- Technical Indicators Grid -->
+        <div class="contract-card" style="margin-top: 1rem;">
+          <h4 class="text-cyan">📊 TECHNICAL & MTF METRICS</h4>
+          <div id="coin-modal-tech-metrics" class="modal-metrics-grid"></div>
+        </div>
+
+        <!-- Raw Diagnostic Payload -->
+        <div class="contract-card" style="margin-top: 1rem;">
+          <h4 class="text-purple">🔬 RAW EVALUATION PAYLOAD</h4>
           <pre id="coin-modal-raw" class="contract-code" style="max-height: 180px;"></pre>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ── Toast Notifications ──────────────────────────────────────────────── -->
+  <!-- 9. Order Lifecycle Inspector Modal -->
+  <div id="order-lifecycle-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-card" style="max-width: 820px;">
+      <div class="modal-header">
+        <div class="modal-header-left">
+          <span class="modal-glyph">📋</span>
+          <div>
+            <h2 id="order-modal-title">Order Lifecycle Trail</h2>
+            <span class="modal-subtitle" id="order-modal-subtitle">CLIENT ORDER ID: —</span>
+          </div>
+        </div>
+        <button class="modal-close-btn" onclick="document.getElementById('order-lifecycle-modal').style.display='none'">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Order Lifecycle Visual Stages -->
+        <h3 class="modal-section-title text-cyan">Order Execution Progress</h3>
+        <div id="order-lifecycle-stages-bar" class="order-lifecycle-flow"></div>
+
+        <!-- Order Parameter Ledger -->
+        <h3 class="modal-section-title text-green" style="margin-top: 1.25rem;">Order Transaction Ledger</h3>
+        <div id="order-lifecycle-ledger" class="modal-metrics-grid"></div>
+
+        <!-- Exchange Details & Timestamps -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+          <div class="contract-card">
+            <h4 class="text-cyan">🏛️ EXCHANGE ACKNOWLEDGEMENT</h4>
+            <div id="order-modal-exchange-info" style="font-size: 0.85rem; line-height: 1.6; color: var(--text-muted);"></div>
+          </div>
+          <div class="contract-card">
+            <h4 class="text-purple">⏱️ TIMESTAMPS & LATENCY</h4>
+            <div id="order-modal-timestamps" style="font-size: 0.85rem; line-height: 1.6; color: var(--text-muted);"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Subsystem Health Diagnostic Modal -->
+  <div id="health-detail-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-card" style="max-width: 680px;">
+      <div class="modal-header">
+        <div class="modal-header-left">
+          <span class="modal-glyph" id="health-modal-icon">🩺</span>
+          <div>
+            <h2 id="health-modal-title">Subsystem Health</h2>
+            <span class="modal-subtitle" id="health-modal-subtitle">DIAGNOSTIC TELEMETRY</span>
+          </div>
+        </div>
+        <button class="modal-close-btn" onclick="document.getElementById('health-detail-modal').style.display='none'">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="health-modal-metrics" class="modal-metrics-grid"></div>
+        <div class="contract-card" style="margin-top: 1.25rem;">
+          <h4 class="text-cyan">🔬 HEALTH PROBE PAYLOAD</h4>
+          <pre id="health-modal-raw" class="contract-code" style="max-height: 220px;"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 17. 14-Stage Pipeline Modal -->
+  <div id="stage-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-card" style="max-width: 820px;">
+      <div class="modal-header">
+        <div class="modal-header-left">
+          <span class="modal-glyph" id="modal-stage-icon">📡</span>
+          <div>
+            <h2 id="modal-stage-title">Pipeline Stage Details</h2>
+            <span class="modal-subtitle" id="modal-stage-subtitle">STAGE TELEMETRY</span>
+          </div>
+        </div>
+        <button class="modal-close-btn" onclick="document.getElementById('stage-modal').style.display='none'">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <p id="modal-stage-description" class="modal-desc"></p>
+        <h3 class="modal-section-title text-cyan">Live Stage Telemetry</h3>
+        <div id="modal-metrics-grid" class="modal-metrics-grid"></div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.25rem;">
+          <div class="contract-card">
+            <h4 class="text-green">📥 INPUT CONTRACT</h4>
+            <pre id="modal-input-contract" class="contract-code"></pre>
+          </div>
+          <div class="contract-card">
+            <h4 class="text-cyan">📤 OUTPUT CONTRACT</h4>
+            <pre id="modal-output-contract" class="contract-code"></pre>
+          </div>
+        </div>
+
+        <div style="margin-top: 1.25rem;">
+          <h3 class="modal-section-title text-purple">Latest Processed Event Payload</h3>
+          <pre id="modal-last-event" class="contract-code" style="max-height: 180px;"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bot Detail Modal -->
+  <div id="bot-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-card" style="max-width: 780px;">
+      <div class="modal-header">
+        <div class="modal-header-left">
+          <span class="modal-glyph">🤖</span>
+          <div>
+            <h2 id="bot-modal-title">Strategy Bot Details</h2>
+            <span class="modal-subtitle" id="bot-modal-subtitle">STE · MOMENTUM BREAKOUT</span>
+          </div>
+        </div>
+        <button class="modal-close-btn" onclick="document.getElementById('bot-modal').style.display='none'">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <p id="bot-modal-description" class="modal-desc"></p>
+        <h3 class="modal-section-title text-cyan">Current Pipeline Progress</h3>
+        <div id="bot-modal-stage-bar" class="bot-stage-bar"></div>
+
+        <h3 class="modal-section-title text-cyan" style="margin-top: 1.25rem;">Live Strategy Metrics</h3>
+        <div id="bot-modal-metrics" class="modal-metrics-grid"></div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+          <div class="contract-card">
+            <h4 class="text-green">⚙️ STRATEGY PARAMETERS</h4>
+            <pre id="bot-modal-params" class="contract-code"></pre>
+          </div>
+          <div class="contract-card">
+            <h4 class="text-cyan">📊 PERFORMANCE COUNTERS</h4>
+            <pre id="bot-modal-counters" class="contract-code"></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Kill Switch Confirmation Modal -->
+  <div id="kill-switch-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-card" style="max-width: 520px; border-color: rgba(239, 68, 68, 0.4);">
+      <div class="modal-header" style="border-bottom-color: rgba(239, 68, 68, 0.2);">
+        <div class="modal-header-left">
+          <span class="modal-glyph" style="color: var(--red);">🚨</span>
+          <div>
+            <h2 style="color: var(--red);">Emergency Kill-Switch</h2>
+            <span class="modal-subtitle">CIRCUIT BREAKER TRIGGER</span>
+          </div>
+        </div>
+        <button class="modal-close-btn" onclick="document.getElementById('kill-switch-modal').style.display='none'">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 1.25rem;">
+          Tripping the emergency kill-switch will immediately halt all outbound order dispatch, transition execution mode to <strong style="color: var(--cyan);">SHADOW</strong>, and lock all trading channels.
+        </p>
+        <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+          <button class="btn btn-ghost" onclick="document.getElementById('kill-switch-modal').style.display='none'">Cancel</button>
+          <button class="btn btn-danger" onclick="window.v2Dashboard.confirmKillSwitch()">🚨 Trip Kill-Switch Now</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
   <div id="toast-container"></div>
 
+  <!-- Dashboard Client Script -->
   <script src="/v2-static/js/dashboard.js"></script>
 </body>
 </html>

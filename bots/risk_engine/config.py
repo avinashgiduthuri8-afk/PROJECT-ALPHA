@@ -52,7 +52,7 @@ def _parse_int(env_var: str, default: int = 0) -> int:
 
 
 # ── Global kill-switches ──────────────────────────────────────────────────────
-# Set TRADING_ENABLED=false to halt ALL bots (VGX, PMB, MTB).
+# Set TRADING_ENABLED=false to halt all trading.
 TRADING_ENABLED: bool = os.getenv("TRADING_ENABLED", "false").lower() == "true"
 
 # ── In-memory runtime toggle ──────────────────────────────────────────────────
@@ -82,8 +82,6 @@ EMERGENCY_STOP: bool = os.getenv("EMERGENCY_STOP", "false").lower() == "true"
 # ── Capital allocation per bot (INR paper units) ──────────────────────────────
 # Defaults are 0 (deny-by-default).  Set env vars explicitly to enable trading.
 TRADE_CONFIG: dict[str, float] = {
-    "VGX": _parse_float("VGX_TRADE_AMOUNT", 0.0),
-    "PMB": _parse_float("PMB_TRADE_AMOUNT", 0.0),
     "MTB": _parse_float("MTB_TRADE_AMOUNT", 0.0),
 }
 
@@ -94,15 +92,11 @@ TOTAL_CAPITAL_LIMIT: float = _parse_float("TOTAL_CAPITAL_LIMIT", 0.0)
 # Per-bot limit: max capital a single bot may have deployed simultaneously.
 # Default 0 = not configured; engine will deny trades until set explicitly.
 BOT_CAPITAL_LIMIT: dict[str, float] = {
-    "VGX": _parse_float("VGX_CAPITAL_LIMIT", 0.0),
-    "PMB": _parse_float("PMB_CAPITAL_LIMIT", 0.0),
     "MTB": _parse_float("MTB_CAPITAL_LIMIT", 0.0),
 }
 
 # Max open positions per bot.
 MAX_POSITIONS: dict[str, int] = {
-    "VGX": _parse_int("VGX_MAX_POSITIONS", 5),
-    "PMB": _parse_int("PMB_MAX_POSITIONS", 5),
     "MTB": _parse_int("MTB_MAX_POSITIONS", 3),
 }
 
@@ -127,8 +121,6 @@ for _bot, _limit in BOT_CAPITAL_LIMIT.items():
 VALID_BOT_MODES = {"LIVE", "PAPER", "DISABLED", "PAUSED"}
 
 _BOT_MODE_ENV = {
-    "VGX": "VGX_BOT_MODE",
-    "PMB": "PMB_BOT_MODE",
     "MTB": "MTB_BOT_MODE",
 }
 

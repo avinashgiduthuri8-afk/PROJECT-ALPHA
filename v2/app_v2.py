@@ -218,6 +218,7 @@ async def lifespan(app: FastAPI):
         scheduler       = _scheduler,
         config          = cfg,
         scanner_service = _scanner_service,
+        trading_service = _trading_service,
     )
     await _scheduler.start()
     _health_checker._scheduler = _scheduler
@@ -251,6 +252,7 @@ async def lifespan(app: FastAPI):
         shadow_repo          = shadow_repo,
         position_repo        = position_repo,
         trade_repo           = trade_repo,
+        event_log_repo       = event_log_repo,
         notification_service = _notification_service,
         dashboard_service    = _dashboard_service,
         health_checker       = _health_checker,

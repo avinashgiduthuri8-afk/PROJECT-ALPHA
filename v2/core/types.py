@@ -165,6 +165,26 @@ class Position:
     closed_at:       Optional[datetime] = None
     exit_price:      Optional[float] = None
     exit_reason:     Optional[ExitReason] = None
+    id:                str
+    bot:               BotName
+    coin:              str
+    pair:              str
+    qty:               float
+    entry_price:       float
+    entry_time:        datetime
+    mode:              BotMode
+    status:            PositionStatus = PositionStatus.OPEN
+    current_price:     Optional[float] = None
+    unrealised_pnl:    Optional[float] = None
+    stop_loss:         Optional[float] = None
+    take_profit:       Optional[float] = None
+    signal_id:         Optional[str]   = None
+    closed_at:         Optional[datetime] = None
+    exit_price:        Optional[float] = None
+    exit_reason:       Optional[ExitReason] = None
+    exchange_order_id: Optional[str] = None
+    client_order_id:   Optional[str] = None
+    filled_qty:        Optional[float] = None
 
     @property
     def deployed_capital(self) -> float:
@@ -188,6 +208,23 @@ class Trade:
     exit_reason: ExitReason
     mode:        BotMode
     signal_id:   Optional[str] = None
+    id:                str
+    position_id:       str
+    bot:               BotName
+    coin:              str
+    pair:              str
+    entry_price:       float
+    exit_price:        float
+    qty:               float
+    pnl:               float
+    pnl_pct:           float
+    entry_time:        datetime
+    exit_time:         datetime
+    exit_reason:       ExitReason
+    mode:              BotMode
+    signal_id:         Optional[str] = None
+    exchange_order_id: Optional[str] = None
+    client_order_id:   Optional[str] = None
 
 
 @dataclass

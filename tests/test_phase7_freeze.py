@@ -21,95 +21,21 @@ from fastapi.testclient import TestClient
 
 
 # =============================================================================
-# VGX CONFIG: BOT_MODE defaults to PAPER
-# =============================================================================
-
-class TestVGXConfigBotMode:
-    """VGX config must export BOT_MODE and default it to PAPER."""
-
-    def test_bot_mode_defaults_to_paper(self):
-        import os, importlib
-        with patch.dict(os.environ, {}, clear=False):
-            os.environ.pop("VGX_BOT_MODE", None)
-            import bots.volatile_gridX.config as cfg
-            importlib.reload(cfg)
-        assert hasattr(cfg, "BOT_MODE"), "BOT_MODE missing from VGX config"
-        assert cfg.BOT_MODE == "PAPER", f"Expected PAPER, got {cfg.BOT_MODE!r}"
-
-    def test_bot_mode_respects_env_var(self):
-        import os, importlib
-        with patch.dict(os.environ, {"VGX_BOT_MODE": "LIVE"}):
-            import bots.volatile_gridX.config as cfg
-            importlib.reload(cfg)
-        assert cfg.BOT_MODE == "LIVE"
-
-
-# =============================================================================
-# STARTUP MODE LOGGING — all three bots announce their mode
+# STARTUP MODE LOGGING — bot announces its mode
 # =============================================================================
 
 class TestStartupModeLogging:
-    """Each bot's startup_event source must contain a BOT_MODE log statement.
-
-    We inspect the source text rather than running the coroutine — this avoids
-    event-loop / handler-propagation complexity while still verifying the exact
-    intent: that the developer added a BOT_MODE log line to startup_event.
-    """
+    """Each bot's startup_event source must contain a BOT_MODE log statement."""
 
     def _source_of_fn(self, fn) -> str:
         import inspect
         return inspect.getsource(fn)
-
-    def test_vgx_startup_logs_bot_mode(self):
-        import bots.volatile_gridX.main as m
-        src = self._source_of_fn(m.startup_event)
-        assert "BOT_MODE" in src, \
-            f"startup_event in vgx main.py has no BOT_MODE log. Source:\n{src}"
 
     def test_mtb_startup_logs_bot_mode(self):
         import bots.mtb_bot.main as m
         src = self._source_of_fn(m.startup_event)
         assert "BOT_MODE" in src, \
             f"startup_event in mtb main.py has no BOT_MODE log. Source:\n{src}"
-
-    def test_pmb_startup_logs_bot_mode(self):
-        import bots.pmb_bot.main as m
-        src = self._source_of_fn(m.startup_event)
-        assert "BOT_MODE" in src, \
-            f"startup_event in pmb main.py has no BOT_MODE log. Source:\n{src}"
-
-
-# =============================================================================
-# BARE EXCEPT → except Exception FIXES
-# =============================================================================
-
-class TestBareExceptFixes:
-    """Bare except: blocks replaced with except Exception so SystemExit/
-    KeyboardInterrupt propagate correctly."""
-
-    def _source_of(self, module_path: str) -> str:
-        import inspect, importlib
-        mod = importlib.import_module(module_path)
-        return inspect.getsource(mod)
-
-    def test_vgx_storage_no_bare_except(self):
-        src = self._source_of("bots.volatile_gridX.storage")
-        # bare `except:` (no exception type) should not appear after the colon
-        import re
-        bare = re.findall(r"except\s*:", src)
-        assert not bare, f"Bare except: found in storage.py: {bare}"
-
-    def test_vgx_alerts_no_bare_except(self):
-        src = self._source_of("bots.volatile_gridX.alerts")
-        import re
-        bare = re.findall(r"except\s*:", src)
-        assert not bare, f"Bare except: found in alerts.py: {bare}"
-
-    def test_vgx_market_data_no_bare_except(self):
-        src = self._source_of("bots.volatile_gridX.market_data")
-        import re
-        bare = re.findall(r"except\s*:", src)
-        assert not bare, f"Bare except: found in market_data.py: {bare}"
 
 
 # =============================================================================

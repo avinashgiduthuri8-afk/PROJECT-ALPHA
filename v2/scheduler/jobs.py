@@ -11,10 +11,15 @@ are initialised.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Optional
+
 from v2.core.config import V2Config
 from v2.core.logging import get_logger
 from v2.services.scanner_service import ScannerService
 from .scheduler import BackgroundScheduler
+
+if TYPE_CHECKING:
+    from v2.services.trading_service import TradingService
 
 logger = get_logger("v2.scheduler.jobs")
 
@@ -23,11 +28,13 @@ def register_all_jobs(
     scheduler: BackgroundScheduler,
     config: V2Config,
     scanner_service: ScannerService,
+    trading_service: Optional[TradingService] = None,
 ) -> None:
     """
     Register all V2.1 scheduler jobs.
 
     Additional jobs will be added in V2.2–V2.5 as services come online.
+    Register all V2 scheduler jobs.
     """
 
     # ── scanner_poll ──────────────────────────────────────────────────────────
@@ -49,3 +56,24 @@ def register_all_jobs(
     )
 
     logger.info("All V2.1 jobs registered")
+    # ── exit_monitor ──────────────────────────────────────────────────────────
+    # Periodic sweep for open positions hitting SL / TP / Trailing exit triggers.
+    if trading_service is not None:
+        scheduler.register(
+            name     = "exit_monitor",
+            fn       = trading_service.poll_exits,
+            interval = 5,
+            enabled  = True,
+        )
+
+        # ── order_reconciliation ──────────────────────────────────────────────
+        # Periodic reconciliation comparing local DB positions with CoinDCX exchange state.
+        scheduler.register(
+            name     = "order_reconciliation",
+            fn       = trading_service.reconcile_live_orders,
+            interval = 60,
+            enabled  = True,
+        )
+
+    logger.info("All V2 scheduler jobs registered (including exit_monitor and order_reconciliation)")
+

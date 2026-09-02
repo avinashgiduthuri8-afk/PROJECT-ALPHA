@@ -998,8 +998,6 @@ body {
     border-radius: 4px;
     transition: width 0.3s ease;
 }
-.alloc-bar-vgx { background: var(--blue); }
-.alloc-bar-pmb { background: var(--green); }
 .alloc-bar-mtb { background: var(--amber); }
 .capital-allocation-pct {
     font-family: var(--font-mono);
