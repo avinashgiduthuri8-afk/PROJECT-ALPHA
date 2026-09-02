@@ -527,4 +527,113 @@ class ErrorLogItemSchema(BaseModel):
     payload:   dict[str, Any] = Field(default_factory=dict)
 
 
+# ── Coin Research & Intelligence (Research Hub) ───────────────────────────────
 
+class ResearchPairSchema(BaseModel):
+    """One entry in the supported-pairs list."""
+    pair:  str
+    base:  str
+    quote: str
+
+
+class VCPStageSchema(BaseModel):
+    stage:            str
+    high:             float
+    low:              float
+    range:            float
+    contraction_pct:  float
+
+
+class VCPSetupSchema(BaseModel):
+    detected:          bool
+    stages:            list[VCPStageSchema] = Field(default_factory=list)
+    pivot_buy_point:   Optional[float] = None
+    hard_stop_loss:    Optional[float] = None
+    target_1:          Optional[float] = None
+    target_2:          Optional[float] = None
+    contraction_count: int = 0
+    setup_quality:     str = "NO_SETUP"
+
+
+class ScorecardSchema(BaseModel):
+    total_score:                float
+    pillar_technical_structure: float
+    pillar_relative_strength:   float
+    pillar_volume_delivery:     float
+    pillar_risk_reward:         float
+    rating:                     str
+
+
+class TickerSnapshotSchema(BaseModel):
+    ltp:            float
+    change_24h_pct: float
+    high_24h:       float
+    low_24h:        float
+    volume_24h:     float
+    bid:            float
+    ask:            float
+
+
+class Week52Schema(BaseModel):
+    high_52w:          Optional[float] = None
+    low_52w:           Optional[float] = None
+    pct_from_52w_high: Optional[float] = None
+
+
+class CoinProfileSchema(BaseModel):
+    pair:       str
+    fetched_at: str
+    ticker:     TickerSnapshotSchema
+    week52:     Week52Schema
+    indicators: dict[str, Any]
+    vcp_setup:  VCPSetupSchema
+    scorecard:  ScorecardSchema
+
+
+class BacktestRequestSchema(BaseModel):
+    symbol:   str
+    strategy: str = "STE"
+    days:     int = Field(default=30, ge=7, le=90)
+
+
+class BacktestResultSchema(BaseModel):
+    pair:                   str
+    strategy:               str
+    days:                   int
+    total_trades:           int
+    winning_trades:         int
+    losing_trades:          int
+    win_rate_pct:           float
+    net_pnl_pct:            float
+    net_realized_pnl_inr:   float
+    gross_profit_factor:    float
+    net_profit_factor:      float
+    max_drawdown_pct:       float
+    avg_net_rr:             float
+    expectancy_per_trade:   float
+    survives_friction:      bool
+    statutory_drag_pct:     float
+    initial_capital:        float
+    ran_at:                 str
+
+
+class PredictRequestSchema(BaseModel):
+    symbol: str
+
+
+class HorizonForecastSchema(BaseModel):
+    direction:   str
+    confidence:  int
+    description: str
+
+
+class PredictResultSchema(BaseModel):
+    pair:                  str
+    predicted_at:          str
+    method:                str
+    horizons:              dict[str, HorizonForecastSchema]
+    key_support_levels:    list[float] = Field(default_factory=list)
+    key_resistance_levels: list[float] = Field(default_factory=list)
+    bullish_catalysts:     list[str]   = Field(default_factory=list)
+    risk_factors:          list[str]   = Field(default_factory=list)
+    summary:               str
