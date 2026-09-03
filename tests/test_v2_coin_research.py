@@ -31,9 +31,15 @@ from v2.services.research_service.indicators import (
 from v2.services.research_service.service import CoinResearchService
 
 
+import os
+
+TEST_DB_DIR = os.path.abspath(".test_dbs")
+os.makedirs(TEST_DB_DIR, exist_ok=True)
+
+
 @pytest.fixture(autouse=True)
-def setup_test_env(tmp_path, monkeypatch):
-    test_db = str(tmp_path / f"test_research_{uuid.uuid4().hex[:6]}.db")
+def setup_test_env(monkeypatch):
+    test_db = os.path.join(TEST_DB_DIR, f"test_research_{uuid.uuid4().hex[:6]}.db")
     monkeypatch.setenv("V2_DB_PATH", test_db)
     monkeypatch.setenv("DASHBOARD_API_KEY", "test-research-key")
     invalidate_config()
@@ -303,3 +309,4 @@ def test_api_predict_endpoint():
         assert "1h" in data["horizons"]
         assert "4h" in data["horizons"]
         assert "24h" in data["horizons"]
+

@@ -203,29 +203,29 @@
       <div class="card-header">
         <div class="header-title-group">
           <h2>🌐 Market Regime & Macro Context</h2>
-          <span class="card-badge" id="regime-badge">RISK_ON</span>
+          <span class="card-badge" id="regime-badge">EVALUATING</span>
         </div>
         <span class="card-hint">Real-time confluence market state & sentiment</span>
       </div>
       <div class="regime-grid">
         <div class="regime-item">
           <div class="regime-label">BTC MACRO TREND</div>
-          <div class="regime-val text-green font-mono" id="regime-btc-trend">BULLISH</div>
+          <div class="regime-val text-muted font-mono" id="regime-btc-trend">UNKNOWN</div>
           <div class="regime-sub">EMA Alignment + Volume</div>
         </div>
         <div class="regime-item">
           <div class="regime-label">ETH MACRO TREND</div>
-          <div class="regime-val text-green font-mono" id="regime-eth-trend">BULLISH</div>
+          <div class="regime-val text-muted font-mono" id="regime-eth-trend">UNKNOWN</div>
           <div class="regime-sub">Beta Momentum</div>
         </div>
         <div class="regime-item">
           <div class="regime-label">FEAR & GREED INDEX</div>
-          <div class="regime-val text-purple font-mono" id="regime-fear-greed">50 / 100</div>
-          <div class="regime-sub" id="regime-fear-greed-label">Neutral Zone</div>
+          <div class="regime-val text-muted font-mono" id="regime-fear-greed">-- / 100</div>
+          <div class="regime-sub" id="regime-fear-greed-label">Evaluating live sentiment...</div>
         </div>
         <div class="regime-item">
           <div class="regime-label">PLATFORM RISK MODE</div>
-          <div class="regime-val text-cyan font-mono" id="regime-risk-mode">RISK_ON</div>
+          <div class="regime-val text-cyan font-mono" id="regime-risk-mode">MONITORING</div>
           <div class="regime-sub">Execution Sizing Active</div>
         </div>
       </div>
@@ -934,7 +934,7 @@
       <div class="card-header">
         <div class="header-title-group">
           <h2>🔄 Exchange Reconciliation Monitor</h2>
-          <span class="card-badge text-green" id="reconcile-status-badge">🟢 IN SYNC</span>
+          <span class="card-badge" id="reconcile-status-badge">STANDBY</span>
         </div>
         <span class="card-hint">Comparing local SQLite positions with CoinDCX exchange state</span>
       </div>

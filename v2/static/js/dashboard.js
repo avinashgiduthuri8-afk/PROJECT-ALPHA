@@ -477,6 +477,63 @@ class V2InstitutionalDashboard {
         `;
       }).join('');
     }
+
+    // Update Exit Monitor Telemetry
+    const tradingInfo = services.trading_service || {};
+    const schedInfo = services.scheduler || {};
+    const isExitActive = (tradingInfo.status === 'healthy' || schedInfo.status === 'healthy');
+
+    if (this.elExitMonStatusBadge) {
+      this.elExitMonStatusBadge.textContent = isExitActive ? '🟢 ACTIVE (~5s)' : 'STANDBY';
+      this.elExitMonStatusBadge.className = isExitActive ? 'card-badge text-green' : 'card-badge text-muted';
+    }
+    if (this.elExitMonPosCount) {
+      this.elExitMonPosCount.textContent = this.positionsCache.length;
+    }
+    if (this.elExitMonLastCheck) {
+      this.elExitMonLastCheck.textContent = new Date().toLocaleTimeString();
+    }
+    if (this.elExitMonTpCount) {
+      this.elExitMonTpCount.textContent = this.ordersCache.filter(t => t.exit_reason === 'TAKE_PROFIT').length;
+    }
+    if (this.elExitMonSlCount) {
+      this.elExitMonSlCount.textContent = this.ordersCache.filter(t => t.exit_reason === 'STOP_LOSS').length;
+    }
+    if (this.elExitMonTrailingCount) {
+      this.elExitMonTrailingCount.textContent = this.ordersCache.filter(t => t.exit_reason === 'TRAILING_STOP').length;
+    }
+
+    // Update Reconciliation Monitor Telemetry
+    const recon = tradingInfo.reconciliation || {};
+    if (this.elReconcileStatusBadge) {
+      if (recon.status === 'IN_SYNC') {
+        this.elReconcileStatusBadge.textContent = '🟢 IN SYNC';
+        this.elReconcileStatusBadge.className = 'card-badge text-green';
+      } else if (recon.status === 'DISCREPANCIES_DETECTED') {
+        this.elReconcileStatusBadge.textContent = '⚠️ DISCREPANCY DETECTED';
+        this.elReconcileStatusBadge.className = 'card-badge text-amber';
+      } else {
+        this.elReconcileStatusBadge.textContent = isExitActive ? '🟢 READY (~60s)' : 'STANDBY';
+        this.elReconcileStatusBadge.className = isExitActive ? 'card-badge text-green' : 'card-badge text-muted';
+      }
+    }
+    if (this.elReconLastRun && recon.timestamp) {
+      this.elReconLastRun.textContent = new Date(recon.timestamp).toLocaleTimeString();
+    }
+    if (this.elReconOrdersChecked) {
+      this.elReconOrdersChecked.textContent = recon.orders_checked ?? 0;
+    }
+    if (this.elReconMismatches) {
+      this.elReconMismatches.textContent = recon.mismatches ?? 0;
+      this.elReconMismatches.className = `t-val font-mono ${(recon.mismatches || 0) > 0 ? 'text-amber' : 'text-green'}`;
+    }
+    if (this.elReconUnknownOrders) {
+      this.elReconUnknownOrders.textContent = recon.unknown_orders ?? 0;
+      this.elReconUnknownOrders.className = `t-val font-mono ${(recon.unknown_orders || 0) > 0 ? 'text-red' : 'text-green'}`;
+    }
+    if (this.elReconBalDiff) {
+      this.elReconBalDiff.textContent = `₹${(recon.balance_diff ?? 0.0).toFixed(2)}`;
+    }
   }
 
   renderScanner(data) {

@@ -55,6 +55,16 @@ class TradingService:
 
         self._total_executed = 0
         self._started = False
+        self._pending_exits: set[str] = set()
+        self._last_reconciliation_report: dict[str, Any] = {
+            "timestamp": None,
+            "orders_checked": 0,
+            "positions_checked": 0,
+            "mismatches": 0,
+            "unknown_orders": 0,
+            "balance_diff": 0.0,
+            "status": "INITIALIZED",
+        }
 
     def set_shadow_engine(self, shadow_engine: object) -> None:
         self._shadow_engine = shadow_engine
@@ -204,28 +214,40 @@ class TradingService:
                 )
 
                 if not order_result.get("success"):
-                    logger.warning("Live sub-account order failed: %s", order_result.get("message"))
-                    logger.warning(
-                        "Live CoinDCX order placement failed for %s (%s): %s",
-                        coin, bot.value, order_result.get("message") or order_result.get("error"),
-                    )
-                    return
+                    # Timeout / Network Ambiguity Handling: verify via client_order_id before giving up
+                    if order_result.get("error") == "TIMEOUT" or order_result.get("requires_reconciliation"):
+                        cl_id = order_result.get("client_order_id")
+                        if cl_id:
+                            try:
+                                check_res = await sub_client.get_order_by_client_id(cl_id)
+                                if check_res.get("success") and check_res.get("exchange_order_id"):
+                                    order_result = check_res
+                            except Exception as e:
+                                logger.warning("Failed to verify ambiguous order %s: %s", cl_id, e)
+
+                    if not order_result.get("success"):
+                        logger.warning(
+                            "Live CoinDCX BUY order placement failed for %s (%s): %s",
+                            coin, bot.value, order_result.get("message") or order_result.get("error"),
+                        )
+                        return
 
                 # Fill Confirmation Gate: Only create local OPEN position if confirmed FILLED on exchange
                 exchange_order_id = order_result.get("exchange_order_id")
                 order_status = str(order_result.get("status", "OPEN")).upper()
                 is_filled = order_result.get("is_filled", False) or (order_status == "FILLED")
+                actual_filled_qty = float(order_result.get("filled_qty") or order_result.get("qty") or 0.0)
 
-                if not is_filled:
+                if not is_filled or actual_filled_qty <= 0.0 or not exchange_order_id:
                     logger.warning(
-                        "Live order submitted (Exchange ID: %s) but not FILLED (Status: %s). Position NOT opened.",
-                        exchange_order_id, order_status,
+                        "Live order submitted (Exchange ID: %s) but not confirmed FILLED (Status: %s, Filled Qty: %s). Position NOT opened.",
+                        exchange_order_id, order_status, actual_filled_qty,
                     )
                     return
 
                 now = datetime.now(timezone.utc)
                 fill_price = float(order_result.get("price", order_data["entry_price"]))
-                fill_qty = float(order_result.get("qty", order_data["qty"]))
+                fill_qty = actual_filled_qty
 
                 pos = Position(
                     id=str(uuid.uuid4()),
@@ -254,10 +276,12 @@ class TradingService:
                     "position_id": pos.id,
                     "subaccount_id": sub_client.subaccount_id,
                     "exchange_order_id": exchange_order_id,
+                    "client_order_id": pos.client_order_id,
                     "bot": bot.value,
                     "coin": coin,
                     "pair": pair,
                     "qty": pos.qty,
+                    "filled_qty": pos.filled_qty,
                     "entry_price": pos.entry_price,
                     "stop_loss": pos.stop_loss,
                     "take_profit": pos.take_profit,
@@ -275,8 +299,6 @@ class TradingService:
                     payload=pos_payload,
                 )
                 logger.info(
-                    "[%s] Live trade EXECUTED and Position OPENED for %s (Qty: %s @ INR %.2f)",
-                    sub_client.subaccount_id, coin, pos.qty, pos.entry_price,
                     "[%s] Confirmed Live CoinDCX Trade EXECUTED (Exchange ID: %s) and Position OPENED for %s (Qty: %s @ INR %.2f)",
                     sub_client.subaccount_id, exchange_order_id, coin, pos.qty, pos.entry_price,
                 )
@@ -294,6 +316,10 @@ class TradingService:
         open_positions = await self._position_repo.get_open()
 
         for pos in open_positions:
+            # Prevent duplicate exit submissions while an exit order is pending/in-flight
+            if pos.id in self._pending_exits:
+                continue
+
             price = current_prices.get(pos.coin) or current_prices.get(pos.pair)
             if price is None or price <= 0.0:
                 continue
@@ -309,8 +335,12 @@ class TradingService:
             if exit_trigger is not None:
                 exit_reason, exit_price = exit_trigger
                 exchange_sell_order_id = None
+                sell_filled_qty = pos.qty
+                is_partial_sell = False
 
-                # 1. If live position, dispatch real CoinDCX sell order
+                self._pending_exits.add(pos.id)
+
+                # 1. If live position, dispatch real CoinDCX sell order via place_live_order
                 if pos.mode == BotMode.LIVE and (self._config.v2_trading_enabled or getattr(self._config, "v2_deployment_mode", "").upper() == "LIVE_MICROCASH"):
                     sub_client = self._subaccount_manager.get_client(pos.bot)
                     try:
@@ -322,31 +352,51 @@ class TradingService:
                         )
                     except Exception as e:
                         logger.error("Network error dispatching live SELL order to CoinDCX for %s: %s", pos.coin, e)
+                        self._pending_exits.discard(pos.id)
                         continue  # DO NOT close position if order failed
+
+                    # Timeout / Network Ambiguity Handling
+                    if not sell_result.get("success"):
+                        if sell_result.get("error") == "TIMEOUT" or sell_result.get("requires_reconciliation"):
+                            cl_id = sell_result.get("client_order_id")
+                            if cl_id:
+                                try:
+                                    check_res = await sub_client.get_order_by_client_id(cl_id)
+                                    if check_res.get("success") and check_res.get("exchange_order_id"):
+                                        sell_result = check_res
+                                except Exception as err:
+                                    logger.warning("Failed to verify ambiguous SELL order %s: %s", cl_id, err)
 
                     if not sell_result.get("success"):
                         logger.warning(
                             "Live SELL order failed on CoinDCX for %s (Reason: %s, Details: %s). Position remains OPEN.",
                             pos.coin, sell_result.get("error"), sell_result.get("message") or sell_result.get("details"),
                         )
+                        self._pending_exits.discard(pos.id)
                         continue  # DO NOT close position on exchange rejection / failure
 
                     exchange_sell_order_id = sell_result.get("exchange_order_id")
                     sell_status = str(sell_result.get("status", "OPEN")).upper()
                     is_sell_filled = sell_result.get("is_filled", False) or (sell_status == "FILLED")
+                    actual_sell_qty = float(sell_result.get("filled_qty") or (pos.qty if is_sell_filled else 0.0))
 
-                    if not is_sell_filled:
+                    is_partial_sell = (sell_status == "PARTIALLY_FILLED" or (0.0 < actual_sell_qty < pos.qty))
+
+                    if actual_sell_qty <= 0.0 or (not is_sell_filled and not is_partial_sell):
                         logger.warning(
-                            "Live SELL order submitted (Exchange ID: %s) but not yet FILLED (Status: %s). Position remains OPEN.",
-                            exchange_sell_order_id, sell_status,
+                            "Live SELL order submitted (Exchange ID: %s) but not yet FILLED (Status: %s, Filled: %s). Position remains OPEN.",
+                            exchange_sell_order_id, sell_status, actual_sell_qty,
                         )
+                        # Keep in pending exits to avoid duplicate submissions while pending on exchange
                         continue
 
-                # Apply exact 1.572% round-trip statutory friction model
+                    sell_filled_qty = actual_sell_qty
+
+                # Apply exact 1.572% round-trip statutory friction model on filled quantity
                 pnl_data = friction_model.calculate_trade_net_pnl(
                     entry_price=pos.entry_price,
                     exit_price=exit_price,
-                    position_size_qty=pos.qty,
+                    position_size_qty=sell_filled_qty,
                 )
                 net_pnl = pnl_data["net_pnl"]
                 net_pnl_pct = pnl_data["net_pnl_pct"]
@@ -360,7 +410,7 @@ class TradingService:
                     pair=pos.pair,
                     entry_price=pos.entry_price,
                     exit_price=exit_price,
-                    qty=pos.qty,
+                    qty=sell_filled_qty,
                     pnl=round(net_pnl, 2),
                     pnl_pct=round(net_pnl_pct, 2),
                     entry_time=pos.entry_time,
@@ -372,38 +422,37 @@ class TradingService:
                     client_order_id=pos.client_order_id,
                 )
 
-                # 1. If live position, dispatch sell order
-                if pos.mode == BotMode.LIVE and self._config.v2_trading_enabled:
-                    try:
-                        sub_client = self._subaccount_manager.get_client(pos.bot)
-                        sub_client.place_order(
-                            pair=pos.pair,
-                            side="SELL",
-                            price=exit_price,
-                            qty=pos.qty,
-                        )
-                    except Exception as e:
-                        logger.warning("Error dispatching exit order to CoinDCX: %s", e)
-
-                # 2. Insert trade history
+                # Insert trade history
                 await self._trade_repo.insert(trade)
 
-                # 3. Close position record (releases single-coin lock)
-                await self._position_repo.close(
-                    position_id=pos.id,
-                    exit_price=exit_price,
-                    exit_reason=exit_reason,
-                )
-
-                # 4. Inform sub-account client of balance restoration
-                try:
-                    sub_client = self._subaccount_manager.get_client(pos.bot)
-                    sub_client.close_position_fill(
-                        notional_returned=pos.entry_price * pos.qty,
-                        realized_pnl=net_pnl,
+                # Handle Partial vs Full Fill
+                if is_partial_sell:
+                    remaining_qty = round(pos.qty - sell_filled_qty, 8)
+                    logger.info(
+                        "Partial SELL filled on exchange for %s: Filled %.6f / Total %.6f (Remaining: %.6f). Position remains OPEN.",
+                        pos.coin, sell_filled_qty, pos.qty, remaining_qty,
                     )
-                except Exception:
-                    pass
+                    await self._position_repo.update_qty(pos.id, remaining_qty)
+                    pos.qty = remaining_qty
+                    self._pending_exits.discard(pos.id)
+                else:
+                    # Full exit: close position record (releases single-coin lock)
+                    await self._position_repo.close(
+                        position_id=pos.id,
+                        exit_price=exit_price,
+                        exit_reason=exit_reason,
+                    )
+                    self._pending_exits.discard(pos.id)
+
+                    # Inform sub-account client of balance restoration
+                    try:
+                        sub_client = self._subaccount_manager.get_client(pos.bot)
+                        sub_client.close_position_fill(
+                            notional_returned=pos.entry_price * sell_filled_qty,
+                            realized_pnl=net_pnl,
+                        )
+                    except Exception:
+                        pass
 
                 closed_trades.append(trade)
 
@@ -414,17 +463,20 @@ class TradingService:
                     "bot": pos.bot.value,
                     "coin": pos.coin,
                     "pair": pos.pair,
+                    "qty": trade.qty,
                     "pnl": trade.pnl,
                     "pnl_pct": trade.pnl_pct,
                     "friction_cost": pnl_data.get("total_friction_cost", 0.0),
                     "exit_reason": exit_reason.value,
                     "exit_price": exit_price,
                     "mode": pos.mode.value if hasattr(pos.mode, "value") else str(pos.mode),
+                    "is_partial": is_partial_sell,
                     "closed_at": now.isoformat(),
                 }
 
                 await self._bus.publish(EventType.TRADE_CLOSED, trade_payload)
-                await self._bus.publish(EventType.POSITION_CLOSED, trade_payload)
+                if not is_partial_sell:
+                    await self._bus.publish(EventType.POSITION_CLOSED, trade_payload)
                 await self._event_log.append(
                     event_type=EventType.TRADE_CLOSED.value,
                     source_service="trading_service",
@@ -432,7 +484,8 @@ class TradingService:
                     payload=trade_payload,
                 )
                 logger.info(
-                    "Position CLOSED (%s): %s %s PnL=INR %.2f (%.2f%%) [Friction=INR %.2f, Reason=%s, Exchange ID=%s]",
+                    "Position %s (%s): %s %s PnL=INR %.2f (%.2f%%) [Friction=INR %.2f, Reason=%s, Exchange ID=%s]",
+                    "PARTIALLY_FILLED" if is_partial_sell else "CLOSED",
                     trade_payload["mode"], pos.bot.value, pos.coin, trade.pnl, trade.pnl_pct, pnl_data.get("total_friction_cost", 0.0), exit_reason.value, trade.exchange_order_id,
                 )
 
@@ -441,6 +494,7 @@ class TradingService:
     async def poll_exits(self, price_provider: Optional[dict[str, float]] = None) -> list[Trade]:
         """
         Scheduled background task: checks open positions against live market prices.
+        Runs approximately every 5 seconds.
         """
         open_positions = await self._position_repo.get_open()
         if not open_positions:
@@ -470,42 +524,113 @@ class TradingService:
     async def reconcile_live_orders(self) -> dict[str, Any]:
         """
         Periodically reconciles local open positions against CoinDCX exchange state.
-        Detects orphaned, cancelled, or out-of-sync exchange orders.
+        Detects pending, filled, rejected, cancelled, partial fills, missing exchange orders,
+        and local/exchange quantity mismatches.
+        Runs approximately every 60 seconds.
         """
         open_positions = await self._position_repo.get_open()
-        reconciliation_report = {
+        reconciliation_report: dict[str, Any] = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "open_positions_count": len(open_positions),
+            "orders_checked": 0,
+            "positions_checked": len(open_positions),
             "reconciled": 0,
+            "mismatches": 0,
+            "unknown_orders": 0,
+            "balance_diff": 0.0,
             "discrepancies": [],
+            "status": "IN_SYNC",
         }
 
         for pos in open_positions:
-            if pos.mode != BotMode.LIVE or not pos.exchange_order_id:
+            if pos.mode != BotMode.LIVE:
+                continue
+
+            reconciliation_report["orders_checked"] += 1
+
+            # 1. Detect missing exchange_order_id on a LIVE position
+            if not pos.exchange_order_id:
+                disc = {
+                    "position_id": pos.id,
+                    "coin": pos.coin,
+                    "exchange_order_id": None,
+                    "local_status": "OPEN",
+                    "exchange_status": "MISSING_EXCHANGE_ORDER_ID",
+                    "state": "RECONCILIATION_REQUIRED",
+                    "action": "FLAGGED_FOR_AUDIT",
+                }
+                reconciliation_report["unknown_orders"] += 1
+                reconciliation_report["mismatches"] += 1
+                reconciliation_report["discrepancies"].append(disc)
+                reconciliation_report["status"] = "DISCREPANCIES_DETECTED"
+                logger.warning("Order Reconciliation: Live position %s has no exchange_order_id", pos.id)
                 continue
 
             sub_client = self._subaccount_manager.get_client(pos.bot)
             try:
                 status_res = await sub_client.get_order_status(pos.exchange_order_id)
-                if status_res.get("success"):
-                    st = status_res.get("order") or {}
-                    ex_status = str(st.get("status", "")).upper()
-                    reconciliation_report["reconciled"] += 1
-                    if ex_status in ("CANCELLED", "REJECTED"):
+                if not status_res.get("success"):
+                    # Ambiguous state: network or API failure — do NOT falsely mark closed
+                    disc = {
+                        "position_id": pos.id,
+                        "coin": pos.coin,
+                        "exchange_order_id": pos.exchange_order_id,
+                        "local_status": "OPEN",
+                        "exchange_status": "STATUS_QUERY_FAILED",
+                        "state": "UNKNOWN",
+                        "action": "AWAIT_NEXT_RECONCILIATION",
+                    }
+                    reconciliation_report["unknown_orders"] += 1
+                    reconciliation_report["discrepancies"].append(disc)
+                    reconciliation_report["status"] = "DISCREPANCIES_DETECTED"
+                    continue
+
+                ex_status = str(status_res.get("status", "")).upper()
+                ex_filled_qty = float(status_res.get("filled_qty", 0.0))
+                reconciliation_report["reconciled"] += 1
+
+                # 2. Cancelled or Rejected on exchange
+                if ex_status in ("CANCELLED", "REJECTED"):
+                    disc = {
+                        "position_id": pos.id,
+                        "coin": pos.coin,
+                        "exchange_order_id": pos.exchange_order_id,
+                        "local_status": "OPEN",
+                        "exchange_status": ex_status,
+                        "action": "AUTO_REPAIRED_TO_CLOSED",
+                    }
+                    reconciliation_report["mismatches"] += 1
+                    reconciliation_report["discrepancies"].append(disc)
+                    reconciliation_report["status"] = "DISCREPANCIES_DETECTED"
+                    logger.warning("Order Reconciliation discrepancy detected: %s", disc)
+                    await self._position_repo.close(pos.id, exit_price=pos.entry_price, exit_reason=ExitReason.MANUAL)
+                    if pos.id in self._pending_exits:
+                        self._pending_exits.discard(pos.id)
+
+                # 3. Partial fill quantity mismatch
+                elif ex_status in ("PARTIALLY_FILLED", "FILLED"):
+                    if ex_filled_qty > 0 and abs(ex_filled_qty - pos.qty) > 1e-6:
                         disc = {
                             "position_id": pos.id,
                             "coin": pos.coin,
                             "exchange_order_id": pos.exchange_order_id,
-                            "local_status": "OPEN",
+                            "local_qty": pos.qty,
+                            "exchange_filled_qty": ex_filled_qty,
                             "exchange_status": ex_status,
-                            "action": "AUTO_REPAIRED_TO_CLOSED",
+                            "action": "QUANTITY_ALIGNED",
                         }
+                        reconciliation_report["mismatches"] += 1
                         reconciliation_report["discrepancies"].append(disc)
-                        logger.warning("Order Reconciliation discrepancy detected: %s", disc)
-                        await self._position_repo.close(pos.id, exit_price=pos.entry_price, exit_reason=ExitReason.MANUAL)
+                        reconciliation_report["status"] = "DISCREPANCIES_DETECTED"
+                        logger.warning("Order Reconciliation quantity mismatch: %s", disc)
+                        await self._position_repo.update_qty(pos.id, ex_filled_qty)
+                        pos.qty = ex_filled_qty
+
             except Exception as e:
                 logger.error("Error reconciling position %s: %s", pos.id, e)
+                reconciliation_report["status"] = "ERROR"
 
+        self._last_reconciliation_report = reconciliation_report
         return reconciliation_report
 
     def get_health(self) -> dict:
@@ -514,5 +639,7 @@ class TradingService:
             "shadow_mode": self._config.v2_shadow_mode,
             "trading_enabled": self._config.v2_trading_enabled,
             "total_executed": self._total_executed,
+            "pending_exits_count": len(self._pending_exits),
+            "reconciliation": self._last_reconciliation_report,
             "subaccounts": self._subaccount_manager.get_all_subaccount_telemetry(),
         }

@@ -1,19 +1,10 @@
 """
 PROJECT-ALPHA V2: QUANTITATIVE CRYPTO TRADING AGENT DASHBOARD (app_quant_ui.py).
 
-Production-grade Quantitative Crypto Trading UI Dashboard:
-- 24/7 Spot Crypto Monitoring (₹10,000 Unified Capital Pool, ₹200 Micro-Orders)
-- 1.572% Indian Statutory Friction Deduction (TDS Sec 194S + GST + Fees + Slippage)
-- Crypto Sector Clusters (L1 Bluechips, AI & Compute, DeFi, Meme/High-Beta)
-- Cointegrated Crypto Pairs Spread Z-Score Real-Time Charting (+/-2.0z Bands)
-- Production Fleet: STE (SuperTrend), HDA (Absorption), VCP (Contraction), BBS (Squeeze)
-- Single-Coin Deduplication & Global Asset Lock (OPPORTUNITY_LOCKED_ACTIVE_PAIR)
-- Live Positions with Net PnL (Post-Friction) & Emergency Kill Switch
-
-Run with:
-    .venv\\Scripts\\python.exe app_quant_ui.py
-Access at:
-    http://localhost:8000
+[DEMO / STANDALONE SIMULATOR UI — ISOLATED FROM V2 PRODUCTION EXECUTION]
+NOTE: This file is a standalone simulation prototype running on port 8000.
+The authoritative production V2 system runs via `v2/app_v2.py` on port 5001.
+Do NOT mistake in-memory ticks/positions in this file for production SQLite state.
 """
 
 from __future__ import annotations

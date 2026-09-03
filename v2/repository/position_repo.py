@@ -112,6 +112,13 @@ class PositionRepository(BaseRepository):
             (price, unrealised_pnl, position_id),
         )
 
+    async def update_qty(self, position_id: str, new_qty: float) -> None:
+        """Update position quantity and filled_qty on partial fills."""
+        await self._execute(
+            "UPDATE positions SET qty=?, filled_qty=? WHERE id=?",
+            (new_qty, new_qty, position_id),
+        )
+
     async def close(
         self,
         position_id: str,

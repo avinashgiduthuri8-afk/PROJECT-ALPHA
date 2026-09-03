@@ -148,23 +148,6 @@ class Signal:
 
 @dataclass
 class Position:
-    id:              str
-    bot:             BotName
-    coin:            str
-    pair:            str
-    qty:             float
-    entry_price:     float
-    entry_time:      datetime
-    mode:            BotMode
-    status:          PositionStatus = PositionStatus.OPEN
-    current_price:   Optional[float] = None
-    unrealised_pnl:  Optional[float] = None
-    stop_loss:       Optional[float] = None
-    take_profit:     Optional[float] = None
-    signal_id:       Optional[str]   = None
-    closed_at:       Optional[datetime] = None
-    exit_price:      Optional[float] = None
-    exit_reason:     Optional[ExitReason] = None
     id:                str
     bot:               BotName
     coin:              str
@@ -193,21 +176,6 @@ class Position:
 
 @dataclass
 class Trade:
-    id:          str
-    position_id: str
-    bot:         BotName
-    coin:        str
-    pair:        str
-    entry_price: float
-    exit_price:  float
-    qty:         float
-    pnl:         float
-    pnl_pct:     float
-    entry_time:  datetime
-    exit_time:   datetime
-    exit_reason: ExitReason
-    mode:        BotMode
-    signal_id:   Optional[str] = None
     id:                str
     position_id:       str
     bot:               BotName

@@ -345,6 +345,9 @@ class CoinDCXSubAccountClient:
                         pass
 
                 is_filled = (raw_status == "FILLED")
+                actual_filled_qty = float(raw_order.get("filled_quantity") or raw_order.get("filled_qty") or (rounded_qty if is_filled else 0.0))
+                fill_price = float(raw_order.get("price_per_unit") or raw_order.get("price") or rounded_price)
+
                 with self._lock:
                     if side.upper() == "BUY" and is_filled:
                         self._shared_state["deployed_capital_inr"] += notional
@@ -357,7 +360,8 @@ class CoinDCXSubAccountClient:
                     "client_order_id": order_id,
                     "status": raw_status,
                     "is_filled": is_filled,
-                    "price": rounded_price,
+                    "filled_qty": actual_filled_qty,
+                    "price": fill_price,
                     "qty": rounded_qty,
                     "notional_inr": notional,
                 }
@@ -366,7 +370,7 @@ class CoinDCXSubAccountClient:
             elif resp.status_code == 429:
                 return {"success": False, "status_code": 429, "error": "RATE_LIMIT_EXCEEDED", "message": "Rate limit exceeded", "client_order_id": order_id}
             else:
-                return {"success": False, "status_code": resp.status_code, "error": "ORDER_REJECTED", "details": resp.text, "client_order_id": order_id}
+                return {"success": False, "status_code": resp.status_code, "error": "ORDER_REJECTED", "message": f"CoinDCX returned HTTP {resp.status_code}", "details": resp.text, "client_order_id": order_id}
         except httpx.TimeoutException as te:
             logger.warning("[%s] Timeout placing order on CoinDCX for %s: %s", self.subaccount_id, pair, te)
             return {
@@ -378,7 +382,6 @@ class CoinDCXSubAccountClient:
                 "requires_reconciliation": True,
             }
         except Exception as e:
-            return {"success": False, "status_code": 0, "error": "NETWORK_ERROR", "message": str(e)}
             return {"success": False, "status_code": 0, "error": "NETWORK_ERROR", "message": str(e), "client_order_id": order_id}
         finally:
             if owns_client:
@@ -392,6 +395,7 @@ class CoinDCXSubAccountClient:
         """
         Query status of an active or completed order:
         POST https://api.coindcx.com/exchange/v1/orders/status
+        Normalizes response across CoinDCX order payload shapes.
         """
         payload = {"id": order_id, "timestamp": int(time.time() * 1000)}
         headers = self.generate_auth_headers(payload)
@@ -402,10 +406,142 @@ class CoinDCXSubAccountClient:
         try:
             resp = await http.post(url, json=payload, headers=headers)
             if resp.status_code == 200:
-                return {"success": True, "status_code": 200, "order": resp.json()}
-            return {"success": False, "status_code": resp.status_code, "error": "FETCH_FAILED", "details": resp.text}
+                raw_data = resp.json()
+                raw_order: Dict[str, Any] = {}
+                if isinstance(raw_data, dict):
+                    raw_order = raw_data
+                elif isinstance(raw_data, list) and len(raw_data) > 0 and isinstance(raw_data[0], dict):
+                    raw_order = raw_data[0]
+
+                ex_id = str(raw_order.get("id") or raw_order.get("order_id") or order_id)
+                cl_id = str(raw_order.get("client_order_id") or "")
+                raw_status = str(raw_order.get("status", "UNKNOWN")).upper()
+                is_filled = (raw_status == "FILLED")
+                p = float(raw_order.get("price_per_unit") or raw_order.get("price") or 0.0)
+                q = float(raw_order.get("total_quantity") or raw_order.get("quantity") or 0.0)
+                filled_q = float(raw_order.get("filled_quantity") or raw_order.get("filled_qty") or (q if is_filled else 0.0))
+
+                return {
+                    "success": True,
+                    "status_code": 200,
+                    "exchange_order_id": ex_id,
+                    "client_order_id": cl_id or None,
+                    "status": raw_status,
+                    "is_filled": is_filled,
+                    "filled_qty": filled_q,
+                    "price": p,
+                    "qty": q,
+                    "order": raw_order,
+                    "error": None,
+                    "message": None,
+                }
+            return {
+                "success": False,
+                "status_code": resp.status_code,
+                "exchange_order_id": order_id,
+                "status": "FETCH_FAILED",
+                "is_filled": False,
+                "filled_qty": 0.0,
+                "price": 0.0,
+                "qty": 0.0,
+                "order": {},
+                "error": "FETCH_FAILED",
+                "message": f"CoinDCX returned HTTP {resp.status_code}",
+                "details": resp.text,
+            }
         except Exception as e:
-            return {"success": False, "status_code": 0, "error": "NETWORK_ERROR", "message": str(e)}
+            return {
+                "success": False,
+                "status_code": 0,
+                "exchange_order_id": order_id,
+                "status": "NETWORK_ERROR",
+                "is_filled": False,
+                "filled_qty": 0.0,
+                "price": 0.0,
+                "qty": 0.0,
+                "order": {},
+                "error": "NETWORK_ERROR",
+                "message": str(e),
+            }
+        finally:
+            if owns_client:
+                await http.aclose()
+
+    async def get_order_by_client_id(
+        self,
+        client_order_id: str,
+        client: Optional[httpx.AsyncClient] = None,
+    ) -> Dict[str, Any]:
+        """
+        Query order status by client_order_id.
+        Queries active_orders or status endpoint to reconcile timeout ambiguity.
+        """
+        payload = {"client_order_id": client_order_id, "timestamp": int(time.time() * 1000)}
+        headers = self.generate_auth_headers(payload)
+        url = f"{self.base_url}/exchange/v1/orders/status"
+
+        owns_client = client is None
+        http = client or httpx.AsyncClient(timeout=self.timeout)
+        try:
+            resp = await http.post(url, json=payload, headers=headers)
+            if resp.status_code == 200:
+                raw_data = resp.json()
+                raw_order: Dict[str, Any] = {}
+                if isinstance(raw_data, dict):
+                    raw_order = raw_data
+                elif isinstance(raw_data, list) and len(raw_data) > 0 and isinstance(raw_data[0], dict):
+                    raw_order = raw_data[0]
+
+                ex_id = str(raw_order.get("id") or raw_order.get("order_id") or "")
+                raw_status = str(raw_order.get("status", "UNKNOWN")).upper()
+                is_filled = (raw_status == "FILLED")
+                p = float(raw_order.get("price_per_unit") or raw_order.get("price") or 0.0)
+                q = float(raw_order.get("total_quantity") or raw_order.get("quantity") or 0.0)
+                filled_q = float(raw_order.get("filled_quantity") or raw_order.get("filled_qty") or (q if is_filled else 0.0))
+
+                return {
+                    "success": True,
+                    "status_code": 200,
+                    "exchange_order_id": ex_id or None,
+                    "client_order_id": client_order_id,
+                    "status": raw_status,
+                    "is_filled": is_filled,
+                    "filled_qty": filled_q,
+                    "price": p,
+                    "qty": q,
+                    "order": raw_order,
+                    "error": None,
+                    "message": None,
+                }
+            return {
+                "success": False,
+                "status_code": resp.status_code,
+                "client_order_id": client_order_id,
+                "exchange_order_id": None,
+                "status": "NOT_FOUND",
+                "is_filled": False,
+                "filled_qty": 0.0,
+                "price": 0.0,
+                "qty": 0.0,
+                "order": {},
+                "error": "NOT_FOUND",
+                "message": f"Order with client_order_id {client_order_id} not found on exchange",
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "status_code": 0,
+                "client_order_id": client_order_id,
+                "exchange_order_id": None,
+                "status": "NETWORK_ERROR",
+                "is_filled": False,
+                "filled_qty": 0.0,
+                "price": 0.0,
+                "qty": 0.0,
+                "order": {},
+                "error": "NETWORK_ERROR",
+                "message": str(e),
+            }
         finally:
             if owns_client:
                 await http.aclose()
