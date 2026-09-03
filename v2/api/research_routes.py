@@ -65,10 +65,10 @@ async def list_research_coins() -> list[ResearchPairSchema]:
     return [ResearchPairSchema(**p) for p in pairs]
 
 
-# ── GET /research/coin/{symbol} ───────────────────────────────────────────────
+# ── GET /research/coin/{symbol:path} ──────────────────────────────────────────
 
 @research_router.get(
-    "/coin/{symbol}",
+    "/coin/{symbol:path}",
     response_model=CoinProfileSchema,
     dependencies=[Depends(require_api_key)],
     tags=["research"],
@@ -192,3 +192,4 @@ async def predict_trend(body: PredictRequestSchema) -> PredictResultSchema:
         risk_factors=result.get("risk_factors", []),
         summary=result.get("summary", ""),
     )
+

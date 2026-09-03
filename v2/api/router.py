@@ -32,8 +32,10 @@ from .schemas import (
     KillSwitchResponseSchema, ProductionStatusSchema,
     UnifiedOrderSchema, OrderLifecycleSchema, ErrorLogItemSchema,
 )
+from .research_routes import research_router, init_research_router
 
 router = APIRouter()
+router.include_router(research_router, prefix="/research", tags=["research"])
 
 # ── Injected service references (set by app_v2.py at startup) ────────────────
 _scanner_service = None
@@ -75,6 +77,7 @@ def init_router(
     dashboard_service=None,
     health_checker=None,
     metrics_collector=None,
+    research_service=None,
     **kwargs,
 ) -> None:
     """Called by app_v2.py lifespan after services are started."""
@@ -99,6 +102,7 @@ def init_router(
     _dashboard_service = dashboard_service
     _health_checker = health_checker
     _metrics_collector = metrics_collector
+    init_research_router(research_service or kwargs.get("research_service"))
 
 
 # ── Health (no auth) ──────────────────────────────────────────────────────────

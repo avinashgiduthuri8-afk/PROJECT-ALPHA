@@ -75,8 +75,9 @@
         <span id="ws-connection-text">Connecting...</span>
       </div>
 
-      <!-- Quick Action Toolbar -->
-      <div class="header-actions">
+        <button id="btn-nav-research" class="btn btn-secondary" onclick="window.v2Dashboard.scrollToResearchHub()" title="Open Coin Deep Dive & Research Hub">
+          🔍 Research Hub
+        </button>
         <button id="btn-force-scan" class="btn btn-secondary" onclick="window.v2Dashboard.pollScanner()" title="Trigger immediate scan pass">
           ⚡ Scan Pass
         </button>
@@ -330,6 +331,276 @@
       </table>
     </div>
   </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <!-- 5. COIN DEEP DIVE & ON-DEMAND RESEARCH HUB                                   -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+  <section class="section-card" id="coin-research-hub">
+    <div class="card-header">
+      <div class="header-title-group">
+        <h2>🔍 Coin Deep Dive & Research Hub</h2>
+        <span class="card-badge">ON-DEMAND ANALYTICS</span>
+      </div>
+      <span class="card-hint">Multi-timeframe indicators, Minervini VCP setups, 100-pt quality scorecard, backtesting & AI trend predictions</span>
+    </div>
+
+    <!-- Ticker Search Bar & Autocomplete Chips -->
+    <div class="research-search-bar-wrap">
+      <div class="research-input-row">
+        <div class="search-box research-search-box">
+          <span class="search-icon">🔎</span>
+          <input type="text" id="research-symbol-input" placeholder="Search any asset (e.g. BTC, ETH, SOL, XRP, BNB, ZEC)..." value="BTC/INR" onkeydown="if(event.key==='Enter') window.v2Dashboard.loadCoinResearch()">
+        </div>
+        <button class="btn btn-cyan" id="btn-research-search" onclick="window.v2Dashboard.loadCoinResearch()">
+          ⚡ Run Deep Dive
+        </button>
+      </div>
+      <div class="research-chips-row">
+        <span class="chips-label">QUICK ASSETS:</span>
+        <button class="coin-chip active" onclick="window.v2Dashboard.selectResearchChip('BTC/INR')">BTC/INR</button>
+        <button class="coin-chip" onclick="window.v2Dashboard.selectResearchChip('ETH/INR')">ETH/INR</button>
+        <button class="coin-chip" onclick="window.v2Dashboard.selectResearchChip('SOL/INR')">SOL/INR</button>
+        <button class="coin-chip" onclick="window.v2Dashboard.selectResearchChip('BNB/INR')">BNB/INR</button>
+        <button class="coin-chip" onclick="window.v2Dashboard.selectResearchChip('XRP/INR')">XRP/INR</button>
+        <button class="coin-chip" onclick="window.v2Dashboard.selectResearchChip('ZEC/USDT')">ZEC/USDT</button>
+      </div>
+    </div>
+
+    <!-- Research Content Area (rendered dynamically) -->
+    <div id="research-content-area">
+      <!-- Loading / Placeholder state -->
+      <div class="loading-placeholder" id="research-loading" style="display: none;">
+        Fetching live market data, indicators, VCP contractions & 4-pillar scorecard...
+      </div>
+
+      <!-- Main Profile Grid -->
+      <div id="research-profile-container">
+        <!-- 4-Card Dashboard Row -->
+        <div class="research-grid-4">
+          
+          <!-- Card 1: Live Valuation & Price Range -->
+          <div class="sub-card" id="card-research-valuation">
+            <div class="sub-card-header">
+              <span class="sub-title">💵 Live Valuation & Price Action</span>
+              <span class="badge text-cyan font-mono" id="res-pair-badge">BTC/INR</span>
+            </div>
+            <div class="stat-highlight">
+              <div class="stat-big-val font-mono" id="res-ltp">₹--</div>
+              <div class="stat-delta font-mono" id="res-change-24h">+0.00%</div>
+            </div>
+            <div class="metric-keyvals">
+              <div class="kv-row">
+                <span class="kv-key">24H RANGE:</span>
+                <span class="kv-val font-mono" id="res-24h-range">₹-- — ₹--</span>
+              </div>
+              <div class="kv-row">
+                <span class="kv-key">24H VOLUME:</span>
+                <span class="kv-val font-mono" id="res-24h-vol">--</span>
+              </div>
+              <div class="kv-row">
+                <span class="kv-key">52W HIGH / LOW:</span>
+                <span class="kv-val font-mono" id="res-52w-range">₹-- / ₹--</span>
+              </div>
+              <div class="kv-row">
+                <span class="kv-key">FROM 52W HIGH:</span>
+                <span class="kv-val font-mono" id="res-from-52w-high">--%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2: 100-Point 4-Pillar Quality Scorecard -->
+          <div class="sub-card" id="card-research-scorecard">
+            <div class="sub-card-header">
+              <span class="sub-title">🏆 100-Point Quality Index</span>
+              <span class="badge" id="res-rating-badge">ANALYZING</span>
+            </div>
+            <div class="stat-highlight">
+              <div class="stat-big-val font-mono text-cyan" id="res-total-score">-- / 100</div>
+              <div class="stat-sub" id="res-quality-rating">4-Pillar Scorecard</div>
+            </div>
+            <div class="pillar-bars">
+              <div class="pillar-row">
+                <div class="pillar-labels">
+                  <span>Technical Structure (25%)</span>
+                  <span class="font-mono" id="res-p1-score">--/25</span>
+                </div>
+                <div class="progress-bar-bg"><div class="progress-bar-fill cyan" id="res-p1-bar" style="width: 0%;"></div></div>
+              </div>
+              <div class="pillar-row">
+                <div class="pillar-labels">
+                  <span>Relative Strength vs BTC (25%)</span>
+                  <span class="font-mono" id="res-p2-score">--/25</span>
+                </div>
+                <div class="progress-bar-bg"><div class="progress-bar-fill green" id="res-p2-bar" style="width: 0%;"></div></div>
+              </div>
+              <div class="pillar-row">
+                <div class="pillar-labels">
+                  <span>Volume Delivery & RVOL (25%)</span>
+                  <span class="font-mono" id="res-p3-score">--/25</span>
+                </div>
+                <div class="progress-bar-bg"><div class="progress-bar-fill purple" id="res-p3-bar" style="width: 0%;"></div></div>
+              </div>
+              <div class="pillar-row">
+                <div class="pillar-labels">
+                  <span>Risk/Reward Asymmetry (25%)</span>
+                  <span class="font-mono" id="res-p4-score">--/25</span>
+                </div>
+                <div class="progress-bar-bg"><div class="progress-bar-fill amber" id="res-p4-bar" style="width: 0%;"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3: Minervini VCP Setup -->
+          <div class="sub-card" id="card-research-vcp">
+            <div class="sub-card-header">
+              <span class="sub-title">📐 Minervini VCP & Price Action</span>
+              <span class="badge" id="res-vcp-detected-badge">CHECKING</span>
+            </div>
+            <div class="vcp-stages-box" id="res-vcp-stages">
+              <span class="text-muted">No contraction pattern active</span>
+            </div>
+            <div class="metric-keyvals" style="margin-top: 10px;">
+              <div class="kv-row">
+                <span class="kv-key">PIVOT BUY POINT:</span>
+                <span class="kv-val font-mono text-cyan" id="res-vcp-pivot">₹--</span>
+              </div>
+              <div class="kv-row">
+                <span class="kv-key">HARD STOP LOSS:</span>
+                <span class="kv-val font-mono text-red" id="res-vcp-sl">₹--</span>
+              </div>
+              <div class="kv-row">
+                <span class="kv-key">TARGET 1 (1:2 R):</span>
+                <span class="kv-val font-mono text-green" id="res-vcp-t1">₹--</span>
+              </div>
+              <div class="kv-row">
+                <span class="kv-key">TARGET 2 (1:3.5 R):</span>
+                <span class="kv-val font-mono text-green" id="res-vcp-t2">₹--</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 4: Multi-Timeframe Technical Indicators -->
+          <div class="sub-card" id="card-research-indicators">
+            <div class="sub-card-header">
+              <span class="sub-title">📊 Technical Indicator Matrix</span>
+              <div class="tf-pills">
+                <button class="tf-pill active" id="res-tf-1d" onclick="window.v2Dashboard.switchResearchTF('1d')">1D</button>
+                <button class="tf-pill" id="res-tf-1h" onclick="window.v2Dashboard.switchResearchTF('1h')">1H</button>
+                <button class="tf-pill" id="res-tf-15m" onclick="window.v2Dashboard.switchResearchTF('15m')">15M</button>
+              </div>
+            </div>
+            <div class="metric-keyvals" id="res-ind-metrics">
+              <div class="kv-row"><span class="kv-key">EMA 9 / 21:</span> <span class="kv-val font-mono" id="res-ema-short">-- / --</span></div>
+              <div class="kv-row"><span class="kv-key">EMA 50 / 200:</span> <span class="kv-val font-mono" id="res-ema-long">-- / --</span></div>
+              <div class="kv-row"><span class="kv-key">RSI (14):</span> <span class="kv-val font-mono" id="res-rsi">--</span></div>
+              <div class="kv-row"><span class="kv-key">MACD / SIGNAL:</span> <span class="kv-val font-mono" id="res-macd">-- / --</span></div>
+              <div class="kv-row"><span class="kv-key">BOLLINGER BANDS:</span> <span class="kv-val font-mono" id="res-bb">-- — --</span></div>
+              <div class="kv-row"><span class="kv-key">ATR (14) / RVOL:</span> <span class="kv-val font-mono" id="res-atr-rvol">-- / --</span></div>
+              <div class="kv-row"><span class="kv-key">TREND ALIGNMENT:</span> <span class="kv-val font-mono" id="res-trend-aligned">--</span></div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Row 2: Action Modules (Backtest Engine & AI Prediction) -->
+        <div class="dual-column-grid" style="margin-top: 15px;">
+          
+          <!-- Backtest Runner Card -->
+          <div class="sub-card" id="card-research-backtest">
+            <div class="sub-card-header">
+              <span class="sub-title">📈 On-Demand Backtesting Engine (Zero Lookahead)</span>
+              <span class="badge text-cyan">1.572% STATUTORY DRAG</span>
+            </div>
+            <div class="backtest-controls-row">
+              <div class="control-col">
+                <label>STRATEGY:</label>
+                <select id="research-backtest-strategy" class="custom-select">
+                  <option value="STE" selected>STE (Short-Term Expansion)</option>
+                  <option value="VCP">VCP (Volatility Contraction Pattern)</option>
+                  <option value="BBS">BBS (Bollinger Band Squeeze)</option>
+                  <option value="HDA">HDA (High-Day Absorption)</option>
+                  <option value="NR7">NR7 (Narrow Range 7 Breakout)</option>
+                  <option value="PPA">PPA (Price-Pivot Acceleration)</option>
+                  <option value="MTB">MTB (Momentum-Trend Breakout)</option>
+                  <option value="MRB">MRB (Mean-Reversion Bounce)</option>
+                </select>
+              </div>
+              <div class="control-col">
+                <label>LOOKBACK:</label>
+                <select id="research-backtest-days" class="custom-select">
+                  <option value="14">14 Days</option>
+                  <option value="30" selected>30 Days</option>
+                  <option value="60">60 Days</option>
+                  <option value="90">90 Days</option>
+                </select>
+              </div>
+              <button class="btn btn-secondary" id="btn-run-backtest" onclick="window.v2Dashboard.runResearchBacktest()">
+                ⚡ Run Instant Backtest
+              </button>
+            </div>
+            
+            <div id="research-backtest-results" class="backtest-results-panel" style="display: none;">
+              <div class="exec-kpi-strip">
+                <div class="exec-kpi"><span class="lbl">TOTAL TRADES:</span> <span class="val font-mono" id="bt-trades">--</span></div>
+                <div class="exec-kpi"><span class="lbl">WIN RATE:</span> <span class="val font-mono text-cyan" id="bt-winrate">--%</span></div>
+                <div class="exec-kpi"><span class="lbl">NET PNL:</span> <span class="val font-mono" id="bt-pnl">--%</span></div>
+                <div class="exec-kpi"><span class="lbl">PROFIT FACTOR:</span> <span class="val font-mono" id="bt-pf">--</span></div>
+                <div class="exec-kpi"><span class="lbl">MAX DRAWDOWN:</span> <span class="val font-mono text-red" id="bt-mdd">--%</span></div>
+              </div>
+              <div class="backtest-friction-badge" id="bt-friction-notice">
+                ✓ Includes CoinDCX Fees (0.20% + 18% GST), 1% Sec 194S TDS, and 0.10% Slippage Drag.
+              </div>
+            </div>
+          </div>
+
+          <!-- AI Multi-Horizon Trend Forecast Card -->
+          <div class="sub-card" id="card-research-prediction">
+            <div class="sub-card-header">
+              <span class="sub-title">🤖 AI Trend Prediction & Catalyst Engine</span>
+              <button class="btn btn-ghost btn-xs" id="btn-run-predict" onclick="window.v2Dashboard.runResearchPredict()">
+                ✨ Predict Trend
+              </button>
+            </div>
+            <div id="research-predict-results" class="predict-results-panel">
+              <div class="predict-horizons-grid">
+                <div class="horizon-card">
+                  <div class="horizon-name">1-HOUR</div>
+                  <div class="horizon-dir font-mono" id="pred-1h-dir">--</div>
+                  <div class="horizon-conf" id="pred-1h-conf">Confidence: --%</div>
+                </div>
+                <div class="horizon-card">
+                  <div class="horizon-name">4-HOUR</div>
+                  <div class="horizon-dir font-mono" id="pred-4h-dir">--</div>
+                  <div class="horizon-conf" id="pred-4h-conf">Confidence: --%</div>
+                </div>
+                <div class="horizon-card">
+                  <div class="horizon-name">24-HOUR</div>
+                  <div class="horizon-dir font-mono" id="pred-24h-dir">--</div>
+                  <div class="horizon-conf" id="pred-24h-conf">Confidence: --%</div>
+                </div>
+              </div>
+              <div class="predict-lists-grid" style="margin-top: 10px;">
+                <div class="catalyst-col">
+                  <span class="col-title text-green">🟢 BULLISH CATALYSTS:</span>
+                  <ul class="catalyst-list" id="pred-catalysts">
+                    <li class="text-muted">Click "Predict Trend" to evaluate</li>
+                  </ul>
+                </div>
+                <div class="catalyst-col">
+                  <span class="col-title text-red">🔴 KEY RISK FACTORS:</span>
+                  <ul class="catalyst-list" id="pred-risks">
+                    <li class="text-muted">Click "Predict Trend" to evaluate</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
 
   <!-- ═══════════════════════════════════════════════════════════════════════════ -->
   <!-- 6. SIGNAL PIPELINE & 7. SIGNAL FEED (Row 3)                                 -->

@@ -149,3 +149,4 @@ def get_supported_pairs_info() -> list[dict]:
         base, quote = pair.split("/")
         result.append({"pair": pair, "base": base, "quote": quote})
     return result
+

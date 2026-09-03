@@ -35,6 +35,7 @@ class V2InstitutionalDashboard {
     this.attachEventListeners();
     this.fetchAllData();
     this.connectWebSocket();
+    this.loadCoinResearch('BTC/INR');
 
     // Regular polling fallback every 10s
     this.pollInterval = setInterval(() => this.fetchAllData(), 10000);
@@ -1192,6 +1193,256 @@ class V2InstitutionalDashboard {
       }
     } catch (e) {
       alert('Failed to trigger kill switch: ' + e);
+    }
+  }
+
+  // ── 15. Research Hub Methods ──────────────────────────────────────────────
+  scrollToResearchHub() {
+    const el = document.getElementById('coin-research-hub');
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  selectResearchChip(pair) {
+    const inp = document.getElementById('research-symbol-input');
+    if (inp) inp.value = pair;
+    document.querySelectorAll('.coin-chip').forEach(c => {
+      if (c.textContent.trim() === pair) c.classList.add('active');
+      else c.classList.remove('active');
+    });
+    this.loadCoinResearch(pair);
+  }
+
+  async loadCoinResearch(pairOverride) {
+    const symbol = pairOverride || (document.getElementById('research-symbol-input') ? document.getElementById('research-symbol-input').value.trim() : 'BTC/INR');
+    if (!symbol) return;
+
+    const loading = document.getElementById('research-loading');
+    const container = document.getElementById('research-profile-container');
+    if (loading) loading.style.display = 'block';
+
+    try {
+      const data = await this.apiFetch(`/api/v2/research/coin/${encodeURIComponent(symbol)}`);
+      this.currentResearchProfile = data;
+      this.currentResearchTF = '1d';
+      this.renderCoinProfile(data);
+      // Automatically generate rule-based AI prediction
+      this.runResearchPredict(symbol);
+    } catch (err) {
+      this.showToast('Research Error', `Failed to load profile for ${symbol}: ${err.message || err}`);
+    } finally {
+      if (loading) loading.style.display = 'none';
+      if (container) container.style.display = 'block';
+    }
+  }
+
+  renderCoinProfile(data) {
+    if (!data) return;
+    const pair = data.pair;
+    const ticker = data.ticker || {};
+    const week52 = data.week52 || {};
+    const vcp = data.vcp_setup || {};
+    const scorecard = data.scorecard || {};
+
+    // 1. Valuation Card
+    const elPair = document.getElementById('res-pair-badge');
+    if (elPair) elPair.textContent = pair;
+    const elLtp = document.getElementById('res-ltp');
+    if (elLtp) elLtp.textContent = `₹${(ticker.ltp || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 4})}`;
+    const elChg = document.getElementById('res-change-24h');
+    if (elChg) {
+      const chg = ticker.change_24h_pct || 0;
+      elChg.textContent = `${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%`;
+      elChg.className = `stat-delta font-mono ${chg >= 0 ? 'text-green' : 'text-red'}`;
+    }
+    const elRange = document.getElementById('res-24h-range');
+    if (elRange) elRange.textContent = `₹${(ticker.low_24h || 0).toLocaleString()} — ₹${(ticker.high_24h || 0).toLocaleString()}`;
+    const elVol = document.getElementById('res-24h-vol');
+    if (elVol) elVol.textContent = (ticker.volume_24h || 0).toLocaleString();
+    const el52w = document.getElementById('res-52w-range');
+    if (el52w) el52w.textContent = week52.high_52w ? `₹${week52.low_52w?.toLocaleString()} / ₹${week52.high_52w?.toLocaleString()}` : 'N/A';
+    const elFromHigh = document.getElementById('res-from-52w-high');
+    if (elFromHigh) elFromHigh.textContent = week52.pct_from_52w_high !== null && week52.pct_from_52w_high !== undefined ? `${week52.pct_from_52w_high}%` : 'N/A';
+
+    // 2. Scorecard Card
+    const elTotal = document.getElementById('res-total-score');
+    if (elTotal) elTotal.textContent = `${scorecard.total_score || 0} / 100`;
+    const elRating = document.getElementById('res-quality-rating');
+    if (elRating) elRating.textContent = `4-Pillar Quality: ${scorecard.rating || 'WATCH'}`;
+    const elRatingBadge = document.getElementById('res-rating-badge');
+    if (elRatingBadge) {
+      elRatingBadge.textContent = scorecard.rating || 'WATCH';
+      elRatingBadge.className = `badge ${scorecard.total_score >= 80 ? 'text-green' : scorecard.total_score >= 65 ? 'text-cyan' : 'text-amber'}`;
+    }
+    const setBar = (idScore, idBar, val) => {
+      const elS = document.getElementById(idScore);
+      const elB = document.getElementById(idBar);
+      if (elS) elS.textContent = `${val}/25`;
+      if (elB) elB.style.width = `${Math.min(100, (val / 25) * 100)}%`;
+    };
+    setBar('res-p1-score', 'res-p1-bar', scorecard.pillar_technical_structure || 0);
+    setBar('res-p2-score', 'res-p2-bar', scorecard.pillar_relative_strength || 0);
+    setBar('res-p3-score', 'res-p3-bar', scorecard.pillar_volume_delivery || 0);
+    setBar('res-p4-score', 'res-p4-bar', scorecard.pillar_risk_reward || 0);
+
+    // 3. VCP Card
+    const elVcpBadge = document.getElementById('res-vcp-detected-badge');
+    if (elVcpBadge) {
+      elVcpBadge.textContent = vcp.detected ? `${vcp.setup_quality} (${vcp.contraction_count}T)` : 'NO SETUP';
+      elVcpBadge.className = `badge ${vcp.detected ? 'text-green' : 'text-muted'}`;
+    }
+    const elVcpStages = document.getElementById('res-vcp-stages');
+    if (elVcpStages) {
+      if (vcp.stages && vcp.stages.length > 0) {
+        elVcpStages.innerHTML = vcp.stages.map(s => `
+          <div class="vcp-stage-pill" style="display:inline-block; margin-right:8px; padding:4px 8px; background:var(--bg-card-sub, #131722); border-radius:4px; font-size:11px;">
+            <span class="text-cyan font-bold">${s.stage}:</span>
+            <span class="font-mono text-muted">-${s.contraction_pct}% (₹${s.range})</span>
+          </div>
+        `).join('');
+      } else {
+        elVcpStages.innerHTML = '<span class="text-muted">No contraction sequence detected</span>';
+      }
+    }
+    const elPivot = document.getElementById('res-vcp-pivot');
+    if (elPivot) elPivot.textContent = vcp.pivot_buy_point ? `₹${vcp.pivot_buy_point.toLocaleString()}` : 'N/A';
+    const elSl = document.getElementById('res-vcp-sl');
+    if (elSl) elSl.textContent = vcp.hard_stop_loss ? `₹${vcp.hard_stop_loss.toLocaleString()}` : 'N/A';
+    const elT1 = document.getElementById('res-vcp-t1');
+    if (elT1) elT1.textContent = vcp.target_1 ? `₹${vcp.target_1.toLocaleString()}` : 'N/A';
+    const elT2 = document.getElementById('res-vcp-t2');
+    if (elT2) elT2.textContent = vcp.target_2 ? `₹${vcp.target_2.toLocaleString()}` : 'N/A';
+
+    // 4. Indicator Matrix
+    this.renderResearchIndicators(this.currentResearchTF || '1d');
+  }
+
+  switchResearchTF(tf) {
+    this.currentResearchTF = tf;
+    document.querySelectorAll('.tf-pill').forEach(b => {
+      if (b.id === `res-tf-${tf}`) b.classList.add('active');
+      else b.classList.remove('active');
+    });
+    this.renderResearchIndicators(tf);
+  }
+
+  renderResearchIndicators(tf) {
+    if (!this.currentResearchProfile || !this.currentResearchProfile.indicators) return;
+    const ind = this.currentResearchProfile.indicators[tf] || {};
+    if (ind.status !== 'OK') {
+      const container = document.getElementById('res-ind-metrics');
+      if (container) container.innerHTML = `<div class="text-muted" style="padding:10px;">Insufficient candle data for ${tf} timeframe</div>`;
+      return;
+    }
+    const fmt = v => (v !== null && v !== undefined) ? (typeof v === 'number' ? v.toFixed(2) : v) : '--';
+    const setVal = (id, txt) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = txt;
+    };
+    setVal('res-ema-short', `${fmt(ind.ema9)} / ${fmt(ind.ema21)}`);
+    setVal('res-ema-long', `${fmt(ind.ema50)} / ${fmt(ind.ema200)}`);
+    setVal('res-rsi', `${fmt(ind.rsi14)}`);
+    setVal('res-macd', `${fmt(ind.macd)} / ${fmt(ind.macd_signal)} (Hist: ${fmt(ind.macd_hist)})`);
+    setVal('res-bb', `₹${fmt(ind.bb_lower)} — ₹${fmt(ind.bb_upper)} (${fmt(ind.bb_width_pct)}%)`);
+    setVal('res-atr-rvol', `₹${fmt(ind.atr14)} / ${fmt(ind.rvol)}x`);
+    setVal('res-trend-aligned', ind.trend_aligned ? '✅ BULLISH ALIGNED' : '⚠️ UNALIGNED / CONSOLIDATION');
+  }
+
+  async runResearchBacktest() {
+    const symbol = document.getElementById('research-symbol-input') ? document.getElementById('research-symbol-input').value.trim() : 'BTC/INR';
+    const strategy = document.getElementById('research-backtest-strategy') ? document.getElementById('research-backtest-strategy').value : 'STE';
+    const days = document.getElementById('research-backtest-days') ? parseInt(document.getElementById('research-backtest-days').value) : 30;
+
+    const btn = document.getElementById('btn-run-backtest');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Running simulation...';
+    }
+    try {
+      const data = await this.apiFetch('/api/v2/research/backtest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol, strategy, days }),
+      });
+      this.renderBacktestResults(data);
+    } catch (err) {
+      this.showToast('Backtest Error', `Failed to run backtest: ${err.message || err}`);
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = '⚡ Run Instant Backtest';
+      }
+    }
+  }
+
+  renderBacktestResults(data) {
+    const panel = document.getElementById('research-backtest-results');
+    if (panel) panel.style.display = 'block';
+
+    const setVal = (id, txt) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = txt;
+    };
+    setVal('bt-trades', data.total_trades || 0);
+    setVal('bt-winrate', `${(data.win_rate_pct || 0).toFixed(1)}%`);
+    setVal('bt-pnl', `${(data.net_pnl_pct || 0) >= 0 ? '+' : ''}${(data.net_pnl_pct || 0).toFixed(2)}%`);
+    const pnlEl = document.getElementById('bt-pnl');
+    if (pnlEl) pnlEl.className = `val font-mono ${(data.net_pnl_pct || 0) >= 0 ? 'text-green' : 'text-red'}`;
+    setVal('bt-pf', (data.net_profit_factor || 0).toFixed(2));
+    setVal('bt-mdd', `${(data.max_drawdown_pct || 0).toFixed(2)}%`);
+  }
+
+  async runResearchPredict(symbolOverride) {
+    const symbol = symbolOverride || (document.getElementById('research-symbol-input') ? document.getElementById('research-symbol-input').value.trim() : 'BTC/INR');
+    const btn = document.getElementById('btn-run-predict');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Analyzing...';
+    }
+    try {
+      const data = await this.apiFetch('/api/v2/research/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol }),
+      });
+      this.renderPredictResults(data);
+    } catch (err) {
+      this.showToast('Prediction Error', `Failed: ${err.message || err}`);
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = '✨ Predict Trend';
+      }
+    }
+  }
+
+  renderPredictResults(data) {
+    if (!data || !data.horizons) return;
+    const h1 = data.horizons['1h'] || {};
+    const h4 = data.horizons['4h'] || {};
+    const h24 = data.horizons['24h'] || {};
+
+    const setHorizon = (pfx, h) => {
+      const elDir = document.getElementById(`pred-${pfx}-dir`);
+      const elConf = document.getElementById(`pred-${pfx}-conf`);
+      if (elDir) {
+        elDir.textContent = h.direction || '--';
+        elDir.className = `horizon-dir font-mono ${h.direction === 'BULLISH' ? 'text-green' : h.direction === 'BEARISH' ? 'text-red' : 'text-amber'}`;
+      }
+      if (elConf) elConf.textContent = `Confidence: ${h.confidence || 0}%`;
+    };
+    setHorizon('1h', h1);
+    setHorizon('4h', h4);
+    setHorizon('24h', h24);
+
+    const elCats = document.getElementById('pred-catalysts');
+    if (elCats) {
+      const cats = data.bullish_catalysts || [];
+      elCats.innerHTML = cats.length > 0 ? cats.map(c => `<li>✓ ${c}</li>`).join('') : '<li class="text-muted">No strong catalysts</li>';
+    }
+    const elRisks = document.getElementById('pred-risks');
+    if (elRisks) {
+      const risks = data.risk_factors || [];
+      elRisks.innerHTML = risks.length > 0 ? risks.map(r => `<li>⚠ ${r}</li>`).join('') : '<li class="text-muted">No immediate risks</li>';
     }
   }
 

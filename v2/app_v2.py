@@ -63,6 +63,7 @@ from v2.services.trading_service import TradingService
 from v2.services.shadow_service import ShadowService
 from v2.services.notification_service import NotificationService
 from v2.services.dashboard_service import DashboardService
+from v2.services.research_service import CoinResearchService
 
 from v2.monitoring import HealthChecker, MetricsCollector, AlertManager
 from v2.scheduler import BackgroundScheduler, register_all_jobs
@@ -86,6 +87,7 @@ _scheduler: BackgroundScheduler | None = None
 _metrics_collector: MetricsCollector | None = None
 _health_checker: HealthChecker | None = None
 _alert_manager: AlertManager | None = None
+_research_service: CoinResearchService | None = None
 
 
 @asynccontextmanager
@@ -95,6 +97,7 @@ async def lifespan(app: FastAPI):
     global _portfolio_service, _trading_service, _shadow_service
     global _notification_service, _dashboard_service, _scheduler
     global _metrics_collector, _health_checker, _alert_manager
+    global _research_service
 
     cfg = get_config()
     logger.info("V2 starting", extra={"port": cfg.v2_port, "db": cfg.v2_db_path})
@@ -237,6 +240,11 @@ async def lifespan(app: FastAPI):
         dashboard_service    = _dashboard_service,
     )
 
+    _research_service = CoinResearchService(
+        candle_repo = candle_repo,
+        config      = cfg,
+    )
+
     # 7. Wire API router state
     init_router(
         scanner_service      = _scanner_service,
@@ -257,6 +265,7 @@ async def lifespan(app: FastAPI):
         dashboard_service    = _dashboard_service,
         health_checker       = _health_checker,
         metrics_collector    = _metrics_collector,
+        research_service     = _research_service,
     )
 
     # Trigger initial warm-up scanner poll in background

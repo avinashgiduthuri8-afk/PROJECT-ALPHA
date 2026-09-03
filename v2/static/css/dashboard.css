@@ -1378,3 +1378,275 @@ body {
 .font-mono { font-family: var(--font-mono) !important; }
 .loading-placeholder { text-align: center; color: var(--text-dim); padding: 2rem; font-style: italic; }
 
+/* ── Coin Research Hub ─────────────────────────────────────────────────────── */
+.research-search-bar-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-card-sub, #131722);
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  border: 1px solid var(--border-color, #2a2e39);
+}
+
+.research-input-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.research-search-box {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: var(--bg-dark, #0d1117);
+  border: 1px solid var(--border-color, #2a2e39);
+  border-radius: 4px;
+  padding: 0.35rem 0.65rem;
+}
+
+.research-search-box input {
+  background: transparent;
+  border: none;
+  color: var(--text-main, #e1e7ec);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  width: 100%;
+  outline: none;
+}
+
+.research-chips-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.chips-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  margin-right: 0.2rem;
+}
+
+.coin-chip {
+  background: var(--bg-card, #1e222d);
+  border: 1px solid var(--border-color, #2a2e39);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.coin-chip:hover {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+.coin-chip.active {
+  background: rgba(0, 212, 255, 0.15);
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+.research-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+@media (max-width: 1200px) {
+  .research-grid-4 { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 768px) {
+  .research-grid-4 { grid-template-columns: 1fr; }
+}
+
+.sub-card {
+  background: var(--bg-card-sub, #131722);
+  border: 1px solid var(--border-color, #2a2e39);
+  border-radius: 6px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.sub-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border-color, #2a2e39);
+}
+
+.sub-card-header .sub-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-main);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.stat-highlight {
+  margin-bottom: 0.75rem;
+}
+
+.stat-big-val {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.stat-delta {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.pillar-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.pillar-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.pillar-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.progress-bar-bg {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.progress-bar-fill.cyan { background: var(--cyan); }
+.progress-bar-fill.green { background: var(--green); }
+.progress-bar-fill.purple { background: var(--purple); }
+.progress-bar-fill.amber { background: var(--amber); }
+
+.tf-pills {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.tf-pill {
+  background: var(--bg-card, #1e222d);
+  border: 1px solid var(--border-color, #2a2e39);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.tf-pill.active {
+  background: var(--cyan);
+  color: #000;
+  border-color: var(--cyan);
+}
+
+.backtest-controls-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-end;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.control-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.control-col label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.backtest-friction-badge {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+
+.predict-horizons-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.horizon-card {
+  background: var(--bg-card, #1e222d);
+  border: 1px solid var(--border-color, #2a2e39);
+  border-radius: 4px;
+  padding: 0.5rem;
+  text-align: center;
+}
+
+.horizon-name {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.horizon-dir {
+  font-size: 0.95rem;
+  font-weight: 800;
+  margin: 0.2rem 0;
+}
+
+.horizon-conf {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+}
+
+.predict-lists-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.catalyst-col .col-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.catalyst-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.35rem 0 0 0;
+  font-size: 0.68rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}

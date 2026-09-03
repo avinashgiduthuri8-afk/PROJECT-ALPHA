@@ -766,3 +766,4 @@ class CoinResearchService:
                 f"outlook for {pair} on 24h horizon with {conf_24h}% confidence."
             ),
         }
+

@@ -175,3 +175,4 @@ def last_valid(arr: np.ndarray) -> float:
     """Return the last non-NaN value in the array, or 0.0."""
     valid = arr[~np.isnan(arr)]
     return float(valid[-1]) if len(valid) > 0 else 0.0
+

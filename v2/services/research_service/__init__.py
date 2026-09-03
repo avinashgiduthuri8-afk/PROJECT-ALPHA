@@ -12,3 +12,4 @@ Provides isolated, read-only analytics:
 from .service import CoinResearchService
 
 __all__ = ["CoinResearchService"]
+
