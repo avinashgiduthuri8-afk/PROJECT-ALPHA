@@ -40,6 +40,7 @@ class V2Config(BaseSettings):
     # ── Database ──────────────────────────────────────────────────────────────
     v2_db_path: str = Field(
         default="v2/data/alpha_v2.db",
+        validation_alias=AliasChoices("V2_DB_PATH", "DB_PATH", "v2_db_path"),
         description="Path to the V2 SQLite database file.",
     )
 
@@ -71,8 +72,8 @@ class V2Config(BaseSettings):
     )
 
     # Master CoinDCX API Credentials
-    coindcx_api_key:    Optional[str] = Field(default=None, alias="COINDCX_API_KEY")
-    coindcx_api_secret: Optional[str] = Field(default=None, alias="COINDCX_API_SECRET")
+    coindcx_api_key:    Optional[str] = Field(default=None, validation_alias=AliasChoices("COINDCX_API_KEY", "coindcx_api_key"))
+    coindcx_api_secret: Optional[str] = Field(default=None, validation_alias=AliasChoices("COINDCX_API_SECRET", "coindcx_api_secret"))
 
     # Strategy bot capital limits (defaults to unified pool)
     ste_capital_limit:   float = Field(default=10000.0,  alias="STE_CAPITAL_LIMIT")
@@ -163,17 +164,51 @@ class V2Config(BaseSettings):
     v2_ai_max_retries:          int           = Field(default=2, description="Max retries on AI call failures.")
 
     # ── Auth (shared with V1) ─────────────────────────────────────────────────
-    dashboard_api_key: Optional[str] = Field(default="alpha-dev-key", alias="DASHBOARD_API_KEY")
+    dashboard_api_key: Optional[str] = Field(
+        default="alpha-dev-key",
+        validation_alias=AliasChoices("DASHBOARD_API_KEY", "dashboard_api_key"),
+    )
 
-    # ── V2 port ───────────────────────────────────────────────────────────────
-    v2_port: int = Field(default=5001, description="Port for the V2 FastAPI app.")
-    v2_host: str = Field(default="0.0.0.0")
+    # ── Network & Server Bindings ─────────────────────────────────────────────
+    v2_port: int = Field(
+        default=5001,
+        validation_alias=AliasChoices("V2_PORT", "PORT", "v2_port"),
+        description="Port for the V2 FastAPI app.",
+    )
+    v2_host: str = Field(
+        default="0.0.0.0",
+        validation_alias=AliasChoices("V2_HOST", "HOST", "v2_host"),
+        description="Host address for the V2 FastAPI app.",
+    )
 
     # ── Feature flags & Deployment Mode ──────────────────────────────────────
     v2_deployment_mode:   str  = Field(default="SHADOW", validation_alias=AliasChoices("V2_DEPLOYMENT_MODE", "DEPLOYMENT_MODE", "v2_deployment_mode"))
     v2_websocket_enabled: bool = Field(default=False)
     v2_shadow_mode:       bool = Field(default=False)
-    v2_trading_enabled:   bool = Field(default=False)
+    v2_trading_enabled:   bool = Field(
+        default=False,
+        validation_alias=AliasChoices("V2_TRADING_ENABLED", "TRADING_ENABLED", "v2_trading_enabled"),
+    )
+
+    @property
+    def host(self) -> str:
+        return self.v2_host
+
+    @property
+    def port(self) -> int:
+        return self.v2_port
+
+    @property
+    def capital_pool(self) -> Optional[float]:
+        return self.total_capital_limit if self.total_capital_limit is not None else self.trading_capital_pool
+
+    @property
+    def telegram_bot_token(self) -> Optional[str]:
+        return self.alert_bot_token
+
+    @property
+    def telegram_chat_id(self) -> Optional[str]:
+        return self.alert_chat_id
 
     @field_validator("v2_scanner_min_priority", "v2_ai_min_priority")
     @classmethod
