@@ -54,6 +54,7 @@ from v2.repository.shadow_repo import ShadowRepository
 from v2.repository.metrics_repo import MetricsRepository
 from v2.repository.event_log_repo import EventLogRepository
 from v2.repository.candle_repo import CandleRepository
+from v2.repository.production_state_repo import ProductionStateRepository
 
 from v2.services.scanner_service import ScannerService
 from v2.services.ai_intelligence_service import AIIntelligenceService
@@ -64,6 +65,7 @@ from v2.services.shadow_service import ShadowService
 from v2.services.notification_service import NotificationService
 from v2.services.dashboard_service import DashboardService
 from v2.services.research_service import CoinResearchService
+from v2.services.production_service import ProductionController, ProductionWatchdog
 
 from v2.monitoring import HealthChecker, MetricsCollector, AlertManager
 from v2.scheduler import BackgroundScheduler, register_all_jobs
@@ -88,6 +90,8 @@ _metrics_collector: MetricsCollector | None = None
 _health_checker: HealthChecker | None = None
 _alert_manager: AlertManager | None = None
 _research_service: CoinResearchService | None = None
+_production_controller: ProductionController | None = None
+_production_watchdog: ProductionWatchdog | None = None
 
 
 @asynccontextmanager
@@ -97,7 +101,7 @@ async def lifespan(app: FastAPI):
     global _portfolio_service, _trading_service, _shadow_service
     global _notification_service, _dashboard_service, _scheduler
     global _metrics_collector, _health_checker, _alert_manager
-    global _research_service
+    global _research_service, _production_controller, _production_watchdog
 
     cfg = get_config()
     logger.info("V2 starting", extra={"port": cfg.v2_port, "db": cfg.v2_db_path})
@@ -116,6 +120,7 @@ async def lifespan(app: FastAPI):
     metrics_repo   = MetricsRepository(conn)
     event_log_repo = EventLogRepository(conn)
     candle_repo    = CandleRepository(conn)
+    prod_state_repo = ProductionStateRepository(conn)
 
     # 3. Services
     _scanner_service = ScannerService(
@@ -181,6 +186,8 @@ async def lifespan(app: FastAPI):
         portfolio_service = _portfolio_service,
         risk_service   = _risk_service,
         trading_service = _trading_service,
+        scanner_service = _scanner_service,
+        event_log_repo = event_log_repo,
     )
 
     _dashboard_service = DashboardService(
@@ -209,6 +216,7 @@ async def lifespan(app: FastAPI):
         shadow_service       = _shadow_service,
         notification_service = _notification_service,
     )
+    _notification_service.wire_dependencies(health_checker=_health_checker)
     _alert_manager = AlertManager(
         bus            = bus,
         health_checker = _health_checker,
@@ -245,6 +253,32 @@ async def lifespan(app: FastAPI):
         config      = cfg,
     )
 
+    # 6b. Production Controller & 24/7 Watchdog Supervisor
+    _production_controller = ProductionController(
+        config               = cfg,
+        bus                  = bus,
+        state_repo           = prod_state_repo,
+        risk_service         = _risk_service,
+        trading_service      = _trading_service,
+        event_log_repo       = event_log_repo,
+        notification_service = _notification_service,
+    )
+
+    _production_watchdog = ProductionWatchdog(
+        config               = cfg,
+        bus                  = bus,
+        scanner_service      = _scanner_service,
+        ai_service           = _ai_service,
+        risk_service         = _risk_service,
+        trading_service      = _trading_service,
+        db                   = _db,
+        scheduler            = _scheduler,
+        signal_repo          = signal_repo,
+        event_log_repo       = event_log_repo,
+        notification_service = _notification_service,
+    )
+    await _production_watchdog.start()
+
     # 7. Wire API router state
     init_router(
         scanner_service      = _scanner_service,
@@ -266,6 +300,8 @@ async def lifespan(app: FastAPI):
         health_checker       = _health_checker,
         metrics_collector    = _metrics_collector,
         research_service     = _research_service,
+        production_controller= _production_controller,
+        production_watchdog  = _production_watchdog,
     )
 
     # Trigger initial warm-up scanner poll in background
@@ -276,6 +312,8 @@ async def lifespan(app: FastAPI):
 
     # ── Shutdown ──────────────────────────────────────────────────────────────
     logger.info("V2 shutting down")
+    if _production_watchdog:
+        await _production_watchdog.stop()
     if _scheduler:
         await _scheduler.stop()
     if _dashboard_service:

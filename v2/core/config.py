@@ -25,6 +25,8 @@ from typing import Optional
 from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+DEFAULT_ORDER_AMOUNT_INR: float = 200.0
+
 
 class V2Config(BaseSettings):
     model_config = SettingsConfigDict(
@@ -41,21 +43,21 @@ class V2Config(BaseSettings):
         description="Path to the V2 SQLite database file.",
     )
 
-    # ── Unified Capital Pool & Sizing (Shared ₹10,000 Ceiling) ───────────────
-    total_capital_limit: float = Field(
-        default=10000.0,
+    # ── Unified Capital Pool & Sizing ─────────────────────────────────────────
+    total_capital_limit: Optional[float] = Field(
+        default=None,
         validation_alias=AliasChoices("TOTAL_CAPITAL_LIMIT", "CAPITAL_POOL", "total_capital_limit"),
-        description="Unified Capital Pool shared ceiling across all strategy bots (₹10,000).",
+        description="Unified Capital Pool shared ceiling across all strategy bots (None = unconstrained/dynamic).",
     )
-    trading_capital_pool: float = Field(
-        default=10000.0,
+    trading_capital_pool: Optional[float] = Field(
+        default=None,
         validation_alias=AliasChoices("CAPITAL_POOL", "TRADING_CAPITAL_POOL", "trading_capital_pool"),
         description="Alias for unified capital pool.",
     )
     order_size_inr: float = Field(
-        default=200.0,
+        default=DEFAULT_ORDER_AMOUNT_INR,
         validation_alias=AliasChoices("ORDER_SIZE_INR", "DEFAULT_TRADE_AMOUNT", "order_size_inr"),
-        description="Fixed standard micro-order allocation (₹200 per trade).",
+        description="Standard micro-order allocation (defaults to ₹200).",
     )
     max_concurrent_positions: int = Field(
         default=10,
@@ -206,31 +208,49 @@ class V2Config(BaseSettings):
             "v2_ai_max_retries",
             "alert_bot_token",
             "alert_chat_id",
+            "order_size_inr",
+            "total_capital_limit",
+            "trading_capital_pool",
         }
         path = Path(override_path or "v2/data/config_override.json")
         if not path.exists():
             return self
         try:
-            overrides = json.loads(path.read_text())
+            overrides = json.loads(path.read_text(encoding="utf-8"))
         except Exception:
             return self
 
-        data = self.model_dump()
-        for key, val in overrides.items():
-            if key in HOT_RELOAD_KEYS:
-                data[key] = val
+        updates = {k: v for k, v in overrides.items() if k in HOT_RELOAD_KEYS}
+        if not updates:
+            return self
+        return self.model_copy(update=updates)
 
-        return V2Config.model_validate(data)
+    @classmethod
+    def save_runtime_overrides(cls, overrides: dict[str, Any], override_path: Optional[str] = None) -> V2Config:
+        """Persist runtime overrides to config_override.json and reload cache."""
+        path = Path(override_path or "v2/data/config_override.json")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        existing = {}
+        if path.exists():
+            try:
+                existing = json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                existing = {}
+        existing.update(overrides)
+        path.write_text(json.dumps(existing, indent=2), encoding="utf-8")
+        invalidate_config()
+        return get_config()
 
 
 @lru_cache(maxsize=1)
 def get_config() -> V2Config:
     """
-    Return the singleton V2Config instance.
+    Return the singleton V2Config instance with runtime overrides applied.
 
     Call invalidate_config() to force a reload (e.g. in tests).
     """
-    return V2Config()
+    cfg = V2Config()
+    return cfg.apply_override()
 
 
 def invalidate_config() -> None:

@@ -66,6 +66,10 @@ class TradingService:
             "status": "INITIALIZED",
         }
 
+    @property
+    def subaccount_manager(self) -> CoinDCXSubAccountManager:
+        return self._subaccount_manager
+
     def set_shadow_engine(self, shadow_engine: object) -> None:
         self._shadow_engine = shadow_engine
 
@@ -96,7 +100,7 @@ class TradingService:
             coin = payload.get("coin", "UNKNOWN")
             pair = payload.get("pair") or f"{coin}/INR"
             bot_str = payload.get("bot", "STE")
-            approved_amount = float(payload.get("approved_amount", 500.0))
+            approved_amount = float(payload.get("approved_amount") or self._config.order_size_inr)
             ai_adjustments = payload.get("ai_adjustments") or {}
             price = float(payload.get("price") or payload.get("current_price") or 100.0)
 
@@ -341,7 +345,8 @@ class TradingService:
                 self._pending_exits.add(pos.id)
 
                 # 1. If live position, dispatch real CoinDCX sell order via place_live_order
-                if pos.mode == BotMode.LIVE and (self._config.v2_trading_enabled or getattr(self._config, "v2_deployment_mode", "").upper() == "LIVE_MICROCASH"):
+                deployment_mode = getattr(self._config, "v2_deployment_mode", "").upper()
+                if pos.mode == BotMode.LIVE and self._config.v2_trading_enabled and deployment_mode == "LIVE_MICROCASH":
                     sub_client = self._subaccount_manager.get_client(pos.bot)
                     try:
                         sell_result = await sub_client.place_live_order(

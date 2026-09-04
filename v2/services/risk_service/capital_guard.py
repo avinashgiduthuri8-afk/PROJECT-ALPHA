@@ -93,9 +93,9 @@ class CapitalGuard:
                 check_ms=round(ms, 2),
             )
 
-        # 5. Check Unified Global Capital Pool Limit (₹10,000 Shared Ceiling)
+        # 5. Check Unified Global Capital Pool Limit (Shared Ceiling, None = dynamic)
         total_limit = self._config.total_capital_limit
-        if total_limit > 0 and (total_deployed + requested_amount) > total_limit:
+        if total_limit is not None and total_limit > 0 and (total_deployed + requested_amount) > total_limit:
             available = max(0.0, total_limit - total_deployed)
             ms = (time.perf_counter() - t0) * 1000.0
             return RiskDecision(

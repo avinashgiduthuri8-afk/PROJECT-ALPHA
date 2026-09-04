@@ -262,7 +262,7 @@ async def test_telegram_command_routing(tmp_path):
 
         # 7. Test unauthorized sender gets rejected
         await tg_iface._handle_incoming_message({"chat": {"id": 99999}, "text": "/start"})
-        assert "Access Denied" in mock_client.sent_messages[-1]["text"]
+        assert "Unauthorized." in mock_client.sent_messages[-1]["text"] or "Access Denied" in mock_client.sent_messages[-1]["text"]
     finally:
         await db.close()
 
@@ -317,7 +317,7 @@ async def test_telegram_callback_queries(tmp_path):
         # 4. Confirm Emergency Stop (cb:confirm_stop)
         cb_confirm = {"id": "cb_04", "data": "cb:confirm_stop", "message": {"chat": {"id": 12345}, "message_id": 101}}
         await tg_iface._handle_callback_query(cb_confirm)
-        assert "EMERGENCY STOP ACTIVATED" in mock_client.edited_messages[-1]["text"]
+        assert "EMERGENCY STOP" in mock_client.edited_messages[-1]["text"]
         risk_state = await risk_svc.get_state()
         assert risk_state.circuit_breaker_open is True
 

@@ -466,15 +466,26 @@ class KillSwitchResponseSchema(BaseModel):
     message:         str
 
 
+class ResumeResponseSchema(BaseModel):
+    ok:              bool = True
+    circuit_breaker: str
+    mode:            str
+    trading_enabled: bool
+    message:         str
+
+
 class ProductionStatusSchema(BaseModel):
     mode:                   str
     trading_enabled:        bool
     shadow_mode:            bool
-    capital_pool_limit:     float
+    capital_pool_limit:     Optional[float] = None
     capital_pool_deployed:  float
-    capital_pool_available: float
+    capital_pool_available: Optional[float] = None
     open_positions_count:   int
     circuit_breaker_status: str
+    watchdog_status:        Optional[str] = None
+    subsystems_healthy:     Optional[bool] = None
+    last_inspection:        Optional[str] = None
 
 
 # ── Execution & Error Center Schemas ──────────────────────────────────────────

@@ -207,6 +207,23 @@ class V2InstitutionalDashboard {
     ]);
   }
 
+  async apiFetch(url, options = {}) {
+    const headers = {
+      'X-API-Key': this.apiKey,
+      ...(options.headers || {})
+    };
+    const res = await fetch(url, { ...options, headers });
+    if (!res.ok) {
+      let detail = `HTTP ${res.status}: ${res.statusText}`;
+      try {
+        const body = await res.json();
+        if (body && body.detail) detail = body.detail;
+      } catch (_) {}
+      throw new Error(detail);
+    }
+    return await res.json();
+  }
+
   async fetchOverview() {
     try {
       const res = await fetch('/api/v2/dashboard/overview', {
@@ -282,7 +299,7 @@ class V2InstitutionalDashboard {
       });
       if (!res.ok) return;
       const data = await res.json();
-      this.stagesCache = data.stages || [];
+      this.stagesCache = Array.isArray(data) ? data : (data.stages || []);
       this.renderPipelineStages(this.stagesCache);
     } catch (e) {
       console.warn('Pipeline stages fetch error:', e);
@@ -323,9 +340,11 @@ class V2InstitutionalDashboard {
     if (!data) return;
 
     // Metrics Strip
-    const aum = data.total_aum ?? 10000.0;
     const deployed = data.total_deployed ?? 0.0;
-    const cash = data.total_cash ?? (aum - deployed);
+    const aum = (data.total_aum !== null && data.total_aum !== undefined)
+      ? data.total_aum
+      : (data.total_cash !== undefined ? (deployed + data.total_cash) : (deployed > 0 ? deployed : 0.0));
+    const cash = data.total_cash ?? (aum >= deployed ? aum - deployed : 0.0);
     const pnl = data.daily_realised_pnl ?? 0.0;
     const utilPct = aum > 0 ? ((deployed / aum) * 100).toFixed(1) : '0.0';
 
@@ -361,16 +380,22 @@ class V2InstitutionalDashboard {
 
   renderProductionStatus(data) {
     if (!data) return;
-    const mode = data.mode || 'SHADOW';
+    const mode = (data.mode || 'PAPER').toUpperCase();
     const tradingEnabled = data.trading_enabled === true;
-    const capLimit = data.capital_pool_limit ?? 10000.0;
+    const capLimit = data.capital_pool_limit;
     const deployed = data.capital_pool_deployed ?? 0.0;
-    const available = data.capital_pool_available ?? (capLimit - deployed);
+    const available = data.capital_pool_available;
     const breakerTripped = data.circuit_breaker_tripped === true;
 
-    if (this.elSafetyCapLimit) this.elSafetyCapLimit.textContent = `₹${capLimit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
-    if (this.elSafetyCapDeployed) this.elSafetyCapDeployed.textContent = `₹${deployed.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
-    if (this.elSafetyCapAvailable) this.elSafetyCapAvailable.textContent = `₹${available.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+    if (this.elSafetyCapLimit) {
+      this.elSafetyCapLimit.textContent = capLimit != null ? `₹${capLimit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : 'Dynamic / Unconstrained';
+    }
+    if (this.elSafetyCapDeployed) {
+      this.elSafetyCapDeployed.textContent = `₹${deployed.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+    }
+    if (this.elSafetyCapAvailable) {
+      this.elSafetyCapAvailable.textContent = available != null ? `₹${available.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : 'Dynamic';
+    }
 
     if (this.elSafetyBreakerStatus) {
       this.elSafetyBreakerStatus.textContent = breakerTripped ? '🚨 TRIPPED' : 'NORMAL';
@@ -383,7 +408,7 @@ class V2InstitutionalDashboard {
 
     // Risk Meter Bars
     if (this.elMeterExposureVal && this.elMeterExposureFill) {
-      const expPct = capLimit > 0 ? Math.min(100, Math.max(0, (deployed / capLimit) * 100)) : 0;
+      const expPct = (capLimit && capLimit > 0) ? Math.min(100, Math.max(0, (deployed / capLimit) * 100)) : 0;
       this.elMeterExposureVal.textContent = `₹${deployed.toFixed(2)} (${expPct.toFixed(1)}%)`;
       this.elMeterExposureFill.style.width = `${expPct}%`;
     }
@@ -395,16 +420,34 @@ class V2InstitutionalDashboard {
       this.elMeterPositionsFill.style.width = `${posPct}%`;
     }
 
+    // Header action button toggles based on circuit breaker
+    const btnResume = document.getElementById('btn-resume');
+    if (btnResume) {
+      btnResume.style.display = breakerTripped ? 'inline-block' : 'none';
+    }
+    const btnKill = document.getElementById('btn-kill-switch');
+    if (btnKill) {
+      btnKill.style.display = breakerTripped ? 'none' : 'inline-block';
+    }
+
     // Safety Bar visual styling
     if (this.elSafetyBar && this.elSafetyModeText && this.elSafetyModeDesc) {
-      if (mode === 'LIVE_MICROCASH') {
+      if (breakerTripped) {
+        this.elSafetyBar.className = 'safety-bar tripped-mode';
+        this.elSafetyModeText.textContent = '🚨 EMERGENCY HALT — CIRCUIT BREAKER TRIPPED';
+        this.elSafetyModeDesc.innerHTML = '⚡ <strong>ALL ORDER DISPATCH CEASED</strong> — Router locked in failsafe. Click <strong>Resume Trading</strong> to reset breaker and re-arm.';
+      } else if (mode === 'LIVE_MICROCASH') {
         this.elSafetyBar.className = 'safety-bar live-mode';
         this.elSafetyModeText.textContent = '🔴 LIVE MICROCASH — REAL CAPITAL';
-        this.elSafetyModeDesc.innerHTML = '🚨 <strong>REAL MONEY ORDERS ENABLED</strong> — Dispatches ₹200 notional limit orders to CoinDCX exchange API.';
+        this.elSafetyModeDesc.innerHTML = '🚨 <strong>REAL MONEY ORDERS ENABLED</strong> — Dispatches micro-orders to CoinDCX exchange API.';
+      } else if (mode === 'PAPER') {
+        this.elSafetyBar.className = 'safety-bar paper-mode';
+        this.elSafetyModeText.textContent = '🟡 PAPER TRADING — SIMULATION ACTIVE';
+        this.elSafetyModeDesc.innerHTML = '📝 <strong>VIRTUAL EXECUTION ACTIVE</strong> — Simulated positions track live prices, stop-loss, and take-profit with <strong>ZERO capital risk</strong>.';
       } else {
         this.elSafetyBar.className = 'safety-bar shadow-mode';
-        this.elSafetyModeText.textContent = `${mode} / SIMULATION`;
-        this.elSafetyModeDesc.textContent = '🛡️ ZERO CAPITAL RISK — SIMULATION LEDGER ACTIVE. Orders evaluated and recorded to shadow ledger without exchange execution.';
+        this.elSafetyModeText.textContent = '🔵 SHADOW / PASSIVE LEDGER';
+        this.elSafetyModeDesc.textContent = '🛡️ ZERO CAPITAL RISK — PASSIVE SHADOW RECORDING. Signals are scored and logged to shadow ledger without active simulated positions.';
       }
     }
   }
@@ -1050,9 +1093,68 @@ class V2InstitutionalDashboard {
     });
   }
 
-  pollScanner() {
-    this.fetchScanner();
-    this.showToast('Scanner Refresh', 'Requested immediate scanner pass snapshot');
+  scrollToResearchHub() {
+    const el = document.getElementById('research-hub');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
+  }
+
+  async pollScanner() {
+    try {
+      this.showToast('Scanner Triggered', 'Executing on-demand scanner pass...');
+      await this.apiFetch('/api/v2/scanner/poll', { method: 'POST' });
+      this.showToast('Scan Completed', 'Refreshing evaluated candidate coins...');
+      await this.fetchScanner();
+    } catch (e) {
+      this.showToast('Scanner Error', e.message);
+    }
+  }
+
+  openKillSwitchModal() {
+    const modal = document.getElementById('kill-switch-modal');
+    if (modal) modal.style.display = 'flex';
+  }
+
+  async confirmKillSwitch() {
+    const modal = document.getElementById('kill-switch-modal');
+    if (modal) modal.style.display = 'none';
+    try {
+      this.showToast('🚨 Engaging Kill-Switch', 'Halting outbound order dispatch and engaging circuit breaker...');
+      const res = await this.apiFetch('/api/v2/production/kill-switch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: 'Operator emergency trip via Mission Control' })
+      });
+      this.showToast('🚨 Kill-Switch Active', res.detail || 'Emergency halt successfully engaged.');
+      await this.fetchProductionStatus();
+    } catch (e) {
+      this.showToast('Kill-Switch Error', e.message);
+    }
+  }
+
+  openResumeModal() {
+    const modal = document.getElementById('resume-modal');
+    if (modal) modal.style.display = 'flex';
+  }
+
+  async confirmResume() {
+    const modal = document.getElementById('resume-modal');
+    if (modal) modal.style.display = 'none';
+    const sel = document.getElementById('resume-target-mode-select');
+    const targetMode = sel ? sel.value : 'PAPER';
+    try {
+      this.showToast('▶ Resuming Operations', `Resetting circuit breaker & re-arming router in ${targetMode}...`);
+      const res = await this.apiFetch('/api/v2/production/resume', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target_mode: targetMode, reason: 'Operator verified resume via Mission Control' })
+      });
+      this.showToast('▶ Operations Resumed', `Execution re-armed in ${res.mode} mode.`);
+      await this.fetchProductionStatus();
+    } catch (e) {
+      this.showToast('Resume Error', e.message);
+    }
   }
 
   // ── 7. Modals & Detail Drawers ────────────────────────────────────────────

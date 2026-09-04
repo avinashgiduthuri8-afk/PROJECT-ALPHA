@@ -33,9 +33,11 @@ from .schemas import (
     UnifiedOrderSchema, OrderLifecycleSchema, ErrorLogItemSchema,
 )
 from .research_routes import research_router, init_research_router
+from .production_routes import production_router, init_production_router
 
 router = APIRouter()
 router.include_router(research_router, prefix="/research", tags=["research"])
+router.include_router(production_router, prefix="/production", tags=["production"])
 
 # ── Injected service references (set by app_v2.py at startup) ────────────────
 _scanner_service = None
@@ -78,6 +80,8 @@ def init_router(
     health_checker=None,
     metrics_collector=None,
     research_service=None,
+    production_controller=None,
+    production_watchdog=None,
     **kwargs,
 ) -> None:
     """Called by app_v2.py lifespan after services are started."""
@@ -103,6 +107,15 @@ def init_router(
     _health_checker = health_checker
     _metrics_collector = metrics_collector
     init_research_router(research_service or kwargs.get("research_service"))
+    ctrl = production_controller or kwargs.get("production_controller")
+    wd = production_watchdog or kwargs.get("production_watchdog")
+    init_production_router(
+        controller=ctrl,
+        watchdog=wd,
+        config=config,
+        position_repo=position_repo,
+        risk_service=risk_service,
+    )
 
 
 # ── Health (no auth) ──────────────────────────────────────────────────────────
@@ -1047,71 +1060,7 @@ async def simulate_signal_emission(body: SimulateSignalRequestSchema) -> Simulat
 
 
 # ── Production Mode Controller & Live Microcash Endpoints ─────────────────────
-
-@router.post(
-    "/production/set-mode",
-    response_model=SetModeResponseSchema,
-    dependencies=[Depends(require_api_key)],
-    tags=["production"],
-)
-async def set_execution_mode(body: SetModeRequestSchema) -> SetModeResponseSchema:
-    """
-    Dynamically toggle execution mode between SHADOW and LIVE_MICROCASH without server restart.
-    """
-    if _config is None:
-        raise HTTPException(status_code=503, detail="Configuration not initialized.")
-
-    target_mode = body.mode.upper().strip()
-    if target_mode not in ("LIVE_MICROCASH", "SHADOW"):
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid mode. Must be 'LIVE_MICROCASH' or 'SHADOW'.",
-        )
-
-    _config.v2_deployment_mode = target_mode
-    if target_mode == "LIVE_MICROCASH":
-        _config.v2_trading_enabled = True
-        _config.v2_shadow_mode = False
-        msg = "Switched to LIVE_MICROCASH. Real micro-orders (₹200 notional) will dispatch to CoinDCX."
-    else:
-        _config.v2_trading_enabled = False
-        _config.v2_shadow_mode = True
-        msg = "Switched to SHADOW. Executions will be recorded to paper ledger without placing exchange orders."
-
-    return SetModeResponseSchema(
-        ok=True,
-        mode=target_mode,
-        trading_enabled=_config.v2_trading_enabled,
-        shadow_mode=_config.v2_shadow_mode,
-        message=msg,
-    )
-
-
-@router.post(
-    "/production/kill-switch",
-    response_model=KillSwitchResponseSchema,
-    dependencies=[Depends(require_api_key)],
-    tags=["production"],
-)
-async def trigger_emergency_kill_switch() -> KillSwitchResponseSchema:
-    """
-    Emergency kill-switch: Immediately trips the global circuit breaker and halts all outbound orders.
-    """
-    if _risk_service:
-        _risk_service.circuit_breaker.trip("EMERGENCY_KILL_SWITCH_TRIGGERED")
-
-    if _config:
-        _config.v2_trading_enabled = False
-        _config.v2_deployment_mode = "SHADOW"
-        _config.v2_shadow_mode = True
-
-    return KillSwitchResponseSchema(
-        ok=True,
-        circuit_breaker="TRIPPED",
-        trading_enabled=False,
-        status="ALL_ORDERS_BLOCKED",
-        message="Circuit breaker tripped. All live order dispatch blocked immediately.",
-    )
+# Note: Handled by production_router in v2/api/production_routes.py mounted at /production
 
 
 @router.get(
@@ -1148,42 +1097,7 @@ async def get_active_positions() -> list[PositionSchema]:
     return out
 
 
-@router.get(
-    "/production/status",
-    response_model=ProductionStatusSchema,
-    dependencies=[Depends(require_api_key)],
-    tags=["production"],
-)
-async def get_production_status() -> ProductionStatusSchema:
-    """
-    Return comprehensive operational status: deployment mode, trading flag, unified capital pool headroom, open positions count.
-    """
-    mode = getattr(_config, "v2_deployment_mode", "SHADOW") if _config else "SHADOW"
-    trading_enabled = getattr(_config, "v2_trading_enabled", False) if _config else False
-    shadow_mode = getattr(_config, "v2_shadow_mode", True) if _config else True
-    cap_limit = getattr(_config, "total_capital_limit", 10000.0) if _config else 10000.0
-
-    deployed = 0.0
-    open_count = 0
-    if _position_repo:
-        open_pos = await _position_repo.get_open()
-        deployed = sum(p.deployed_capital for p in open_pos)
-        open_count = len(open_pos)
-
-    breaker_status = "NORMAL"
-    if _risk_service and _risk_service.circuit_breaker.is_tripped:
-        breaker_status = "TRIPPED"
-
-    return ProductionStatusSchema(
-        mode=mode,
-        trading_enabled=trading_enabled,
-        shadow_mode=shadow_mode,
-        capital_pool_limit=cap_limit,
-        capital_pool_deployed=round(deployed, 2),
-        capital_pool_available=round(max(0.0, cap_limit - deployed), 2),
-        open_positions_count=open_count,
-        circuit_breaker_status=breaker_status,
-    )
+# Handled by production_router in v2/api/production_routes.py mounted at /production/status
 
 
 # ── Execution Center & Order Lifecycle Endpoints ──────────────────────────────

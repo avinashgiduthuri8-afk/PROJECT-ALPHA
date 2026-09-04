@@ -22,7 +22,7 @@ import httpx
 
 from v2.core.logging import get_logger
 from v2.core.types import BotName
-from .precision_rules import round_price, round_qty, validate_order_notional
+from .precision_rules import get_pair_spec, round_price, round_qty, validate_order_notional
 
 logger = get_logger("v2.trading.execution_manager")
 
@@ -33,7 +33,7 @@ class SubAccountConfig:
     subaccount_id: str
     api_key: str
     api_secret: str
-    allocated_wallet_inr: float = 10000.0
+    allocated_wallet_inr: Optional[float] = None
     max_positions: int = 10
     default_trade_amount_inr: float = 200.0
     allowed_pairs: List[str] = field(default_factory=list)
@@ -60,7 +60,7 @@ class CoinDCXSubAccountClient:
         self._shared_state = shared_state
         if self._shared_state is None:
             self._shared_state = {
-                "wallet_balance_inr": config.allocated_wallet_inr,
+                "wallet_balance_inr": config.allocated_wallet_inr if config.allocated_wallet_inr is not None else float("inf"),
                 "deployed_capital_inr": 0.0,
             }
         self._open_orders: Dict[str, Dict[str, Any]] = {}
@@ -123,16 +123,17 @@ class CoinDCXSubAccountClient:
             rounded_qty = round_qty(pair, qty)
             notional = rounded_price * rounded_qty
 
-            # 2. Hard validation: Minimum order value (INR 100) and min lot
+            # 2. Hard validation: Minimum order value and min lot via CoinDCX precision rules
             if not validate_order_notional(pair, rounded_price, rounded_qty):
+                spec = get_pair_spec(pair)
                 logger.warning(
-                    "Order rejected by precision gate: notional INR %.2f below INR 100 or invalid qty %.6f for %s",
-                    notional, rounded_qty, pair,
+                    "Order rejected by precision gate: notional INR %.2f below INR %.2f or invalid qty %.6f for %s",
+                    notional, spec.min_notional_inr, rounded_qty, pair,
                 )
                 return {
                     "success": False,
                     "error": "ORDER_NOTIONAL_BELOW_MINIMUM",
-                    "message": f"Order notional INR {notional:.2f} is below minimum INR 100.00 or invalid lot size",
+                    "message": f"Order notional INR {notional:.2f} is below minimum INR {spec.min_notional_inr:.2f} or invalid lot size",
                 }
 
             # 3. Capital pool balance check
@@ -279,44 +280,77 @@ class CoinDCXSubAccountClient:
         Dispatch a live authenticated order to CoinDCX:
         POST https://api.coindcx.com/exchange/v1/orders/create
         """
+        order_id = client_order_id or f"ORD_{self.subaccount_id}_{int(time.time()*1000)}"
+
+        # 0. Global Kill-Switch & Execution Mode Isolation Gate
+        from v2.core.config import get_config
+        cfg = get_config()
+        mode = getattr(cfg, "v2_deployment_mode", "SHADOW").upper()
+        if not cfg.v2_trading_enabled or mode != "LIVE_MICROCASH":
+            logger.warning(
+                "[%s] Outbound live order blocked by kill-switch/mode gate: trading_enabled=%s, mode=%s",
+                self.subaccount_id, cfg.v2_trading_enabled, mode,
+            )
+            return {
+                "success": False,
+                "error": "EXECUTION_BLOCKED_KILL_SWITCH",
+                "message": f"Live order blocked: trading_enabled={cfg.v2_trading_enabled}, mode={mode}",
+                "client_order_id": order_id,
+            }
+
         # 1. Round price and qty
         rounded_price = round_price(pair, price)
         rounded_qty = round_qty(pair, qty)
         notional = rounded_price * rounded_qty
 
-        # 2. Hard validation: Minimum order value (INR 100) and min lot
+        # 2. Hard validation: Minimum order value and min lot via CoinDCX precision rules
+        spec = get_pair_spec(pair)
         if not validate_order_notional(pair, rounded_price, rounded_qty):
             return {
                 "success": False,
                 "error": "ORDER_NOTIONAL_BELOW_MINIMUM",
-                "message": f"Order notional INR {notional:.2f} is below minimum INR 100.00",
+                "message": f"Order notional INR {notional:.2f} is below CoinDCX minimum INR {spec.min_notional_inr:.2f} or min lot {spec.min_lot_qty}",
+                "client_order_id": order_id,
             }
-
-        # 3. Capital pool check
-        if side.upper() == "BUY" and notional > self.available_balance_inr:
-            return {
-                "success": False,
-                "error": "INSUFFICIENT_SUBACCOUNT_BALANCE",
-                "message": f"Required INR {notional:.2f} exceeds available capital pool balance INR {self.available_balance_inr:.2f}",
-            }
-
-        order_id = client_order_id or f"ORD_{self.subaccount_id}_{int(time.time()*1000)}"
-        payload = {
-            "side": side.lower(),
-            "order_type": order_type,
-            "market": pair.replace("/", "").upper(),
-            "price_per_unit": rounded_price,
-            "total_quantity": rounded_qty,
-            "timestamp": int(time.time() * 1000),
-            "client_order_id": order_id,
-        }
-
-        headers = self.generate_auth_headers(payload)
-        url = f"{self.base_url}/exchange/v1/orders/create"
 
         owns_client = client is None
         http = client or httpx.AsyncClient(timeout=self.timeout)
         try:
+            # 3. Dynamic Balance Verification in LIVE mode
+            if side.upper() == "BUY":
+                bal_res = await self.get_balances(client=http)
+                if not bal_res.get("success"):
+                    logger.error("[%s] Could not obtain CoinDCX balance for live order: %s", self.subaccount_id, bal_res.get("error"))
+                    return {
+                        "success": False,
+                        "error": "BLOCKED_BALANCE_UNAVAILABLE",
+                        "message": "CoinDCX live balance could not be obtained or verified (capital unknown). Failing closed.",
+                        "client_order_id": order_id,
+                    }
+                live_inr = float(bal_res.get("inr_balance", 0.0))
+                with self._lock:
+                    self._shared_state["wallet_balance_inr"] = live_inr
+
+                if notional > live_inr:
+                    return {
+                        "success": False,
+                        "error": "INSUFFICIENT_SUBACCOUNT_BALANCE",
+                        "message": f"Required INR {notional:.2f} exceeds CoinDCX live available balance INR {live_inr:.2f}",
+                        "client_order_id": order_id,
+                    }
+
+            payload = {
+                "side": side.lower(),
+                "order_type": order_type,
+                "market": pair.replace("/", "").upper(),
+                "price_per_unit": rounded_price,
+                "total_quantity": rounded_qty,
+                "timestamp": int(time.time() * 1000),
+                "client_order_id": order_id,
+            }
+
+            headers = self.generate_auth_headers(payload)
+            url = f"{self.base_url}/exchange/v1/orders/create"
             resp = await http.post(url, json=payload, headers=headers)
             if resp.status_code in (200, 201):
                 data = resp.json()
@@ -580,33 +614,48 @@ CoinDCXExecutionClient = CoinDCXSubAccountClient
 class CoinDCXSubAccountManager:
     """
     Thread-safe Unified Capital Pool Execution Manager & Multi-Strategy Router.
-    All strategy bots (STE, HDA, VCP, BBS) share the single ₹10,000 capital pool.
+    All strategy bots share a unified capital pool with dynamic balance resolution.
     """
 
-    def __init__(self, config_path: str = "Alpha/config.json") -> None:
+    def __init__(self, config_path: str = "Alpha/config.json", config: Optional[Any] = None) -> None:
+        from v2.core.config import get_config
         self.config_path = config_path
+        self._config = config or get_config()
         self._clients: Dict[BotName, CoinDCXSubAccountClient] = {}
         self._lock = threading.RLock()
+        initial_balance = (
+            float(self._config.total_capital_limit)
+            if (self._config and self._config.total_capital_limit is not None)
+            else float("inf")
+        )
         self._shared_pool_state: Dict[str, float] = {
-            "wallet_balance_inr": 10000.0,
+            "wallet_balance_inr": initial_balance,
             "deployed_capital_inr": 0.0,
         }
         self._initialize_execution_pool()
 
     def _initialize_execution_pool(self) -> None:
-        """Load configuration from Alpha/config.json or environment fallback."""
+        """Load configuration from V2Config or Alpha/config.json with zero hardcoded fallbacks."""
         sub_configs: Dict[str, Dict[str, Any]] = {}
-        pool_limit = 10000.0
-        order_size = 200.0
+        order_size = float(self._config.order_size_inr) if self._config else 200.0
+        pool_limit = (
+            float(self._config.total_capital_limit)
+            if (self._config and self._config.total_capital_limit is not None)
+            else float("inf")
+        )
 
         if os.path.exists(self.config_path):
             try:
                 with open(self.config_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     sub_configs = data.get("subaccounts", data.get("strategies", {}))
-                    trading_cfg = data.get("trading", {})
-                    pool_limit = float(trading_cfg.get("capital_pool", data.get("total_portfolio_capital_inr", 10000.0)))
-                    order_size = float(trading_cfg.get("order_size_inr", 200.0))
+                    if self._config is None:
+                        if "capital_pool" in trading_cfg or "total_portfolio_capital_inr" in data:
+                            raw_pool = trading_cfg.get("capital_pool", data.get("total_portfolio_capital_inr"))
+                            if raw_pool is not None:
+                                pool_limit = float(raw_pool)
+                        if "order_size_inr" in trading_cfg:
+                            order_size = float(trading_cfg["order_size_inr"])
             except Exception as e:
                 logger.error("Failed to read %s: %s", self.config_path, e)
 
@@ -662,9 +711,9 @@ class CoinDCXSubAccountManager:
                 subaccount_id=cfg_dict.get("subaccount_id", f"ALPHA_{bot_key}_01"),
                 api_key=api_key,
                 api_secret=api_secret,
-                allocated_wallet_inr=pool_limit,
+                allocated_wallet_inr=pool_limit if pool_limit != float("inf") else None,
                 max_positions=int(cfg_dict.get("max_positions", 10)),
-                default_trade_amount_inr=float(cfg_dict.get("default_trade_amount_inr", order_size)),
+                default_trade_amount_inr=order_size if self._config else float(cfg_dict.get("default_trade_amount_inr", order_size)),
                 allowed_pairs=cfg_dict.get("allowed_pairs", []),
             )
             self._clients[bot_name] = CoinDCXSubAccountClient(
@@ -672,6 +721,30 @@ class CoinDCXSubAccountManager:
                 shared_pool_lock=self._lock,
                 shared_state=self._shared_pool_state,
             )
+
+    def update_order_size(self, new_amount: float) -> None:
+        """Dynamically update configurable micro-order amount across all strategy clients."""
+        with self._lock:
+            for client in self._clients.values():
+                client.config.default_trade_amount_inr = new_amount
+            if self._config:
+                self._config.order_size_inr = new_amount
+                self._config.v2_default_trade_amount_ste = new_amount
+                self._config.v2_default_trade_amount_hda = new_amount
+                self._config.v2_default_trade_amount_vcp = new_amount
+                self._config.v2_default_trade_amount_bbs = new_amount
+        logger.info("Subaccount manager dynamically updated order size to INR %.2f across all clients", new_amount)
+
+    async def fetch_live_balance(self, client: Optional[httpx.AsyncClient] = None) -> Dict[str, Any]:
+        """Fetch and synchronize real CoinDCX available INR balance."""
+        master_client = self.get_client(BotName.STE)
+        res = await master_client.get_balances(client=client)
+        if res.get("success"):
+            inr_bal = float(res.get("inr_balance", 0.0))
+            with self._lock:
+                self._shared_pool_state["wallet_balance_inr"] = inr_bal
+            return {"success": True, "inr_balance": inr_bal, "inr_locked": res.get("inr_locked", 0.0)}
+        return res
 
     def get_client(self, bot_name: BotName = BotName.STE) -> CoinDCXSubAccountClient:
         """Retrieve execution client for a bot drawing from the unified pool."""

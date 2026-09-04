@@ -23,5 +23,4 @@ os.environ.setdefault("MTB_BOT_MODE", "PAPER")
 # ── Capital / position limits ─────────────────────────────────────────────────
 os.environ.setdefault("MTB_TRADE_AMOUNT",  "200")
 os.environ.setdefault("MTB_CAPITAL_LIMIT", "2000")
-os.environ.setdefault("TOTAL_CAPITAL_LIMIT", "10000")
 os.environ.setdefault("MTB_MAX_POSITIONS", "3")

@@ -75,6 +75,9 @@ class RiskService:
         self._bus.unsubscribe(EventType.POSITION_CLOSED, self.on_position_closed)
         logger.info("RiskService stopped")
 
+    def set_trading_service(self, trading_service: Any) -> None:
+        self._trading_service = trading_service
+
     # ── Trade Permission Evaluation ───────────────────────────────────────────
 
     async def check_trade_allowed(
@@ -83,14 +86,46 @@ class RiskService:
         requested_amount: float,
         coin: Optional[str] = None,
         pair: Optional[str] = None,
+        available_capital: Optional[float] = None,
     ) -> RiskDecision:
-        """Run complete risk evaluation (CircuitBreaker + CapitalGuard) against live repository state."""
+        """Run complete risk evaluation (CircuitBreaker + CapitalGuard + Live Balance) against live state."""
         # 1. Circuit breaker check
         breaker_dec = self._circuit_breaker.check_breaker(bot, requested_amount)
         if not breaker_dec.allowed:
             return breaker_dec
 
-        # 2. Query live open positions for deployed capital
+        # 2. Dynamic Live Balance Verification (In LIVE_MICROCASH mode)
+        deployment_mode = getattr(self._config, "v2_deployment_mode", "SHADOW").upper()
+        if deployment_mode == "LIVE_MICROCASH":
+            live_cap = available_capital
+            if live_cap is None and hasattr(self, "_trading_service") and self._trading_service:
+                sub_mgr = getattr(self._trading_service, "subaccount_manager", None)
+                if sub_mgr:
+                    bal_res = await sub_mgr.check_account_connectivity()
+                    if bal_res.get("success"):
+                        live_cap = float(bal_res.get("inr_balance", 0.0))
+            if live_cap is None:
+                return RiskDecision(
+                    allowed=False,
+                    code="BLOCKED_BALANCE_UNAVAILABLE",
+                    reason="CoinDCX live balance could not be obtained or verified (capital unknown). Failing closed.",
+                    bot=bot,
+                    amount=requested_amount,
+                    adjusted_amount=0.0,
+                    check_ms=0.0,
+                )
+            if requested_amount > live_cap:
+                return RiskDecision(
+                    allowed=False,
+                    code="BLOCKED_INSUFFICIENT_CAPITAL",
+                    reason=f"Requested amount ₹{requested_amount:.2f} exceeds CoinDCX live available balance ₹{live_cap:.2f}.",
+                    bot=bot,
+                    amount=requested_amount,
+                    adjusted_amount=0.0,
+                    check_ms=0.0,
+                )
+
+        # 3. Query live open positions for deployed capital
         open_positions = await self._position_repo.get_open_by_bot(bot)
         all_open = await self._position_repo.get_open()
 
@@ -98,7 +133,7 @@ class RiskService:
         total_deployed = sum(p.deployed_capital for p in all_open)
         bot_pos_count = len(open_positions)
 
-        # 3. CapitalGuard evaluation with single-coin lock and fleet capacity checks
+        # 4. CapitalGuard evaluation with single-coin lock and fleet capacity checks
         return self._capital_guard.check_trade(
             bot=bot,
             requested_amount=requested_amount,
@@ -121,11 +156,12 @@ class RiskService:
 
             # Select target bot strategy archetype
             bot = self._select_bot_for_signal(payload)
-            default_amount = self._get_default_amount_for_bot(bot)
+            # Dynamic amount flow: check explicit amount or use dynamically configured order_size_inr
+            requested_base = float(payload.get("amount") or payload.get("order_size_inr") or self._get_default_amount_for_bot(bot))
 
             # Apply AI position size scaling multiplier
             size_multiplier = float(ai_adjustments.get("size_multiplier", 1.0))
-            scaled_amount = max(0.0, default_amount * size_multiplier)
+            scaled_amount = max(0.0, requested_base * size_multiplier)
 
             decision = await self.check_trade_allowed(bot, scaled_amount, coin=coin, pair=pair)
 
@@ -204,15 +240,56 @@ class RiskService:
         return BotName.STE
 
     def _get_default_amount_for_bot(self, bot: BotName) -> float:
-        if bot == BotName.STE:
+        if bot == BotName.STE and self._config.v2_default_trade_amount_ste != 200.0:
             return self._config.v2_default_trade_amount_ste
-        if bot == BotName.HDA:
+        if bot == BotName.HDA and self._config.v2_default_trade_amount_hda != 200.0:
             return self._config.v2_default_trade_amount_hda
-        if bot == BotName.VCP:
+        if bot == BotName.VCP and self._config.v2_default_trade_amount_vcp != 200.0:
             return self._config.v2_default_trade_amount_vcp
-        if bot == BotName.BBS:
+        if bot == BotName.BBS and self._config.v2_default_trade_amount_bbs != 200.0:
             return self._config.v2_default_trade_amount_bbs
-        return 500.0
+        return self._config.order_size_inr
+
+    async def is_safe_to_resume(self) -> tuple[bool, str]:
+        """
+        Verify if it is safe to resume trading operations.
+        MUST NOT bypass:
+          - Circuit breaker trip state due to risk breaches (e.g. consecutive losses)
+          - Daily / weekly loss limits & max daily drawdown
+          - Capital protection (verifies balance in LIVE mode)
+          - Exchange safety checks
+        Resume may restore the production controller after a kill-switch,
+        but it must not force trading when Risk Engine says trading is unsafe.
+        """
+        # 1. Check consecutive loss limits
+        for bot_name, losses in self._circuit_breaker._consecutive_losses.items():
+            if losses >= self._config.v2_max_consecutive_losses:
+                return False, f"Strategy {bot_name} exceeded max consecutive losses ({losses}/{self._config.v2_max_consecutive_losses})"
+
+        # 2. Check if circuit breaker was tripped by a risk breach / loss event
+        cb_reason = (self._circuit_breaker.reason or "").lower()
+        if self._circuit_breaker.is_open:
+            if any(w in cb_reason for w in ("drawdown", "consecutive", "loss", "breach", "threshold")):
+                return False, f"Risk Engine threshold breach active: {self._circuit_breaker.reason}"
+            if not self._circuit_breaker.emergency_stop:
+                return False, f"Circuit breaker is open: {self._circuit_breaker.reason or 'Risk limit exceeded'}"
+
+        # 3. Dynamic capital & exchange safety in LIVE mode
+        deployment_mode = getattr(self._config, "v2_deployment_mode", "SHADOW").upper()
+        if deployment_mode == "LIVE_MICROCASH":
+            if not self._config.coindcx_api_key or not self._config.coindcx_api_secret:
+                return False, "CoinDCX API credentials missing or incomplete"
+            if hasattr(self, "_trading_service") and self._trading_service:
+                sub_mgr = getattr(self._trading_service, "subaccount_manager", None)
+                if sub_mgr:
+                    bal_res = await sub_mgr.check_account_connectivity()
+                    if not bal_res.get("success"):
+                        return False, f"CoinDCX connectivity check failed: {bal_res.get('error') or bal_res.get('message')}"
+                    inr_bal = float(bal_res.get("inr_balance", 0.0))
+                    if inr_bal <= 0.0:
+                        return False, f"CoinDCX available INR balance is insufficient (₹{inr_bal:.2f})"
+
+        return True, "Safe to resume operations"
 
     async def get_state(self) -> RiskState:
         open_ste = await self._position_repo.get_open_by_bot(BotName.STE)

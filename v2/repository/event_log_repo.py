@@ -101,6 +101,14 @@ class EventLogRepository(BaseRepository):
         )
         return [_row_to_entry(r, self._loads) for r in rows]
 
+    async def get_recent(self, limit: int = 50) -> list[EventLogEntry]:
+        """Fetch the most recent event log entries ordered chronologically descending."""
+        rows = await self._fetchall(
+            "SELECT * FROM event_log ORDER BY logged_at DESC LIMIT ?",
+            (limit,),
+        )
+        return [_row_to_entry(r, self._loads) for r in rows]
+
     async def prune_before(self, cutoff: datetime) -> int:
         cur = await self._execute(
             "DELETE FROM event_log WHERE logged_at < ?",

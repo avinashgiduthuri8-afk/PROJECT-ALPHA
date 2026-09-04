@@ -42,6 +42,10 @@ class NotificationService:
         risk_service: Optional[Any] = None,
         trading_service: Optional[Any] = None,
         dashboard_service: Optional[Any] = None,
+        scanner_service: Optional[Any] = None,
+        health_checker: Optional[Any] = None,
+        event_log_repo: Optional[Any] = None,
+        production_controller: Optional[Any] = None,
     ) -> None:
         self._bus = bus
         self._config = config
@@ -60,6 +64,10 @@ class NotificationService:
             risk_service=risk_service,
             trading_service=trading_service,
             dashboard_service=dashboard_service,
+            scanner_service=scanner_service,
+            health_checker=health_checker,
+            event_log_repo=event_log_repo,
+            production_controller=production_controller,
         )
         self._total_dispatched = 0
         self._started = False
@@ -81,6 +89,10 @@ class NotificationService:
         risk_service: Optional[Any] = None,
         trading_service: Optional[Any] = None,
         dashboard_service: Optional[Any] = None,
+        scanner_service: Optional[Any] = None,
+        health_checker: Optional[Any] = None,
+        event_log_repo: Optional[Any] = None,
+        production_controller: Optional[Any] = None,
     ) -> None:
         """Dynamically wire late-bound subsystem references into the interactive interface."""
         if signal_repo is not None:
@@ -97,6 +109,14 @@ class NotificationService:
             self._interactive_interface._trading_service = trading_service
         if dashboard_service is not None:
             self._interactive_interface._dashboard_service = dashboard_service
+        if scanner_service is not None:
+            self._interactive_interface._scanner_service = scanner_service
+        if health_checker is not None:
+            self._interactive_interface._health_checker = health_checker
+        if event_log_repo is not None:
+            self._interactive_interface._event_log_repo = event_log_repo
+        if production_controller is not None:
+            self._interactive_interface._production_controller = production_controller
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 

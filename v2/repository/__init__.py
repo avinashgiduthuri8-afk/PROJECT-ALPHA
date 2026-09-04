@@ -12,6 +12,7 @@ from .shadow_repo import ShadowRepository
 from .metrics_repo import MetricsRepository
 from .event_log_repo import EventLogRepository
 from .candle_repo import CandleRepository
+from .production_state_repo import ProductionStateRepository
 
 __all__ = [
     "Database",
@@ -23,4 +24,5 @@ __all__ = [
     "MetricsRepository",
     "EventLogRepository",
     "CandleRepository",
+    "ProductionStateRepository",
 ]

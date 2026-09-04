@@ -237,6 +237,16 @@ body {
   color: #fff;
 }
 
+.btn-success {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: var(--green);
+}
+.btn-success:hover {
+  background: rgba(16, 185, 129, 0.25);
+  color: #fff;
+}
+
 .btn-ghost {
   background: rgba(255, 255, 255, 0.05);
   border-color: var(--border-glass);
@@ -297,6 +307,38 @@ body {
   background: rgba(239, 68, 68, 0.2);
   color: var(--red);
   border-color: rgba(239, 68, 68, 0.4);
+}
+
+.safety-bar.paper-mode {
+  border-color: rgba(245, 158, 11, 0.6);
+  border-left: 4px solid #f59e0b;
+  background: rgba(35, 25, 10, 0.9);
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.2);
+}
+
+.safety-bar.paper-mode .safety-mode-badge {
+  background: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.safety-bar.tripped-mode {
+  border-color: rgba(239, 68, 68, 0.8);
+  border-left: 4px solid var(--red);
+  background: rgba(45, 10, 15, 0.95);
+  box-shadow: 0 0 24px rgba(239, 68, 68, 0.35);
+  animation: pulse-danger 2s infinite;
+}
+
+.safety-bar.tripped-mode .safety-mode-badge {
+  background: rgba(239, 68, 68, 0.3);
+  color: var(--red);
+  border-color: rgba(239, 68, 68, 0.6);
+}
+
+@keyframes pulse-danger {
+  0%, 100% { box-shadow: 0 0 16px rgba(239, 68, 68, 0.2); }
+  50% { box-shadow: 0 0 28px rgba(239, 68, 68, 0.5); }
 }
 
 .mode-dot {
