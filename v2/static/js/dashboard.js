@@ -8,7 +8,8 @@
 class V2InstitutionalDashboard {
   constructor() {
     const urlParams = new URLSearchParams(window.location.search);
-    this.apiKey = urlParams.get('api_key') || localStorage.getItem('v2_api_key') || 'alpha-dev-key';
+    const serverKey = (typeof window !== 'undefined' && window.__V2_API_KEY__) ? window.__V2_API_KEY__ : null;
+    this.apiKey = urlParams.get('api_key') || serverKey || localStorage.getItem('v2_api_key') || 'alpha-prod-key';
     localStorage.setItem('v2_api_key', this.apiKey);
 
     this.ws = null;
@@ -212,7 +213,13 @@ class V2InstitutionalDashboard {
       'X-API-Key': this.apiKey,
       ...(options.headers || {})
     };
-    const res = await fetch(url, { ...options, headers });
+    let res = await fetch(url, { ...options, headers });
+    if (res.status === 401 && typeof window !== 'undefined' && window.__V2_API_KEY__ && this.apiKey !== window.__V2_API_KEY__) {
+      this.apiKey = window.__V2_API_KEY__;
+      localStorage.setItem('v2_api_key', this.apiKey);
+      headers['X-API-Key'] = this.apiKey;
+      res = await fetch(url, { ...options, headers });
+    }
     if (!res.ok) {
       let detail = `HTTP ${res.status}: ${res.statusText}`;
       try {

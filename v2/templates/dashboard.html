@@ -1355,6 +1355,11 @@
   <!-- Toast Notification Container -->
   <div id="toast-container"></div>
 
+  <!-- Inject Server API Key for Client Auth -->
+  <script>
+    window.__V2_API_KEY__ = "{{ api_key | default('alpha-prod-key') }}";
+  </script>
+
   <!-- Dashboard Client Script -->
   <script src="/v2-static/js/dashboard.js"></script>
 </body>

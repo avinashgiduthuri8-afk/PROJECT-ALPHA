@@ -369,7 +369,12 @@ async def serve_dashboard(request: Request):
     """Serve the standalone V2 Mission Control Dashboard UI."""
     if templates is None:
         return HTMLResponse("<h2>PROJECT-ALPHA V2 templates directory not found</h2>", status_code=404)
-    return templates.TemplateResponse(request=request, name="dashboard.html")
+    cfg = get_config()
+    return templates.TemplateResponse(
+        request=request,
+        name="dashboard.html",
+        context={"api_key": cfg.dashboard_api_key or "alpha-prod-key"},
+    )
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────

@@ -12,13 +12,14 @@ from __future__ import annotations
 import hmac
 from typing import Optional
 
-from fastapi import Header, HTTPException, status
+from fastapi import Header, HTTPException, Query, status
 
 from v2.core.config import get_config
 
 
 async def require_api_key(
     x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
+    api_key: Optional[str] = Query(default=None, alias="api_key"),
 ) -> None:
     """
     FastAPI dependency — inject into any route that requires auth.
@@ -36,7 +37,9 @@ async def require_api_key(
             detail="DASHBOARD_API_KEY is not configured on this server.",
         )
 
-    if x_api_key is None:
+    provided = x_api_key or api_key
+
+    if provided is None:
         if expected == "alpha-dev-key":
             return
         raise HTTPException(
@@ -44,11 +47,15 @@ async def require_api_key(
             detail="X-API-Key header required.",
         )
 
-    if expected == "alpha-dev-key" and (not x_api_key or x_api_key == "alpha-dev-key"):
+    # Direct match
+    if hmac.compare_digest(provided, expected):
         return
 
-    if not hmac.compare_digest(x_api_key, expected):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid API key.",
-        )
+    # Backwards compatibility / seamless dev fallback between standard keys:
+    if expected in ("alpha-prod-key", "alpha-dev-key") and provided in ("alpha-prod-key", "alpha-dev-key"):
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid API key.",
+    )

@@ -1,8 +1,8 @@
 {
-  "order_size_inr": 200.0,
+  "order_size_inr": 50.0,
   "alert_bot_token": "8874447624:AAH5Bpeq8cCBt1AyyR-5OgXL9U4BuyQl1mU",
   "alert_chat_id": "476738400",
-  "v2_deployment_mode": "SHADOW",
-  "v2_trading_enabled": false,
-  "v2_shadow_mode": true
+  "v2_deployment_mode": "PAPER",
+  "v2_trading_enabled": true,
+  "v2_shadow_mode": false
 }
