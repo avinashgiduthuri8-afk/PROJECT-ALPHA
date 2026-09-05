@@ -70,5 +70,10 @@ def test_websocket_connection_and_auth():
             assert "TELEMETRY_SNAPSHOT" in init_frame or "data" in init_frame
 
             ws.send_text("ping")
-            data = ws.receive_text()
-            assert "pong" in data
+            received = []
+            for _ in range(5):
+                msg = ws.receive_text()
+                received.append(msg)
+                if "pong" in msg:
+                    break
+            assert any("pong" in m for m in received), f"Expected pong in received messages, got: {received}"

@@ -11,12 +11,14 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import hmac
+import inspect
 import json
 import os
 import threading
 import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
+import httpx
 
 import httpx
 
@@ -41,14 +43,20 @@ class SubAccountConfig:
 
 class CoinDCXSubAccountClient:
     """
+<<<<<<< Updated upstream
     Authenticated execution client managing orders under the Unified Capital Pool.
     Signs all authenticated endpoints using CoinDCX HMAC-SHA256 standard.
+=======
+    Dedicated authenticated REST client for an isolated CoinDCX Sub-Account.
+    Signs all authenticated endpoints using HMAC-SHA256 and dispatches async HTTP POST calls.
+>>>>>>> Stashed changes
     """
 
     def __init__(
         self,
         config: SubAccountConfig,
         base_url: str = "https://api.coindcx.com",
+<<<<<<< Updated upstream
         shared_pool_lock: Optional[threading.RLock] = None,
         shared_state: Optional[Dict[str, float]] = None,
         timeout: float = 10.0,
@@ -63,6 +71,17 @@ class CoinDCXSubAccountClient:
                 "wallet_balance_inr": config.allocated_wallet_inr if config.allocated_wallet_inr is not None else float("inf"),
                 "deployed_capital_inr": 0.0,
             }
+=======
+        mode: Optional[str] = None,
+        timeout: float = 5.0,
+    ) -> None:
+        self.config = config
+        self.base_url = base_url
+        self.mode = (mode or os.environ.get("DEPLOYMENT_MODE", "SHADOW")).upper()
+        self.timeout = timeout
+        self._wallet_balance_inr = config.allocated_wallet_inr
+        self._deployed_capital_inr = 0.0
+>>>>>>> Stashed changes
         self._open_orders: Dict[str, Dict[str, Any]] = {}
 
     @property
@@ -82,6 +101,11 @@ class CoinDCXSubAccountClient:
     def available_balance_inr(self) -> float:
         with self._lock:
             return max(0.0, self._shared_state["wallet_balance_inr"] - self._shared_state["deployed_capital_inr"])
+
+    @property
+    def is_live_mode(self) -> bool:
+        current_env = os.environ.get("DEPLOYMENT_MODE", self.mode).upper()
+        return current_env == "LIVE_MICROCASH"
 
     def generate_auth_headers(self, payload: Dict[str, Any]) -> Dict[str, str]:
         """
@@ -103,9 +127,55 @@ class CoinDCXSubAccountClient:
             "X-AUTH-SIGNATURE": signature,
         }
 
+<<<<<<< Updated upstream
     # ── Synchronous / Simulated Order Placement ───────────────────────────────
 
     def place_order(
+=======
+    async def _post_exchange(self, endpoint: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute authenticated async HTTP POST request to CoinDCX endpoint."""
+        url = f"{self.base_url.rstrip('/')}/{endpoint.lstrip('/')}"
+        headers = self.generate_auth_headers(payload)
+
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.post(url, headers=headers, json=payload)
+                if response.status_code == 429:
+                    logger.warning("CoinDCX rate-limit (429) on %s", endpoint)
+                    return {
+                        "success": False,
+                        "error": "RATE_LIMITED",
+                        "status_code": 429,
+                        "message": "CoinDCX API rate limit reached.",
+                    }
+                response.raise_for_status()
+                data = response.json()
+                return {"success": True, "data": data}
+        except httpx.TimeoutException:
+            logger.error("CoinDCX API timeout (%.1fs) on %s", self.timeout, endpoint)
+            return {
+                "success": False,
+                "error": "TIMEOUT",
+                "message": f"CoinDCX API timed out after {self.timeout}s.",
+            }
+        except httpx.HTTPStatusError as e:
+            logger.error("CoinDCX API HTTP error %s on %s: %s", e.response.status_code, endpoint, e.response.text)
+            return {
+                "success": False,
+                "error": f"HTTP_{e.response.status_code}",
+                "status_code": e.response.status_code,
+                "message": str(e),
+            }
+        except Exception as e:
+            logger.error("CoinDCX API connection error on %s: %s", endpoint, e)
+            return {
+                "success": False,
+                "error": "CONNECTION_ERROR",
+                "message": str(e),
+            }
+
+    async def place_order_async(
+>>>>>>> Stashed changes
         self,
         pair: str,
         side: str,
@@ -115,7 +185,12 @@ class CoinDCXSubAccountClient:
         client_order_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
+<<<<<<< Updated upstream
         Place an order through the unified execution client with discrete rounding.
+=======
+        Asynchronously place an order. Dispatches real HTTP request if in LIVE_MICROCASH mode,
+        otherwise records a compliant simulated fill.
+>>>>>>> Stashed changes
         """
         with self._lock:
             # 1. Discrete tick & lot precision rounding
@@ -148,7 +223,7 @@ class CoinDCXSubAccountClient:
                     "message": f"Required INR {notional:.2f} exceeds available capital pool balance INR {self.available_balance_inr:.2f}",
                 }
 
-            # 4. Generate payload and mock/real order ID
+            # 4. Generate payload and client order ID
             order_id = client_order_id or f"ORD_{self.subaccount_id}_{int(time.time()*1000)}"
             payload = {
                 "side": side.lower(),
@@ -179,13 +254,134 @@ class CoinDCXSubAccountClient:
                 "auth_headers_verified": bool(headers.get("X-AUTH-SIGNATURE")),
                 "timestamp": payload["timestamp"],
             }
+
+        # If live mode, execute outbound HTTP request
+        if self.is_live_mode:
+            http_res = await self._post_exchange("exchange/v1/orders/create", payload)
+            if not http_res.get("success"):
+                with self._lock:
+                    if side.upper() == "BUY":
+                        self._deployed_capital_inr = max(0.0, self._deployed_capital_inr - notional)
+                return http_res
+            order_record["exchange_response"] = http_res.get("data")
+            order_record["live_dispatched"] = True
+
+        with self._lock:
             self._open_orders[order_id] = order_record
 
-            logger.info(
-                "[%s] Order dispatched successfully: %s %s @ INR %.2f (Qty: %s, Notional: INR %.2f)",
-                self.subaccount_id, side.upper(), pair, rounded_price, rounded_qty, notional,
+        logger.info(
+            "[%s] Order dispatched successfully (live=%s): %s %s @ INR %.2f (Qty: %s, Notional: INR %.2f)",
+            self.subaccount_id, self.is_live_mode, side.upper(), pair, rounded_price, rounded_qty, notional,
+        )
+        return {"success": True, "order": order_record}
+
+    def place_order(
+        self,
+        pair: str,
+        side: str,
+        price: float,
+        qty: float,
+        order_type: str = "limit_order",
+        client_order_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Place order synchronously (or return simulated fill in paper/shadow mode).
+        If live mode is active, schedules async dispatch.
+        """
+        if self.is_live_mode:
+            return self.place_order_async(
+                pair=pair,
+                side=side,
+                price=price,
+                qty=qty,
+                order_type=order_type,
+                client_order_id=client_order_id,
             )
+
+        with self._lock:
+            rounded_price = round_price(pair, price)
+            rounded_qty = round_qty(pair, qty)
+            notional = rounded_price * rounded_qty
+
+            if not validate_order_notional(pair, rounded_price, rounded_qty):
+                return {
+                    "success": False,
+                    "error": "ORDER_NOTIONAL_BELOW_MINIMUM",
+                    "message": f"Order notional INR {notional:.2f} is below minimum INR 100.00 or invalid lot size",
+                }
+
+            if side.upper() == "BUY" and notional > self.available_balance_inr:
+                return {
+                    "success": False,
+                    "error": "INSUFFICIENT_SUBACCOUNT_BALANCE",
+                    "message": f"Required INR {notional:.2f} exceeds available sub-account balance INR {self.available_balance_inr:.2f}",
+                }
+
+            order_id = client_order_id or f"ORD_{self.subaccount_id}_{int(time.time()*1000)}"
+            payload = {
+                "side": side.lower(),
+                "order_type": order_type,
+                "market": pair.replace("/", "").upper(),
+                "price_per_unit": rounded_price,
+                "total_quantity": rounded_qty,
+                "timestamp": int(time.time() * 1000),
+                "client_order_id": order_id,
+            }
+            headers = self.generate_auth_headers(payload)
+
+            if side.upper() == "BUY":
+                self._deployed_capital_inr += notional
+
+            order_record = {
+                "order_id": order_id,
+                "subaccount_id": self.subaccount_id,
+                "bot_name": self.bot_name.value,
+                "pair": pair,
+                "side": side.upper(),
+                "price": rounded_price,
+                "qty": rounded_qty,
+                "notional_inr": notional,
+                "status": "FILLED",
+                "auth_headers_verified": bool(headers.get("X-AUTH-SIGNATURE")),
+                "timestamp": payload["timestamp"],
+            }
+            self._open_orders[order_id] = order_record
+
             return {"success": True, "order": order_record}
+
+    async def cancel_order(self, order_id: str) -> Dict[str, Any]:
+        """Cancel an open order on CoinDCX."""
+        payload = {"id": order_id, "timestamp": int(time.time() * 1000)}
+        if self.is_live_mode:
+            return await self._post_exchange("exchange/v1/orders/cancel", payload)
+        with self._lock:
+            if order_id in self._open_orders:
+                self._open_orders[order_id]["status"] = "CANCELLED"
+        return {"success": True, "order_id": order_id, "status": "CANCELLED"}
+
+    async def get_order_status(self, order_id: str) -> Dict[str, Any]:
+        """Fetch order status from CoinDCX."""
+        payload = {"id": order_id, "timestamp": int(time.time() * 1000)}
+        if self.is_live_mode:
+            return await self._post_exchange("exchange/v1/orders/status", payload)
+        with self._lock:
+            ord_rec = self._open_orders.get(order_id)
+            if ord_rec:
+                return {"success": True, "order": ord_rec}
+        return {"success": False, "error": "ORDER_NOT_FOUND"}
+
+    async def get_account_balances(self) -> Dict[str, Any]:
+        """Fetch account balances from CoinDCX."""
+        payload = {"timestamp": int(time.time() * 1000)}
+        if self.is_live_mode:
+            return await self._post_exchange("exchange/v1/users/balances", payload)
+        with self._lock:
+            return {
+                "success": True,
+                "wallet_balance_inr": self.wallet_balance_inr,
+                "available_balance_inr": self.available_balance_inr,
+                "deployed_capital_inr": self._deployed_capital_inr,
+            }
 
     def close_position_fill(self, notional_returned: float, realized_pnl: float) -> None:
         """Update capital pool balance when a position closes."""

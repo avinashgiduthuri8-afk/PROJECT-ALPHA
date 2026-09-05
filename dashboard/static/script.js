@@ -331,6 +331,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
         }
+<<<<<<< Updated upstream
                         backgroundColor: ["rgba(0,212,160,0.7)", "rgba(244,63,94,0.7)"],
                         borderColor:     ["#00d4a0", "#f43f5e"],
                         borderWidth: 1.5,
@@ -348,6 +349,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
         }
+=======
+
+>>>>>>> Stashed changes
     }
 
     function refreshDashboardCharts(themeContext) {
@@ -639,12 +643,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // KPI — Combined PnL
         const kpiPnl = document.getElementById("kpi-pnl");
-        if (kpiPnl && data.vgx_overview && data.pmb_overview && data.mtb_overview) {
-            const combo = (data.vgx_overview.daily_pnl || 0) +
-                          (data.pmb_overview.daily_pnl  || 0) +
-                          (data.mtb_overview.daily_pnl  || 0);
-            kpiPnl.textContent = formatCurrency(combo);
-            kpiPnl.className = "kpi-value font-mono " + (combo >= 0 ? "text-green" : "text-red");
+        if (kpiPnl && data.mtb_overview) {
+            const pnl = data.mtb_overview.daily_pnl || 0;
+            kpiPnl.textContent = formatCurrency(pnl);
+            kpiPnl.className = "kpi-value font-mono " + (pnl >= 0 ? "text-green" : "text-red");
         }
 
         // KPI — Win Rate
@@ -655,10 +657,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // KPI — Open Positions
         const kpiPos = document.getElementById("kpi-openpos");
-        if (kpiPos && data.vgx_overview && data.pmb_overview && data.mtb_overview) {
-            const total = (data.vgx_overview.open_positions || []).length +
-                          (data.pmb_overview.open_positions  || []).length +
-                          (data.mtb_overview.open_positions  || []).length;
+        if (kpiPos && data.mtb_overview) {
+            const total = (data.mtb_overview.open_positions || []).length;
             kpiPos.textContent = total;
             // Risk panel open pos mirror
             const riskOp = document.getElementById("risk-openpos");
@@ -677,55 +677,6 @@ document.addEventListener("DOMContentLoaded", () => {
             kpiHealth.textContent = (data.system_meta.overall_health_pct || 0) + "%";
         }
 
-        // ── VGX Bot Card ─────────────────────────────────────────────────
-        if (data.vgx_overview && data.service_statuses) {
-            patchBotPill("vbc-vgx-status", data.service_statuses.vgx, data.vgx_overview.status || "—");
-
-            const vBal = document.getElementById("vbc-vgx-balance");
-            if (vBal) vBal.textContent = formatCurrency(data.vgx_overview.virtual_balance);
-
-            const vPnl = document.getElementById("vbc-vgx-pnl");
-            if (vPnl) {
-                vPnl.textContent = formatCurrency(data.vgx_overview.daily_pnl);
-                vPnl.className = "bot-metric-value " + ((data.vgx_overview.daily_pnl || 0) >= 0 ? "text-green" : "text-red");
-            }
-
-            const vWr = document.getElementById("vbc-vgx-winrate");
-            if (vWr) vWr.textContent = (data.vgx_overview.win_rate || 0) + "%";
-
-            const vgxPosCnt = (data.vgx_overview.open_positions || []).length;
-            const vPos = document.getElementById("vbc-vgx-positions");
-            if (vPos) vPos.textContent = vgxPosCnt + " / 5";
-
-            const vProg = document.getElementById("vbc-vgx-progress");
-            const vProgLbl = document.getElementById("vbc-vgx-prog-label");
-            if (vProg) {
-                const pct = Math.min(100, vgxPosCnt * 20);
-                vProg.style.width = pct + "%";
-                if (vProgLbl) vProgLbl.textContent = pct + "%";
-            }
-        }
-
-        // ── PMB Bot Card ─────────────────────────────────────────────────
-        if (data.pmb_overview && data.service_statuses) {
-            patchBotPill("vbc-pmb-status", data.service_statuses.pmb, data.pmb_overview.mode || "—");
-
-            const pCash = document.getElementById("vbc-pmb-cash");
-            if (pCash) pCash.textContent = formatCurrency(data.pmb_overview.cash_balance);
-
-            const pPnl = document.getElementById("vbc-pmb-pnl");
-            if (pPnl) {
-                pPnl.textContent = formatCurrency(data.pmb_overview.daily_pnl);
-                pPnl.className = "bot-metric-value " + ((data.pmb_overview.daily_pnl || 0) >= 0 ? "text-green" : "text-red");
-            }
-
-            const pPos = document.getElementById("vbc-pmb-positions");
-            if (pPos) pPos.textContent = (data.pmb_overview.open_positions || []).length;
-
-            const pmbPosCnt = (data.pmb_overview.open_positions || []).length;
-            const pProg = document.getElementById("vbc-pmb-progress");
-            if (pProg) pProg.style.width = Math.min(100, pmbPosCnt * 25) + "%";
-        }
 
         // ── MTB Bot Card ─────────────────────────────────────────────────
         if (data.mtb_overview && data.service_statuses) {
@@ -783,15 +734,11 @@ document.addEventListener("DOMContentLoaded", () => {
         // ── Topbar status badges live update ──────────────────────────────
         if (data.service_statuses) {
             patchStatusBadge("dot-scanner", "sb-scanner", data.service_statuses.scanner || "OFFLINE");
-            patchStatusBadge("dot-vgx", "sb-vgx", data.service_statuses.vgx || "OFFLINE");
-            patchStatusBadge("dot-pmb", "sb-pmb", data.service_statuses.pmb || "OFFLINE");
             patchStatusBadge("dot-mtb", "sb-mtb", data.service_statuses.mtb || "OFFLINE");
 
             // Telegram: ONLINE if any relay is up
             const tgUp = [
                 data.service_statuses.scanner_telegram,
-                data.service_statuses.vgx_telegram,
-                data.service_statuses.pmb_telegram,
                 data.service_statuses.mtb_telegram,
             ].some(s => s === "ONLINE");
             patchStatusBadge("dot-telegram", "sb-telegram", tgUp ? "ONLINE" : "OFFLINE");
@@ -875,23 +822,18 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ── Capital Allocation % widget ─────────────────────────────────────
-    // Frontend-only calculation — no backend/API changes. Reads three
-    // existing balance fields already present in the /api/v1/state payload:
-    //   vgx_overview.virtual_balance, pmb_overview.cash_balance, mtb_overview.cash_balance
-    // percentage(bot) = (bot_value / total_capital) * 100
+    // Frontend-only calculation — no backend/API changes. Reads MTB balance:
+    //   mtb_overview.cash_balance
     function renderCapitalAllocation(data) {
         const widget = document.getElementById("capital-allocation-widget");
         if (!widget) return;
 
-        const vgx = Number((data.vgx_overview && data.vgx_overview.virtual_balance) || 0);
-        const pmb = Number((data.pmb_overview && data.pmb_overview.cash_balance) || 0);
         const mtb = Number((data.mtb_overview && data.mtb_overview.cash_balance) || 0);
-        const total = vgx + pmb + mtb;
 
         const content = document.getElementById("capital-allocation-content");
         const empty   = document.getElementById("capital-allocation-empty");
 
-        if (!total || total <= 0) {
+        if (!mtb || mtb <= 0) {
             if (content) content.style.display = "none";
             if (empty) empty.style.display = "block";
             return;
@@ -900,7 +842,6 @@ document.addEventListener("DOMContentLoaded", () => {
         if (content) content.style.display = "flex";
         if (empty) empty.style.display = "none";
 
-        const pct = (v) => (v / total) * 100;
         const setAlloc = (key, value) => {
             const bar = document.getElementById("alloc-bar-" + key);
             const label = document.getElementById("alloc-pct-" + key);
@@ -909,9 +850,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (label) label.textContent = pctStr;
         };
 
-        setAlloc("vgx", pct(vgx));
-        setAlloc("pmb", pct(pmb));
-        setAlloc("mtb", pct(mtb));
+        setAlloc("mtb", 100.0);
     }
 
     async function refreshDashboardData() {
@@ -1003,22 +942,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             if (data.charts && data.charts.portfolio_growth) {
                 patchChart(runtimeChartHandles.portfolioLine, data.charts.portfolio_growth.labels, data.charts.portfolio_growth.data);
-            }
-            if (data.vgx_overview && data.vgx_overview.equity_curve) {
-                patchChart(runtimeChartHandles.vgxEquity, data.vgx_overview.equity_curve.labels, data.vgx_overview.equity_curve.data);
-            }
-            if (data.vgx_overview && data.vgx_overview.win_loss_chart) {
-                patchChart(runtimeChartHandles.vgxWinLoss, data.vgx_overview.win_loss_chart.labels, data.vgx_overview.win_loss_chart.data);
-            }
-
-            // ── VGX stat cards (vgx-view) ───────────────────────────────
-            const vgxBalNode = findCardValueNode("Virtual Balance");
-            if (vgxBalNode && data.vgx_overview) {
-                vgxBalNode.textContent = formatCurrency(data.vgx_overview.virtual_balance);
-            }
-            const vgxWrNode = findCardValueNode("Win Rate");
-            if (vgxWrNode && data.vgx_overview) {
-                vgxWrNode.textContent = data.vgx_overview.win_rate + "%";
             }
 
             // ── Scanner-view signals table ──────────────────────────────

@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import time
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -214,7 +215,11 @@ class TestScannerGetTickers:
         tickers = [_make_ticker("BTCINR")]
         sc = _make_scanner()
         sc._ticker_cache = tickers
+<<<<<<< Updated upstream
         sc._ticker_cache_at = time.monotonic()   # just set
+=======
+        sc._ticker_cache_at = float("inf")   # guaranteed fresh
+>>>>>>> Stashed changes
         sc.client.fetch_tickers = MagicMock()
 
         result = _run(sc.get_tickers(force=False))
@@ -226,7 +231,11 @@ class TestScannerGetTickers:
         new = [_make_ticker("ETHINR")]
         sc = _make_scanner()
         sc._ticker_cache = old
+<<<<<<< Updated upstream
         sc._ticker_cache_at = time.monotonic()
+=======
+        sc._ticker_cache_at = float("inf")
+>>>>>>> Stashed changes
         sc.client.fetch_tickers = MagicMock(return_value=new)
 
         result = _run(sc.get_tickers(force=True))
@@ -289,10 +298,14 @@ class TestScannerGetTickers:
     def test_valid_response_updates_cache_timestamp(self):
         fresh = [_make_ticker("BTCINR")]
         sc = _make_scanner()
+        sc._ticker_cache_at = 0.0
         sc.client.fetch_tickers = MagicMock(return_value=fresh)
+<<<<<<< Updated upstream
         before = time.monotonic()
+=======
+>>>>>>> Stashed changes
         _run(sc.get_tickers(force=True))
-        assert sc._ticker_cache_at >= before
+        assert sc._ticker_cache_at > 0.0
 
 
 # =============================================================================

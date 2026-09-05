@@ -37,7 +37,12 @@ class RiskDecision:
 def _load_bot_positions(bot: str) -> list[dict]:
     """Return current open positions for `bot`.
 
+<<<<<<< Updated upstream
     For MTB: swallows import/IO errors and returns [].
+=======
+    For MTB: swallows import/IO errors and returns [] (same behaviour
+    as before — those modules have their own safe fallbacks).
+>>>>>>> Stashed changes
     """
     if bot == "MTB":
         try:

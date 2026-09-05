@@ -1,12 +1,20 @@
 """
+<<<<<<< Updated upstream
 V2 Production Fleet Command & Control Routes — /api/v2/production/*
 
 Provides atomic mode management, emergency kill-switch halt & resume procedures,
 and 24/7 watchdog supervisor telemetry. Guarded by require_api_key.
+=======
+V2 Production Command & Control API Routes.
+
+Exposes REST endpoints for production deployment status, operating mode transitions,
+and global emergency kill switch operations.
+>>>>>>> Stashed changes
 """
 
 from __future__ import annotations
 
+<<<<<<< Updated upstream
 from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -278,3 +286,91 @@ async def get_watchdog_telemetry() -> Dict[str, Any]:
             detail="Production watchdog supervisor not initialized",
         )
     return _watchdog.get_telemetry()
+=======
+from typing import Any, Optional
+from pydantic import BaseModel
+from fastapi import APIRouter, Body, Depends, HTTPException, status
+
+from v2.api.auth import require_api_key
+
+router = APIRouter(prefix="/production", tags=["production"])
+
+_production_service: Optional[Any] = None
+
+
+def init_production_routes(service: Any) -> None:
+    """Initialize router state with ProductionService instance."""
+    global _production_service
+    _production_service = service
+
+
+def get_production_service() -> Any:
+    if _production_service is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Production service not initialized.",
+        )
+    return _production_service
+
+
+class SetModePayload(BaseModel):
+    mode: str = "SHADOW"
+
+
+@router.get(
+    "/status",
+    dependencies=[Depends(require_api_key)],
+)
+async def get_production_status():
+    """Return current operating mode, watchdog telemetry, and sub-account wallet bounds."""
+    svc = get_production_service()
+    return await svc.get_status()
+
+
+@router.post(
+    "/set-mode",
+    dependencies=[Depends(require_api_key)],
+)
+async def set_deployment_mode(
+    payload: SetModePayload = Body(...),
+):
+    """Update production deployment mode (SHADOW, PAPER, LIVE_MICROCASH)."""
+    svc = get_production_service()
+    try:
+        new_mode = await svc.controller.set_deployment_mode(payload.mode)
+        return {
+            "status": "SUCCESS",
+            "deployment_mode": new_mode.value,
+            "message": f"Production deployment mode updated to {new_mode.value}.",
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post(
+    "/kill-switch",
+    dependencies=[Depends(require_api_key)],
+)
+async def trip_kill_switch():
+    """Trip global emergency kill switch and halt all trade routing immediately."""
+    svc = get_production_service()
+    await svc.controller.trip_kill_switch()
+    return {
+        "status": "KILL_SWITCH_TRIPPED",
+        "message": "Global kill switch activated. All automated order dispatching halted.",
+    }
+
+
+@router.post(
+    "/resume",
+    dependencies=[Depends(require_api_key)],
+)
+async def resume_operations():
+    """Reset global kill switch and resume automated operations."""
+    svc = get_production_service()
+    await svc.controller.reset_kill_switch()
+    return {
+        "status": "ACTIVE",
+        "message": "Global kill switch reset. Automated operations resumed.",
+    }
+>>>>>>> Stashed changes

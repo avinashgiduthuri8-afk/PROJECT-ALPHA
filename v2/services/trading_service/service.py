@@ -7,6 +7,7 @@ or active execution via isolated CoinDCX Sub-Account clients, and manages positi
 
 from __future__ import annotations
 
+import inspect
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -28,6 +29,10 @@ from v2.repository.position_repo import PositionRepository
 from v2.repository.trade_repo import TradeRepository
 from v2.trading.subaccount_manager import CoinDCXSubAccountManager
 from .adapters import BaseBotAdapter, StrategyAdapterFactory
+from .auto_trader import AutoTradeRouter
+from .position_manager import PositionManager
+from .reconciliation import ReconciliationService
+from .recovery import RestartRecoveryService
 
 logger = get_logger("v2.services.trading_service")
 
@@ -52,6 +57,26 @@ class TradingService:
         self._config = config
         self._shadow_engine = shadow_engine
         self._subaccount_manager = subaccount_manager or CoinDCXSubAccountManager()
+
+        # Phase 2 Execution Components
+        self.auto_trader = AutoTradeRouter(
+            bus=self._bus,
+            subaccount_manager=self._subaccount_manager,
+            dry_run=not self._config.v2_trading_enabled,
+        )
+        self.position_manager = PositionManager(
+            position_repo=self._position_repo,
+            trade_repo=self._trade_repo,
+            bus=self._bus,
+        )
+        self.recovery_service = RestartRecoveryService(
+            position_repo=self._position_repo,
+            subaccount_manager=self._subaccount_manager,
+        )
+        self.reconciliation_service = ReconciliationService(
+            position_repo=self._position_repo,
+            subaccount_manager=self._subaccount_manager,
+        )
 
         self._total_executed = 0
         self._started = False
@@ -79,16 +104,28 @@ class TradingService:
         if self._started:
             return
         self._started = True
+
+        # Rehydrate positions from SQLite on startup
+        await self.recovery_service.rehydrate_state()
+
+        # Subscribe handlers
         self._bus.subscribe(EventType.TRADE_APPROVED, self.on_trade_approved)
+        self._bus.subscribe(EventType.SIGNAL_GENERATED, self.auto_trader.handle_signal_event)
+
+        # Start reconciliation worker
+        await self.reconciliation_service.start()
+
         await self._bus.publish(EventType.SYSTEM_STARTUP, {"service": "trading_service"})
         logger.info(
-            "TradingService started with CoinDCX Sub-Account Multi-Client router",
+            "TradingService started with AutoTradeRouter, PositionManager, Recovery & Reconciliation",
             extra={"shadow_mode": self._config.v2_shadow_mode, "trading_enabled": self._config.v2_trading_enabled},
         )
 
     async def stop(self) -> None:
         self._started = False
         self._bus.unsubscribe(EventType.TRADE_APPROVED, self.on_trade_approved)
+        self._bus.unsubscribe(EventType.SIGNAL_GENERATED, self.auto_trader.handle_signal_event)
+        await self.reconciliation_service.stop()
         logger.info("TradingService stopped")
 
     # ── Order Execution ───────────────────────────────────────────────────────
@@ -131,8 +168,23 @@ class TradingService:
                         )
                         return
 
+<<<<<<< Updated upstream
             deployment_mode = getattr(self._config, "v2_deployment_mode", "SHADOW").upper()
             is_live = (deployment_mode == "LIVE_MICROCASH" and self._config.v2_trading_enabled)
+=======
+            # 2. Active Execution through Isolated Sub-Account Client
+            if self._config.v2_trading_enabled:
+                # Dispatch order via dedicated Sub-Account Client with HMAC signing
+                sub_client = self._subaccount_manager.get_client(bot)
+                order_result = sub_client.place_order(
+                    pair=pair,
+                    side="BUY",
+                    price=order_data["entry_price"],
+                    qty=order_data["qty"],
+                )
+                if inspect.isawaitable(order_result):
+                    order_result = await order_result
+>>>>>>> Stashed changes
 
             # 1. Shadow / Paper Simulation Routing
             if not is_live:

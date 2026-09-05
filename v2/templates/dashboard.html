@@ -1099,9 +1099,128 @@
   <!-- MODALS & DRAWERS                                                            -->
   <!-- ═══════════════════════════════════════════════════════════════════════════ -->
 
+<<<<<<< Updated upstream
   <!-- 5. Coin Inspector Modal -->
   <div id="coin-modal" class="modal-overlay" style="display: none;">
     <div class="modal-card" style="max-width: 860px;">
+=======
+      <!-- Active Positions -->
+      <section class="section-card">
+        <div class="card-header">
+          <h2>⚡ Active Trading Positions</h2>
+          <span class="card-badge">MTB</span>
+        </div>
+        <div style="overflow-x: auto;">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>Coin</th>
+                <th>Bot</th>
+                <th>Entry</th>
+                <th>Qty</th>
+                <th>PnL</th>
+                <th>Take Profit</th>
+                <th>Stop Loss</th>
+              </tr>
+            </thead>
+            <tbody id="positions-tbody">
+              <tr>
+                <td colspan="7" style="text-align: center; color: var(--text-dim); padding: 1.5rem;">
+                  No active open positions
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Column 2: Shadow Mode & Risk Engine -->
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+
+      <!-- Shadow Mode Scorecard -->
+      <section class="section-card">
+        <div class="card-header">
+          <h2>📊 Shadow Mode & Alpha Divergence</h2>
+          <span class="card-badge">ZERO RISK SIMULATION</span>
+        </div>
+        <div class="divergence-stat-row">
+          <div class="divergence-mini-stat">
+            <div id="shadow-win-rate" class="val" style="color: var(--cyan);">0%</div>
+            <div class="lbl">Simulated Win Rate</div>
+          </div>
+          <div class="divergence-mini-stat">
+            <div id="shadow-pnl" class="val" style="color: var(--green);">₹0.00</div>
+            <div class="lbl">Hypothetical PnL</div>
+          </div>
+          <div class="divergence-mini-stat">
+            <div id="shadow-divergences-count" class="val" style="color: var(--amber);">0</div>
+            <div class="lbl">Divergences Avoided</div>
+          </div>
+        </div>
+
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">
+          Recent Decision Divergences (V2 Filter vs V1 Action)
+        </div>
+        <div id="divergence-logs" class="divergence-log-list">
+          <div style="color: var(--text-dim); text-align: center; padding: 1.5rem; font-size: 0.8rem;">
+            No divergences recorded yet
+          </div>
+        </div>
+      </section>
+
+      <!-- Risk Engine & Circuit Breaker -->
+      <section class="section-card">
+        <div class="card-header">
+          <h2>🛡️ Capital Guard & Circuit Breaker</h2>
+          <span class="card-badge">RISK ENGINE V2</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+          <div class="divergence-mini-stat">
+            <div id="risk-breaker-status" class="val" style="color: var(--green);">NORMAL</div>
+            <div class="lbl">Circuit Breaker</div>
+          </div>
+          <div class="divergence-mini-stat">
+            <div class="val" style="color: var(--cyan);">STRICT</div>
+            <div class="lbl">AI Sizing Gate</div>
+          </div>
+        </div>
+        <p style="font-size: 0.8rem; color: var(--text-muted);">
+          Risk Engine evaluates maximum per-bot limits, global capital limits, and consecutive loss streaks before approving any trade for execution.
+        </p>
+      </section>
+
+    </div>
+
+  </main>
+
+  <!-- ── Subsystems Diagnostic Matrix ──────────────────────────────────────── -->
+  <section class="section-card" style="margin-bottom: 1.5rem;">
+    <div class="card-header">
+      <h2>🩺 Subsystem Diagnostic Health Matrix</h2>
+      <span class="card-badge">8 SERVICES PROBED</span>
+    </div>
+    <div id="health-matrix" class="health-grid">
+      <!-- Injected by dashboard.js -->
+    </div>
+  </section>
+
+  <!-- ── Live Event Stream Terminal ────────────────────────────────────────── -->
+  <section class="section-card">
+    <div class="card-header">
+      <h2>📜 Real-Time Event Stream Terminal</h2>
+      <span class="card-badge">EVENT BUS PUSH</span>
+    </div>
+    <div id="event-stream" class="event-stream-box">
+      <!-- Injected by dashboard.js -->
+    </div>
+  </section>
+
+  <!-- ── Stage Inspection Modal / Drawer ───────────────────────────────────── -->
+  <div id="stage-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-card">
+>>>>>>> Stashed changes
       <div class="modal-header">
         <div class="modal-header-left">
           <span class="modal-glyph">🪙</span>

@@ -15,9 +15,11 @@ from v2.bus.event_types import EventType
 from v2.core.config import V2Config
 from v2.core.logging import get_logger
 
+from .aggregator import DashboardAggregator
 from .bot_pipeline import BotPipelineTracker
 from .pipeline import PipelineStageCollector
 from .websocket import WebSocketManager
+from .ws_gateway import WebSocketTelemetryGateway
 
 logger = get_logger("v2.services.dashboard_service")
 
@@ -195,7 +197,31 @@ class DashboardService:
         self._shadow_service = shadow_service
         self._scheduler = scheduler
 
+        self._aggregator = DashboardAggregator(
+            scanner_service=scanner_service,
+            trading_service=trading_service,
+            portfolio_service=portfolio_service,
+            risk_service=risk_service,
+        )
+        self._ws_gateway = WebSocketTelemetryGateway(
+            aggregator=self._aggregator,
+            bus=bus,
+            config=config,
+        )
+
         self._started = False
+
+    @property
+    def aggregator(self) -> DashboardAggregator:
+        return self._aggregator
+
+    @property
+    def ws_gateway(self) -> WebSocketTelemetryGateway:
+        return self._ws_gateway
+
+    async def get_telemetry_snapshot(self) -> Dict[str, Any]:
+        """Return unified overview telemetry snapshot."""
+        return await self._aggregator.get_overview_snapshot()
 
     @property
     def ws_manager(self) -> WebSocketManager:
@@ -220,6 +246,8 @@ class DashboardService:
             return
         self._started = True
 
+        await self._ws_gateway.start()
+
         # Subscribe to all user-facing live events for real-time push and pipeline telemetry
         for et in [
             EventType.SIGNAL_GENERATED,
@@ -243,6 +271,7 @@ class DashboardService:
 
     async def stop(self) -> None:
         self._started = False
+        await self._ws_gateway.stop()
         for et in [
             EventType.SIGNAL_GENERATED,
             EventType.SIGNAL_AI_CONFIRMED,

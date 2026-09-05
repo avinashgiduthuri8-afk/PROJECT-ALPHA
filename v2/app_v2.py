@@ -54,7 +54,15 @@ from v2.repository.shadow_repo import ShadowRepository
 from v2.repository.metrics_repo import MetricsRepository
 from v2.repository.event_log_repo import EventLogRepository
 from v2.repository.candle_repo import CandleRepository
+<<<<<<< Updated upstream
 from v2.repository.production_state_repo import ProductionStateRepository
+=======
+from v2.repository.journal_repo import JournalRepository
+from v2.repository.learning_repo import LearningRepository
+from v2.repository.backtest_repo import BacktestRepository
+from v2.repository.feedback_repo import FeedbackRepository
+from v2.repository.production_repo import ProductionRepository
+>>>>>>> Stashed changes
 
 from v2.services.scanner_service import ScannerService
 from v2.services.ai_intelligence_service import AIIntelligenceService
@@ -64,8 +72,17 @@ from v2.services.trading_service import TradingService
 from v2.services.shadow_service import ShadowService
 from v2.services.notification_service import NotificationService
 from v2.services.dashboard_service import DashboardService
+<<<<<<< Updated upstream
 from v2.services.research_service import CoinResearchService
 from v2.services.production_service import ProductionController, ProductionWatchdog
+=======
+from v2.services.journal_service import JournalService
+from v2.services.analytics_service import AnalyticsService
+from v2.services.learning_service import LearningService
+from v2.services.backtest_service import BacktestService
+from v2.services.feedback_service import FeedbackService
+from v2.services.production_service import ProductionService
+>>>>>>> Stashed changes
 
 from v2.monitoring import HealthChecker, MetricsCollector, AlertManager
 from v2.scheduler import BackgroundScheduler, register_all_jobs
@@ -120,7 +137,15 @@ async def lifespan(app: FastAPI):
     metrics_repo   = MetricsRepository(conn)
     event_log_repo = EventLogRepository(conn)
     candle_repo    = CandleRepository(conn)
+<<<<<<< Updated upstream
     prod_state_repo = ProductionStateRepository(conn)
+=======
+    journal_repo   = JournalRepository(conn)
+    learning_repo  = LearningRepository(conn)
+    backtest_repo  = BacktestRepository(conn)
+    feedback_repo  = FeedbackRepository(conn)
+    production_repo = ProductionRepository(conn)
+>>>>>>> Stashed changes
 
     # 3. Services
     _scanner_service = ScannerService(
@@ -178,6 +203,56 @@ async def lifespan(app: FastAPI):
         shadow_engine  = _shadow_service.engine,
     )
     await _trading_service.start()
+
+    _journal_service = JournalService(
+        bus          = bus,
+        journal_repo = journal_repo,
+    )
+    await _journal_service.start()
+
+    _analytics_service = AnalyticsService(
+        journal_repo = journal_repo,
+    )
+    await _analytics_service.start()
+
+    _learning_service = LearningService(
+        bus              = bus,
+        journal_repo     = journal_repo,
+        learning_repo    = learning_repo,
+        analytics_engine = _analytics_service.engine,
+    )
+    await _learning_service.start()
+
+    _backtest_service = BacktestService(
+        backtest_repo = backtest_repo,
+    )
+    await _backtest_service.start()
+
+    _feedback_service = FeedbackService(
+        feedback_repo    = feedback_repo,
+        backtest_service = _backtest_service,
+        bus              = bus,
+    )
+    await _feedback_service.start()
+
+    _production_service = ProductionService(
+        production_repo = production_repo,
+        bus             = bus,
+        services        = {
+            "scanner_service": _scanner_service,
+            "ai_service": _ai_service,
+            "risk_service": _risk_service,
+            "portfolio_service": _portfolio_service,
+            "trading_service": _trading_service,
+            "shadow_service": _shadow_service,
+            "journal_service": _journal_service,
+            "analytics_service": _analytics_service,
+            "learning_service": _learning_service,
+            "backtest_service": _backtest_service,
+            "feedback_service": _feedback_service,
+        },
+    )
+    await _production_service.start()
 
     _notification_service = NotificationService(
         bus            = bus,
@@ -301,9 +376,23 @@ async def lifespan(app: FastAPI):
         dashboard_service    = _dashboard_service,
         health_checker       = _health_checker,
         metrics_collector    = _metrics_collector,
+<<<<<<< Updated upstream
         research_service     = _research_service,
         production_controller= _production_controller,
         production_watchdog  = _production_watchdog,
+=======
+        journal_repo         = journal_repo,
+        journal_service      = _journal_service,
+        analytics_service    = _analytics_service,
+        learning_repo        = learning_repo,
+        learning_service     = _learning_service,
+        backtest_repo        = backtest_repo,
+        backtest_service     = _backtest_service,
+        feedback_repo        = feedback_repo,
+        feedback_service     = _feedback_service,
+        production_repo      = production_repo,
+        production_service   = _production_service,
+>>>>>>> Stashed changes
     )
 
     # Trigger initial warm-up scanner poll in background
@@ -322,6 +411,18 @@ async def lifespan(app: FastAPI):
         await _dashboard_service.stop()
     if _notification_service:
         await _notification_service.stop()
+    if _production_service:
+        await _production_service.stop()
+    if _feedback_service:
+        await _feedback_service.stop()
+    if _backtest_service:
+        await _backtest_service.stop()
+    if _learning_service:
+        await _learning_service.stop()
+    if _analytics_service:
+        await _analytics_service.stop()
+    if _journal_service:
+        await _journal_service.stop()
     if _trading_service:
         await _trading_service.stop()
     if _shadow_service:

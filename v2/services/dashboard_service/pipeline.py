@@ -116,7 +116,11 @@ class PipelineStageCollector:
                 },
                 "last_event": None,
                 "telemetry": {
+<<<<<<< Updated upstream
                     "active_algorithms": ["STE (SuperTrend)", "HDA (Absorption)", "VCP (Contraction)", "BBS (Squeeze)"],
+=======
+                    "active_algorithms": ["MTB (MACD Bounce)"],
+>>>>>>> Stashed changes
                 },
             },
             "ai_intelligence": {
@@ -172,7 +176,11 @@ class PipelineStageCollector:
                 },
                 "last_event": None,
                 "telemetry": {
+<<<<<<< Updated upstream
                     "active_adapters": ["STEAdapter", "HDAAdapter", "VCPAdapter", "BBSAdapter"],
+=======
+                    "active_adapters": ["MTBAdapter"],
+>>>>>>> Stashed changes
                 },
             },
             "risk_engine": {
