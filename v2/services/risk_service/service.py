@@ -48,6 +48,7 @@ class RiskService:
 
         self._capital_guard = CapitalGuard(config)
         self._circuit_breaker = CircuitBreaker(config)
+        self._cooldowns: dict[str, dict] = {}
         self._started = False
 
     @property
@@ -133,7 +134,7 @@ class RiskService:
         total_deployed = sum(p.deployed_capital for p in all_open)
         bot_pos_count = len(open_positions)
 
-        # 4. CapitalGuard evaluation with single-coin lock and fleet capacity checks
+        # 4. CapitalGuard evaluation with single-coin lock, fleet capacity, and post-exit cooldown checks
         return self._capital_guard.check_trade(
             bot=bot,
             requested_amount=requested_amount,
@@ -142,6 +143,7 @@ class RiskService:
             current_bot_positions=bot_pos_count,
             active_positions=all_open,
             current_coin=coin or pair,
+            cooldowns=self._cooldowns,
         )
 
     # ── Event Handlers ────────────────────────────────────────────────────────
@@ -208,10 +210,16 @@ class RiskService:
             logger.error("Error evaluating trade in RiskService", exc_info=True)
 
     async def on_position_closed(self, event_type: EventType, payload: dict) -> None:
-        """Update circuit breaker metrics with realised PnL on position exit."""
+        """Update circuit breaker metrics and record post-exit cooldown on position exit."""
         try:
             bot_str = payload.get("bot", "")
             pnl = float(payload.get("pnl", 0.0))
+            coin = (payload.get("coin") or "").upper().replace("/INR", "").replace("/USDT", "").replace("B-", "")
+            if coin:
+                self._cooldowns[coin] = {
+                    "exit_time": datetime.now(timezone.utc),
+                    "exit_reason": payload.get("exit_reason", "CLOSED"),
+                }
             try:
                 bot = BotName(bot_str)
                 self._circuit_breaker.record_trade_result(bot, pnl)

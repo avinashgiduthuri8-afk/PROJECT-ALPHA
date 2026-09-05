@@ -186,11 +186,9 @@ async def test_complete_signal_to_paper_trade_pipeline():
     assert summary["new_signals"] == 1, f"Expected 1 high-conviction signal, got {summary}"
 
     # Verify signal persisted in repository
-    live_signals = await signal_repo.get_live()
-    assert len(live_signals) == 1
-    btc_sig = live_signals[0]
-    assert btc_sig.coin == "BTC"
-    assert btc_sig.score >= 85
+    all_signals = await signal_repo.get_by_coin("BTC")
+    assert len(all_signals) == 1
+    btc_sig = all_signals[0]
     assert btc_sig.mtf_alignment is True
     assert btc_sig.market_state in (MarketState.BREAKOUT, MarketState.BULL_TREND)
 

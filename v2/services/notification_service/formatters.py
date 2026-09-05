@@ -323,11 +323,12 @@ def format_telegram_trades(trades: list[dict[str, Any]]) -> str:
         pct = float(t.get("pnl_pct", 0.0))
         reason = t.get("exit_reason", "EXIT")
         emoji = "💰" if pnl >= 0 else "🛑"
-        sign = "+" if pnl >= 0 else ""
+        pnl_sign = "+" if pnl >= 0 else ""
+        pct_sign = "+" if pct >= 0 else ""
 
         lines.append(
             f"{emoji} <b>{coin}</b> (<code>{bot}</code>) — <b>{reason}</b>\n"
-            f"   └ Net PnL: <code>{sign}₹{pnl:.2f} ({sign}{pct:.2f}%)</code>"
+            f"   • PnL: <code>{pnl_sign}₹{pnl:.2f} ({pct_sign}{pct:.2f}%)</code>\n"
         )
 
     lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━")

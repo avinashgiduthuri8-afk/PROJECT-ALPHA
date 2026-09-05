@@ -29,8 +29,25 @@ class CapitalGuard:
         current_bot_positions: int,
         active_positions: Optional[list] = None,
         current_coin: Optional[str] = None,
+        cooldowns: Optional[dict[str, dict]] = None,
     ) -> RiskDecision:
         t0 = time.perf_counter()
+
+        # 0. Post-Exit Cooldown Check (Defense-in-Depth)
+        if current_coin and cooldowns:
+            coin_clean = current_coin.upper().replace("/INR", "").replace("/USDT", "").replace("B-", "")
+            if coin_clean in cooldowns:
+                ms = (time.perf_counter() - t0) * 1000.0
+                c_info = cooldowns[coin_clean]
+                return RiskDecision(
+                    allowed=False,
+                    code="OPPORTUNITY_IN_COOLDOWN",
+                    reason=f"Asset {coin_clean} is in post-exit cooldown following {c_info.get('exit_reason', 'EXIT')}.",
+                    bot=bot,
+                    amount=requested_amount,
+                    adjusted_amount=0.0,
+                    check_ms=round(ms, 2),
+                )
 
         # 1. Single-Coin Asset Deduplication & Fleet Lock Check
         if self._config.enforce_single_coin_lock and current_coin and active_positions:

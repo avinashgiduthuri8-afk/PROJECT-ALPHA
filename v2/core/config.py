@@ -126,6 +126,10 @@ class V2Config(BaseSettings):
         default=True,
         description="Enable News & Risk Event Filtering Layer.",
     )
+    v2_post_exit_cooldown_seconds: int = Field(
+        default=900,
+        description="Post-exit cooldown window in seconds (default 900s / 15m) preventing immediate re-entry on the same coin.",
+    )
 
     # ── WebSocket ─────────────────────────────────────────────────────────────
     v2_ws_heartbeat_interval: int = Field(default=15)

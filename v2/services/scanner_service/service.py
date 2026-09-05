@@ -32,6 +32,7 @@ from v2.repository.signal_repo import SignalRepository
 from v2.repository.event_log_repo import EventLogRepository
 from v2.repository.candle_repo import CandleRepository
 from v2.repository.position_repo import PositionRepository
+from v2.repository.trade_repo import TradeRepository
 
 from .adapter import v1_response_to_signals
 from .confluence_engine import ConfluenceEngine
@@ -90,6 +91,7 @@ class ScannerService:
         config: V2Config,
         candle_repo: Optional[CandleRepository] = None,
         position_repo: Optional[PositionRepository] = None,
+        trade_repo: Optional[TradeRepository] = None,
         market_context_service: Optional[MarketContextService] = None,
         news_risk_service: Optional[NewsRiskService] = None,
         calibration_worker: Optional[CalibrationWorker] = None,
@@ -100,6 +102,10 @@ class ScannerService:
         self._config = config
         self._candle_repo = candle_repo
         self._position_repo = position_repo
+        self._trade_repo = trade_repo
+
+        # Post-exit cooldown tracking {coin_symbol: {"exit_time": datetime, "exit_reason": str, "price": float}}
+        self._cooldowns: dict[str, dict] = {}
 
 
         # Services for Macro Context, Sentiment, and News Risk
@@ -158,11 +164,37 @@ class ScannerService:
         if self._started:
             return
         self._started = True
+        self._bus.subscribe(EventType.POSITION_CLOSED, self.on_position_closed)
+        self._bus.subscribe(EventType.TRADE_EXECUTED, self.on_trade_executed)
         await self._bus.publish(
             EventType.SYSTEM_STARTUP,
             {"service": "scanner_service"},
         )
         logger.info("ScannerService started")
+
+        # Bootstrap active post-exit cooldowns from recent closed trades
+        if self._trade_repo:
+            try:
+                recent_trades = await self._trade_repo.get_recent(limit=30)
+                now = datetime.now(timezone.utc)
+                cooldown_dur = getattr(self._config, "v2_post_exit_cooldown_seconds", 900)
+                for tr in recent_trades:
+                    c_time = getattr(tr, "closed_at", None) or getattr(tr, "executed_at", None)
+                    if c_time:
+                        if c_time.tzinfo is None:
+                            c_time = c_time.replace(tzinfo=timezone.utc)
+                        if (now - c_time).total_seconds() < cooldown_dur:
+                            coin_clean = (getattr(tr, "coin", "") or "").upper().replace("/INR", "").replace("/USDT", "").replace("B-", "")
+                            if coin_clean and coin_clean not in self._cooldowns:
+                                self._cooldowns[coin_clean] = {
+                                    "exit_time": c_time,
+                                    "exit_reason": getattr(tr, "exit_reason", "CLOSED"),
+                                    "price": float(getattr(tr, "price", 0.0) or 0.0),
+                                }
+                if self._cooldowns:
+                    logger.info("Bootstrapped %d active post-exit cooldowns: %s", len(self._cooldowns), list(self._cooldowns.keys()))
+            except Exception as exc:
+                logger.debug("Could not bootstrap post-exit cooldowns: %s", exc)
 
         # Start dynamic calibration worker
         await self._calibration_worker.start()
@@ -175,6 +207,8 @@ class ScannerService:
     async def stop(self) -> None:
         """Unsubscribe and flush in-memory state."""
         self._started = False
+        self._bus.unsubscribe(EventType.POSITION_CLOSED, self.on_position_closed)
+        self._bus.unsubscribe(EventType.TRADE_EXECUTED, self.on_trade_executed)
         self._live.clear()
 
         # Stop calibration worker
@@ -190,6 +224,53 @@ class ScannerService:
             self._flusher_task = None
 
         logger.info("ScannerService stopped")
+
+    # ── Signal Lifecycle & Cooldown Handlers ──────────────────────────────────
+
+    async def on_position_closed(self, event_type: EventType, payload: dict) -> None:
+        """Record post-exit cooldown and invalidate any live signals for this coin."""
+        coin = (payload.get("coin") or "").upper().replace("/INR", "").replace("/USDT", "").replace("B-", "")
+        if not coin:
+            return
+        now = datetime.now(timezone.utc)
+        exit_reason = payload.get("exit_reason", "CLOSED")
+        exit_price = float(payload.get("exit_price") or payload.get("price") or 0.0)
+        cooldown_dur = getattr(self._config, "v2_post_exit_cooldown_seconds", 900)
+        self._cooldowns[coin] = {
+            "exit_time": now,
+            "exit_reason": exit_reason,
+            "price": exit_price,
+        }
+        logger.info(
+            "Post-exit cooldown started for %s (%s, duration: %ds)",
+            coin, exit_reason, cooldown_dur
+        )
+
+        # Evict any active in-memory live signals for this coin
+        to_evict = [sid for sid, sig in self._live.items() if sig.coin.upper().replace("/INR", "").replace("/USDT", "").replace("B-", "") == coin]
+        for sid in to_evict:
+            sig = self._live.pop(sid, None)
+            if sig:
+                try:
+                    await self._signal_repo.mark_expired(sid)
+                except Exception:
+                    pass
+
+    async def on_trade_executed(self, event_type: EventType, payload: dict) -> None:
+        """Mark signal consumed when trade executes."""
+        signal_id = payload.get("signal_id")
+        coin = (payload.get("coin") or "").upper().replace("/INR", "").replace("/USDT", "").replace("B-", "")
+        if signal_id:
+            self._live.pop(signal_id, None)
+            try:
+                await self._signal_repo.mark_consumed(signal_id)
+            except Exception:
+                pass
+        # Also clean up any other live signals for this coin
+        if coin:
+            to_evict = [sid for sid, sig in self._live.items() if sig.coin.upper().replace("/INR", "").replace("/USDT", "").replace("B-", "") == coin]
+            for sid in to_evict:
+                self._live.pop(sid, None)
 
     # ── Database-First Bootstrapping & Periodic Candle Cache Flushing ────────
     async def bootstrap_candles(self) -> None:
@@ -558,11 +639,36 @@ class ScannerService:
                 except Exception as e:
                     logger.debug("Could not fetch open positions for scanner filter: %s", e)
 
+            # Clean up expired cooldowns
+            now_utc = datetime.now(timezone.utc)
+            cooldown_dur = getattr(self._config, "v2_post_exit_cooldown_seconds", 900)
+            expired_cooldowns = []
+            for c_coin, c_info in list(self._cooldowns.items()):
+                c_exit = c_info["exit_time"]
+                if c_exit.tzinfo is None:
+                    c_exit = c_exit.replace(tzinfo=timezone.utc)
+                elapsed = (now_utc - c_exit).total_seconds()
+                if elapsed >= cooldown_dur:
+                    expired_cooldowns.append(c_coin)
+            for c_coin in expired_cooldowns:
+                del self._cooldowns[c_coin]
+                logger.info("Post-exit cooldown expired for %s. Re-entry allowed for genuinely new opportunities.", c_coin)
+
             live_coins = {s.coin.upper().replace("/INR", "").replace("/USDT", "").replace("B-", "") for s in self._live.values()}
 
             actionable_candidates = []
             for sig in high_conviction_signals:
                 sig_coin = sig.coin.upper().replace("/INR", "").replace("/USDT", "").replace("B-", "")
+                if sig_coin in self._cooldowns:
+                    c_exit = self._cooldowns[sig_coin]["exit_time"]
+                    if c_exit.tzinfo is None:
+                        c_exit = c_exit.replace(tzinfo=timezone.utc)
+                    rem = cooldown_dur - (now_utc - c_exit).total_seconds()
+                    logger.info(
+                        "Signal generation suppressed for %s: post-exit cooldown active (%.0fs remaining after %s)",
+                        sig_coin, max(0.0, rem), self._cooldowns[sig_coin]["exit_reason"]
+                    )
+                    continue
                 if sig_coin in open_coins:
                     logger.info("Signal generation suppressed for %s: active open position exists in fleet", sig_coin)
                     continue

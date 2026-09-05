@@ -9,7 +9,7 @@ Tests for C2 High-Conviction Crypto Scanner Architecture:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import pytest
 
 from v2.core.types import MarketState, Priority, RiskLevel, Signal
@@ -32,7 +32,7 @@ def _make_test_signal(
 ) -> Signal:
     now = datetime.now(timezone.utc)
     return Signal(
-        id=f"sig_{coin}_1",
+        id=f"sig_{coin}_{now.timestamp()}",
         coin=coin,
         pair=f"{coin}_USDT",
         market_state=market_state,
@@ -44,7 +44,7 @@ def _make_test_signal(
         coin_class="A",
         mtf_alignment=mtf_alignment,
         generated_at=now,
-        expires_at=now,
+        expires_at=now + timedelta(seconds=300),
     )
 
 
@@ -266,4 +266,171 @@ class TestDeduplicationAndPrecision:
         orders_text = format_telegram_orders(orders)
         assert "BUY</code> 0.00002 @" in orders_text
         assert "BUY 0.0 @" not in orders_text
+
+        # Trades formatting - test no +- sign collision
+        from v2.services.notification_service.formatters import format_telegram_trades
+        trades = [
+            {"coin": "BTC", "bot": "STE", "pnl": 0.0, "pnl_pct": -3.58, "exit_reason": "STOP_LOSS"},
+            {"coin": "SOL", "bot": "STE", "pnl": 15.2, "pnl_pct": 5.20, "exit_reason": "TAKE_PROFIT"}
+        ]
+        trades_text = format_telegram_trades(trades)
+        assert "+-" not in trades_text
+        assert "(-3.58%)" in trades_text
+        assert "(+5.20%)" in trades_text
+
+
+class TestPostExitCooldownAndSignalLifecycle:
+
+    @pytest.mark.anyio
+    async def test_position_close_triggers_cooldown_and_suppresses_reentry(self):
+        """Verify position close sets cooldown and suppresses immediate same-coin re-entry."""
+        from v2.bus.event_bus import EventBus
+        from v2.bus.event_types import EventType
+        from v2.core.config import V2Config
+        from v2.services.scanner_service.service import ScannerService
+        from unittest.mock import AsyncMock
+
+        bus = EventBus()
+        config = V2Config(
+            v2_post_exit_cooldown_seconds=900,
+            v2_scanner_strict_confluence_threshold=80,
+        )
+
+        signal_repo = AsyncMock()
+        event_log = AsyncMock()
+
+        scanner = ScannerService(
+            bus=bus,
+            signal_repo=signal_repo,
+            event_log_repo=event_log,
+            config=config,
+        )
+
+        # Simulate position closed for ZEC
+        now = datetime.now(timezone.utc)
+        await scanner.on_position_closed(
+            EventType.POSITION_CLOSED,
+            {
+                "coin": "ZEC",
+                "pair": "ZEC/INR",
+                "bot": "STE",
+                "exit_reason": "STOP_LOSS",
+                "exit_price": 99614.4,
+                "closed_at": now.isoformat(),
+            }
+        )
+
+        assert "ZEC" in scanner._cooldowns
+        assert scanner._cooldowns["ZEC"]["exit_reason"] == "STOP_LOSS"
+
+        # Mock candidates returning ZEC and BTC
+        sig_zec = _make_test_signal("ZEC", score=92)
+        sig_btc = _make_test_signal("BTC", score=90)
+
+        scanner._confluence_engine.evaluate_candidates = lambda raw_candidates, signals: (
+            [sig_zec, sig_btc], []
+        )
+        scanner._fetch_v1_signals = AsyncMock(return_value=[
+            {"coin": "ZEC", "score": 92},
+            {"coin": "BTC", "score": 90}
+        ])
+        scanner._market_context_service.refresh_market_context = AsyncMock(return_value={
+            "btc_trend": "BULLISH", "eth_trend": "BULLISH", "market_regime": "RISK_ON", "fear_and_greed": 70
+        })
+        scanner._news_risk_service.fetch_latest_news = AsyncMock()
+
+        # Run poll
+        summary = await scanner.poll()
+
+        # ZEC should be suppressed by cooldown; BTC should pass as new signal
+        assert summary["new_signals"] == 1
+        assert "BTC" in [s.coin for s in scanner._live.values()]
+        assert "ZEC" not in [s.coin for s in scanner._live.values()]
+
+    def test_capital_guard_rejects_trade_during_cooldown(self):
+        """Verify CapitalGuard defense-in-depth rejects in-flight trades during post-exit cooldown."""
+        from v2.core.config import V2Config
+        from v2.core.types import BotName
+        from v2.services.risk_service.capital_guard import CapitalGuard
+
+        config = V2Config(v2_post_exit_cooldown_seconds=900)
+        guard = CapitalGuard(config)
+
+        now = datetime.now(timezone.utc)
+        cooldowns = {
+            "ZEC": {"exit_time": now - timedelta(seconds=60), "exit_reason": "STOP_LOSS"}
+        }
+
+        # Trade on ZEC during cooldown should be denied
+        decision_zec = guard.check_trade(
+            bot=BotName.STE,
+            requested_amount=200.0,
+            current_bot_deployed=0.0,
+            total_deployed=0.0,
+            current_bot_positions=0,
+            current_coin="ZEC",
+            cooldowns=cooldowns,
+        )
+        assert decision_zec.allowed is False
+        assert decision_zec.code == "OPPORTUNITY_IN_COOLDOWN"
+        assert "cooldown" in decision_zec.reason.lower()
+
+        # Trade on BTC (not in cooldown) should be allowed
+        decision_btc = guard.check_trade(
+            bot=BotName.STE,
+            requested_amount=200.0,
+            current_bot_deployed=0.0,
+            total_deployed=0.0,
+            current_bot_positions=0,
+            current_coin="BTC",
+            cooldowns=cooldowns,
+        )
+        assert decision_btc.allowed is True
+
+    @pytest.mark.anyio
+    async def test_cooldown_expiry_allows_new_opportunity(self):
+        """Verify that after cooldown window expires, a new scanner opportunity can generate a signal."""
+        from v2.bus.event_bus import EventBus
+        from v2.core.config import V2Config
+        from v2.services.scanner_service.service import ScannerService
+        from unittest.mock import AsyncMock
+
+        bus = EventBus()
+        config = V2Config(
+            v2_post_exit_cooldown_seconds=300,  # 5 min cooldown
+            v2_scanner_strict_confluence_threshold=80,
+        )
+
+        signal_repo = AsyncMock()
+        event_log = AsyncMock()
+
+        scanner = ScannerService(
+            bus=bus,
+            signal_repo=signal_repo,
+            event_log_repo=event_log,
+            config=config,
+        )
+
+        # Record cooldown from 10 minutes ago (> 300s)
+        old_exit = datetime.now(timezone.utc) - timedelta(seconds=600)
+        scanner._cooldowns["ZEC"] = {
+            "exit_time": old_exit,
+            "exit_reason": "STOP_LOSS",
+            "price": 99000.0,
+        }
+
+        sig_zec = _make_test_signal("ZEC", score=92)
+        scanner._confluence_engine.evaluate_candidates = lambda raw_candidates, signals: ([sig_zec], [])
+        scanner._fetch_v1_signals = AsyncMock(return_value=[{"coin": "ZEC", "score": 92}])
+        scanner._market_context_service.refresh_market_context = AsyncMock(return_value={
+            "btc_trend": "BULLISH", "eth_trend": "BULLISH", "market_regime": "RISK_ON", "fear_and_greed": 70
+        })
+        scanner._news_risk_service.fetch_latest_news = AsyncMock()
+
+        summary = await scanner.poll()
+
+        # Cooldown expired -> ZEC is accepted as a new signal
+        assert summary["new_signals"] == 1
+        assert "ZEC" in [s.coin for s in scanner._live.values()]
+        assert "ZEC" not in scanner._cooldowns
 
