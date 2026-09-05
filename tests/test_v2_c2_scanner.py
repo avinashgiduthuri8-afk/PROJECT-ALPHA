@@ -189,3 +189,81 @@ class TestConfluenceEngine:
         assert "news_score" in b
         assert "confluence_score" in b
         assert b["high_conviction_count"] == 1
+
+
+class TestDeduplicationAndPrecision:
+
+    def test_dedup_key_and_filter(self):
+        from v2.services.scanner_service.signal_filter import _dedup_key, deduplicate
+        sig1 = _make_test_signal("BTC", score=90)
+        sig1.source_bot = "VCP"
+        assert _dedup_key(sig1) == "BTC::VCP"
+
+        known = {"BTC::VCP"}
+        new_sigs, new_keys = deduplicate([sig1], known)
+        assert len(new_sigs) == 0
+        assert len(new_keys) == 0
+
+        sig2 = _make_test_signal("ETH", score=90)
+        sig2.source_bot = "VCP"
+        new_sigs2, new_keys2 = deduplicate([sig2], known)
+        assert len(new_sigs2) == 1
+        assert new_sigs2[0].coin == "ETH"
+        assert new_keys2 == ["ETH::VCP"]
+
+    def test_precision_rules_and_round_qty(self):
+        from v2.trading.precision_rules import get_pair_spec, round_qty
+        # BTC micro-lot
+        btc_qty = round_qty("BTC/INR", 0.00002439)
+        assert btc_qty == 0.00002
+        assert btc_qty > 0
+
+        # ZEC pair lookup & micro-lot
+        spec_zec = get_pair_spec("ZEC/INR")
+        assert spec_zec.lot_step_decimals >= 4
+        zec_qty = round_qty("ZEC/INR", 0.0004912)
+        assert zec_qty == 0.0004
+        assert zec_qty > 0
+
+        # Fallback pair with small qty
+        custom_qty = round_qty("CUSTOM_COIN/INR", 0.000015)
+        assert custom_qty == 0.000015
+        assert custom_qty > 0
+
+    def test_format_qty_and_telegram_alerts(self):
+        from v2.services.notification_service.formatters import (
+            format_qty,
+            format_signal_ai_alert,
+            format_telegram_orders,
+            format_telegram_positions,
+        )
+
+        assert format_qty(0.00002) == "0.00002"
+        assert format_qty(0.00049) == "0.00049"
+        assert format_qty(0.0) == "0"
+        assert format_qty(1.500) == "1.5"
+        assert format_qty(10.0) == "10"
+
+        # AI alert formatting with metadata
+        ai_payload = {
+            "coin": "BNB",
+            "recommendation": "APPROVE",
+            "confidence_score": 92,
+            "trend_evaluation": "BULLISH_CONTINUATION",
+            "setup_quality": "HIGH_PROBABILITY_BREAKOUT",
+            "supporting_factors": ["Multi-timeframe EMA alignment", "Volume expansion"],
+            "risk_factors": ["Overhead resistance at ₹55,000"],
+        }
+        alert = format_signal_ai_alert(ai_payload)
+        assert "Trend:</b> BULLISH_CONTINUATION" in alert
+        assert "Setup:</b> HIGH_PROBABILITY_BREAKOUT" in alert
+        assert "N/A" not in alert
+
+        # Orders formatting
+        orders = [
+            {"coin": "BTC", "side": "BUY", "qty": 0.00002, "price": 8200000.0, "mode": "PAPER", "status": "FILLED"}
+        ]
+        orders_text = format_telegram_orders(orders)
+        assert "BUY</code> 0.00002 @" in orders_text
+        assert "BUY 0.0 @" not in orders_text
+

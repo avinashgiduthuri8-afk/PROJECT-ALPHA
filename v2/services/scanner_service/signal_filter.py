@@ -64,4 +64,6 @@ def detect_expired(
 
 
 def _dedup_key(sig: Signal) -> str:
-    return f"{sig.coin}::{sig.generated_at.isoformat()}"
+    bot = sig.source_bot or "scanner_v1"
+    return f"{sig.coin.upper()}::{bot}"
+

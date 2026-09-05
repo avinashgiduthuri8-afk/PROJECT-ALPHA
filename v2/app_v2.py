@@ -129,7 +129,9 @@ async def lifespan(app: FastAPI):
         event_log_repo = event_log_repo,
         config         = cfg,
         candle_repo    = candle_repo,
+        position_repo  = position_repo,
     )
+
     await _scanner_service.start()
 
     _ai_service = AIIntelligenceService(

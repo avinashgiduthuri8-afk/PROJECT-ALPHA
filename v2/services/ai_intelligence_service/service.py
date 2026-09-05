@@ -159,6 +159,10 @@ class AIIntelligenceService:
                 "bot": bot,
                 "recommendation": analysis.recommendation.value,
                 "confidence_score": analysis.confidence_score,
+                "trend_evaluation": analysis.trend_evaluation,
+                "setup_quality": analysis.setup_quality,
+                "supporting_factors": analysis.supporting_factors,
+                "risk_factors": analysis.risk_factors,
                 "suggested_adjustments": analysis.suggested_adjustments,
                 "model_name": analysis.model_name,
             }
@@ -186,10 +190,14 @@ class AIIntelligenceService:
                 "bot": bot,
                 "recommendation": analysis.recommendation.value,
                 "confidence_score": analysis.confidence_score,
+                "trend_evaluation": analysis.trend_evaluation,
+                "setup_quality": analysis.setup_quality,
+                "supporting_factors": analysis.supporting_factors,
                 "conflicts": analysis.conflicts,
                 "risk_factors": analysis.risk_factors,
                 "model_name": analysis.model_name,
             }
+
             await self._bus.publish(EventType.SIGNAL_AI_REJECTED, reject_payload)
             await self._event_log.append(
                 event_type=EventType.SIGNAL_AI_REJECTED.value,

@@ -8,6 +8,20 @@ import re
 from typing import Any
 
 
+def format_qty(qty: float | None) -> str:
+    """Format quantity dynamically preserving micro-lots without trailing zeros."""
+    if qty is None:
+        return "0"
+    try:
+        q = float(qty)
+    except (ValueError, TypeError):
+        return str(qty)
+    if q == 0.0:
+        return "0"
+    s = f"{q:.6f}".rstrip("0").rstrip(".")
+    return s if s else "0"
+
+
 def format_signal_ai_alert(payload: dict[str, Any]) -> str:
     """Format AI Intelligence confirmation or rejection alert."""
     coin = payload.get("coin", "UNKNOWN")
@@ -70,7 +84,7 @@ def format_position_opened_alert(payload: dict[str, Any]) -> str:
     coin = payload.get("coin", "UNKNOWN")
     bot = payload.get("bot", "MTB")
     price = float(payload.get("entry_price", 0.0))
-    qty = float(payload.get("qty", 0.0))
+    qty = payload.get("qty", 0.0)
     sl = payload.get("stop_loss")
     tp = payload.get("take_profit")
 
@@ -79,10 +93,11 @@ def format_position_opened_alert(payload: dict[str, Any]) -> str:
 
     return (
         f"🚀 <b>Position Opened — {coin}</b>\n"
-        f"<b>Bot:</b> <code>{bot}</code> | <b>Qty:</b> <code>{qty}</code>\n"
+        f"<b>Bot:</b> <code>{bot}</code> | <b>Qty:</b> <code>{format_qty(qty)}</code>\n"
         f"<b>Entry Price:</b> ₹{price:.2f}\n"
         f"<b>Take Profit:</b> {tp_str} | <b>Stop Loss:</b> {sl_str}"
     )
+
 
 
 def format_position_closed_alert(payload: dict[str, Any]) -> str:
@@ -278,10 +293,11 @@ def format_telegram_positions(positions: list[dict[str, Any]]) -> str:
 
         lines.append(
             f"{emoji} <b>{coin}/INR</b> (<code>{bot}</code>)\n"
-            f"   • Qty: <code>{qty}</code> | Entry: ₹{entry:.2f} | Current: ₹{cur:.2f}\n"
+            f"   • Qty: <code>{format_qty(qty)}</code> | Entry: ₹{entry:.2f} | Current: ₹{cur:.2f}\n"
             f"   • Unrealized: <code>{sign}₹{unrealized:.2f}</code>\n"
             f"   • TP: {tp_str} | SL: {sl_str}\n"
         )
+
 
     lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━")
     return "\n".join(lines)
@@ -635,9 +651,10 @@ def format_telegram_orders(orders: list[dict[str, Any]], mode: str = "SHADOW") -
             ex_id = ord_item.get("exchange_order_id") or "N/A"
 
             lines.append(
-                f"• <b>{coin}</b> [{ord_mode}] — <code>{side}</code> {qty} @ ₹{price:,.2f}\n"
+                f"• <b>{coin}</b> [{ord_mode}] — <code>{side}</code> {format_qty(qty)} @ ₹{price:,.2f}\n"
                 f"   Status: <code>{status}</code> | ID: <code>{ex_id}</code>"
             )
+
     lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━")
     return "\n".join(lines)
 

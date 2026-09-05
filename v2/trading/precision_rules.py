@@ -127,14 +127,31 @@ PRECISION_TABLE: Dict[str, PairPrecisionSpec] = {
         min_lot_qty=1000.0,
         min_notional_inr=100.0,
     ),
+    "ZEC/INR": PairPrecisionSpec(
+
+        pair="ZEC/INR",
+        base_price=3500.0,
+        price_decimals=1,      # Tick: ₹0.10
+        lot_step_decimals=4,   # Step: 0.0001 ZEC
+        min_lot_qty=0.0001,
+        min_notional_inr=100.0,
+    ),
+    "POL/INR": PairPrecisionSpec(
+        pair="POL/INR",
+        base_price=48.0,
+        price_decimals=2,
+        lot_step_decimals=1,
+        min_lot_qty=0.1,
+        min_notional_inr=100.0,
+    ),
 }
 
 DEFAULT_SPEC = PairPrecisionSpec(
     pair="CUSTOM/INR",
     base_price=100.0,
     price_decimals=2,
-    lot_step_decimals=2,
-    min_lot_qty=0.1,
+    lot_step_decimals=6,
+    min_lot_qty=0.000001,
     min_notional_inr=100.0,
 )
 
@@ -144,7 +161,15 @@ def get_pair_spec(pair: str) -> PairPrecisionSpec:
     clean_pair = pair.upper().replace("_", "/").replace("B-", "").replace("-", "/")
     if "/" not in clean_pair:
         clean_pair = f"{clean_pair}/INR"
-    return PRECISION_TABLE.get(clean_pair, DEFAULT_SPEC)
+    if clean_pair in PRECISION_TABLE:
+        return PRECISION_TABLE[clean_pair]
+
+    base_coin = clean_pair.split("/")[0]
+    inr_key = f"{base_coin}/INR"
+    if inr_key in PRECISION_TABLE:
+        return PRECISION_TABLE[inr_key]
+
+    return DEFAULT_SPEC
 
 
 def round_price(pair: str, price: float) -> float:
@@ -157,18 +182,24 @@ def round_price(pair: str, price: float) -> float:
 
 def round_qty(pair: str, qty: float) -> float:
     """Round lot quantity down to pair step size (roundp)."""
-    spec = get_pair_spec(pair)
     if qty <= 0:
         return 0.0
 
+    spec = get_pair_spec(pair)
     if spec.lot_step_decimals < 0:
         step = 10 ** abs(spec.lot_step_decimals)
-        return float(math.floor(qty / step) * step)
+        res = float(math.floor(qty / step) * step)
     elif spec.lot_step_decimals == 0:
-        return float(math.floor(qty))
+        res = float(math.floor(qty))
     else:
         factor = 10 ** spec.lot_step_decimals
-        return float(math.floor(qty * factor) / factor)
+        res = float(math.floor(qty * factor) / factor)
+
+    # If step size floored a small positive micro-order to 0.0, preserve precision up to 6 decimals
+    if res == 0.0 and qty > 0:
+        res = float(math.floor(qty * 1_000_000) / 1_000_000)
+
+    return res
 
 
 def validate_order_notional(
@@ -184,3 +215,4 @@ def validate_order_notional(
     min_val = min_notional if min_notional is not None else spec.min_notional_inr
     notional = price * qty
     return (qty >= spec.min_lot_qty) and (notional >= min_val)
+

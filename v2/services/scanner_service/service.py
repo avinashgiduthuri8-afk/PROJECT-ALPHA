@@ -31,6 +31,7 @@ from v2.core.logging import get_logger
 from v2.repository.signal_repo import SignalRepository
 from v2.repository.event_log_repo import EventLogRepository
 from v2.repository.candle_repo import CandleRepository
+from v2.repository.position_repo import PositionRepository
 
 from .adapter import v1_response_to_signals
 from .confluence_engine import ConfluenceEngine
@@ -38,8 +39,9 @@ from .calibration_worker import CalibrationWorker
 from .market_context import MarketContextService, calculate_ema
 from .news_fetcher import NewsRiskService
 from .signal_filter import (
-    filter_by_priority, filter_live, deduplicate, detect_expired,
+    filter_by_priority, filter_live, deduplicate, detect_expired, _dedup_key,
 )
+
 
 logger = get_logger("v2.services.scanner_service")
 
@@ -87,6 +89,7 @@ class ScannerService:
         event_log_repo: EventLogRepository,
         config: V2Config,
         candle_repo: Optional[CandleRepository] = None,
+        position_repo: Optional[PositionRepository] = None,
         market_context_service: Optional[MarketContextService] = None,
         news_risk_service: Optional[NewsRiskService] = None,
         calibration_worker: Optional[CalibrationWorker] = None,
@@ -96,6 +99,8 @@ class ScannerService:
         self._event_log = event_log_repo
         self._config = config
         self._candle_repo = candle_repo
+        self._position_repo = position_repo
+
 
         # Services for Macro Context, Sentiment, and News Risk
         self._market_context_service = market_context_service or MarketContextService()
@@ -540,23 +545,50 @@ class ScannerService:
 
             self._latest_evaluated_coins = new_eval_snapshot
 
-            # 4. Deduplicate against seen set
-            new_signals, new_keys = deduplicate(high_conviction_signals, self._seen_keys)
+            # 9. Suppress signal generation if coin has an active position or live signal
+            open_coins: set[str] = set()
+            if self._position_repo:
+                try:
+                    open_positions = await self._position_repo.get_open()
+                    for p in open_positions:
+                        p_coin = getattr(p, "coin", "") or ""
+                        p_clean = p_coin.upper().replace("/INR", "").replace("/USDT", "").replace("B-", "")
+                        if p_clean:
+                            open_coins.add(p_clean)
+                except Exception as e:
+                    logger.debug("Could not fetch open positions for scanner filter: %s", e)
+
+            live_coins = {s.coin.upper().replace("/INR", "").replace("/USDT", "").replace("B-", "") for s in self._live.values()}
+
+            actionable_candidates = []
+            for sig in high_conviction_signals:
+                sig_coin = sig.coin.upper().replace("/INR", "").replace("/USDT", "").replace("B-", "")
+                if sig_coin in open_coins:
+                    logger.info("Signal generation suppressed for %s: active open position exists in fleet", sig_coin)
+                    continue
+                if sig_coin in live_coins:
+                    logger.debug("Signal generation suppressed for %s: unexpired live signal already active", sig_coin)
+                    continue
+                actionable_candidates.append(sig)
+
+            # 10. Deduplicate against seen set
+            new_signals, new_keys = deduplicate(actionable_candidates, self._seen_keys)
             self._seen_keys.update(new_keys)
 
-            # 4. Persist new signals and publish events
+            # 11. Persist new signals and publish events
             for sig in new_signals:
                 await self._signal_repo.insert(sig)
                 self._live[sig.id] = sig
                 await self._publish_signal_generated(sig)
                 summary["new_signals"] += 1
 
-            # 5. Detect expiry in live cache
+            # 12. Detect expiry in live cache
             live_list = list(self._live.values())
             still_live, newly_expired = detect_expired(live_list)
 
             for sig in newly_expired:
                 del self._live[sig.id]
+                self._seen_keys.discard(_dedup_key(sig))
                 await self._signal_repo.mark_expired(sig.id, reason="TTL")
                 await self._publish_signal_expired(sig)
                 summary["expired"] += 1
@@ -585,9 +617,11 @@ class ScannerService:
         _, newly_expired = detect_expired(live_list)
         for sig in newly_expired:
             del self._live[sig.id]
+            self._seen_keys.discard(_dedup_key(sig))
             await self._signal_repo.mark_expired(sig.id, reason="TTL")
             await self._publish_signal_expired(sig)
         return len(newly_expired)
+
 
     # ── Public query interface ─────────────────────────────────────────────────
 
