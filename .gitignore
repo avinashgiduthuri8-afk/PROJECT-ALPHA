@@ -1,4 +1,4 @@
-new# Secrets & credentials
+# Secrets & credentials
 .env
 .env.*
 *.env
@@ -13,6 +13,7 @@ __pycache__/
 
 # Backup files
 *.json.bak
+bots/scanner_bot/data/backups/
 
 # Runtime state files — never commit; regenerated at startup
 bots/scanner_bot/attached_assets/*.ipynb
@@ -30,12 +31,19 @@ v2/data/*.db-wal
 logs/*.log
 *.log
 
-# Test artifacts
+# Virtual Environment
+.venv/
+venv/
+ENV/
+
+# Test & Investigation artifacts
 .pytest_temp/
+.pytest_temp*/
 .pytest_cache/
 .pytest_tmp*/
 .pytest_tmp_*
 .test_dbs/
+investigation/
 
 # Platform artifacts (Replit / Emergent)
 .replit

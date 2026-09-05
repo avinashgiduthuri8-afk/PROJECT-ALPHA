@@ -142,6 +142,10 @@ class AIIntelligenceService:
             and analysis.confidence_score >= self._config.v2_ai_confidence_threshold
         )
 
+        raw_p = signal.raw_payload or {}
+        price = float(raw_p.get("price") or raw_p.get("close") or 0.0)
+        bot = signal.source_bot if signal.source_bot in ("STE", "HDA", "VCP", "BBS") else raw_p.get("bot", "STE")
+
         if is_confirmed:
             self._confirmed_count += 1
             confirm_payload = {
@@ -149,6 +153,10 @@ class AIIntelligenceService:
                 "analysis_id": analysis.id,
                 "coin": signal.coin,
                 "pair": signal.pair,
+                "price": price,
+                "market_state": signal.market_state.value,
+                "opportunity_type": signal.opportunity_type.value,
+                "bot": bot,
                 "recommendation": analysis.recommendation.value,
                 "confidence_score": analysis.confidence_score,
                 "suggested_adjustments": analysis.suggested_adjustments,
@@ -172,6 +180,10 @@ class AIIntelligenceService:
                 "analysis_id": analysis.id,
                 "coin": signal.coin,
                 "pair": signal.pair,
+                "price": price,
+                "market_state": signal.market_state.value,
+                "opportunity_type": signal.opportunity_type.value,
+                "bot": bot,
                 "recommendation": analysis.recommendation.value,
                 "confidence_score": analysis.confidence_score,
                 "conflicts": analysis.conflicts,

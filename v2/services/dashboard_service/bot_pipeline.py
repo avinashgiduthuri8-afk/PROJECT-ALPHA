@@ -265,17 +265,18 @@ class BotPipelineTracker:
 
     # ── EventBus Handler ──────────────────────────────────────────────────────
 
-    def handle_bus_event(self, event_type: str, payload: dict) -> None:
+    def handle_bus_event(self, event_type: str | EventType, payload: dict) -> None:
         """
         Route incoming EventBus events to the relevant bot state(s) and
         advance that bot's pipeline stage accordingly.
         """
+        event_str = getattr(event_type, "value", str(event_type))
         now_str = datetime.now(timezone.utc).strftime("%H:%M:%S UTC")
         bot_raw = payload.get("bot", "")
         coin = payload.get("coin", "")
 
         # ── SIGNAL_GENERATED ───────────────────────────────────────────────
-        if event_type == EventType.SIGNAL_GENERATED.value:
+        if event_str == EventType.SIGNAL_GENERATED.value:
             targets = [bot_raw.upper()] if bot_raw.upper() in self._bots else list(self._bots.keys())
             for bn in targets:
                 s = self._bots[bn]
@@ -287,7 +288,7 @@ class BotPipelineTracker:
                 s.last_coin = coin or s.last_coin
 
         # ── SIGNAL_AI_CONFIRMED ────────────────────────────────────────────
-        elif event_type == EventType.SIGNAL_AI_CONFIRMED.value:
+        elif event_str == EventType.SIGNAL_AI_CONFIRMED.value:
             targets = [bot_raw.upper()] if bot_raw.upper() in self._bots else list(self._bots.keys())
             for bn in targets:
                 s = self._bots[bn]
@@ -301,7 +302,7 @@ class BotPipelineTracker:
                 s.last_coin = coin or s.last_coin
 
         # ── SIGNAL_AI_REJECTED ─────────────────────────────────────────────
-        elif event_type == EventType.SIGNAL_AI_REJECTED.value:
+        elif event_str == EventType.SIGNAL_AI_REJECTED.value:
             targets = [bot_raw.upper()] if bot_raw.upper() in self._bots else list(self._bots.keys())
             for bn in targets:
                 s = self._bots[bn]
@@ -313,7 +314,7 @@ class BotPipelineTracker:
                 s.last_action_time = now_str
 
         # ── TRADE_APPROVED (Risk Engine gate passed) ───────────────────────
-        elif event_type == EventType.TRADE_APPROVED.value:
+        elif event_str == EventType.TRADE_APPROVED.value:
             bn = bot_raw.upper()
             if bn in self._bots:
                 s = self._bots[bn]
@@ -325,7 +326,7 @@ class BotPipelineTracker:
                 s.last_coin = coin or s.last_coin
 
         # ── TRADE_DENIED (Risk Engine gate blocked) ────────────────────────
-        elif event_type == EventType.TRADE_DENIED.value:
+        elif event_str == EventType.TRADE_DENIED.value:
             bn = bot_raw.upper()
             if bn in self._bots:
                 s = self._bots[bn]
@@ -336,7 +337,7 @@ class BotPipelineTracker:
                 s.last_action_time = now_str
 
         # ── TRADE_EXECUTED (Auto Trade fired) ─────────────────────────────
-        elif event_type == EventType.TRADE_EXECUTED.value:
+        elif event_str == EventType.TRADE_EXECUTED.value:
             bn = bot_raw.upper()
             if bn in self._bots:
                 s = self._bots[bn]
@@ -351,7 +352,7 @@ class BotPipelineTracker:
                 s.last_coin = coin or s.last_coin
 
         # ── POSITION_OPENED (Position Manager now tracking) ───────────────
-        elif event_type == EventType.POSITION_OPENED.value:
+        elif event_str == EventType.POSITION_OPENED.value:
             bn = bot_raw.upper()
             if bn in self._bots:
                 s = self._bots[bn]
@@ -362,7 +363,7 @@ class BotPipelineTracker:
                 s.last_action_time = now_str
 
         # ── POSITION_CLOSED (Trade journaled) ─────────────────────────────
-        elif event_type == EventType.POSITION_CLOSED.value:
+        elif event_str == EventType.POSITION_CLOSED.value:
             bn = bot_raw.upper()
             if bn in self._bots:
                 s = self._bots[bn]

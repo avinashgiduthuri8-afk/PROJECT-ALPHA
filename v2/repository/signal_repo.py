@@ -108,6 +108,11 @@ class SignalRepository(BaseRepository):
             signals = [s for s in signals if s.priority.gte(priority_gte)]
         return signals
 
+    async def get_active(self, limit: int = 5) -> list[Signal]:
+        """Alias for get_live for watchdog and supervisor compatibility."""
+        signals = await self.get_live()
+        return signals[:limit]
+
     async def get_by_id(self, signal_id: str) -> Optional[Signal]:
         row = await self._fetchone("SELECT * FROM signals WHERE id=?", (signal_id,))
         return _row_to_signal(row) if row else None

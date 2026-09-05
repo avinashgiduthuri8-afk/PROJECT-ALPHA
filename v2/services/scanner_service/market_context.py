@@ -66,10 +66,6 @@ def determine_trend_from_candles(candles: List[Dict[str, Any]]) -> str:
         return "BULLISH"
     elif diff_pct < -0.0015 and current_close <= ema9:
         return "BEARISH"
-    elif diff_pct > 0:
-        return "BULLISH"
-    elif diff_pct < 0:
-        return "BEARISH"
     return "SIDEWAYS"
 
 

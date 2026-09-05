@@ -260,7 +260,10 @@ class TestCoinDCXSubAccountArchitecture:
 # ── 4. API Endpoint Tests ─────────────────────────────────────────────────────
 
 @pytest.mark.anyio
-async def test_bot_api_endpoints(tmp_path, monkeypatch):
+async def test_bot_api_endpoints(monkeypatch):
+    import os
+    import tempfile
+    import uuid
     import httpx
     from fastapi import FastAPI
     from v2.api.router import router as api_router, init_router
@@ -279,7 +282,7 @@ async def test_bot_api_endpoints(tmp_path, monkeypatch):
     monkeypatch.setenv("DASHBOARD_API_KEY", "test-key-bots")
     invalidate_config()
 
-    db_path = str(tmp_path / "test_bots.db")
+    db_path = os.path.join(tempfile.gettempdir(), f"test_bots_{uuid.uuid4().hex}.db")
     db = Database(db_path)
     await db.open()
     try:

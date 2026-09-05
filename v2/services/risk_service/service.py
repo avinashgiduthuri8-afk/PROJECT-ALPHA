@@ -171,7 +171,7 @@ class RiskService:
                     "coin": coin,
                     "pair": pair,
                     "bot": bot.value,
-                    "price": float(payload.get("price", 100.0)),
+                    "price": float(payload.get("price") or 100.0),
                     "approved_amount": decision.adjusted_amount,
                     "ai_adjustments": ai_adjustments,
                     "approved_at": datetime.now(timezone.utc).isoformat(),

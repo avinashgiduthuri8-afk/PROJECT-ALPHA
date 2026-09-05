@@ -26,7 +26,7 @@ import httpx
 from v2.bus.event_bus import EventBus
 from v2.bus.event_types import EventType
 from v2.core.config import V2Config
-from v2.core.types import Priority, Signal
+from v2.core.types import MarketState, OppType, Priority, Signal
 from v2.core.logging import get_logger
 from v2.repository.signal_repo import SignalRepository
 from v2.repository.event_log_repo import EventLogRepository
@@ -678,7 +678,7 @@ class ScannerService:
         return await self._generate_native_candidates()
 
     async def _generate_native_candidates(self) -> list[dict]:
-        """Generate candidate signals natively from cached/fetched CoinDCX candles."""
+        """Generate candidate signals natively from cached/fetched CoinDCX candles with full technical features."""
         coins = await self._fetch_watchlist_coins()
         canonical_inr_coins = {"BTC", "ETH", "SOL", "BNB", "XRP", "ZEC", "AVAX", "LINK", "DOGE", "SHIB", "MATIC"}
         candidates: list[dict] = []
@@ -702,10 +702,22 @@ class ScannerService:
             if not candles:
                 continue
 
-            closes = []
+            closes: list[float] = []
+            highs: list[float] = []
+            lows: list[float] = []
+            volumes: list[float] = []
+
             for c in candles:
                 try:
-                    closes.append(float(c.get("close", c.get("c", 0.0))))
+                    cl = float(c.get("close", c.get("c", 0.0)))
+                    hi = float(c.get("high", c.get("h", cl)))
+                    lo = float(c.get("low", c.get("l", cl)))
+                    vo = float(c.get("volume", c.get("v", 0.0)))
+                    if cl > 0:
+                        closes.append(cl)
+                        highs.append(hi)
+                        lows.append(lo)
+                        volumes.append(vo)
                 except (ValueError, TypeError):
                     continue
 
@@ -713,13 +725,36 @@ class ScannerService:
                 continue
 
             latest_close = closes[-1]
+            latest_high = highs[-1] if highs else latest_close
+            latest_low = lows[-1] if lows else latest_close
+
+            # Multi-Timeframe Alignment: check 15m and 1d
+            candles_1d: list[dict] = []
+            if self._candle_repo:
+                try:
+                    candles_1d = await self._candle_repo.get_recent_candles(pair, "1d", limit=30)
+                except Exception:
+                    pass
+
+            # Coin class determination
+            if coin_upper in ("BTC", "ETH", "SOL", "BNB"):
+                coin_class = "A"
+            elif coin_upper in ("XRP", "ADA", "MATIC", "LINK", "AVAX", "DOGE"):
+                coin_class = "B"
+            else:
+                coin_class = "C"
+
+            rsi = 50.0
+            volume_ratio = 1.0
+            vol_24h = sum(volumes) if volumes else 0.0
+
             if len(closes) >= 21:
                 ema9_list = calculate_ema(closes, 9)
                 ema21_list = calculate_ema(closes, 21)
                 ema9 = ema9_list[-1] if ema9_list else latest_close
                 ema21 = ema21_list[-1] if ema21_list else latest_close
-                
-                rsi = 50.0
+
+                # RSI 14
                 if len(closes) >= 15:
                     deltas = [closes[i] - closes[i-1] for i in range(1, len(closes))]
                     gains = [d if d > 0 else 0.0 for d in deltas]
@@ -732,40 +767,117 @@ class ScannerService:
                     elif avg_g > 0:
                         rsi = 100.0
 
+                # Volume ratio
+                if volumes:
+                    avg_vol = sum(volumes[-20:]) / max(1, len(volumes[-20:]))
+                    volume_ratio = round(volumes[-1] / avg_vol, 2) if avg_vol > 0 else 1.0
+
+                # 15m trend & MTF alignment
+                is_15m_bullish = (ema9 >= ema21) and (latest_close >= ema21 * 0.998)
+                is_1d_aligned = True
+                if candles_1d and len(candles_1d) >= 5:
+                    closes_1d = [float(c.get("close", c.get("c", 0.0))) for c in candles_1d if float(c.get("close", c.get("c", 0.0))) > 0]
+                    if len(closes_1d) >= 5:
+                        ema_1d = calculate_ema(closes_1d, min(9, len(closes_1d)))[-1]
+                        is_1d_aligned = (closes_1d[-1] >= ema_1d) or (closes_1d[-1] >= closes_1d[0])
+                mtf_aligned = bool(is_15m_bullish and is_1d_aligned)
+
+                # Market state determination
+                recent_high = max(highs[-10:-1]) if len(highs) >= 10 else latest_high
+                if ema9 >= ema21:
+                    if latest_close >= recent_high or ((latest_close - ema9) / ema9 > 0.005):
+                        market_state = MarketState.BREAKOUT.value
+                    elif latest_close >= ema9:
+                        market_state = MarketState.BULL_TREND.value
+                    else:
+                        market_state = MarketState.PULLBACK.value
+                else:
+                    if latest_close > ema9:
+                        market_state = MarketState.RECOVERY.value
+                    else:
+                        market_state = MarketState.DOWNTREND.value
+
+                # Bot Archetype & Opportunity Type selection
+                recent_range = (max(highs[-5:]) - min(lows[-5:])) if len(highs) >= 5 else 1.0
+                wider_range = (max(highs[-15:]) - min(lows[-15:])) if len(highs) >= 15 else 1.0
+                is_vcp = wider_range > 0 and (recent_range / wider_range) < 0.45
+
+                if volume_ratio >= 1.5:
+                    bot = "HDA"
+                    opp_type = "absorption"
+                    strategy_name = "High Delivery Absorption"
+                elif is_vcp and is_15m_bullish:
+                    bot = "VCP"
+                    opp_type = "contraction"
+                    strategy_name = "Volatility Contraction Pattern"
+                elif market_state == MarketState.BREAKOUT.value:
+                    bot = "STE"
+                    opp_type = "momentum_trade"
+                    strategy_name = "SuperTrend ATR Range Expansion"
+                else:
+                    bot = "STE"
+                    opp_type = "continuation"
+                    strategy_name = "SuperTrend ATR Range Expansion"
+
+                # Candidate technical score calculation
                 score = 75.0
                 if ema9 >= ema21 and ema21 > 0:
                     spread_ratio = (ema9 - ema21) / ema21
                     score += min(15.0, spread_ratio * 500)
                 if 45 <= rsi <= 70:
                     score += 5.0
-
+                if market_state in (MarketState.BREAKOUT.value, MarketState.BULL_TREND.value):
+                    score += 5.0
+                if mtf_aligned:
+                    score += 5.0
                 score = min(95.0, max(50.0, score))
             else:
-                score = 75.0
+                market_state = MarketState.SIDEWAYS.value
+                opp_type = "watchlist"
+                bot = "STE"
+                strategy_name = "SuperTrend ATR Range Expansion"
+                mtf_aligned = False
+                score = 65.0
 
             candidates.append({
                 "coin": coin_upper,
                 "pair": pair,
                 "score": round(score, 1),
                 "price": latest_close,
-                "priority": "High" if score >= 80 else "Medium",
-                "strategy": "SuperTrend ATR Range Expansion",
+                "priority": "Elite" if score >= 90 else ("High" if score >= 80 else "Medium"),
+                "strategy": strategy_name,
                 "timeframe": "15m",
+                "market_state": market_state,
+                "opportunity_type": opp_type,
+                "coin_class": coin_class,
+                "mtf_alignment": mtf_aligned,
+                "is_mtf_aligned": mtf_aligned,
+                "bot": bot,
+                "rsi": round(rsi, 2),
+                "volume_24h": round(vol_24h, 2),
+                "volume_ratio": round(volume_ratio, 2),
             })
 
         return candidates
 
     async def _publish_signal_generated(self, sig: Signal) -> None:
+        raw_p = sig.raw_payload or {}
+        price = float(raw_p.get("price") or raw_p.get("close") or 0.0)
+        bot = sig.source_bot if sig.source_bot in ("STE", "HDA", "VCP", "BBS") else raw_p.get("bot", "STE")
         payload = {
-            "signal_id":    sig.id,
-            "coin":         sig.coin,
-            "pair":         sig.pair,
-            "priority":     sig.priority.value,
-            "score":        sig.score,
-            "market_state": sig.market_state.value,
-            "expires_at":   sig.expires_at.isoformat(),
-            "source":       "scanner_service",
-            "confluence":   sig.confluence_breakdown or {},
+            "signal_id":        sig.id,
+            "coin":             sig.coin,
+            "pair":             sig.pair,
+            "priority":         sig.priority.value,
+            "score":            sig.score,
+            "price":            price,
+            "market_state":     sig.market_state.value,
+            "opportunity_type": sig.opportunity_type.value,
+            "bot":              bot,
+            "coin_class":       sig.coin_class,
+            "expires_at":       sig.expires_at.isoformat(),
+            "source":           "scanner_service",
+            "confluence":       sig.confluence_breakdown or {},
         }
         await self._bus.publish(EventType.SIGNAL_GENERATED, payload)
         await self._event_log.append(

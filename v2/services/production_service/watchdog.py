@@ -221,8 +221,8 @@ class ProductionWatchdog:
         if not self._scanner_service:
             return {"status": "UNKNOWN", "message": "Scanner service not wired"}
         try:
-            is_running = getattr(self._scanner_service, "_running", False)
-            last_poll = getattr(self._scanner_service, "_last_poll_time", None)
+            is_running = getattr(self._scanner_service, "_started", False) or getattr(self._scanner_service, "_running", False)
+            last_poll = getattr(self._scanner_service, "_last_poll_time", None) or getattr(self._scanner_service, "_last_poll_at", None)
 
             # Check if scanner is stalled (> 120s since last poll)
             now = datetime.now(timezone.utc)
@@ -251,7 +251,12 @@ class ProductionWatchdog:
         if not self._signal_repo:
             return {"status": "OK", "message": "Repo check deferred"}
         try:
-            active_signals = await self._signal_repo.get_active(limit=5)
+            if hasattr(self._signal_repo, "get_live"):
+                active_signals = await self._signal_repo.get_live()
+            elif hasattr(self._signal_repo, "get_active"):
+                active_signals = await self._signal_repo.get_active(limit=5)
+            else:
+                active_signals = []
             return {"status": "OK", "active_signals_count": len(active_signals)}
         except Exception as exc:
             return {"status": "DEGRADED", "error": str(exc)}
@@ -260,7 +265,7 @@ class ProductionWatchdog:
         """Probe AI intelligence scoring service."""
         if not self._ai_service:
             return {"status": "UNKNOWN", "message": "AI service not wired"}
-        is_running = getattr(self._ai_service, "_running", False)
+        is_running = getattr(self._ai_service, "_started", False) or getattr(self._ai_service, "_running", False)
         return {"status": "OK" if is_running else "IDLE", "running": is_running}
 
     async def _probe_risk_engine(self) -> Dict[str, Any]:

@@ -149,7 +149,14 @@ def v1_response_to_signals(
 
             confidence = int(item.get("confidence") or 0)
             coin_class = item.get("coin_class") or item.get("class")
-            mtf = _parse_bool(item.get("mtf_alignment") or item.get("mtf"))
+            mtf = _parse_bool(item.get("mtf_alignment") or item.get("mtf") or item.get("is_mtf_aligned"))
+            if not mtf:
+                reasons = item.get("reasons", [])
+                if isinstance(reasons, list):
+                    for r in reasons:
+                        if isinstance(r, str) and ("mtf" in r.lower() or "aligned" in r.lower()):
+                            mtf = True
+                            break
 
             generated_at = _parse_datetime(item.get("timestamp") or item.get("generated_at"))
             if generated_at is None:
@@ -171,7 +178,7 @@ def v1_response_to_signals(
                 mtf_alignment    = mtf,
                 generated_at     = generated_at,
                 expires_at       = expires_at,
-                source_bot       = "scanner_v1",
+                source_bot       = item.get("bot") or item.get("source_bot") or "scanner_v1",
                 raw_payload      = item,
             )
             signals.append(sig)
@@ -193,21 +200,31 @@ def v1_signal_to_domain(item: dict[str, Any], signal_ttl_seconds: int = 300) -> 
 
     now = datetime.now(timezone.utc)
     coin = item.get("coin") or item.get("symbol") or "UNKNOWN"
+    raw_ms = _parse_market_state(item.get("market_state"))
+    raw_opp = item.get("opportunity_type")
+    if raw_opp:
+        try:
+            opp_type = OppType(raw_opp)
+        except ValueError:
+            opp_type = _STATE_TO_OPP.get(raw_ms.value, OppType.WATCHLIST)
+    else:
+        opp_type = _STATE_TO_OPP.get(raw_ms.value, OppType.WATCHLIST)
+
     return Signal(
         id=item.get("id") or item.get("signal_id") or str(uuid.uuid4()),
         coin=coin.upper(),
         pair=item.get("pair") or f"B-{coin}_USDT",
-        market_state=MarketState.SIDEWAYS,
-        opportunity_type=OppType.WATCHLIST,
-        priority=Priority.from_score(int(item.get("score") or 0)),
-        risk_level=RiskLevel.MEDIUM,
+        market_state=raw_ms,
+        opportunity_type=opp_type,
+        priority=_parse_priority(item.get("priority"), int(item.get("score") or 0)),
+        risk_level=_parse_risk(item.get("risk") or item.get("risk_level")),
         score=int(item.get("score") or 0),
         confidence=int(item.get("confidence") or 0),
-        coin_class=item.get("coin_class"),
-        mtf_alignment=_parse_bool(item.get("mtf_alignment")),
+        coin_class=item.get("coin_class") or item.get("class"),
+        mtf_alignment=_parse_bool(item.get("mtf_alignment") or item.get("mtf") or item.get("is_mtf_aligned")),
         generated_at=now,
         expires_at=now + timedelta(seconds=signal_ttl_seconds),
-        source_bot="scanner_v1",
+        source_bot=item.get("bot") or item.get("source_bot") or "scanner_v1",
         raw_payload=item,
     )
 
