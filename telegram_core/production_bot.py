@@ -810,9 +810,16 @@ async def cmd_pnl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         message = (
             f"💰 *Profit & Loss Summary*\n\n"
             f"*MTB Bot:*\n"
+<<<<<<< Updated upstream
             f"{daily_emoji} Daily: `₹{daily_pnl:,.2f}`\n"
             f"{total_emoji} Total: `₹{total_pnl:,.2f}`\n"
             f"📝 Closed Trades: `{len(mtb.get('closed_trades', []))}`"
+=======
+            f"{daily_emoji} Daily: `₹{daily_pnl:,.4f}`\n"
+            f"{total_emoji} Total: `₹{total_pnl:,.4f}`\n"
+            f"💵 Cash: `₹{mtb.get('cash_balance', 0):,.2f}`\n"
+            f"📝 Positions: `{len(mtb.get('open_positions', []))}`"
+>>>>>>> Stashed changes
         )
         
         await update.message.reply_text(message, parse_mode="Markdown")
@@ -826,6 +833,7 @@ async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /stats command."""
     try:
         from bots.mtb_bot.storage import snapshot as mtb_snapshot
+<<<<<<< Updated upstream
         from app import _unified_stats
         
         mtb = mtb_snapshot()
@@ -847,6 +855,17 @@ async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             f"├ Cash Balance: `₹{mtb.get('cash_balance', 0):,.2f}`\n"
             f"├ Daily PnL: `₹{mtb.get('daily_pnl', 0):,.2f}`\n"
             f"└ Total PnL: `₹{mtb.get('total_pnl', 0):,.2f}`"
+=======
+        mtb = mtb_snapshot()
+        
+        message = (
+            f"📊 *Trading Statistics*\n\n"
+            f"*MTB Bot:*\n"
+            f"├ Cash: `₹{mtb.get('cash_balance', 0):,.2f}`\n"
+            f"├ Daily PnL: `₹{mtb.get('daily_pnl', 0):,.4f}`\n"
+            f"├ Total PnL: `₹{mtb.get('total_pnl', 0):,.4f}`\n"
+            f"└ Open Positions: `{len(mtb.get('open_positions', []))}`"
+>>>>>>> Stashed changes
         )
         
         await update.message.reply_text(message, parse_mode="Markdown")
@@ -860,8 +879,13 @@ async def cmd_positions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     """Handle /positions command."""
     try:
         from bots.mtb_bot.storage import snapshot as mtb_snapshot
+<<<<<<< Updated upstream
         mtb = mtb_snapshot()
         
+=======
+        
+        mtb = mtb_snapshot()
+>>>>>>> Stashed changes
         mtb_positions = mtb.get("open_positions", [])
         total_positions = len(mtb_positions)
         
@@ -871,6 +895,7 @@ async def cmd_positions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         
         message = f"📈 *Open Positions ({total_positions})*\n\n"
         message += "*MTB Positions:*\n"
+<<<<<<< Updated upstream
         for pos in mtb_positions[:10]:
             message += (
                 f"├ {pos.get('coin', pos.get('symbol', 'N/A'))}: "
@@ -878,6 +903,15 @@ async def cmd_positions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             )
         if len(mtb_positions) > 10:
             message += f"└ ... and {len(mtb_positions) - 10} more\n"
+=======
+        for pos in mtb_positions[:5]:
+            message += (
+                f"├ {pos.get('coin', 'N/A')}: "
+                f"`₹{pos.get('entry_price', 0):,.2f}`\n"
+            )
+        if len(mtb_positions) > 5:
+            message += f"└ ... and {len(mtb_positions) - 5} more\n"
+>>>>>>> Stashed changes
         
         await update.message.reply_text(message, parse_mode="Markdown")
     except Exception as e:
@@ -981,23 +1015,43 @@ async def cmd_portfolio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     """Handle /portfolio command."""
     try:
         from bots.mtb_bot.storage import snapshot as mtb_snapshot
+<<<<<<< Updated upstream
         mtb = mtb_snapshot()
         
         total_positions = len(mtb.get("open_positions", []))
         cash_balance = mtb.get("cash_balance", 0)
         total_pnl = mtb.get("total_pnl", 0)
         daily_pnl = mtb.get("daily_pnl", 0)
+=======
+        
+        mtb = mtb_snapshot()
+        
+        open_positions = mtb.get("open_positions", [])
+        cash_balance = mtb.get("cash_balance", 0)
+        daily_pnl = mtb.get("daily_pnl", 0)
+        total_pnl = mtb.get("total_pnl", 0)
+>>>>>>> Stashed changes
         
         message = (
             f"💼 *Portfolio Overview*\n\n"
             f"*Balances:*\n"
             f"├ Cash Balance: `₹{cash_balance:,.2f}`\n"
+<<<<<<< Updated upstream
             f"├ Daily PnL: `₹{daily_pnl:,.2f}`\n"
             f"├ Total PnL: `₹{total_pnl:,.2f}`\n"
             f"└ Open Positions: `{total_positions}`\n\n"
             f"*Bot Status:*\n"
             f"├ Mode: `{mtb.get('mode', 'PAPER')}`\n"
             f"└ Trade Amount: `₹{mtb.get('trade_amount', 0):,.2f}`"
+=======
+            f"├ Daily PnL: `₹{daily_pnl:,.4f}`\n"
+            f"├ Total PnL: `₹{total_pnl:,.4f}`\n"
+            f"└ Open Positions: `{len(open_positions)}`\n\n"
+            f"*MTB Configuration:*\n"
+            f"├ Mode: `{mtb.get('mode', 'PAPER')}`\n"
+            f"├ Trade Amount: `₹{mtb.get('trade_amount', 0):,.2f}`\n"
+            f"└ Trailing Stop: `{mtb.get('trailing_stop_pct', 3)}%`"
+>>>>>>> Stashed changes
         )
         
         await update.message.reply_text(message, parse_mode="Markdown")

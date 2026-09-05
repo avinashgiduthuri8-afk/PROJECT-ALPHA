@@ -174,6 +174,48 @@ class PositionRepository(BaseRepository):
         )
         return [_row_to_position(r) for r in rows]
 
+    async def get_active_positions(self, bot: Optional[BotName] = None) -> list[Position]:
+        """Fetch all non-CLOSED positions (OPEN, PENDING_ENTRY, PENDING_EXIT)."""
+        if bot:
+            bot_str = bot.value if hasattr(bot, "value") else str(bot)
+            rows = await self._fetchall(
+                "SELECT * FROM positions WHERE status != 'CLOSED' AND bot=? ORDER BY entry_time DESC",
+                (bot_str,),
+            )
+        else:
+            rows = await self._fetchall(
+                "SELECT * FROM positions WHERE status != 'CLOSED' ORDER BY entry_time DESC"
+            )
+        return [_row_to_position(r) for r in rows]
+
+    async def update_status(
+        self,
+        position_id: str,
+        status: PositionStatus | str,
+        exit_price: Optional[float] = None,
+        exit_reason: Optional[ExitReason | str] = None,
+        realized_pnl: Optional[float] = None,
+    ) -> None:
+        """Update position status and optional closure details."""
+        status_val = status.value if hasattr(status, "value") else str(status)
+        now = datetime.now(timezone.utc).isoformat()
+        reason_val = (exit_reason.value if hasattr(exit_reason, "value") else str(exit_reason)) if exit_reason else None
+
+        if status_val == "CLOSED":
+            await self._execute(
+                """
+                UPDATE positions
+                SET status=?, exit_price=?, exit_reason=?, closed_at=?, realized_pnl=COALESCE(?, realized_pnl)
+                WHERE id=?
+                """,
+                (status_val, exit_price, reason_val, now, realized_pnl, position_id),
+            )
+        else:
+            await self._execute(
+                "UPDATE positions SET status=? WHERE id=?",
+                (status_val, position_id),
+            )
+
     async def get_deployed_capital(self, bot: BotName) -> float:
         row = await self._fetchone(
             "SELECT COALESCE(SUM(qty * entry_price), 0.0) as total "

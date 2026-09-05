@@ -105,11 +105,19 @@ class TestStrategyParamAccepted:
 class TestStrategyParamRejected:
 
     def test_different_strategy_returns_empty(self):
+<<<<<<< Updated upstream
         result = _call_signals("UNKNOWN")
         assert result == []
 
     def test_invalid_strategy_returns_empty(self):
         result = _call_signals("INVALID")
+=======
+        result = _call_signals("OTHER")
+        assert result == []
+
+    def test_unknown_strategy_returns_empty(self):
+        result = _call_signals("UNKNOWN")
+>>>>>>> Stashed changes
         assert result == []
 
     def test_empty_string_returns_empty(self):

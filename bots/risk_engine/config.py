@@ -52,7 +52,11 @@ def _parse_int(env_var: str, default: int = 0) -> int:
 
 
 # ── Global kill-switches ──────────────────────────────────────────────────────
+<<<<<<< Updated upstream
 # Set TRADING_ENABLED=false to halt all trading.
+=======
+# Set TRADING_ENABLED=false to halt MTB.
+>>>>>>> Stashed changes
 TRADING_ENABLED: bool = os.getenv("TRADING_ENABLED", "false").lower() == "true"
 
 # ── In-memory runtime toggle ──────────────────────────────────────────────────

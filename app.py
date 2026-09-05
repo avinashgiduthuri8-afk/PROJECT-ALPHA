@@ -527,7 +527,11 @@ async def pull_state_payload():
     )
 
     # Enrich closed trade records with pnl_pct, holding_time, entry_price,
+<<<<<<< Updated upstream
     # exit_reason, and current_price.
+=======
+    # exit_reason, and current_price for MTB.
+>>>>>>> Stashed changes
     try:
         import bots.mtb_bot.storage as _mtb_st
         _mtb_all = await asyncio.to_thread(_mtb_st.load_trades)
@@ -544,6 +548,10 @@ async def pull_state_payload():
                      "closed_trades": _enrich_closed_trades(
                          _mtb_closed, _mtb_all, prices=_prices)}
     except Exception:
+<<<<<<< Updated upstream
+=======
+        # NF-3: enrichment is best-effort; raw data still renders fine.
+>>>>>>> Stashed changes
         logger.exception("Trade enrichment failed — dashboard will show raw (unenriched) trade data")
 
     # Read live scan signals from live_signals.json (written each scan cycle by main.py)
@@ -619,7 +627,11 @@ async def pull_state_payload():
     _total_value = round(_available_cash + _invested_amount + _total_pnl, 2)
     _open_pos_count = len(mtb_state.get("open_positions", []))
 
+<<<<<<< Updated upstream
     # ── Normalize open positions into unified schema ─────────
+=======
+    # ── Normalize open positions into unified schema ───────────────────────
+>>>>>>> Stashed changes
     _all_open_positions: list[dict] = []
     for p in mtb_state.get("open_positions", []):
         _all_open_positions.append({
@@ -1200,7 +1212,11 @@ def _unified_stats(
     mtbs: dict | None = None,
 ) -> dict:
     """
+<<<<<<< Updated upstream
     Single source of truth for all analytics.
+=======
+    Single source of truth for all analytics across MTB.
+>>>>>>> Stashed changes
     Win rate, best/worst signal, coin leaderboard — computed fresh each call.
     Accepts pre-fetched snapshot dict so async callers can supply it via
     asyncio.to_thread instead of blocking here.
@@ -1291,6 +1307,11 @@ async def unified_statistics():
 async def coin_leaderboard():
     """Coin leaderboard sorted by total return across all evaluated signals."""
     try:
+<<<<<<< Updated upstream
+=======
+        # Pre-fetch snapshots via the cache (uses asyncio.to_thread internally) so
+        # _unified_stats never falls back to its own synchronous file-I/O path.
+>>>>>>> Stashed changes
         mtbs = await _cached_snapshot("mtb", mtb_snapshot)
         logger.debug("[dashboard] offloading _unified_stats (leaderboard) to thread")
         stats = await asyncio.to_thread(_unified_stats, mtbs)
@@ -1554,7 +1575,11 @@ async def export_signals_csv():
 
 @app.get("/api/v1/export/trades.csv")
 async def export_trades_csv():
+<<<<<<< Updated upstream
     """Download all trades from MTB as CSV."""
+=======
+    """Download all trades from MTB as unified CSV."""
+>>>>>>> Stashed changes
     try:
         from bots.mtb_bot.storage import load_trades as mtb_trades
         output = io.StringIO()

@@ -2,10 +2,8 @@
 Phase 7 — V1 Freeze tests.
 
 Covers:
-  - VGX config exports BOT_MODE defaulting to PAPER
-  - Startup mode logging added to all three bot mains
+  - Startup mode logging in bot main
   - Watchlist-add returns 400 (not 200) for invalid coins
-  - Bare except → except Exception fixes in VGX subsystems
   - /api/v1/validation/status shape and logic
 """
 
@@ -21,11 +19,19 @@ from fastapi.testclient import TestClient
 
 
 # =============================================================================
+<<<<<<< Updated upstream
 # STARTUP MODE LOGGING — bot announces its mode
 # =============================================================================
 
 class TestStartupModeLogging:
     """Each bot's startup_event source must contain a BOT_MODE log statement."""
+=======
+# STARTUP MODE LOGGING — MTB announces mode
+# =============================================================================
+
+class TestStartupModeLogging:
+    """MTB startup_event source must contain a BOT_MODE log statement."""
+>>>>>>> Stashed changes
 
     def _source_of_fn(self, fn) -> str:
         import inspect
@@ -98,9 +104,7 @@ class TestValidationStatusEndpoint:
     """/api/v1/validation/status returns correct shape and calculates days correctly."""
 
     def _make_validation_app(self, start_iso: str | None = None,
-                              vgx_mode: str = "PAPER",
-                              mtb_mode: str = "PAPER",
-                              pmb_mode: str = "PAPER"):
+                              mtb_mode: str = "PAPER"):
         """Build a minimal FastAPI app with just the validation endpoint logic,
         backed by mock bot snapshots."""
         import os, asyncio
@@ -110,16 +114,8 @@ class TestValidationStatusEndpoint:
 
         mini = FastAPI()
 
-        async def _fake_vgx():
-            return {"status": vgx_mode, "daily_pnl": 0, "total_pnl": 0,
-                    "open_positions": [], "paper_trades": 5, "win_rate": 60}
-
         async def _fake_mtb():
             return {"mode": mtb_mode, "daily_pnl": 0, "total_pnl": 0,
-                    "open_positions": [], "closed_trades": [], "cash_balance": 10000}
-
-        async def _fake_pmb():
-            return {"mode": pmb_mode, "daily_pnl": 0, "total_pnl": 0,
                     "open_positions": [], "closed_trades": [], "cash_balance": 10000}
 
         # Inline the validation logic (mirrors app.py implementation)
@@ -147,13 +143,9 @@ class TestValidationStatusEndpoint:
                 days_elapsed = days_rem = None
                 complete = False
 
-            vgx_s, mtb_s, pmb_s = await asyncio.gather(
-                _fake_vgx(), _fake_mtb(), _fake_pmb()
-            )
-            vm = str(vgx_s.get("status", "?")).upper()
-            mm = str(mtb_s.get("mode",   "?")).upper()
-            pm = str(pmb_s.get("mode",   "?")).upper()
-            all_paper = all(m == "PAPER" for m in (vm, mm, pm))
+            mtb_s = await _fake_mtb()
+            mm = str(mtb_s.get("mode", "?")).upper()
+            all_paper = (mm == "PAPER")
 
             return {
                 "phase":                  "Phase 7 — V1 Freeze",
@@ -164,11 +156,7 @@ class TestValidationStatusEndpoint:
                 "validation_complete":    complete,
                 "all_bots_in_paper_mode": all_paper,
                 "bots": {
-                    "vgx": {"mode": vm, "daily_pnl": 0, "total_pnl": 0,
-                            "open_positions": 0, "paper_trades": 5, "win_rate": 60},
                     "mtb": {"mode": mm, "daily_pnl": 0, "total_pnl": 0,
-                            "open_positions": 0, "closed_trades": 0, "cash_balance": 10000},
-                    "pmb": {"mode": pm, "daily_pnl": 0, "total_pnl": 0,
                             "open_positions": 0, "closed_trades": 0, "cash_balance": 10000},
                 },
                 "circuit_breaker": {"state": "ACTIVE", "total_breaks": 0},
@@ -220,17 +208,17 @@ class TestValidationStatusEndpoint:
         assert body["days_remaining"] == 0.0
 
     def test_all_paper_mode_true_when_all_paper(self):
-        app = self._make_validation_app(vgx_mode="PAPER", mtb_mode="PAPER", pmb_mode="PAPER")
+        app = self._make_validation_app(mtb_mode="PAPER")
         with TestClient(app) as client:
             body = client.get("/api/v1/validation/status").json()
         assert body["all_bots_in_paper_mode"] is True
 
     def test_all_paper_mode_false_when_one_live(self):
-        app = self._make_validation_app(vgx_mode="LIVE", mtb_mode="PAPER", pmb_mode="PAPER")
+        app = self._make_validation_app(mtb_mode="LIVE")
         with TestClient(app) as client:
             body = client.get("/api/v1/validation/status").json()
         assert body["all_bots_in_paper_mode"] is False
-        assert body["bots"]["vgx"]["mode"] == "LIVE"
+        assert body["bots"]["mtb"]["mode"] == "LIVE"
 
     def test_future_start_date_gives_zero_elapsed(self):
         """A start_date in the future must clamp to days_elapsed=0, not go negative."""

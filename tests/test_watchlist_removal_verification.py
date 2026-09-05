@@ -84,7 +84,11 @@ class TestSignalFlow:
         """
         MTB uses scanner_bridge.get_signals() — not a watchlist check.
         """
+<<<<<<< Updated upstream
         source_mtb = Path("bots/mtb_bot/trading_engine.py").read_text()
+=======
+        source_mtb = Path("bots/mtb_bot/trading_engine.py").read_text(encoding="utf-8")
+>>>>>>> Stashed changes
         assert "scanner_bridge.get_signals()" in source_mtb
         assert "get_watchlist" not in source_mtb.split("def run_cycle")[1]
 
@@ -214,6 +218,7 @@ class TestTradeExecution:
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
 
+<<<<<<< Updated upstream
 
 # =============================================================================
 # TEST 4 — Dashboard: Open Positions, Closed Trades, Statistics
@@ -222,6 +227,8 @@ class TestTradeExecution:
 class TestDashboard:
     """Verify dashboard data reads from bot storage correctly."""
 
+=======
+>>>>>>> Stashed changes
     def test_mtb_snapshot_has_open_positions(self):
         """MTB snapshot includes open_positions list."""
         from bots.mtb_bot.storage import snapshot
@@ -314,7 +321,14 @@ class TestStartup:
         import ast
         bad = ["load_watchlist", "save_watchlist", "watchlist_manager"]
         for bot in ["mtb_bot"]:
+<<<<<<< Updated upstream
             for py_file in Path(f"bots/{bot}").rglob("*.py"):
+=======
+            bot_path = Path(f"bots/{bot}")
+            if not bot_path.exists():
+                continue
+            for py_file in bot_path.rglob("*.py"):
+>>>>>>> Stashed changes
                 if "__pycache__" in str(py_file):
                     continue
                 source = py_file.read_text(encoding="utf-8")
@@ -334,10 +348,17 @@ class TestStartup:
         import ast
         for bot in ["mtb_bot"]:
             bot_dir = Path(f"bots/{bot}")
+            if not bot_dir.exists():
+                continue
             for py_file in bot_dir.rglob("*.py"):
                 if "__pycache__" in str(py_file):
                     continue
                 text = py_file.read_text(encoding="utf-8")
+<<<<<<< Updated upstream
+=======
+                # Allow docstring references and _scanner_watchlist wrapper
+                # but ban direct file I/O on watchlist.json
+>>>>>>> Stashed changes
                 tree = ast.parse(text)
                 for node in ast.walk(tree):
                     if isinstance(node, ast.Constant) and isinstance(node.value, str):
@@ -422,4 +443,7 @@ class TestSignalNormalization:
         s = _normalize_signal({"coin": "BTC", "price": 50000, "score": 85})
         assert s["score"] == 85.0
         assert s["symbol"] == "BTCUSDT"
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes

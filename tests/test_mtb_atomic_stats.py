@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 """
 C-2 Fix Tests — Atomic Cash Balance Updates (MTB)
 
@@ -94,10 +95,57 @@ class TestMTBUpdateStatsContract:
         result = mtb_st.update_stats(lambda s: s.__setitem__("cash_balance", 8_500.0))
         assert isinstance(result, dict)
         assert result["cash_balance"] == 8_500.0
+=======
+# MTB Atomic Stats Tests
+from __future__ import annotations
+import json, threading, pytest
+from pathlib import Path
+
+def _write_stats(path: Path, data: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2), encoding='utf-8')
+
+def _read_stats(path: Path) -> dict:
+    return json.loads(path.read_text(encoding='utf-8'))
+
+@pytest.fixture()
+def mtb_storage_dir(tmp_path, monkeypatch):
+    data_dir = tmp_path / 'mtb_data'
+    data_dir.mkdir()
+    stats_file = data_dir / 'stats.json'
+    import bots.mtb_bot.storage as mtb_st
+    monkeypatch.setattr(mtb_st, 'DATA_DIR', data_dir, raising=True)
+    monkeypatch.setattr(mtb_st, 'STATS_FILE', stats_file, raising=True)
+    monkeypatch.setattr(mtb_st, 'POSITIONS_FILE', data_dir / 'positions.json', raising=True)
+    monkeypatch.setattr(mtb_st, 'TRADES_FILE', data_dir / 'trades.json', raising=True)
+    monkeypatch.setattr(mtb_st, '_stats_lock', threading.Lock(), raising=True)
+    monkeypatch.setattr(mtb_st, '_positions_lock', threading.Lock(), raising=True)
+    monkeypatch.setattr(mtb_st, '_trades_lock', threading.Lock(), raising=True)
+    yield mtb_st, stats_file
+
+@pytest.fixture()
+def mtb_with_cash(mtb_storage_dir):
+    mtb_st, stats_file = mtb_storage_dir
+    _write_stats(stats_file, {'cash_balance': 10000.0, 'trade_amount': 0.0, 'total_pnl': 0.0, 'daily_pnl': 0.0})
+    return mtb_st, stats_file
+
+class TestMTBUpdateStatsContract:
+    def test_mutates_cash_balance(self, mtb_with_cash):
+        mtb_st, stats_file = mtb_with_cash
+        mtb_st.update_stats(lambda s: s.__setitem__('cash_balance', 9000.0))
+        assert _read_stats(stats_file)['cash_balance'] == 9000.0
+
+    def test_returns_saved_dict(self, mtb_with_cash):
+        mtb_st, stats_file = mtb_with_cash
+        result = mtb_st.update_stats(lambda s: s.__setitem__('cash_balance', 8500.0))
+        assert isinstance(result, dict)
+        assert result['cash_balance'] == 8500.0
+>>>>>>> Stashed changes
 
     def test_stamps_last_updated(self, mtb_with_cash):
         mtb_st, stats_file = mtb_with_cash
         result = mtb_st.update_stats(lambda s: None)
+<<<<<<< Updated upstream
         assert "last_updated" in result
 
     def test_save_stats_still_works(self, mtb_with_cash):
@@ -321,3 +369,26 @@ class TestHighVolumeStress:
         final    = _read_stats(stats_file)["cash_balance"]
         expected = round(10_000.0 - n * per_trade, 8)
         assert final == expected, f"Expected {expected}, got {final} — lost update!"
+=======
+        assert 'last_updated' in result
+        assert 'last_updated' in _read_stats(stats_file)
+
+    def test_does_not_clobber_other_fields(self, mtb_with_cash):
+        mtb_st, stats_file = mtb_with_cash
+        mtb_st.update_stats(lambda s: s.__setitem__('cash_balance', 7000.0))
+        assert 'total_pnl' in _read_stats(stats_file)
+
+    def test_creates_default_when_stats_file_missing(self, mtb_storage_dir):
+        mtb_st, stats_file = mtb_storage_dir
+        assert not stats_file.exists()
+        mtb_st.update_stats(lambda s: s.__setitem__('cash_balance', 5000.0))
+        assert stats_file.exists()
+        assert _read_stats(stats_file)['cash_balance'] == 5000.0
+
+    def test_save_stats_compatibility(self, mtb_with_cash):
+        mtb_st, stats_file = mtb_with_cash
+        mtb_st.save_stats({'cash_balance': 3333.0, 'total_pnl': 12.0})
+        saved = _read_stats(stats_file)
+        assert saved['cash_balance'] == 3333.0
+        assert saved['total_pnl'] == 12.0
+>>>>>>> Stashed changes
