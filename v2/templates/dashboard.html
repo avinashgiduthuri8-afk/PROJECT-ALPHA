@@ -830,19 +830,8 @@
                                 </thead>
                                 <tbody id="home-positions-tbody">
                                     <tr>
-                                        <td><span class="tier-elite" style="background:rgba(59,130,246,0.2);color:#93c5fd;">VCP</span> POS-ETH-001</td>
-                                        <td><strong>ETH/INR</strong></td>
-                                        <td class="font-mono">0.0008</td>
-                                        <td class="font-mono">₹2,48,000.00</td>
-                                        <td class="font-mono text-green">₹2,51,200.00</td>
-                                        <td class="font-mono text-xs">TP: ₹2,55,000 | SL: ₹2,45,000</td>
-                                        <td><span class="row-badge-pill" style="background:rgba(16,185,129,0.15);color:#10b981;">TRAILING 2.0%</span></td>
-                                        <td class="text-green font-mono font-bold">+₹1.98</td>
-                                        <td><span class="bot-status-pill paper">PAPER</span></td>
-                                        <td style="text-align:right; white-space:nowrap;">
-                                            <button class="btn-action-trail" onclick="quickToggleTrailing('mock-1', 'ETH', 2.0)">📈 Trail</button>
-                                            <button class="btn-action-edit" onclick="openPositionControlModal('mock-1', 'ETH', 248000, 251200, 245000, 255000, 2.0)">🎯 SL/TP</button>
-                                            <button class="btn-action-close" onclick="manualClosePosition('mock-1', 'ETH')">⚡ Close</button>
+                                        <td colspan="10" style="text-align:center; padding:20px; color:var(--text-muted);">
+                                            <span style="display:inline-block; animation:spin 1s infinite linear; margin-right:8px;">⏳</span> Loading active positions from SQLite...
                                         </td>
                                     </tr>
                                 </tbody>
@@ -1975,7 +1964,12 @@
                 const homeTbody = document.getElementById("home-positions-tbody");
                 const openTbody = document.getElementById("open-positions-tbody");
 
-                // Update KPI subtext
+                // Update KPI counter and subtext
+                const kpiOpenPos = document.getElementById("kpi-openpos");
+                if (kpiOpenPos) {
+                    kpiOpenPos.innerText = openPositions.length;
+                }
+
                 const kpiPosSub = document.getElementById("kpi-openpos-sub");
                 if (kpiPosSub) {
                     if (openPositions.length > 0) {
@@ -1986,8 +1980,20 @@
                     }
                 }
 
+                // Update Total Capital Deployed from live positions
+                let totalPositionsCapital = 0;
+                let totalUnrealisedPnl = 0;
+                openPositions.forEach(p => {
+                    totalPositionsCapital += (Number(p.entry_price || 0) * Number(p.qty || 0));
+                    totalUnrealisedPnl += Number(p.unrealised_pnl || 0);
+                });
+                if (totalPositionsCapital > 0 && document.getElementById("kpi-capital")) {
+                    document.getElementById("kpi-capital").innerText = formatPrice(totalPositionsCapital);
+                }
+
                 // Group open positions by bot
                 const botNames = ['STE', 'HDA', 'VCP', 'BBS'];
+                const botMaxPositions = { STE: 3, HDA: 3, VCP: 2, BBS: 4 };
                 const positionsByBot = { STE: [], HDA: [], VCP: [], BBS: [] };
                 
                 openPositions.forEach(p => {
@@ -2001,19 +2007,21 @@
                 botNames.forEach(bot => {
                     const posList = positionsByBot[bot];
                     const count = posList.length;
+                    const maxCap = botMaxPositions[bot] || 1;
                     const bLower = bot.toLowerCase();
                     const posEl = document.getElementById('bot-pos-' + bLower);
                     const statusEl = document.getElementById('bot-status-' + bLower);
                     const capEl = document.getElementById('bot-cap-' + bLower);
+                    const pnlEl = document.getElementById('bot-pnl-' + bLower);
                     const progEl = document.getElementById('bot-prog-' + bLower);
 
                     if (posEl) {
                         if (count > 0) {
                             const coinNamesStr = posList.map(p => p.coin || p.pair).join(', ');
-                            posEl.innerText = count + ' / 1 (' + coinNamesStr + ')';
+                            posEl.innerText = count + ' / ' + maxCap + ' (' + coinNamesStr + ')';
                             posEl.className = 'bot-metric-value text-green font-bold';
                         } else {
-                            posEl.innerText = '0 / 1 (None)';
+                            posEl.innerText = '0 / ' + maxCap + ' (None)';
                             posEl.className = 'bot-metric-value text-muted';
                         }
                     }
@@ -2028,20 +2036,27 @@
                         }
                     }
 
+                    let botTotalCap = 0;
+                    let botTotalPnl = 0;
+                    posList.forEach(p => {
+                        botTotalCap += (Number(p.entry_price || 0) * Number(p.qty || 0));
+                        botTotalPnl += Number(p.unrealised_pnl || 0);
+                    });
+
                     if (capEl) {
-                        let totalCap = 0;
-                        posList.forEach(p => {
-                            totalCap += (Number(p.entry_price || 0) * Number(p.qty || 0));
-                        });
-                        capEl.innerText = 'Capital Usage: ' + formatPrice(totalCap);
+                        capEl.innerText = 'Capital Usage: ' + formatPrice(botTotalCap);
+                    }
+
+                    if (pnlEl) {
+                        const pnlSign = botTotalPnl >= 0 ? '+' : '';
+                        pnlEl.innerText = pnlSign + formatPrice(botTotalPnl);
+                        pnlEl.className = 'bot-metric-value ' + (botTotalPnl >= 0 ? 'text-green' : 'text-red');
                     }
 
                     if (progEl) {
-                        progEl.style.width = count > 0 ? '20%' : '0%';
+                        progEl.style.width = count > 0 ? `${Math.min(100, Math.round((count / maxCap) * 100))}%` : '0%';
                     }
                 });
-                const homeTbody = document.getElementById("home-positions-tbody");
-                const openTbody = document.getElementById("open-positions-tbody");
 
                 if (Array.isArray(openPositions) && openPositions.length > 0) {
                     if (homeTbody) {
