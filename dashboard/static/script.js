@@ -331,27 +331,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
         }
-<<<<<<< Updated upstream
-                        backgroundColor: ["rgba(0,212,160,0.7)", "rgba(244,63,94,0.7)"],
-                        borderColor:     ["#00d4a0", "#f43f5e"],
-                        borderWidth: 1.5,
-                        borderRadius: 6,
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: { grid: { color: gridBorderColor }, ticks: { color: labelTextColor } },
-                        y: { grid: { color: gridBorderColor }, ticks: { color: labelTextColor, precision: 0 }, beginAtZero: true }
-                    },
-                    plugins: { legend: { display: false } }
-                }
-            });
-        }
-=======
-
->>>>>>> Stashed changes
     }
 
     function refreshDashboardCharts(themeContext) {

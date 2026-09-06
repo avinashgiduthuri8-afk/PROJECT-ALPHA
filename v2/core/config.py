@@ -186,13 +186,14 @@ class V2Config(BaseSettings):
     )
 
     # ── Feature flags & Deployment Mode ──────────────────────────────────────
-    v2_deployment_mode:   str  = Field(default="SHADOW", validation_alias=AliasChoices("V2_DEPLOYMENT_MODE", "DEPLOYMENT_MODE", "v2_deployment_mode"))
+    v2_deployment_mode:   str  = Field(default="PAPER", validation_alias=AliasChoices("V2_DEPLOYMENT_MODE", "DEPLOYMENT_MODE", "v2_deployment_mode"))
     v2_websocket_enabled: bool = Field(default=False)
     v2_shadow_mode:       bool = Field(default=False)
     v2_trading_enabled:   bool = Field(
-        default=False,
+        default=True,
         validation_alias=AliasChoices("V2_TRADING_ENABLED", "TRADING_ENABLED", "v2_trading_enabled"),
     )
+
 
     @property
     def host(self) -> str:

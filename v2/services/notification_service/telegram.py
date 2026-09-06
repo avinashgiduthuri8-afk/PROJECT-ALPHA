@@ -178,6 +178,10 @@ class TelegramClient:
                     data = resp.json()
                     if data.get("ok"):
                         return data.get("result", [])
+                elif resp.status_code == 409:
+                    # Another instance is polling (e.g. VPS cloud server daemon)
+                    await asyncio.sleep(5.0)
+                    return []
                 logger.warning("Telegram getUpdates returned status %s: %s", resp.status_code, resp.text[:200])
         except (httpx.ReadTimeout, httpx.ConnectTimeout):
             # Normal long-polling timeout when no updates occurred

@@ -27,12 +27,13 @@ class ProductionService:
         production_repo: ProductionRepository,
         bus: Optional[EventBus] = None,
         services: Optional[Dict[str, Any]] = None,
+        watchdog: Optional[ProductionWatchdog] = None,
     ) -> None:
         self.repo = production_repo
         self._bus = bus
         self.controller = ProductionController(production_repo=production_repo, bus=bus)
         self.tracker = ShadowDivergenceTracker(production_repo=production_repo, bus=bus)
-        self.watchdog = ProductionWatchdog(services=services, bus=bus)
+        self.watchdog = watchdog if watchdog is not None else ProductionWatchdog(services=services, bus=bus)
         self._started = False
 
     async def start(self) -> None:
@@ -40,13 +41,16 @@ class ProductionService:
             return
         self._started = True
         await self.controller.initialize_state()
-        await self.watchdog.start()
+        if not self.watchdog._running:
+            await self.watchdog.start()
         logger.info("ProductionService started with mode: %s", self.controller.mode.value)
 
     async def stop(self) -> None:
         self._started = False
-        await self.watchdog.stop()
+        if self.watchdog._running:
+            await self.watchdog.stop()
         logger.info("ProductionService stopped")
+
 
     async def get_status(self) -> Dict[str, Any]:
         """Return unified production status snapshot."""

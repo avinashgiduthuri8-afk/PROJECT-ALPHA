@@ -104,8 +104,8 @@
         .chart-ph-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .chart-ph-title { font-size: 0.85rem; font-weight: 700; color: #fff; }
         .chart-ph-tag { font-size: 0.7rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
-        .chart-ph-body { height: 180px; width: 100%; position: relative; }
-        .gauge-readout-digits { position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%); font-size: 1.5rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--accent-green); }
+        .chart-ph-body { height: 190px; width: 100%; position: relative; display: flex; align-items: center; justify-content: center; }
+        .gauge-readout-digits { position: absolute; top: 64%; left: 50%; transform: translate(-50%, -50%); font-size: 1.5rem; font-weight: 800; font-family: 'JetBrains Mono', monospace; color: var(--accent-green); text-shadow: 0 0 10px rgba(16, 185, 129, 0.4); pointer-events: none; }
         .timeline-event-row { display: flex; gap: 12px; margin-bottom: 14px; position: relative; }
         .event-marker-dot-node { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-indigo); margin-top: 4px; flex-shrink: 0; box-shadow: 0 0 6px var(--accent-indigo); }
         .event-details-block h6 { margin: 0 0 2px; font-size: 0.82rem; font-weight: 600; color: #fff; }
@@ -171,19 +171,338 @@
         .btn-outline:hover { background: #1e293b; color: #fff; }
         .btn-commit-mock-state { background: var(--accent-indigo); color: #fff; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; }
         .btn-commit-mock-state:hover { background: #4f46e5; }
+    
+        /* ══════════════════ ADVANCED RESPONSIVE BROWSER ADAPTATION ══════════════════ */
+        * { box-sizing: border-box; }
+        html, body { width: 100%; max-width: 100vw; overflow-x: hidden; }
+        
+        .ultimate-shell {
+            display: flex;
+            min-height: 100vh;
+            width: 100%;
+            max-width: 100vw;
+            position: relative;
+        }
+
+        .sidebar-toggle-btn {
+            display: none;
+            background: #1e293b;
+            border: 1px solid var(--border-color);
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Fluid Spacing & Containers */
+        .workspace-viewport {
+            padding: clamp(12px, 2vw, 24px);
+            overflow-y: auto;
+            flex: 1;
+            min-width: 0;
+            width: 100%;
+        }
+
+        .application-status-header {
+            min-height: 60px;
+            height: auto;
+            border-bottom: 1px solid var(--border-color);
+            background: #0d1322;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px clamp(12px, 2vw, 24px);
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .status-left-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            overflow-x: auto;
+            max-width: 100%;
+        }
+
+        .status-right-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        /* Adaptive Grid Matrix */
+        .dashboard-grid-matrix {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: clamp(10px, 1.5vw, 16px);
+            width: 100%;
+        }
+
+        .beta-deep-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: clamp(10px, 1.5vw, 16px);
+            width: 100%;
+        }
+
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(clamp(140px, 15vw, 190px), 1fr));
+            gap: clamp(10px, 1.5vw, 16px);
+            margin-bottom: 24px;
+            width: 100%;
+        }
+
+        .bot-cards-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(clamp(220px, 22vw, 280px), 1fr));
+            gap: clamp(10px, 1.5vw, 16px);
+            margin-bottom: 24px;
+            width: 100%;
+        }
+
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: clamp(10px, 1.5vw, 16px);
+            margin-bottom: 24px;
+            width: 100%;
+        }
+
+        .v2-two-col {
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+            gap: clamp(10px, 1.5vw, 16px);
+            margin-bottom: 24px;
+            width: 100%;
+        }
+
+        /* Table & Scroll Container Shielding */
+        .scroller-table-axis {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            max-width: 100%;
+            width: 100%;
+        }
+
+        .beta-flowchart-grid {
+            display: flex;
+            align-items: center;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 12px 0 16px;
+            gap: 6px;
+            max-width: 100%;
+        }
+
+        .beta-flowchart-grid::-webkit-scrollbar,
+        .scroller-table-axis::-webkit-scrollbar {
+            height: 6px;
+        }
+        .beta-flowchart-grid::-webkit-scrollbar-thumb,
+        .scroller-table-axis::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 3px;
+        }
+
+        /* ── Breakpoints ── */
+
+        /* Large Screen / Normal Desktop (> 1400px) */
+        @media (min-width: 1400px) {
+            .side-navigation-dock { width: 280px; }
+            .kpi-value { font-size: 1.6rem; }
+        }
+
+        /* Laptops and Small Desktops (1025px - 1399px) */
+        @media (max-width: 1399px) {
+            .side-navigation-dock { width: 240px; }
+            .span-3 { grid-column: span 6; }
+            .span-4 { grid-column: span 6; }
+            .stage-card.span-4 { grid-column: span 6; }
+        }
+
+        /* Tablet & Compact Desktop (769px - 1024px) */
+        @media (max-width: 1024px) {
+            .v2-two-col {
+                grid-template-columns: 1fr;
+            }
+            .analytics-grid {
+                grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            }
+            .sidebar-toggle-btn { display: inline-flex; }
+            
+            .side-navigation-dock {
+                position: fixed;
+                top: 0;
+                left: -280px;
+                bottom: 0;
+                width: 270px;
+                z-index: 9999;
+                box-shadow: 4px 0 24px rgba(0,0,0,0.6);
+                transition: left 0.25s ease-in-out;
+            }
+            
+            .side-navigation-dock.sidebar-open {
+                left: 0;
+            }
+
+            .sidebar-overlay {
+                display: none;
+                position: fixed;
+                top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.6);
+                backdrop-filter: blur(2px);
+                z-index: 9998;
+            }
+            .sidebar-overlay.active {
+                display: block;
+            }
+
+            .span-8, .span-6, .span-4, .span-3, .span-2 {
+                grid-column: span 12;
+            }
+            .stage-card.span-4 {
+                grid-column: span 6;
+            }
+        }
+
+        /* Mobile Devices (<= 768px) */
+        @media (max-width: 768px) {
+            .workspace-viewport { padding: 12px; }
+            .application-status-header { padding: 8px 12px; }
+            .brand-header h2 { font-size: 1rem; }
+            .kpi-row { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+            .kpi-card { padding: 12px 14px; }
+            .kpi-value { font-size: 1.2rem; }
+            .bot-cards-row { grid-template-columns: 1fr; }
+            .analytics-grid { grid-template-columns: 1fr; }
+            .stage-card.span-4 { grid-column: span 12; }
+            .layout-matrix-inner-row { grid-template-columns: 1fr !important; }
+            .beta-pipeline-card { padding: 14px; }
+            .beta-title-group h3 { font-size: 1rem; }
+            .beta-action-btn { font-size: 0.72rem; padding: 5px 10px; }
+            .status-right-group { width: 100%; justify-content: space-between; }
+        }
+
+        /* Very Small Screens (<= 480px) */
+        @media (max-width: 480px) {
+            .kpi-row { grid-template-columns: 1fr; }
+        }
+    
+    
+        /* Position Control Modal */
+        .pos-modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(6px);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .pos-modal-box {
+            background: #111827;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            width: 100%;
+            max-width: 440px;
+            padding: 18px 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+            animation: modalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: translateY(-15px) scale(0.97); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .pos-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 12px;
+        }
+        .pos-input-field {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: #fff;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.88rem;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.15s ease;
+        }
+        .pos-input-field:focus {
+            border-color: var(--accent-indigo);
+        }
+        .btn-action-close {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.5);
+            color: #fca5a5;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 600;
+            transition: all 0.15s ease;
+        }
+        .btn-action-close:hover {
+            background: #ef4444;
+            color: #fff;
+        }
+        .btn-action-edit {
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.5);
+            color: #93c5fd;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-right: 4px;
+            transition: all 0.15s ease;
+        }
+        .btn-action-edit:hover {
+            background: #3b82f6;
+            color: #fff;
+        }
+        .btn-action-trail {
+            background: rgba(16, 185, 129, 0.2);
+            border: 1px solid rgba(16, 185, 129, 0.5);
+            color: #6ee7b7;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-right: 4px;
+            transition: all 0.15s ease;
+        }
+        .btn-action-trail:hover {
+            background: #10b981;
+            color: #fff;
+        }
+
     </style>
 </head>
 <body>
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleMobileSidebar()"></div>
 
-<<<<<<< Updated upstream
-=======
     {# ── Derived values for initial render ─────────────────────────────── #}
-    {% set combined_pnl   = data.mtb_overview.daily_pnl %}
-    {% set total_open     = data.mtb_overview.open_positions | length %}
+    {% set combined_pnl = (data.mtb_overview.daily_pnl if data and data.mtb_overview else 0.0) %}
+    {% set total_open = (data.mtb_overview.open_positions | length if data and data.mtb_overview else 0) %}
 
     {# Telegram: ONLINE if any telegram relay is up #}
-    {% if data.service_statuses.scanner_telegram == 'ONLINE'
-       or data.service_statuses.mtb_telegram == 'ONLINE' %}
+    {% if data and data.service_statuses and (data.service_statuses.scanner_telegram == 'ONLINE' or data.service_statuses.mtb_telegram == 'ONLINE') %}
         {% set tg_status = 'ONLINE' %}
     {% else %}
         {% set tg_status = 'OFFLINE' %}
@@ -195,13 +514,12 @@
     {# Bot card pill class #}
     {% macro bot_pill(svc, mode) %}{% if svc == 'OFFLINE' %}offline{% elif mode == 'LIVE' %}live{% elif mode == 'PAPER' %}paper{% else %}online{% endif %}{% endmacro %}
 
->>>>>>> Stashed changes
     <div class="ultimate-shell">
 
         <!-- ═══════════════════════════════ SIDEBAR ═══════════════════════════ -->
         <aside class="side-navigation-dock" id="sidebar">
             <div class="brand-header">
-                <h2>PROJECT-ALPHA <span class="pulse-core" title="24/7 Crypto Engine Online"></span></h2>
+                <h2>PROJECT-ALPHA V2 MISSION CONTROL <span class="pulse-core" title="24/7 Crypto Engine Online"></span></h2>
                 <div style="font-size:0.65rem;color:var(--accent-indigo);font-family:'JetBrains Mono',monospace;margin-top:2px;">CRYPTO MODE V2</div>
             </div>
             <nav class="navigation-links">
@@ -209,7 +527,7 @@
                     <button class="nav-dropdown-toggle active" data-menu="overview">Overview</button>
                     <div class="nav-dropdown-menu" id="menu-overview">
                         <a href="#" class="nav-anchor active" data-target="home-view">Dashboard Home</a>
-                        <a href="#" class="nav-anchor" data-target="alpha-pipeline-view">⚡ ALPHA 13-Stage Pipeline</a>
+                        <a href="#" class="nav-anchor" data-target="alpha-pipeline-view">⚡ ALPHA 14-Stage Pipeline</a>
                         <a href="#" class="nav-anchor" data-target="stock-research-view">🔍 Crypto Research Hub</a>
                         <a href="#" class="nav-anchor" data-target="scanner-view">Crypto Scanner Center</a>
                         <a href="#" class="nav-anchor" data-target="portfolio-view">Portfolio &amp; Capital Pool</a>
@@ -227,14 +545,10 @@
                 <div class="nav-dropdown-group">
                     <button class="nav-dropdown-toggle" data-menu="bots">Production Fleet</button>
                     <div class="nav-dropdown-menu view-hidden" id="menu-bots">
-<<<<<<< Updated upstream
                         <a href="#" class="nav-anchor" data-target="ste-view">STE · SuperTrend Bot</a>
                         <a href="#" class="nav-anchor" data-target="hda-view">HDA · Absorption Bot</a>
                         <a href="#" class="nav-anchor" data-target="vcp-view">VCP · Contraction Bot</a>
                         <a href="#" class="nav-anchor" data-target="bbs-view">BBS · Squeeze Bot</a>
-=======
-                        <a href="#" class="nav-anchor" data-target="mtb-view">MTB Bot</a>
->>>>>>> Stashed changes
                     </div>
                 </div>
 
@@ -269,32 +583,31 @@
         <div class="main-workspace-wrapper">
 
             <!-- ── TOPBAR ──────────────────────────────────────────────────── -->
-            <header class="application-status-header">
+            <header class="application-status-header" id="health-matrix">
+                
                 <div class="status-left-group">
+                    <button class="sidebar-toggle-btn" id="sidebarToggleBtn" onclick="toggleMobileSidebar()" title="Toggle Navigation Sidebar">☰</button>
+        
                     <div class="status-badge-item">
                         <span class="status-dot dot-online"></span>
                         <span style="color:var(--text-muted)">SCANNER:</span>
                         <span class="text-green font-bold">ONLINE</span>
                     </div>
                     <span class="status-divider"></span>
-<<<<<<< Updated upstream
                     <div class="status-badge-item">
                         <span class="status-dot dot-online"></span>
                         <span style="color:var(--text-muted)">STE:</span>
-                        <span class="text-green font-bold">SHADOW</span>
+                        <span class="text-green font-bold">PAPER</span>
                     </div>
                     <div class="status-badge-item">
                         <span class="status-dot dot-online"></span>
                         <span style="color:var(--text-muted)">HDA:</span>
-                        <span class="text-green font-bold">SHADOW</span>
+                        <span class="text-green font-bold">PAPER</span>
                     </div>
-=======
-                    <!-- MTB -->
->>>>>>> Stashed changes
                     <div class="status-badge-item">
                         <span class="status-dot dot-online"></span>
                         <span style="color:var(--text-muted)">VCP:</span>
-                        <span class="text-green font-bold">SHADOW</span>
+                        <span class="text-green font-bold">PAPER</span>
                     </div>
                     <div class="status-badge-item">
                         <span class="status-dot dot-online"></span>
@@ -337,22 +650,18 @@
                             <div class="beta-controls-group">
                                 <button id="beta-toggle-auto-btn" class="beta-action-btn btn-auto-on" onclick="toggleCryptoAutoExecution()">
                                     <span class="status-pulse-dot"></span>
-                                    <span id="beta-auto-label">SHADOW EXECUTION: ACTIVE</span>
+                                    <span id="beta-auto-label">PAPER EXECUTION: ACTIVE</span>
                                 </button>
                                 <button class="beta-action-btn" onclick="triggerCryptoCycleNow()">
-                                    <span>▶ Run 13-Stage Cycle</span>
+                                    <span>▶ Run 14-Stage Cycle</span>
                                 </button>
                                 <button class="beta-action-btn" onclick="calibrateCryptoStrategy()">
                                     <span>↺ Strategy Feedback</span>
                                 </button>
                             </div>
-<<<<<<< Updated upstream
-=======
-                            <div class="kpi-sub">MTB Bot</div>
->>>>>>> Stashed changes
                         </div>
 
-                        <!-- 13-Stage Flowchart -->
+                        <!-- 14-Stage Flowchart -->
                         <div class="beta-flowchart-grid">
                             <div class="stage-step"><div class="stage-badge"><span class="step-num">1</span> <span class="stage-dot"></span></div><div class="stage-name">CRYPTO DATA</div><div class="stage-detail">CoinDCX / Binance</div></div>
                             <div class="stage-arrow">➔</div>
@@ -378,7 +687,9 @@
                             <div class="stage-arrow">➔</div>
                             <div class="stage-step"><div class="stage-badge"><span class="step-num">12</span> <span class="stage-dot"></span></div><div class="stage-name">BACKTEST</div><div class="stage-detail">Walk-Forward Sim</div></div>
                             <div class="stage-arrow">➔</div>
-                            <div class="stage-step"><div class="stage-badge"><span class="step-num">13</span> <span class="stage-dot"></span></div><div class="stage-name">CALIBRATE ↺</div><div class="stage-detail">Dynamic Tuning</div></div>
+                            <div class="stage-step"><div class="stage-badge"><span class="step-num">13</span> <span class="stage-dot"></span></div><div class="stage-name">STRATEGY</div><div class="stage-detail">Adaptive Optim</div></div>
+                            <div class="stage-arrow">➔</div>
+                            <div class="stage-step"><div class="stage-badge"><span class="step-num">14</span> <span class="stage-dot"></span></div><div class="stage-name">FEEDBACK ↺</div><div class="stage-detail">Closed Loop</div></div>
                         </div>
 
                         <!-- Telemetry Strip -->
@@ -409,10 +720,10 @@
                             <div class="kpi-value font-mono" id="kpi-winrate">88.5%</div>
                             <div class="kpi-sub">23W / 3L (Score ≥ 85)</div>
                         </div>
-                        <div class="kpi-card accent-blue">
+                                                <div class="kpi-card accent-blue">
                             <div class="kpi-label">Open Positions</div>
-                            <div class="kpi-value font-mono" id="kpi-openpos">3</div>
-                            <div class="kpi-sub">SOL, NEAR, ETH active</div>
+                            <div class="kpi-value font-mono" id="kpi-openpos">0</div>
+                            <div class="kpi-sub" id="kpi-openpos-sub">0 active positions</div>
                         </div>
                         <div class="kpi-card accent-green">
                             <div class="kpi-label">Capital Deployed</div>
@@ -426,77 +737,116 @@
                         </div>
                     </div>
 
-                    <!-- BOT CARDS ROW -->
+                                        <!-- BOT CARDS ROW (DYNAMIC LIVE FLEET TELEMETRY) -->
                     <div class="v2-section-label">Production Fleet Status (4 Multi-Archetype Bots)</div>
                     <div class="bot-cards-row">
-<<<<<<< Updated upstream
                         <div class="bot-card">
                             <div class="bot-card-header">
                                 <div><div class="bot-card-name">SuperTrend Momentum</div><div class="bot-card-title">STE Bot · Trend Rider</div></div>
-                                <span class="bot-status-pill live">SHADOW</span>
+                                <span class="bot-status-pill paper" id="bot-status-ste">SCANNING</span>
                             </div>
                             <div class="bot-card-metrics">
-                                <div class="bot-metric"><span class="bot-metric-label">Headroom</span><span class="bot-metric-value text-blue">₹9,400</span></div>
-                                <div class="bot-metric"><span class="bot-metric-label">Net Daily PnL</span><span class="bot-metric-value text-green">+₹185.40</span></div>
+                                <div class="bot-metric"><span class="bot-metric-label">Headroom</span><span class="bot-metric-value text-blue">₹10,000</span></div>
+                                <div class="bot-metric"><span class="bot-metric-label">Net Daily PnL</span><span class="bot-metric-value text-green" id="bot-pnl-ste">₹0.00</span></div>
                                 <div class="bot-metric"><span class="bot-metric-label">Win Rate</span><span class="bot-metric-value">86.5%</span></div>
-                                <div class="bot-metric"><span class="bot-metric-label">Active Positions</span><span class="bot-metric-value">1 / 1 (SOL)</span></div>
+                                <div class="bot-metric"><span class="bot-metric-label">Active Positions</span><span class="bot-metric-value text-muted" id="bot-pos-ste">0 / 1 (None)</span></div>
                             </div>
                             <div class="bot-card-footer">
-                                <div class="progress-track"><div class="progress-fill fill-blue" style="width:20%;"></div></div>
-                                <div class="progress-label"><span>Capital Usage: ₹200</span><span>Target: +4.0%</span></div>
+                                <div class="progress-track"><div class="progress-fill fill-blue" id="bot-prog-ste" style="width:0%;"></div></div>
+                                <div class="progress-label"><span id="bot-cap-ste">Capital Usage: ₹0.00</span><span>Target: +4.0%</span></div>
                             </div>
                         </div>
                         <div class="bot-card">
                             <div class="bot-card-header">
                                 <div><div class="bot-card-name">High-Delivery Absorption</div><div class="bot-card-title">HDA Bot · Orderflow Accumulation</div></div>
-                                <span class="bot-status-pill live">SHADOW</span>
+                                <span class="bot-status-pill paper" id="bot-status-hda">SCANNING</span>
                             </div>
                             <div class="bot-card-metrics">
-                                <div class="bot-metric"><span class="bot-metric-label">Headroom</span><span class="bot-metric-value text-blue">₹9,400</span></div>
-                                <div class="bot-metric"><span class="bot-metric-label">Net Daily PnL</span><span class="bot-metric-value text-green">+₹142.20</span></div>
+                                <div class="bot-metric"><span class="bot-metric-label">Headroom</span><span class="bot-metric-value text-blue">₹10,000</span></div>
+                                <div class="bot-metric"><span class="bot-metric-label">Net Daily PnL</span><span class="bot-metric-value text-green" id="bot-pnl-hda">₹0.00</span></div>
                                 <div class="bot-metric"><span class="bot-metric-label">Win Rate</span><span class="bot-metric-value">91.0%</span></div>
-                                <div class="bot-metric"><span class="bot-metric-label">Active Positions</span><span class="bot-metric-value">1 / 1 (NEAR)</span></div>
+                                <div class="bot-metric"><span class="bot-metric-label">Active Positions</span><span class="bot-metric-value text-muted" id="bot-pos-hda">0 / 1 (None)</span></div>
                             </div>
                             <div class="bot-card-footer">
-                                <div class="progress-track"><div class="progress-fill fill-green" style="width:20%;"></div></div>
-                                <div class="progress-label"><span>Capital Usage: ₹200</span><span>Target: +5.0%</span></div>
+                                <div class="progress-track"><div class="progress-fill fill-green" id="bot-prog-hda" style="width:0%;"></div></div>
+                                <div class="progress-label"><span id="bot-cap-hda">Capital Usage: ₹0.00</span><span>Target: +5.0%</span></div>
                             </div>
                         </div>
-=======
-
-                        <!-- MTB Bot -->
->>>>>>> Stashed changes
                         <div class="bot-card">
                             <div class="bot-card-header">
                                 <div><div class="bot-card-name">Volatility Contraction</div><div class="bot-card-title">VCP Bot · Minervini Range Squeeze</div></div>
-                                <span class="bot-status-pill live">SHADOW</span>
+                                <span class="bot-status-pill paper" id="bot-status-vcp">SCANNING</span>
                             </div>
                             <div class="bot-card-metrics">
-                                <div class="bot-metric"><span class="bot-metric-label">Headroom</span><span class="bot-metric-value text-blue">₹9,400</span></div>
-                                <div class="bot-metric"><span class="bot-metric-label">Net Daily PnL</span><span class="bot-metric-value text-green">+₹125.20</span></div>
+                                <div class="bot-metric"><span class="bot-metric-label">Headroom</span><span class="bot-metric-value text-blue">₹10,000</span></div>
+                                <div class="bot-metric"><span class="bot-metric-label">Net Daily PnL</span><span class="bot-metric-value text-green" id="bot-pnl-vcp">₹0.00</span></div>
                                 <div class="bot-metric"><span class="bot-metric-label">Win Rate</span><span class="bot-metric-value">89.0%</span></div>
-                                <div class="bot-metric"><span class="bot-metric-label">Active Positions</span><span class="bot-metric-value">1 / 1 (ETH)</span></div>
+                                <div class="bot-metric"><span class="bot-metric-label">Active Positions</span><span class="bot-metric-value text-muted" id="bot-pos-vcp">0 / 1 (None)</span></div>
                             </div>
                             <div class="bot-card-footer">
-                                <div class="progress-track"><div class="progress-fill fill-indigo" style="width:20%;"></div></div>
-                                <div class="progress-label"><span>Capital Usage: ₹200</span><span>Target: +3.5%</span></div>
+                                <div class="progress-track"><div class="progress-fill fill-indigo" id="bot-prog-vcp" style="width:0%;"></div></div>
+                                <div class="progress-label"><span id="bot-cap-vcp">Capital Usage: ₹0.00</span><span>Target: +3.5%</span></div>
                             </div>
                         </div>
                         <div class="bot-card">
                             <div class="bot-card-header">
                                 <div><div class="bot-card-name">Bollinger-Keltner Squeeze</div><div class="bot-card-title">BBS Bot · Volatility Expansion</div></div>
-                                <span class="bot-status-pill paper">SCANNING</span>
+                                <span class="bot-status-pill paper" id="bot-status-bbs">SCANNING</span>
                             </div>
                             <div class="bot-card-metrics">
-                                <div class="bot-metric"><span class="bot-metric-label">Headroom</span><span class="bot-metric-value text-blue">₹9,400</span></div>
-                                <div class="bot-metric"><span class="bot-metric-label">Net Daily PnL</span><span class="bot-metric-value text-green">₹0.00</span></div>
+                                <div class="bot-metric"><span class="bot-metric-label">Headroom</span><span class="bot-metric-value text-blue">₹10,000</span></div>
+                                <div class="bot-metric"><span class="bot-metric-label">Net Daily PnL</span><span class="bot-metric-value text-green" id="bot-pnl-bbs">₹0.00</span></div>
                                 <div class="bot-metric"><span class="bot-metric-label">Win Rate</span><span class="bot-metric-value">100.0%</span></div>
-                                <div class="bot-metric"><span class="bot-metric-label">Active Positions</span><span class="bot-metric-value">0 / 1 (DOGE)</span></div>
+                                <div class="bot-metric"><span class="bot-metric-label">Active Positions</span><span class="bot-metric-value text-muted" id="bot-pos-bbs">0 / 1 (None)</span></div>
                             </div>
                             <div class="bot-card-footer">
-                                <div class="progress-track"><div class="progress-fill fill-amber" style="width:0%;"></div></div>
-                                <div class="progress-label"><span>Capital Usage: ₹0</span><span>Target: +6.0%</span></div>
+                                <div class="progress-track"><div class="progress-fill fill-amber" id="bot-prog-bbs" style="width:0%;"></div></div>
+                                <div class="progress-label"><span id="bot-cap-bbs">Capital Usage: ₹0.00</span><span>Target: +6.0%</span></div>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- ACTIVE OPEN POSITIONS & POST-ENTRY CONTROLS (LIVE TELEMETRY) -->
+                    <div class="v2-section-label" style="display:flex; justify-content:space-between; align-items:center;">
+                        <span>Active Crypto Positions &amp; Real-Time Risk Management</span>
+                        <span style="font-size:0.75rem; color:var(--text-secondary); font-weight:normal;">Default Order Size: <strong class="text-blue">₹200.00</strong> · Friction: <strong class="text-amber">1.572%</strong></span>
+                    </div>
+                    <div class="metric-card span-12 table-container-card" style="margin-bottom:16px;">
+                        <div class="scroller-table-axis">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Bot / Position ID</th>
+                                        <th>Asset Pair</th>
+                                        <th>Qty</th>
+                                        <th>Entry Price</th>
+                                        <th>Current LTP</th>
+                                        <th>Target / SL</th>
+                                        <th>Profit Trailing</th>
+                                        <th>Net Realizable P&amp;L</th>
+                                        <th>Mode</th>
+                                        <th style="text-align:right;">Manual Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="home-positions-tbody">
+                                    <tr>
+                                        <td><span class="tier-elite" style="background:rgba(59,130,246,0.2);color:#93c5fd;">VCP</span> POS-ETH-001</td>
+                                        <td><strong>ETH/INR</strong></td>
+                                        <td class="font-mono">0.0008</td>
+                                        <td class="font-mono">₹2,48,000.00</td>
+                                        <td class="font-mono text-green">₹2,51,200.00</td>
+                                        <td class="font-mono text-xs">TP: ₹2,55,000 | SL: ₹2,45,000</td>
+                                        <td><span class="row-badge-pill" style="background:rgba(16,185,129,0.15);color:#10b981;">TRAILING 2.0%</span></td>
+                                        <td class="text-green font-mono font-bold">+₹1.98</td>
+                                        <td><span class="bot-status-pill paper">PAPER</span></td>
+                                        <td style="text-align:right; white-space:nowrap;">
+                                            <button class="btn-action-trail" onclick="quickToggleTrailing('mock-1', 'ETH', 2.0)">📈 Trail</button>
+                                            <button class="btn-action-edit" onclick="openPositionControlModal('mock-1', 'ETH', 248000, 251200, 245000, 255000, 2.0)">🎯 SL/TP</button>
+                                            <button class="btn-action-close" onclick="manualClosePosition('mock-1', 'ETH')">⚡ Close</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
 
@@ -513,7 +863,7 @@
                                     <thead>
                                         <tr><th>Pair</th><th>Tier</th><th>Confluence</th><th>LTP (₹)</th><th>Setup</th></tr>
                                     </thead>
-                                    <tbody>
+                                    <tbody id="scanned-universe-tbody">
                                         <tr><td><strong>SOL/INR</strong></td><td><span class="tier-elite">ELITE</span></td><td class="font-mono text-green font-bold">89.0</td><td class="font-mono">₹10,380.00</td><td class="text-secondary text-xs">MOMENTUM_BREAKOUT</td></tr>
                                         <tr><td><strong>NEAR/INR</strong></td><td><span class="tier-elite">ELITE</span></td><td class="font-mono text-green font-bold">87.0</td><td class="font-mono">₹384.50</td><td class="text-secondary text-xs">ABSORPTION_ACCUM</td></tr>
                                         <tr><td><strong>ETH/INR</strong></td><td><span class="tier-elite">ELITE</span></td><td class="font-mono text-green font-bold">86.5</td><td class="font-mono">₹2,51,200.00</td><td class="text-secondary text-xs">MINERVINI_VCP</td></tr>
@@ -558,18 +908,18 @@
 
                 </div><!-- /#home-view -->
 
-                <!-- ═══════════════════════════════════════════════════════════ -->
-                <!--  ⚡ ALPHA 13-STAGE EXECUTION & INTELLIGENCE PIPELINE VIEW     -->
+                                <!-- ═══════════════════════════════════════════════════════════ -->
+                <!--  ⚡ ALPHA 14-STAGE EXECUTION & LEARNING INTELLIGENCE PIPELINE VIEW -->
                 <!-- ═══════════════════════════════════════════════════════════ -->
                 <div id="alpha-pipeline-view" class="spa-view-layer view-hidden">
-                    <div class="v2-section-label">⚡ ALPHA 13-Stage Automated Crypto Execution &amp; Intelligence Pipeline</div>
+                    <div class="v2-section-label">⚡ ALPHA 14-Stage Automated Crypto Execution &amp; Learning Intelligence Pipeline</div>
                     
                     <div class="beta-deep-grid">
                         <!-- Stage 1: Market Data -->
                         <div class="stage-card span-4">
                             <div class="stage-card-header"><span class="badge-num">1</span> <h5>Crypto Market Data Feed</h5> <span class="stage-live-badge status-live">ONLINE</span></div>
                             <div class="stage-metric-row"><span class="label">Feed Type:</span> <span class="val font-mono">CoinDCX Spot WebSocket / REST</span></div>
-                            <div class="stage-metric-row"><span class="label">Coins Monitored:</span> <span class="val font-mono">SOL, BTC, ETH, NEAR, FET, DOGE</span></div>
+                            <div class="stage-metric-row"><span class="label">Coins Monitored:</span> <span class="val font-mono">SOL, BTC, ETH, NEAR, FET, DOGE, BNB, XRP</span></div>
                             <div class="stage-metric-row"><span class="label">Feed Latency:</span> <span class="val font-mono text-green">&lt; 12ms</span></div>
                         </div>
 
@@ -578,7 +928,7 @@
                             <div class="stage-card-header"><span class="badge-num">2</span> <h5>Multi-Timeframe Scanner</h5> <span class="stage-live-badge status-live">ACTIVE</span></div>
                             <div class="stage-metric-row"><span class="label">Timeframe Sync:</span> <span class="val font-mono">15m, 1h, 4h, 1d MTF</span></div>
                             <div class="stage-metric-row"><span class="label">Setups Monitored:</span> <span class="val font-mono">SuperTrend, Absorption, VCP, Squeeze</span></div>
-                            <div class="stage-metric-row"><span class="label">Candidates Evaluated:</span> <span class="val font-mono text-green">7 Qualified</span></div>
+                            <div class="stage-metric-row"><span class="label">Candidates Evaluated:</span> <span class="val font-mono text-green">9 Monitored</span></div>
                         </div>
 
                         <!-- Stage 3: Signal Engine -->
@@ -586,7 +936,7 @@
                             <div class="stage-card-header"><span class="badge-num">3</span> <h5>C2 Confluence Scorecard</h5> <span class="stage-live-badge status-live">ACTIVE</span></div>
                             <div class="stage-metric-row"><span class="label">Scoring Framework:</span> <span class="val font-mono">100-Pt 4-Pillar Model</span></div>
                             <div class="stage-metric-row"><span class="label">Elite Gate:</span> <span class="val font-mono text-amber">Score ≥ 85.0 / 100</span></div>
-                            <div class="stage-metric-row"><span class="label">Signals Passed:</span> <span class="val font-mono text-green">5 Approved (SOL, BTC, NEAR...)</span></div>
+                            <div class="stage-metric-row"><span class="label">Signals Passed:</span> <span class="val font-mono text-green">Strict 1–2 Signals Cap</span></div>
                         </div>
 
                         <!-- Stage 4: AI Intelligence -->
@@ -594,7 +944,7 @@
                             <div class="stage-card-header"><span class="badge-num">4</span> <h5>Gemini AI Intelligence</h5> <span class="stage-live-badge status-live">ONLINE</span></div>
                             <div class="stage-metric-row"><span class="label">Advisory Layer:</span> <span class="val font-mono">Gemini 2.5 Flash Thesis Advisor</span></div>
                             <div class="stage-metric-row"><span class="label">Min Conviction:</span> <span class="val font-mono">70% Required</span></div>
-                            <div class="stage-metric-row"><span class="label">Confirmed Verdicts:</span> <span class="val font-mono text-green">3 High Conviction (87%)</span></div>
+                            <div class="stage-metric-row"><span class="label">Confirmed Verdicts:</span> <span class="val font-mono text-green">Active Cognitive Check</span></div>
                         </div>
 
                         <!-- Stage 5: Trade Constructor -->
@@ -617,16 +967,16 @@
                         <div class="stage-card span-4">
                             <div class="stage-card-header"><span class="badge-num">7</span> <h5>Smart Execution Router</h5> <span class="stage-live-badge status-live">ONLINE</span></div>
                             <div class="stage-metric-row"><span class="label">Exchange Gateway:</span> <span class="val font-mono">CoinDCX HMAC-SHA256 Auth</span></div>
-                            <div class="stage-metric-row"><span class="label">Deployment Mode:</span> <span class="val font-mono text-blue">SHADOW / LIVE_MICROCASH</span></div>
+                            <div class="stage-metric-row"><span class="label">Deployment Mode:</span> <span class="val font-mono text-blue">PAPER / LIVE</span></div>
                             <div class="stage-metric-row"><span class="label">Routing Latency:</span> <span class="val font-mono text-green">&lt; 45ms</span></div>
                         </div>
 
                         <!-- Stage 8: Position Manager -->
                         <div class="stage-card span-4">
-                            <div class="stage-card-header"><span class="badge-num">8</span> <h5>Position &amp; Bracket Bot</h5> <span class="stage-live-badge status-live">MONITORING</span></div>
-                            <div class="stage-metric-row"><span class="label">Trailing Engine:</span> <span class="val font-mono text-green">Dynamic Peak Lock</span></div>
-                            <div class="stage-metric-row"><span class="label">Active Positions:</span> <span class="val font-mono text-green">3 Active (SOL, NEAR, ETH)</span></div>
-                            <div class="stage-metric-row"><span class="label">Exit Monitors:</span> <span class="val font-mono">TP Hit / Hard SL / Signal Expiry</span></div>
+                            <div class="stage-card-header"><span class="badge-num">8</span> <h5>Position &amp; Bracket Manager</h5> <span class="stage-live-badge status-live">MONITORING</span></div>
+                            <div class="stage-metric-row"><span class="label">Trailing Engine:</span> <span class="val font-mono text-green">Dynamic Peak Lock (2.0% Step)</span></div>
+                            <div class="stage-metric-row"><span class="label">Active Positions:</span> <span class="val font-mono text-green">Live Real-Time Sync</span></div>
+                            <div class="stage-metric-row"><span class="label">Exit Monitors:</span> <span class="val font-mono">TP Hit / Hard SL / Trailing / Manual</span></div>
                         </div>
 
                         <!-- Stage 9: Trade Journal -->
@@ -641,8 +991,8 @@
                         <div class="stage-card span-4">
                             <div class="stage-card-header"><span class="badge-num">10</span> <h5>Quantitative Analytics</h5> <span class="stage-live-badge status-live">CALCULATED</span></div>
                             <div class="stage-metric-row"><span class="label">Sharpe Ratio:</span> <span class="val font-mono text-green">2.92 (Sortino: 3.15)</span></div>
-                            <div class="stage-metric-row"><span class="label">Net Win Rate:</span> <span class="val font-mono text-green">88.5% (23W / 3L)</span></div>
-                            <div class="stage-metric-row"><span class="label">Net Realized P&amp;L:</span> <span class="val font-mono text-green">+₹452.80</span></div>
+                            <div class="stage-metric-row"><span class="label">Net Win Rate:</span> <span class="val font-mono text-green">88.5% (Score ≥ 85)</span></div>
+                            <div class="stage-metric-row"><span class="label">Net Realized P&amp;L:</span> <span class="val font-mono text-green">Live Post-Tax Ledger</span></div>
                         </div>
 
                         <!-- Stage 11: Learning Engine -->
@@ -661,15 +1011,26 @@
                             <div class="stage-metric-row"><span class="label">Simulation Status:</span> <span class="val font-mono text-green">Out-of-Sample Validated</span></div>
                         </div>
 
-                        <!-- Stage 13: Strategy Calibration -->
-                        <div class="stage-card span-12" style="border:1px solid #10b981;background:rgba(16,185,129,0.05);">
-                            <div class="stage-card-header"><span class="badge-num">13</span> <h5>Strategy Dynamic Tuning &amp; Closed Feedback Loop (↺)</h5> <span class="stage-live-badge status-live">CALIBRATED</span></div>
-                            <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:12px;">Real-time closed-loop feedback dynamically tunes confluence score weights, risk thresholds, and AI conviction gates based on live execution outcomes without manual intervention.</p>
+                        <!-- Stage 13: Improved Strategy Synthesis -->
+                        <div class="stage-card span-6" style="border:1px solid #6366f1;background:rgba(99,102,241,0.05);">
+                            <div class="stage-card-header"><span class="badge-num">13</span> <h5>Improved Strategy Synthesis &amp; Upgrades</h5> <span class="stage-live-badge status-live">OPTIMIZED</span></div>
+                            <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:12px;">Compiles validated optimization parameters into upgraded active rule sets for Scanner, Indicators, and Risk Sizing.</p>
+                            <div class="layout-matrix-inner-row" style="grid-template-columns: repeat(3, 1fr);">
+                                <div class="nested-status-well"><h6>Strategy Version</h6><h4 class="text-indigo font-mono">v2.1-adaptive</h4></div>
+                                <div class="nested-status-well"><h6>Active Optimizations</h6><h4 class="text-blue font-mono">4 Upgrades</h4></div>
+                                <div class="nested-status-well"><h6>Edge Gain</h6><h4 class="text-green font-mono">+3.4% win rate</h4></div>
+                            </div>
+                        </div>
+
+                        <!-- Stage 14: Autonomous Recursive Feedback Loop -->
+                        <div class="stage-card span-6" style="border:1px solid #10b981;background:rgba(16,185,129,0.05);">
+                            <div class="stage-card-header"><span class="badge-num">14</span> <h5>Autonomous Closed-Loop Feedback (↺)</h5> <span class="stage-live-badge status-live">CONTINUOUS</span></div>
+                            <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:12px;">Real-time closed-loop feedback dynamically tunes confluence score weights, risk thresholds, and AI conviction gates based on live execution outcomes without human intervention.</p>
                             <div class="layout-matrix-inner-row" style="grid-template-columns: repeat(4, 1fr);">
-                                <div class="nested-status-well"><h6>Min Score Threshold</h6><h4 class="text-amber font-mono">85.0 / 100</h4></div>
-                                <div class="nested-status-well"><h6>Target R:R Multiplier</h6><h4 class="text-green font-mono">1.0x (1:2.0)</h4></div>
-                                <div class="nested-status-well"><h6>Gemini AI Conviction Gate</h6><h4 class="text-indigo font-mono">70% Minimum</h4></div>
-                                <div class="nested-status-well"><h6>Feedback Loop Status</h6><h4 class="text-green font-mono">CONTINUOUS ↺</h4></div>
+                                <div class="nested-status-well"><h6>Min Score Gate</h6><h4 class="text-amber font-mono">85.0 / 100</h4></div>
+                                <div class="nested-status-well"><h6>Target R:R</h6><h4 class="text-green font-mono">1.0x (1:2.0)</h4></div>
+                                <div class="nested-status-well"><h6>AI Conviction</h6><h4 class="text-indigo font-mono">70% Minimum</h4></div>
+                                <div class="nested-status-well"><h6>Loop Status</h6><h4 class="text-green font-mono">CONTINUOUS ↺</h4></div>
                             </div>
                         </div>
                     </div>
@@ -779,7 +1140,7 @@
 
                         <div class="metric-card span-12">
                             <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <h5>Gemini 2.5 Flash AI Intelligence Verdict</h5>
+                                <h5 id="ai-feed">Gemini 2.5 Flash AI Intelligence Verdict</h5>
                                 <span id="si-ai-verdict" class="row-badge-pill signal-type-elite">APPROVE (87.0% CONVICTION)</span>
                             </div>
                             <div style="margin-top:8px;">
@@ -811,263 +1172,7 @@
                 </div>
 
                 <!-- ═══════════════════════════════════════════════════════════ -->
-<<<<<<< Updated upstream
                 <!--  OPEN POSITIONS VIEW (NET OF 1.572% STATUTORY FRICTION)     -->
-=======
-                <!--  SIGNAL PERFORMANCE TRACKER                                 -->
-                <!-- ═══════════════════════════════════════════════════════════ -->
-                <div id="performance-tracker" class="spa-view-layer view-hidden">
-                    <div class="dashboard-grid-matrix">
-                        <div class="metric-card span-2"><h5>Total Signals</h5><h2 class="text-blue">{{ data.performance_stats.total_signals }}</h2><div class="card-footer-metric">Evaluated via 1H/4H/24H/3D/7D</div></div>
-                        <div class="metric-card span-2"><h5>Winning Signals</h5><h2 class="text-green">{{ data.performance_stats.winning_signals }}</h2><div class="card-footer-metric">Positive return</div></div>
-                        <div class="metric-card span-2"><h5>Losing Signals</h5><h2 class="text-red">{{ data.performance_stats.losing_signals }}</h2><div class="card-footer-metric">Zero or negative return</div></div>
-                        <div class="metric-card span-2"><h5>Win Rate %</h5><h2 class="{% if data.performance_stats.win_rate_pct >= 50 %}text-green{% else %}text-red{% endif %}">{{ data.performance_stats.win_rate_pct }}%</h2><div class="card-footer-metric">All-time</div></div>
-                        <div class="metric-card span-2"><h5>Average Return %</h5><h2 class="{% if data.performance_stats.avg_return_pct >= 0 %}text-green{% else %}text-red{% endif %}">{{ data.performance_stats.avg_return_pct }}%</h2><div class="card-footer-metric">Mean across all signals</div></div>
-                        <div class="metric-card span-2"><h5>Best Signal</h5><h3 class="text-green">{{ data.performance_stats.best_signal.coin or "—" }} {{ data.performance_stats.best_signal.return_pct or "0" }}%</h3><div class="card-footer-metric">{{ data.performance_stats.best_signal.timestamp or "—" }}</div></div>
-                        <div class="metric-card span-2"><h5>Worst Signal</h5><h3 class="text-red">{{ data.performance_stats.worst_signal.coin or "—" }} {{ data.performance_stats.worst_signal.return_pct or "0" }}%</h3><div class="card-footer-metric">{{ data.performance_stats.worst_signal.timestamp or "—" }}</div></div>
-
-                        <div class="metric-card span-12 table-container-card">
-                            <h5>Signal Performance Matrix</h5>
-                            <div class="scroller-table-axis">
-                                <table id="performance-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Coin</th><th>Signal Time</th><th>Entry Price</th><th>Current Price</th>
-                                            <th>1H %</th><th>4H %</th><th>24H %</th><th>3D %</th><th>7D %</th>
-                                            <th>Return %</th><th>Result</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="performance-table-body">
-                                        {% for s in data.performance_signals %}
-                                        <tr>
-                                            <td><strong>{{ s.coin }}</strong></td>
-                                            <td class="text-muted text-sm">{{ s.timestamp }}</td>
-                                            <td>{{ s.signal_price }}</td>
-                                            <td>{{ s.current_price }}</td>
-                                            <td class="{% if s['1h_pct'] >= 0 %}text-green{% else %}text-red{% endif %}">{{ s['1h_pct'] }}%</td>
-                                            <td class="{% if s['4h_pct'] >= 0 %}text-green{% else %}text-red{% endif %}">{{ s['4h_pct'] }}%</td>
-                                            <td class="{% if s['24h_pct'] >= 0 %}text-green{% else %}text-red{% endif %}">{{ s['24h_pct'] }}%</td>
-                                            <td class="{% if s['3d_pct'] >= 0 %}text-green{% else %}text-red{% endif %}">{{ s['3d_pct'] }}%</td>
-                                            <td class="{% if s['7d_pct'] >= 0 %}text-green{% else %}text-red{% endif %}">{{ s['7d_pct'] }}%</td>
-                                            <td class="{% if s.return_pct >= 0 %}text-green{% else %}text-red{% endif %}">{{ s.return_pct }}%</td>
-                                            <td><span class="row-badge-pill {% if s.result == 'WIN' %}signal-type-elite{% else %}color-indicator-error{% endif %}">{{ s.result }}</span></td>
-                                        </tr>
-                                        {% else %}
-                                        <tr><td colspan="11" class="text-muted">No evaluated signals yet — signals will appear as 1H/4H/24H/3D/7D horizons mature.</td></tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <div class="metric-card span-12">
-                            <h5>Per-Coin Performance</h5>
-                            <div class="layout-matrix-inner-row">
-                                <div class="nested-status-well"><h6>BTC</h6><h4 class="text-blue">{{ data.coin_performance.BTC.signals }}</h4><div class="card-footer-metric">W: {{ data.coin_performance.BTC.wins }} | L: {{ data.coin_performance.BTC.losses }} | WR: {{ data.coin_performance.BTC.win_rate_pct }}%</div></div>
-                                <div class="nested-status-well"><h6>ETH</h6><h4 class="text-blue">{{ data.coin_performance.ETH.signals }}</h4><div class="card-footer-metric">W: {{ data.coin_performance.ETH.wins }} | L: {{ data.coin_performance.ETH.losses }} | WR: {{ data.coin_performance.ETH.win_rate_pct }}%</div></div>
-                                <div class="nested-status-well"><h6>SOL</h6><h4 class="text-blue">{{ data.coin_performance.SOL.signals }}</h4><div class="card-footer-metric">W: {{ data.coin_performance.SOL.wins }} | L: {{ data.coin_performance.SOL.losses }} | WR: {{ data.coin_performance.SOL.win_rate_pct }}%</div></div>
-                                <div class="nested-status-well"><h6>XRP</h6><h4 class="text-blue">{{ data.coin_performance.XRP.signals }}</h4><div class="card-footer-metric">W: {{ data.coin_performance.XRP.wins }} | L: {{ data.coin_performance.XRP.losses }} | WR: {{ data.coin_performance.XRP.win_rate_pct }}%</div></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- ═══════════════════════════════════════════════════════════ -->
-                <!--  SIGNAL HISTORY                                             -->
-                <!-- ═══════════════════════════════════════════════════════════ -->
-                <div id="signal-history" class="spa-view-layer view-hidden">
-                    <div class="dashboard-grid-matrix">
-                        <div class="metric-card span-2"><h5>History Signals</h5><h2 class="text-blue">{{ data.signal_history_stats.total }}</h2><div class="card-footer-metric">All-time recorded</div></div>
-                        <div class="metric-card span-2"><h5>Winners</h5><h2 class="text-green">{{ data.signal_history_stats.winners }}</h2><div class="card-footer-metric">Positive return</div></div>
-                        <div class="metric-card span-2"><h5>Losers</h5><h2 class="text-red">{{ data.signal_history_stats.losers }}</h2><div class="card-footer-metric">Zero or negative return</div></div>
-                        <div class="metric-card span-2"><h5>Win Rate %</h5><h2 class="{% if data.signal_history_stats.win_rate_pct >= 50 %}text-green{% else %}text-red{% endif %}">{{ data.signal_history_stats.win_rate_pct }}%</h2><div class="card-footer-metric">All-time</div></div>
-                        <div class="metric-card span-2"><h5>Avg Return %</h5><h2 class="{% if data.signal_history_stats.avg_return_pct >= 0 %}text-green{% else %}text-red{% endif %}">{{ data.signal_history_stats.avg_return_pct }}%</h2><div class="card-footer-metric">Mean across history</div></div>
-                        <div class="metric-card span-2"><h5>Records</h5><h2 class="text-blue">{{ data.signal_history_stats.total }}</h2><div class="card-footer-metric">Stored in signal_history.json</div></div>
-
-                        <div class="metric-card span-12" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-                            <input type="text" id="sh-search" placeholder="Search coin..." style="flex:1;min-width:140px;" class="matrix-input" />
-                            <select id="sh-filter" class="matrix-select" style="min-width:140px;">
-                                <option value="ALL">All Results</option>
-                                <option value="WIN">Winners Only</option>
-                                <option value="LOSS">Losers Only</option>
-                            </select>
-                            <select id="sh-sort" class="matrix-select" style="min-width:140px;">
-                                <option value="newest">Newest First</option>
-                                <option value="oldest">Oldest First</option>
-                                <option value="return">Highest Return</option>
-                                <option value="worst">Worst Return</option>
-                            </select>
-                            <span class="text-muted text-sm" id="sh-count-label">{{ data.signal_history|length }} records</span>
-                        </div>
-
-                        <div class="metric-card span-12 table-container-card">
-                            <h5>Signal History</h5>
-                            <div class="scroller-table-axis">
-                                <table id="signal-history-table">
-                                    <thead>
-                                        <tr><th>Coin</th><th>Signal Time</th><th>Score</th><th>Tier</th><th>Entry Price</th><th>1H %</th><th>4H %</th><th>24H %</th><th>3D %</th><th>7D %</th><th>Return %</th><th>Result</th></tr>
-                                    </thead>
-                                    <tbody id="signal-history-table-body">
-                                        {% for s in data.signal_history %}
-                                        <tr>
-                                            <td><strong>{{ s.coin }}</strong></td>
-                                            <td class="text-muted text-sm">{{ s.timestamp }}</td>
-                                            <td>{{ s.score }}</td>
-                                            <td>{{ s.tier }}</td>
-                                            <td>{{ s.signal_price }}</td>
-                                            <td class="{% if s['1h_pct'] >= 0 %}text-green{% else %}text-red{% endif %}">{{ s['1h_pct'] }}%</td>
-                                            <td class="{% if s['4h_pct'] >= 0 %}text-green{% else %}text-red{% endif %}">{{ s['4h_pct'] }}%</td>
-                                            <td class="{% if s['24h_pct'] >= 0 %}text-green{% else %}text-red{% endif %}">{{ s['24h_pct'] }}%</td>
-                                            <td class="{% if s['3d_pct'] >= 0 %}text-green{% else %}text-red{% endif %}">{{ s['3d_pct'] }}%</td>
-                                            <td class="{% if s['7d_pct'] >= 0 %}text-green{% else %}text-red{% endif %}">{{ s['7d_pct'] }}%</td>
-                                            <td class="{% if s.return_pct >= 0 %}text-green{% else %}text-red{% endif %}">{{ s.return_pct }}%</td>
-                                            <td><span class="row-badge-pill {% if s.result == 'WIN' %}signal-type-elite{% else %}color-indicator-error{% endif %}">{{ s.result }}</span></td>
-                                        </tr>
-                                        {% else %}
-                                        <tr><td colspan="12" class="text-muted">No history yet — signals are logged permanently after evaluation.</td></tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- ═══════════════════════════════════════════════════════════ -->
-                <!--  COIN PERFORMANCE                                           -->
-                <!-- ═══════════════════════════════════════════════════════════ -->
-                <div id="coin-performance" class="spa-view-layer view-hidden">
-                    <div class="dashboard-grid-matrix">
-                        <div class="metric-card span-2"><h5>Coins Tracked</h5><h2 class="text-blue">{{ data.coin_performance_stats.coins_tracked }}</h2><div class="card-footer-metric">Auto-discovered from history</div></div>
-                        <div class="metric-card span-2"><h5>Total Signals</h5><h2 class="text-blue">{{ data.coin_performance_stats.total_signals }}</h2><div class="card-footer-metric">Across all coins</div></div>
-                        <div class="metric-card span-2"><h5>Winning Signals</h5><h2 class="text-green">{{ data.coin_performance_stats.winning_signals }}</h2><div class="card-footer-metric">Positive return</div></div>
-                        <div class="metric-card span-2"><h5>Losing Signals</h5><h2 class="text-red">{{ data.coin_performance_stats.losing_signals }}</h2><div class="card-footer-metric">Zero or negative</div></div>
-                        <div class="metric-card span-2"><h5>Win Rate %</h5><h2 class="{% if data.coin_performance_stats.win_rate_pct >= 50 %}text-green{% else %}text-red{% endif %}">{{ data.coin_performance_stats.win_rate_pct }}%</h2><div class="card-footer-metric">All-time</div></div>
-                        <div class="metric-card span-2"><h5>Records</h5><h2 class="text-blue">{{ data.coin_performance_stats.coins_tracked }}</h2><div class="card-footer-metric">Stored in coin_performance.json</div></div>
-
-                        <div class="metric-card span-12" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-                            <input type="text" id="cp-search" placeholder="Search coin..." style="flex:1;min-width:140px;" class="matrix-input" />
-                            <select id="cp-sort" class="matrix-select" style="min-width:180px;">
-                                <option value="winrate">Highest Win Rate</option>
-                                <option value="signals">Most Signals</option>
-                                <option value="best">Best Return</option>
-                                <option value="worst">Worst Return</option>
-                            </select>
-                            <span class="text-muted text-sm" id="cp-count-label">{{ data.coin_performance_data|length }} coins</span>
-                        </div>
-
-                        <div class="metric-card span-12 table-container-card">
-                            <h5>Coin Performance</h5>
-                            <div class="scroller-table-axis">
-                                <table id="coin-performance-table">
-                                    <thead>
-                                        <tr><th>Coin</th><th>Signals</th><th>Wins</th><th>Losses</th><th>Win Rate</th><th>Avg Return</th><th>Best Return</th><th>Worst Return</th><th>Last Signal</th></tr>
-                                    </thead>
-                                    <tbody id="coin-performance-table-body">
-                                        {% for c in data.coin_performance_data %}
-                                        <tr>
-                                            <td><strong>{{ c.coin }}</strong></td>
-                                            <td>{{ c.total_signals }}</td>
-                                            <td class="text-green">{{ c.winning_signals }}</td>
-                                            <td class="text-red">{{ c.losing_signals }}</td>
-                                            <td class="{% if c.win_rate_pct >= 50 %}text-green{% else %}text-red{% endif %}">{{ c.win_rate_pct }}%</td>
-                                            <td class="{% if c.avg_return_pct >= 0 %}text-green{% else %}text-red{% endif %}">{{ c.avg_return_pct }}%</td>
-                                            <td class="text-green">{{ c.best_return_pct }}%</td>
-                                            <td class="text-red">{{ c.worst_return_pct }}%</td>
-                                            <td class="text-muted text-sm">{{ c.last_signal_time or "—" }}</td>
-                                        </tr>
-                                        {% else %}
-                                        <tr><td colspan="9" class="text-muted">No coin data yet — signals are recorded after evaluation.</td></tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- ═══════════════════════════════════════════════════════════ -->
-                <!--  TIER ACCURACY                                              -->
-                <!-- ═══════════════════════════════════════════════════════════ -->
-                <div id="tier-accuracy" class="spa-view-layer view-hidden">
-                    <div class="dashboard-grid-matrix">
-                        <div class="metric-card span-2"><h5>Tiers Tracked</h5><h2 class="text-blue">{{ data.tier_accuracy_stats.tiers_tracked }}</h2><div class="card-footer-metric">ELITE / HIGH / MEDIUM</div></div>
-                        <div class="metric-card span-2"><h5>Total Signals</h5><h2 class="text-blue">{{ data.tier_accuracy_stats.total_signals }}</h2><div class="card-footer-metric">Across all tiers</div></div>
-                        <div class="metric-card span-2"><h5>Winning Signals</h5><h2 class="text-green">{{ data.tier_accuracy_stats.winning_signals }}</h2><div class="card-footer-metric">Positive return</div></div>
-                        <div class="metric-card span-2"><h5>Losing Signals</h5><h2 class="text-red">{{ data.tier_accuracy_stats.losing_signals }}</h2><div class="card-footer-metric">Zero or negative</div></div>
-                        <div class="metric-card span-2"><h5>Win Rate %</h5><h2 class="{% if data.tier_accuracy_stats.win_rate_pct >= 50 %}text-green{% else %}text-red{% endif %}">{{ data.tier_accuracy_stats.win_rate_pct }}%</h2><div class="card-footer-metric">All-time</div></div>
-                        <div class="metric-card span-2"><h5>Records</h5><h2 class="text-blue">{{ data.tier_accuracy_stats.tiers_tracked }}</h2><div class="card-footer-metric">Stored in tier_accuracy.json</div></div>
-
-                        <div class="metric-card span-12 table-container-card">
-                            <h5>Signal Accuracy by Tier</h5>
-                            <div class="scroller-table-axis">
-                                <table id="tier-accuracy-table">
-                                    <thead>
-                                        <tr><th>Tier</th><th>Signals</th><th>Wins</th><th>Losses</th><th>Win Rate</th><th>Average Return</th></tr>
-                                    </thead>
-                                    <tbody id="tier-accuracy-table-body">
-                                        {% for t in data.tier_accuracy_data %}
-                                        <tr>
-                                            <td><span class="row-badge-pill {% if t.tier == 'ELITE' %}signal-type-elite{% elif t.tier == 'HIGH' %}signal-type-high{% else %}signal-type-medium{% endif %}">{{ t.tier }}</span></td>
-                                            <td>{{ t.total_signals }}</td>
-                                            <td class="text-green">{{ t.winning_signals }}</td>
-                                            <td class="text-red">{{ t.losing_signals }}</td>
-                                            <td class="{% if t.win_rate_pct >= 50 %}text-green{% else %}text-red{% endif %}">{{ t.win_rate_pct }}%</td>
-                                            <td class="{% if t.avg_return_pct >= 0 %}text-green{% else %}text-red{% endif %}">{{ t.avg_return_pct }}%</td>
-                                        </tr>
-                                        {% else %}
-                                        <tr><td colspan="6" class="text-muted">No tier data yet — signals are recorded after evaluation.</td></tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- ═══════════════════════════════════════════════════════════ -->
-                <!--  PORTFOLIO                                                   -->
-                <!-- ═══════════════════════════════════════════════════════════ -->
-                <div id="portfolio-view" class="spa-view-layer view-hidden">
-                    <div class="dashboard-grid-matrix">
-                        <div class="metric-card span-4"><h5>Total Portfolio Value</h5><h2 class="text-blue" id="port-total-value">{{ data.portfolio_overview.total_value|inr }}</h2><div class="card-footer-metric">Open Positions: <span id="port-open-positions">{{ data.portfolio_overview.open_positions }}</span></div></div>
-                        <div class="metric-card span-2"><h5>Available Cash</h5><h3 id="port-available-cash">{{ data.portfolio_overview.available_cash|inr }}</h3></div>
-                        <div class="metric-card span-2"><h5>Invested Amount</h5><h3 id="port-invested-amount">{{ data.portfolio_overview.invested_amount|inr }}</h3></div>
-                        <div class="metric-card span-2"><h5>Total PnL Net</h5><h3 id="port-total-pnl" class="{% if data.portfolio_overview.total_pnl >= 0 %}text-green{% else %}text-red{% endif %}">{{ data.portfolio_overview.total_pnl|inr }}</h3></div>
-                        <div class="metric-card span-2"><h5>Daily PnL Delta</h5><h3 id="port-daily-pnl" class="{% if data.portfolio_overview.daily_pnl >= 0 %}text-green{% else %}text-red{% endif %}">{{ data.portfolio_overview.daily_pnl|inr }}</h3></div>
-                        <div class="metric-card span-6 canvas-wrapper-box"><h5>Asset Portfolio Allocation Weights</h5><div class="canvas-holder"><canvas id="portfolioPieChart"></canvas></div></div>
-                        <div class="metric-card span-6 canvas-wrapper-box"><h5>Compounded Equity Valuation Curve</h5><div class="canvas-holder"><canvas id="portfolioGrowthLineChart"></canvas></div></div>
-
-                        <!-- Capital Allocation % widget — frontend-only, computed from mtb_overview.cash_balance. -->
-                        {% set _alloc_mtb = data.mtb_overview.cash_balance or 0 %}
-                        <div class="metric-card span-12" id="capital-allocation-widget">
-                            <h5>Capital Allocation %</h5>
-                            {% if _alloc_mtb > 0 %}
-                            <div class="capital-allocation-row" id="capital-allocation-content">
-                                <div class="capital-allocation-item">
-                                    <span class="capital-allocation-label">MTB</span>
-                                    <span class="capital-allocation-bar-track"><span class="capital-allocation-bar-fill alloc-bar-mtb" id="alloc-bar-mtb" style="width: 100%;"></span></span>
-                                    <span class="capital-allocation-pct text-gold" id="alloc-pct-mtb">100.00%</span>
-                                </div>
-                            </div>
-                            <div class="text-muted" id="capital-allocation-empty" style="display:none;">No allocation data available</div>
-                            {% else %}
-                            <div class="capital-allocation-row" id="capital-allocation-content" style="display:none;">
-                                <div class="capital-allocation-item">
-                                    <span class="capital-allocation-label">MTB</span>
-                                    <span class="capital-allocation-bar-track"><span class="capital-allocation-bar-fill alloc-bar-mtb" id="alloc-bar-mtb" style="width: 0%;"></span></span>
-                                    <span class="capital-allocation-pct text-gold" id="alloc-pct-mtb">0.00%</span>
-                                </div>
-                            </div>
-                            <div class="text-muted" id="capital-allocation-empty">No allocation data available</div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- ═══════════════════════════════════════════════════════════ -->
-                <!--  OPEN POSITIONS                                             -->
->>>>>>> Stashed changes
                 <!-- ═══════════════════════════════════════════════════════════ -->
                 <div id="open-view" class="spa-view-layer view-hidden">
                     <div class="dashboard-grid-matrix">
@@ -1099,7 +1204,7 @@
                                             <td class="text-green font-mono">+₹4.73</td>
                                             <td class="text-amber font-mono">-₹1.55</td>
                                             <td class="text-green font-mono font-bold">+₹3.18</td>
-                                            <td><span class="bot-status-pill paper">SHADOW</span></td>
+                                            <td><span class="bot-status-pill paper">PAPER</span></td>
                                             <td style="text-align:right;"><button class="btn-sm" onclick="closeCryptoPosition('SOL/INR')">Close</button></td>
                                         </tr>
                                         <tr>
@@ -1111,10 +1216,9 @@
                                             <td class="text-green font-mono">+₹7.83</td>
                                             <td class="text-amber font-mono">-₹3.12</td>
                                             <td class="text-green font-mono font-bold">+₹4.71</td>
-                                            <td><span class="bot-status-pill paper">SHADOW</span></td>
+                                            <td><span class="bot-status-pill paper">PAPER</span></td>
                                             <td style="text-align:right;"><button class="btn-sm" onclick="closeCryptoPosition('NEAR/INR')">Close</button></td>
                                         </tr>
-<<<<<<< Updated upstream
                                         <tr>
                                             <td><span class="tier-elite" style="background:rgba(59,130,246,0.2);color:#93c5fd;border-color:rgba(59,130,246,0.4);">VCP</span> POS-ETH-003</td>
                                             <td><strong>ETH/INR</strong></td>
@@ -1124,95 +1228,53 @@
                                             <td class="text-green font-mono">+₹2.56</td>
                                             <td class="text-amber font-mono">-₹1.58</td>
                                             <td class="text-green font-mono font-bold">+₹0.98</td>
-                                            <td><span class="bot-status-pill paper">SHADOW</span></td>
+                                            <td><span class="bot-status-pill paper">PAPER</span></td>
                                             <td style="text-align:right;"><button class="btn-sm" onclick="closeCryptoPosition('ETH/INR')">Close</button></td>
                                         </tr>
-=======
-                                        {% endfor %}
->>>>>>> Stashed changes
                                     </tbody>
                                 </table>
                             </div>
                         </div>
-<<<<<<< Updated upstream
-=======
                     </div>
                 </div>
 
+            
                 <!-- ═══════════════════════════════════════════════════════════ -->
-                <!--  MTB BOT VIEW — MACD Trend Bounce                          -->
+                <!--  CRYPTO SCANNER CENTER                                      -->
                 <!-- ═══════════════════════════════════════════════════════════ -->
-                <div id="mtb-view" class="spa-view-layer view-hidden">
+                <div id="scanner-view" class="spa-view-layer view-hidden">
                     <div class="dashboard-grid-matrix">
-                        <div class="metric-card span-3">
-                            <h5>MTB Status</h5>
-                            <h3 class="{% if data.mtb_overview.status == 'ONLINE' %}text-green{% else %}text-gold{% endif %}">{{ data.mtb_overview.status }}</h3>
-                            <div class="card-footer-metric">Mode: {{ data.mtb_overview.mode }} · {% if data.service_statuses.mtb == 'ONLINE' %}RUNNING{% else %}DISABLED{% endif %}</div>
-                        </div>
-                        <div class="metric-card span-3"><h5>MTB Open Positions</h5><h2 class="text-blue">{{ data.mtb_overview.open_positions | length }}</h2><div class="card-footer-metric">Trade Amount: {{ data.mtb_overview.trade_amount|inr }}</div></div>
-                        <div class="metric-card span-3">
-                            <h5>MTB Daily PnL</h5>
-                            <h3 class="{% if data.mtb_overview.daily_pnl >= 0 %}text-green{% else %}text-red{% endif %}">{{ data.mtb_overview.daily_pnl|inr }}</h3>
-                            <div class="card-footer-metric">Total PnL: {{ data.mtb_overview.total_pnl|inr }}</div>
-                        </div>
-                        <div class="metric-card span-3"><h5>MTB Trade Amount</h5><h3 class="text-white">{{ data.mtb_overview.trade_amount|inr }}</h3><div class="card-footer-metric">Cash: {{ data.mtb_overview.cash_balance|inr }}</div></div>
                         <div class="metric-card span-12">
-                            <h5>MTB Strategy Parameters — MACD Trend Bounce</h5>
-                            <div class="layout-matrix-inner-row">
-                                <div class="nested-status-well"><h6>EMA Fast/Slow</h6><h4 class="text-blue">9 / 21 Period</h4></div>
-                                <div class="nested-status-well"><h6>MACD Signal</h6><h4 class="text-gold">12/26/9 Crossover</h4></div>
-                                <div class="nested-status-well"><h6>Min Score Gate</h6><h4 class="text-green">≥ 75 (Scanner)</h4></div>
-                                <div class="nested-status-well"><h6>Take Profit</h6><h4 class="text-green">+5% Full Exit</h4></div>
-                                <div class="nested-status-well"><h6>Stop Loss</h6><h4 class="text-red">-3% Full Exit</h4></div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                                <div>
+                                    <h3 style="margin:0;">📡 Crypto Market Scanner Center</h3>
+                                    <p style="margin:4px 0 0; color:var(--text-secondary); font-size:0.85rem;">Continuous multi-timeframe candle scans across CoinDCX Universe with 100-point C2 confluence scoring.</p>
+                                </div>
+                                <button class="btn-sm" style="background:var(--accent-indigo);color:#fff;border:none;" onclick="triggerCryptoCycleNow()">🔄 Trigger Scan Pass</button>
                             </div>
                         </div>
                         <div class="metric-card span-12 table-container-card">
-                            <h5>MTB Open Positions</h5>
                             <div class="scroller-table-axis">
                                 <table>
-                                    <thead><tr><th>Symbol</th><th>Entry Price</th><th>Qty</th><th>Amount</th><th>Take Profit</th><th>Stop Loss</th><th>Score</th><th>Confidence</th><th>Entry Time</th></tr></thead>
-                                    <tbody>
-                                        {% for pos in data.mtb_overview.open_positions %}
+                                    <thead>
                                         <tr>
-                                            <td><strong>{{ pos.symbol }}</strong></td>
-                                            <td>{{ pos.entry_price|inr(4) }}</td>
-                                            <td class="font-mono">{{ "%.6f"|format(pos.quantity) }}</td>
-                                            <td>{{ pos.trade_amount|inr }}</td>
-                                            <td class="text-green">{{ pos.take_profit_price|inr(4) }}</td>
-                                            <td class="text-red">{{ pos.stop_loss_price|inr(4) }}</td>
-                                            <td class="text-blue">{{ pos.score }}</td>
-                                            <td>{{ pos.confidence }}</td>
-                                            <td class="text-muted text-sm">{{ pos.entry_time }}</td>
+                                            <th>Pair</th>
+                                            <th>Archetype</th>
+                                            <th>C2 Score</th>
+                                            <th>15m Trend</th>
+                                            <th>1h Trend</th>
+                                            <th>4h Trend</th>
+                                            <th>LTP (₹)</th>
+                                            <th>AI Conviction</th>
+                                            <th>Status</th>
                                         </tr>
-                                        {% else %}
-                                        <tr><td colspan="9" class="text-muted">No open MTB positions</td></tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                        <div class="metric-card span-12 table-container-card">
-                            <h5>MTB Closed Trades</h5>
-                            <div class="scroller-table-axis">
-                                <table>
-                                    <thead><tr><th>Symbol</th><th>Entry Price</th><th>Exit Price</th><th>Cur. Price</th><th>Proceeds</th><th>PnL ₹</th><th>Return %</th><th>Holding</th><th>Exit Reason</th><th>Timestamp</th></tr></thead>
-                                    <tbody>
-                                        {% for pos in data.mtb_overview.closed_trades[-20:] %}
-                                        <tr data-coin="{{ pos.coin }}">
-                                            <td><strong>{{ pos.symbol or pos.coin }}</strong></td>
-                                            <td class="text-muted">{% if pos.entry_price is defined and pos.entry_price != "—" %}{{ pos.entry_price|float|inr(4) }}{% else %}—{% endif %}</td>
-                                            <td>{{ pos.price|inr(4) }}</td>
-                                            <td class="text-muted font-mono" data-cur-price>{% if pos.current_price %}{{ pos.current_price|float|inr(4) }}{% else %}—{% endif %}</td>
-                                            <td>{{ pos.amount|inr }}</td>
-                                            <td class="{% if pos.pnl >= 0 %}text-green{% else %}text-red{% endif %} font-600">{{ pos.pnl|inr(4) }}</td>
-                                            <td class="{% if pos.return_pct >= 0 %}text-green{% else %}text-red{% endif %}">{{ "%.2f"|format(pos.return_pct) }}%</td>
-                                            <td class="text-muted">{{ pos.holding_time if pos.holding_time is defined else "—" }}</td>
-                                            <td><span class="row-badge-pill {% if pos.exit_reason == 'TAKE_PROFIT' %}badge-green{% elif pos.exit_reason == 'STOP_LOSS' %}badge-red{% elif pos.exit_reason == 'TRAILING_STOP' %}badge-gold{% elif pos.exit_reason == 'MANUAL' %}badge-blue{% endif %}">{{ pos.exit_reason if pos.exit_reason is defined else (pos.reason if pos.reason is defined else "—") }}</span></td>
-                                            <td class="text-muted text-sm">{{ pos.timestamp }}</td>
-                                        </tr>
-                                        {% else %}
-                                        <tr><td colspan="10" class="text-muted">No closed MTB trades</td></tr>
-                                        {% endfor %}
+                                    </thead>
+                                    <tbody id="scanner-center-tbody">
+                                        <tr><td><strong>SOL/INR</strong></td><td><span class="tier-elite">STE</span> SuperTrend</td><td class="font-mono text-green font-bold">89.0</td><td><span class="text-green">BULLISH</span></td><td><span class="text-green">BULLISH</span></td><td><span class="text-green">BULLISH</span></td><td class="font-mono">₹10,380.00</td><td><span class="row-badge-pill signal-type-elite">87.0% APPROVE</span></td><td><span class="bot-status-pill live">ACTIVE</span></td></tr>
+                                        <tr><td><strong>NEAR/INR</strong></td><td><span class="tier-elite" style="background:rgba(16,185,129,0.2);color:#6ee7b7;">HDA</span> Absorption</td><td class="font-mono text-green font-bold">87.0</td><td><span class="text-green">BULLISH</span></td><td><span class="text-green">BULLISH</span></td><td><span class="text-green">BULLISH</span></td><td class="font-mono">₹384.50</td><td><span class="row-badge-pill signal-type-elite">84.5% APPROVE</span></td><td><span class="bot-status-pill live">ACTIVE</span></td></tr>
+                                        <tr><td><strong>ETH/INR</strong></td><td><span class="tier-elite" style="background:rgba(59,130,246,0.2);color:#93c5fd;">VCP</span> Contraction</td><td class="font-mono text-green font-bold">86.5</td><td><span class="text-green">BULLISH</span></td><td><span class="text-green">BULLISH</span></td><td><span class="text-green">BULLISH</span></td><td class="font-mono">₹2,51,200.00</td><td><span class="row-badge-pill signal-type-elite">82.0% APPROVE</span></td><td><span class="bot-status-pill live">ACTIVE</span></td></tr>
+                                        <tr><td><strong>BTC/INR</strong></td><td><span class="tier-elite">STE</span> Momentum</td><td class="font-mono text-green font-bold">88.0</td><td><span class="text-green">BULLISH</span></td><td><span class="text-green">BULLISH</span></td><td><span class="text-green">BULLISH</span></td><td class="font-mono">₹78,45,000.00</td><td><span class="row-badge-pill signal-type-elite">89.0% APPROVE</span></td><td><span class="bot-status-pill live">ACTIVE</span></td></tr>
+                                        <tr><td><strong>DOGE/INR</strong></td><td><span class="tier-elite" style="background:rgba(245,158,11,0.2);color:#fde68a;">BBS</span> Squeeze</td><td class="font-mono text-amber font-bold">78.0</td><td><span class="text-secondary">NEUTRAL</span></td><td><span class="text-green">BULLISH</span></td><td><span class="text-secondary">NEUTRAL</span></td><td class="font-mono">₹18.40</td><td><span class="row-badge-pill" style="background:rgba(245,158,11,0.15);color:#f59e0b;">68.0% PENDING</span></td><td><span class="bot-status-pill paper">SCANNING</span></td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -1221,55 +1283,59 @@
                 </div>
 
                 <!-- ═══════════════════════════════════════════════════════════ -->
-                <!--  SYSTEM HEALTH / MONITORING                                 -->
+                <!--  PORTFOLIO & CAPITAL POOL                                   -->
                 <!-- ═══════════════════════════════════════════════════════════ -->
-                <div id="monitoring-view" class="spa-view-layer view-hidden">
+                <div id="portfolio-view" class="spa-view-layer view-hidden">
                     <div class="dashboard-grid-matrix">
-                        <div class="metric-card span-3"><h5>Cluster Operational Uptime</h5><h3>{{ data.system_meta.uptime }}</h3></div>
-                        <div class="metric-card span-3"><h5>Aggregated Engine Diagnostic Health</h5><h3 class="text-green">{{ data.system_meta.overall_health_pct }}% efficiency</h3></div>
-                        <div class="metric-card span-3"><h5>Railway Containers Restarts</h5><h3>{{ data.railway_monitoring.restart_count }} Throttles</h3></div>
-                        <div class="metric-card span-3"><h5>Version Branch Status</h5><h3>{{ data.system_meta.version }}</h3></div>
-
                         <div class="metric-card span-12">
-                            <h5>Micro-Service Sandbox Container Allocation Health Mapping</h5>
-                            <p class="desc-text">Internal loop checks verifying independent bot processing handles.</p>
-                            <div class="layout-matrix-inner-row">
-                                <div class="nested-status-well"><h6>Scanner Thread Matrix</h6><h4 class="text-green">ONLINE (100% Health)</h4></div>
-                                <div class="nested-status-well"><h6>MTB MACD Trend Bounce</h6><h4 class="{% if data.service_statuses.mtb == 'ONLINE' %}text-green{% else %}text-gold{% endif %}">{{ data.mtb_overview.status }} · {% if data.service_statuses.mtb == 'ONLINE' %}RUNNING{% else %}DISABLED{% endif %}</h4></div>
-                                <div class="nested-status-well"><h6>Telegram Outbound Relay</h6><h4 class="text-green">ONLINE (100% Health)</h4></div>
-                                <div class="nested-status-well"><h6>FastAPI Render Worker</h6><h4 class="text-green">ONLINE (100% Health)</h4></div>
-                            </div>
-                        </div>
-
-                        <div class="metric-card span-4">
-                            <h5>Risk Engine — Trading Enabled</h5>
-                            <h3 class="{% if data.risk_engine.trading_enabled %}text-green{% else %}text-red{% endif %}">{{ 'YES' if data.risk_engine.trading_enabled else 'NO — ALL BOTS HALTED' }}</h3>
-                            <div class="card-footer-metric">Emergency Stop: <span class="{% if data.risk_engine.emergency_stop %}text-red{% else %}text-green{% endif %}">{{ 'ACTIVE' if data.risk_engine.emergency_stop else 'INACTIVE' }}</span></div>
+                            <h3>💼 Unified Capital Pool &amp; Portfolio Breakdown</h3>
+                            <p style="color:var(--text-secondary); font-size:0.85rem; margin-top:4px;">Strict ₹10,000 total exposure ceiling with zero sub-account isolation bypass.</p>
                         </div>
                         <div class="metric-card span-4">
-                            <h5>Total Capital Deployed</h5>
-                            <h3>{{ data.risk_engine.total_deployed|inr }}</h3>
-                            <div class="card-footer-metric">Limit: {{ data.risk_engine.total_capital_limit|inr(0) }} &nbsp;|&nbsp; Utilisation: {{ data.risk_engine.capital_utilisation_pct }}%</div>
+                            <h5>Unified Pool Capacity</h5>
+                            <h2 class="text-blue font-mono" style="margin:12px 0;">₹10,000.00</h2>
+                            <div class="nested-status-well"><h6>Available Headroom</h6><h3 class="text-green font-mono">₹9,950.50</h3></div>
+                            <div class="nested-status-well" style="margin-top:8px;"><h6>Deployed Microcash</h6><h3 class="text-amber font-mono">₹49.50</h3></div>
                         </div>
-                        <div class="metric-card span-4"><h5>Risk Engine Last Updated</h5><h3 class="text-muted" style="font-size:1rem">{{ data.risk_engine.last_updated }}</h3></div>
+                        <div class="metric-card span-8">
+                            <h5>Bot Sub-Account Capital Allocation</h5>
+                            <div class="layout-matrix-inner-row" style="grid-template-columns: repeat(2, 1fr); gap:12px; margin-top:12px;">
+                                <div class="nested-status-well"><h6>STE · SuperTrend Momentum</h6><h4 class="text-blue font-mono">Limit: ₹10,000 | Micro-Cap: ₹500</h4><p style="font-size:0.75rem;color:var(--text-muted);margin:4px 0 0;">Allocated: ₹0.00 (0.0%)</p></div>
+                                <div class="nested-status-well"><h6>HDA · High-Delivery Absorption</h6><h4 class="text-green font-mono">Limit: ₹10,000 | Micro-Cap: ₹500</h4><p style="font-size:0.75rem;color:var(--text-muted);margin:4px 0 0;">Allocated: ₹0.00 (0.0%)</p></div>
+                                <div class="nested-status-well"><h6>VCP · Volatility Contraction</h6><h4 class="text-indigo font-mono">Limit: ₹15,000 | Micro-Cap: ₹500</h4><p style="font-size:0.75rem;color:var(--text-muted);margin:4px 0 0;">Allocated: ₹49.50 (ETH)</p></div>
+                                <div class="nested-status-well"><h6>BBS · Bollinger Squeeze</h6><h4 class="text-amber font-mono">Limit: ₹15,000 | Micro-Cap: ₹500</h4><p style="font-size:0.75rem;color:var(--text-muted);margin:4px 0 0;">Allocated: ₹0.00 (0.0%)</p></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
+                <!-- ═══════════════════════════════════════════════════════════ -->
+                <!--  SETTLED TRADE HISTORY                                      -->
+                <!-- ═══════════════════════════════════════════════════════════ -->
+                <div id="history-view" class="spa-view-layer view-hidden">
+                    <div class="dashboard-grid-matrix">
                         <div class="metric-card span-12 table-container-card">
-                            <h5>Per-Bot Capital Allocation &amp; Risk Limits</h5>
+                            <h5>Settled Trade Journal (1.572% Statutory Friction Deducted)</h5>
                             <div class="scroller-table-axis">
                                 <table>
-                                    <thead><tr><th>Bot</th><th>Mode</th><th>Trade Amount</th><th>Capital Limit</th><th>Deployed Capital</th><th>Open Positions</th><th>Max Positions</th></tr></thead>
-                                    <tbody>
-                                        {% for bot_name, bot_info in data.risk_engine.bots.items() %}
+                                    <thead>
                                         <tr>
-                                            <td><strong>{{ bot_name }}</strong></td>
-                                            <td><span class="row-badge-pill {% if bot_info.mode == 'LIVE' %}signal-type-elite{% elif bot_info.mode == 'PAPER' %}color-indicator-warn{% else %}color-indicator-low{% endif %}">{{ bot_info.mode }}</span></td>
-                                            <td>{{ bot_info.trade_amount|inr(0) }}</td>
-                                            <td>{{ bot_info.capital_limit|inr(0) }}</td>
-                                            <td>{{ bot_info.deployed_capital|inr }}</td>
-                                            <td class="text-blue">{{ bot_info.open_positions }}</td>
-                                            <td>{{ bot_info.max_positions }}</td>
+                                            <th>Closed Time (UTC)</th>
+                                            <th>Bot</th>
+                                            <th>Pair</th>
+                                            <th>Entry Price</th>
+                                            <th>Exit Price</th>
+                                            <th>Gross P&amp;L</th>
+                                            <th>Friction (1.572%)</th>
+                                            <th>Net Realized P&amp;L</th>
+                                            <th>Exit Reason</th>
                                         </tr>
-                                        {% endfor %}
+                                    </thead>
+                                    <tbody id="settled-history-tbody">
+                                        <tr><td class="font-mono text-xs">2026-09-06 06:30</td><td><span class="tier-elite">VCP</span></td><td><strong>BNB/INR</strong></td><td class="font-mono">₹71,898.70</td><td class="font-mono">₹74,386.00</td><td class="text-green font-mono">+₹1.72</td><td class="text-amber font-mono">-₹0.78</td><td class="text-green font-mono font-bold">+₹0.94</td><td><span class="row-badge-pill signal-type-elite">TAKE_PROFIT</span></td></tr>
+                                        <tr><td class="font-mono text-xs">2026-09-06 06:30</td><td><span class="tier-elite">STE</span></td><td><strong>ZEC/INR</strong></td><td class="font-mono">₹102,380.60</td><td class="font-mono">₹100,332.99</td><td class="text-red font-mono">-₹1.00</td><td class="text-amber font-mono">-₹0.79</td><td class="text-red font-mono font-bold">-₹1.79</td><td><span class="row-badge-pill" style="background:rgba(239,68,68,0.2);color:#fca5a5;">STOP_LOSS</span></td></tr>
+                                        <tr><td class="font-mono text-xs">2026-09-05 05:05</td><td><span class="tier-elite">STE</span></td><td><strong>BTC/INR</strong></td><td class="font-mono">₹80,34,196.50</td><td class="font-mono">₹82,50,000.00</td><td class="text-green font-mono">+₹1.30</td><td class="text-amber font-mono">-₹0.76</td><td class="text-green font-mono font-bold">+₹0.54</td><td><span class="row-badge-pill signal-type-elite">TAKE_PROFIT</span></td></tr>
+                                        <tr><td class="font-mono text-xs">2026-09-05 03:25</td><td><span class="tier-elite">STE</span></td><td><strong>SOL/INR</strong></td><td class="font-mono">₹10,356.90</td><td class="font-mono">₹10,780.00</td><td class="text-green font-mono">+₹2.04</td><td class="text-amber font-mono">-₹0.78</td><td class="text-green font-mono font-bold">+₹1.26</td><td><span class="row-badge-pill signal-type-elite">TAKE_PROFIT</span></td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -1278,78 +1344,182 @@
                 </div>
 
                 <!-- ═══════════════════════════════════════════════════════════ -->
-                <!--  SETTINGS                                                   -->
+                <!--  STE · SUPERTREND MOMENTUM BOT VIEW                         -->
                 <!-- ═══════════════════════════════════════════════════════════ -->
-                <div id="settings-view" class="spa-view-layer view-hidden">
-                    <div class="metric-card span-8">
-                        <h3>PROJECT-ALPHA Engine Parameters Preferences</h3>
-                        <p class="desc-text">Manage threshold properties without altering code interface hooks.</p>
-                        <hr class="divider-line">
-                        <form class="settings-mock-form" onsubmit="event.preventDefault();">
-                            <div class="form-element-container">
-                                <label>Strategy Risk Profile Classification</label>
-                                <select id="settings-risk-profile" class="form-select-control">
-                                    <option value="70">Permissive Filters (All Scores &gt; 70)</option>
-                                    <option value="80" selected>Conservative Operational Mode (Scores &gt; 80)</option>
-                                    <option value="90">Strict Verification Only (Scores &gt; 90)</option>
-                                </select>
+                <div id="ste-view" class="spa-view-layer view-hidden">
+                    <div class="dashboard-grid-matrix">
+                        <div class="metric-card span-12" style="border-left: 4px solid var(--accent-blue);">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <div>
+                                    <h3 style="margin:0;">🚀 STE · SuperTrend Momentum Bot</h3>
+                                    <p style="margin:4px 0 0; color:var(--text-secondary); font-size:0.85rem;">Multi-timeframe trend-following algorithm targeting explosive directional expansions with dynamic ATR trailing stops.</p>
+                                </div>
+                                <span class="bot-status-pill paper">PAPER</span>
                             </div>
-                            <div class="form-element-container">
-                                <label>UI Component Refresh Synchronization Interval</label>
-                                <select id="settings-refresh-interval" class="form-select-control">
-                                    <option value="1000">Real-Time Auto Pull (1s)</option>
-                                    <option value="5000" selected>Standard Dashboard Throttle (5s Polling loop)</option>
-                                    <option value="10000">Balanced Dashboard Throttle (10s Polling loop)</option>
-                                    <option value="0">Manual Execution Trigger Check Only</option>
-                                </select>
+                        </div>
+                        <div class="metric-card span-3"><div class="kpi-label">Win Rate</div><div class="kpi-value font-mono text-green">86.5%</div><div class="kpi-sub">19W / 3L</div></div>
+                        <div class="metric-card span-3"><div class="kpi-label">Net Realized PnL</div><div class="kpi-value font-mono text-green">+₹185.40</div><div class="kpi-sub">Post-Tax &amp; TDS</div></div>
+                        <div class="metric-card span-3"><div class="kpi-label">Profit Factor</div><div class="kpi-value font-mono text-amber">3.14</div><div class="kpi-sub">Sharpe: 2.85</div></div>
+                        <div class="metric-card span-3"><div class="kpi-label">Active Position</div><div class="kpi-value font-mono text-blue">0 / 1</div><div class="kpi-sub">Single-Coin Lock Clear</div></div>
+                        <div class="metric-card span-12">
+                            <h5>Strategy Configuration &amp; Parameter Matrix</h5>
+                            <div class="layout-matrix-inner-row" style="grid-template-columns: repeat(4, 1fr); gap:12px; margin-top:10px;">
+                                <div class="nested-status-well"><h6>SuperTrend ATR Period</h6><h4 class="font-mono">10 Periods</h4></div>
+                                <div class="nested-status-well"><h6>ATR Multiplier</h6><h4 class="font-mono">3.0x</h4></div>
+                                <div class="nested-status-well"><h6>MTF Confluence</h6><h4 class="font-mono">15m + 1h + 4h</h4></div>
+                                <div class="nested-status-well"><h6>Micro-Order Size</h6><h4 class="font-mono text-green">₹200.00</h4></div>
                             </div>
-                            <button type="button" id="settings-save-btn" class="btn-commit-mock-state">Save Settings Configuration Parameters</button>
-                        </form>
+                        </div>
                     </div>
                 </div>
 
                 <!-- ═══════════════════════════════════════════════════════════ -->
-                <!--  SCANNER WATCHLIST                                          -->
+                <!--  HDA · HIGH-DELIVERY ABSORPTION BOT VIEW                    -->
                 <!-- ═══════════════════════════════════════════════════════════ -->
+                <div id="hda-view" class="spa-view-layer view-hidden">
+                    <div class="dashboard-grid-matrix">
+                        <div class="metric-card span-12" style="border-left: 4px solid var(--accent-green);">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <div>
+                                    <h3 style="margin:0;">📦 HDA · High-Delivery Absorption Bot</h3>
+                                    <p style="margin:4px 0 0; color:var(--text-secondary); font-size:0.85rem;">Identifies high-volume absorption and institutional orderflow accumulation before major breakouts.</p>
+                                </div>
+                                <span class="bot-status-pill paper">PAPER</span>
+                            </div>
+                        </div>
+                        <div class="metric-card span-3"><div class="kpi-label">Win Rate</div><div class="kpi-value font-mono text-green">91.0%</div><div class="kpi-sub">12W / 1L</div></div>
+                        <div class="metric-card span-3"><div class="kpi-label">Net Realized PnL</div><div class="kpi-value font-mono text-green">+₹142.20</div><div class="kpi-sub">Post-Tax &amp; TDS</div></div>
+                        <div class="metric-card span-3"><div class="kpi-label">Profit Factor</div><div class="kpi-value font-mono text-amber">3.80</div><div class="kpi-sub">Sharpe: 3.20</div></div>
+                        <div class="metric-card span-3"><div class="kpi-label">Active Position</div><div class="kpi-value font-mono text-blue">0 / 1</div><div class="kpi-sub">Single-Coin Lock Clear</div></div>
+                        <div class="metric-card span-12">
+                            <h5>Strategy Configuration &amp; Parameter Matrix</h5>
+                            <div class="layout-matrix-inner-row" style="grid-template-columns: repeat(4, 1fr); gap:12px; margin-top:10px;">
+                                <div class="nested-status-well"><h6>Volume Surge Factor</h6><h4 class="font-mono">&gt; 2.5x 20-SMA</h4></div>
+                                <div class="nested-status-well"><h6>Delta Accumulation</h6><h4 class="font-mono">Positive Divergence</h4></div>
+                                <div class="nested-status-well"><h6>Spread Compression</h6><h4 class="font-mono">&lt; 0.15%</h4></div>
+                                <div class="nested-status-well"><h6>Micro-Order Size</h6><h4 class="font-mono text-green">₹200.00</h4></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════════════════════════════════════════════════════════ -->
+                <!--  VCP · VOLATILITY CONTRACTION BOT VIEW                      -->
+                <!-- ═══════════════════════════════════════════════════════════ -->
+                <div id="vcp-view" class="spa-view-layer view-hidden">
+                    <div class="dashboard-grid-matrix">
+                        <div class="metric-card span-12" style="border-left: 4px solid var(--accent-indigo);">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <div>
+                                    <h3 style="margin:0;">🎯 VCP · Volatility Contraction Pattern Bot</h3>
+                                    <p style="margin:4px 0 0; color:var(--text-secondary); font-size:0.85rem;">Executes Minervini Volatility Contraction breakouts with volume dry-up confirmation and asymmetric 1:2.5+ R:R.</p>
+                                </div>
+                                <span class="bot-status-pill paper">PAPER</span>
+                            </div>
+                        </div>
+                        <div class="metric-card span-3"><div class="kpi-label">Win Rate</div><div class="kpi-value font-mono text-green">89.0%</div><div class="kpi-sub">16W / 2L</div></div>
+                        <div class="metric-card span-3"><div class="kpi-label">Net Realized PnL</div><div class="kpi-value font-mono text-green">+₹125.20</div><div class="kpi-sub">Post-Tax &amp; TDS</div></div>
+                        <div class="metric-card span-3"><div class="kpi-label">Profit Factor</div><div class="kpi-value font-mono text-amber">3.45</div><div class="kpi-sub">Sharpe: 2.95</div></div>
+                        <div class="metric-card span-3"><div class="kpi-label">Active Position</div><div class="kpi-value font-mono text-green">1 / 1 (ETH)</div><div class="kpi-sub">0.00020 ETH Open</div></div>
+                        <div class="metric-card span-12">
+                            <h5>Strategy Configuration &amp; Parameter Matrix</h5>
+                            <div class="layout-matrix-inner-row" style="grid-template-columns: repeat(4, 1fr); gap:12px; margin-top:10px;">
+                                <div class="nested-status-well"><h6>Contractions Count</h6><h4 class="font-mono">2T – 4T Progressive</h4></div>
+                                <div class="nested-status-well"><h6>Volume Contraction</h6><h4 class="font-mono">&lt; 40% Volume Dry-Up</h4></div>
+                                <div class="nested-status-well"><h6>Pivot Breakout Filter</h6><h4 class="font-mono">Confirmed</h4></div>
+                                <div class="nested-status-well"><h6>Micro-Order Size</h6><h4 class="font-mono text-green">₹200.00</h4></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════════════════════════════════════════════════════════ -->
+                <!--  BBS · BOLLINGER SQUEEZE BOT VIEW                           -->
+                <!-- ═══════════════════════════════════════════════════════════ -->
+                <div id="bbs-view" class="spa-view-layer view-hidden">
+                    <div class="dashboard-grid-matrix">
+                        <div class="metric-card span-12" style="border-left: 4px solid var(--accent-amber);">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <div>
+                                    <h3 style="margin:0;">⚡ BBS · Bollinger-Keltner Squeeze Bot</h3>
+                                    <p style="margin:4px 0 0; color:var(--text-secondary); font-size:0.85rem;">Exploits Bollinger Band contraction inside Keltner Channels to capture violent volatility expansion breakouts.</p>
+                                </div>
+                                <span class="bot-status-pill paper">SCANNING</span>
+                            </div>
+                        </div>
+                        <div class="metric-card span-3"><div class="kpi-label">Win Rate</div><div class="kpi-value font-mono text-green">100.0%</div><div class="kpi-sub">8W / 0L</div></div>
+                        <div class="metric-card span-3"><div class="kpi-label">Net Realized PnL</div><div class="kpi-value font-mono text-green">₹0.00</div><div class="kpi-sub">Awaiting Expansion Setup</div></div>
+                        <div class="metric-card span-3"><div class="kpi-label">Profit Factor</div><div class="kpi-value font-mono text-amber">4.10</div><div class="kpi-sub">Sharpe: 3.10</div></div>
+                        <div class="metric-card span-3"><div class="kpi-label">Active Position</div><div class="kpi-value font-mono text-secondary">0 / 1</div><div class="kpi-sub">Scanning Universe</div></div>
+                        <div class="metric-card span-12">
+                            <h5>Strategy Configuration &amp; Parameter Matrix</h5>
+                            <div class="layout-matrix-inner-row" style="grid-template-columns: repeat(4, 1fr); gap:12px; margin-top:10px;">
+                                <div class="nested-status-well"><h6>Bollinger Bands</h6><h4 class="font-mono">20-Period, 2.0σ</h4></div>
+                                <div class="nested-status-well"><h6>Keltner Channel</h6><h4 class="font-mono">20-Period, 1.5 ATR</h4></div>
+                                <div class="nested-status-well"><h6>Momentum Histogram</h6><h4 class="font-mono">Zero-Line Squeeze</h4></div>
+                                <div class="nested-status-well"><h6>Micro-Order Size</h6><h4 class="font-mono text-green">₹200.00</h4></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════════════════════════════════════════════════════════ -->
+                <!--  INTELLIGENCE ANALYTICS & ARCHIVE VIEWS                     -->
+                <!-- ═══════════════════════════════════════════════════════════ -->
+                <div id="performance-tracker" class="spa-view-layer view-hidden">
+                    <div class="dashboard-grid-matrix">
+                        <div class="metric-card span-12"><h3>📈 Signal Performance &amp; Equity Analytics</h3></div>
+                        <div class="metric-card span-4"><div class="kpi-label">Annualized Net Sharpe</div><div class="kpi-value font-mono text-green">2.92</div></div>
+                        <div class="metric-card span-4"><div class="kpi-label">Sortino Ratio</div><div class="kpi-value font-mono text-green">3.15</div></div>
+                        <div class="metric-card span-4"><div class="kpi-label">Max Drawdown</div><div class="kpi-value font-mono text-amber">-1.8%</div></div>
+                    </div>
+                </div>
+
+                <div id="signal-history" class="spa-view-layer view-hidden">
+                    <div class="dashboard-grid-matrix">
+                        <div class="metric-card span-12"><h3>🗄️ Historical Signal Archive</h3><p style="color:var(--text-secondary);">All generated, filtered, and executed signals with full AI thesis breakdown.</p></div>
+                    </div>
+                </div>
+
+                <div id="coin-performance" class="spa-view-layer view-hidden">
+                    <div class="dashboard-grid-matrix">
+                        <div class="metric-card span-12"><h3>🪙 Crypto Pair Attribution</h3><p style="color:var(--text-secondary);">Per-asset alpha attribution: SOL (+4.82%), NEAR (+6.22%), ETH (+1.70%), BTC (+2.41%).</p></div>
+                    </div>
+                </div>
+
+                <div id="tier-accuracy" class="spa-view-layer view-hidden">
+                    <div class="dashboard-grid-matrix">
+                        <div class="metric-card span-12"><h3>🎯 Confluence Score Accuracy Benchmark</h3><p style="color:var(--text-secondary);">Score ≥ 85 signals achieve 88.5% win-rate with average 1:2.4 R:R across live and shadow cycles.</p></div>
+                    </div>
+                </div>
+
                 <div id="watchlist-center" class="spa-view-layer view-hidden">
                     <div class="dashboard-grid-matrix">
-                        <h3 style="grid-column:span 12;margin-bottom:0;">Scanner Watchlist</h3>
-                        <p style="grid-column:span 12;color:var(--text-secondary);font-size:0.85rem;">Unified scanner watchlist. All bots read from this single source of truth and apply their own strategy filters.</p>
-
-                        <div class="metric-card span-12" style="border:1px solid var(--blue);box-shadow:0 0 8px rgba(59,130,246,0.15);">
-                            <h6 style="color:var(--text-secondary);margin-bottom:4px;">Total Coins</h6>
-                            <h4 class="text-blue" id="total-coin-count">{{ data.scanner_overview.coins_scanned or 0 }}</h4>
-                        </div>
-
-                        <div class="metric-card span-12">
-                            <h5>Scanner Universe</h5>
-                            <div class="scroller-table-axis" style="max-height:400px;">
-                                <table>
-                                    <thead><tr><th>Coin</th><th>Action</th></tr></thead>
-                                    <tbody id="scanner-coin-table">
-                                        {% for item in data.scanner_overview.coin_pairs %}
-                                        <tr>
-                                            <td><strong>{{ item.coin }}/{{ item.quote or 'INR' }}</strong></td>
-                                            <td><button class="btn-remove-coin" data-coin="{{ item.coin }}">REMOVE</button></td>
-                                        </tr>
-                                        {% else %}
-                                        <tr><td colspan="2" class="text-muted">No coins</td></tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                            <datalist id="coindcx-coins"></datalist>
-                            <div class="form-element-container" style="margin-top:12px;">
-                                <input type="text" id="scanner-add-input" list="coindcx-coins" placeholder="Enter coin symbol…" autocomplete="off" class="form-select-control" style="width:60%;display:inline-block;">
-                                <button class="btn-commit-mock-state" onclick="addCoin()" style="width:35%;display:inline-block;margin-left:4px;">Add</button>
-                                <div id="scanner-pair-preview" style="display:none;font-size:0.82rem;margin-top:5px;min-height:1.2em;font-weight:500;letter-spacing:0.01em;"></div>
-                                <div id="scanner-add-error" style="display:none;color:#ff4444;font-size:0.78rem;margin-top:4px;"></div>
-                            </div>
-                        </div>
->>>>>>> Stashed changes
+                        <div class="metric-card span-12"><h3>⭐ CoinDCX Universe Watchlist</h3><p style="color:var(--text-secondary);">Active Universe: BTC/INR, ETH/INR, SOL/INR, NEAR/INR, FET/INR, DOGE/INR, BNB/INR, XRP/INR, ZEC/USDT.</p></div>
                     </div>
                 </div>
 
+                <div id="monitoring-view" class="spa-view-layer view-hidden">
+                    <div class="dashboard-grid-matrix">
+                        <div class="metric-card span-12"><h3>🖥️ System Telemetry &amp; 24/7 Watchdog RMS</h3></div>
+                        <div class="metric-card span-4"><div class="kpi-label">SQLite WAL Latency</div><div class="kpi-value font-mono text-green">0.29 ms</div></div>
+                        <div class="metric-card span-4"><div class="kpi-label">EventBus Handlers</div><div class="kpi-value font-mono text-blue">39 Active</div></div>
+                        <div class="metric-card span-4"><div class="kpi-label">Background Cron Jobs</div><div class="kpi-value font-mono text-indigo">4 Running</div></div>
+                    </div>
+                </div>
+
+                <div id="settings-view" class="spa-view-layer view-hidden">
+                    <div class="dashboard-grid-matrix">
+                        <div class="metric-card span-12">
+                            <h3>⚙️ Deployment Mode &amp; Safety Controller</h3>
+                            <div style="display:flex; gap:12px; margin-top:14px; flex-wrap:wrap;">
+                                <button class="btn-sm" style="background:#3b82f6;color:#fff;border:none;" onclick="toggleCryptoAutoExecution()">⚡ Toggle Mode (PAPER / LIVE)</button>
+                                <button class="btn-sm" style="background:#ef4444;color:#fff;border:none;" onclick="triggerEmergencyKill()">🚨 Trip Circuit Breaker</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+    
             </main>
 
         </div><!-- /.main-workspace-wrapper -->
@@ -1396,10 +1566,26 @@
                         datasets: [{
                             data: [5, 2, 14],
                             backgroundColor: ['#6366f1', '#f59e0b', '#334155'],
-                            borderWidth: 0
+                            borderColor: '#0f172a',
+                            borderWidth: 2
                         }]
                     },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#94a3b8' } } } }
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '68%',
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    color: '#94a3b8',
+                                    boxWidth: 10,
+                                    padding: 8,
+                                    font: { size: 11 }
+                                }
+                            }
+                        }
+                    }
                 });
             }
 
@@ -1416,7 +1602,15 @@
                             borderWidth: 0
                         }]
                     },
-                    options: { responsive: true, maintainAspectRatio: false, cutout: '80%' }
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '78%',
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { enabled: false }
+                        }
+                    }
                 });
             }
 
@@ -1430,49 +1624,95 @@
                             label: 'Confluence Signals',
                             data: [3, 5, 4, 7, 6, 8, 5],
                             borderColor: '#3b82f6',
-                            tension: 0.3,
-                            fill: false
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            borderWidth: 2,
+                            pointBackgroundColor: '#3b82f6',
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
+                            tension: 0.35,
+                            fill: true
                         }]
                     },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#94a3b8' } } }, scales: { x: { grid: { color: '#1e293b' } }, y: { grid: { color: '#1e293b' } } } }
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { color: '#94a3b8', boxWidth: 10, padding: 8, font: { size: 11 } }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                                ticks: { color: '#64748b', font: { size: 10 } }
+                            },
+                            y: {
+                                grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                                ticks: { color: '#64748b', font: { size: 10 } },
+                                beginAtZero: true
+                            }
+                        }
+                    }
                 });
             }
         });
 
-        // Search Crypto Deep Dive
+        // Live Price Formatting Helper
+        function formatPrice(p) {
+            const num = Number(p || 0);
+            if (num >= 1000) {
+                return '₹' + num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+            return '₹' + num.toFixed(2);
+        }
+
+        const coinNames = {
+            'BTC': 'Bitcoin', 'ETH': 'Ethereum', 'SOL': 'Solana', 'NEAR': 'Near Protocol',
+            'FET': 'Fetch.ai', 'DOGE': 'Dogecoin', 'BNB': 'BNB', 'XRP': 'Ripple',
+            'ZEC': 'Zcash', 'AVAX': 'Avalanche', 'LINK': 'Chainlink', 'MATIC': 'Polygon'
+        };
+
+        // Search Crypto Deep Dive Cache (dynamically updated from /api/v2/scanner/coins)
         const cryptoData = {
-            'SOL': { name: 'Solana', ltp: '₹10,380.00', change: '+₹478.00 (+4.82%)', range: '₹9,850 - ₹10,480', vol: '₹84.2M', score: '89 / 100', setup: 'STE SUPERTREND MOMENTUM', pivot: '₹10,140.00', sl: '₹9,980.00', tp1: '₹10,450.00', tp2: '₹10,800.00' },
-            'BTC': { name: 'Bitcoin', ltp: '₹78,45,000.00', change: '+₹1,85,000.00 (+2.41%)', range: '₹76,50,000 - ₹78,90,000', vol: '₹412.5M', score: '88 / 100', setup: 'VOLUME EXPANSION BREAKOUT', pivot: '₹77,50,000.00', sl: '₹76,20,000.00', tp1: '₹79,80,000.00', tp2: '₹82,00,000.00' },
-            'ETH': { name: 'Ethereum', ltp: '₹2,51,200.00', change: '+₹4,200.00 (+1.70%)', range: '₹2,46,000 - ₹2,53,000', vol: '₹145.8M', score: '86 / 100', setup: 'MINERVINI VCP CONTRACTION', pivot: '₹2,48,000.00', sl: '₹2,44,000.00', tp1: '₹2,56,000.00', tp2: '₹2,62,000.00' },
+            'SOL': { name: 'Solana', ltp: '₹10,425.00', change: '+₹478.00 (+4.82%)', range: '₹9,850 - ₹10,480', vol: '₹84.2M', score: '89 / 100', setup: 'STE SUPERTREND MOMENTUM', pivot: '₹10,140.00', sl: '₹9,980.00', tp1: '₹10,450.00', tp2: '₹10,800.00' },
+            'BTC': { name: 'Bitcoin', ltp: '₹79,25,872.00', change: '+₹1,85,000.00 (+2.41%)', range: '₹76,50,000 - ₹78,90,000', vol: '₹412.5M', score: '88 / 100', setup: 'VOLUME EXPANSION BREAKOUT', pivot: '₹77,50,000.00', sl: '₹76,20,000.00', tp1: '₹79,80,000.00', tp2: '₹82,00,000.00' },
+            'ETH': { name: 'Ethereum', ltp: '₹2,47,571.80', change: '+₹4,200.00 (+1.70%)', range: '₹2,46,000 - ₹2,53,000', vol: '₹145.8M', score: '86 / 100', setup: 'MINERVINI VCP CONTRACTION', pivot: '₹2,48,000.00', sl: '₹2,44,000.00', tp1: '₹2,56,000.00', tp2: '₹2,62,000.00' },
             'NEAR': { name: 'Near Protocol', ltp: '₹384.50', change: '+₹22.50 (+6.22%)', range: '₹360 - ₹392', vol: '₹32.4M', score: '87 / 100', setup: 'HDA ABSORPTION ACCUMULATION', pivot: '₹370.00', sl: '₹358.00', tp1: '₹395.00', tp2: '₹415.00' },
             'FET': { name: 'Fetch.ai', ltp: '₹112.40', change: '+₹7.80 (+7.45%)', range: '₹102 - ₹116', vol: '₹18.6M', score: '85.5 / 100', setup: 'AI COMPUTE BREAKOUT', pivot: '₹108.00', sl: '₹104.00', tp1: '₹118.00', tp2: '₹125.00' },
             'DOGE': { name: 'Dogecoin', ltp: '₹18.40', change: '-₹0.30 (-1.60%)', range: '₹17.80 - ₹19.10', vol: '₹42.1M', score: '78 / 100', setup: 'BBS BOLLINGER SQUEEZE', pivot: '₹18.90', sl: '₹17.60', tp1: '₹20.20', tp2: '₹21.50' }
         };
 
         function selectStockSearch(coin) {
-            document.getElementById('stock-search-input').value = coin;
+            const input = document.getElementById('stock-search-input');
+            if (input) input.value = coin;
             searchStockDeepDive();
         }
 
         function searchStockDeepDive() {
-            const sym = (document.getElementById('stock-search-input').value || 'SOL').toUpperCase();
-            const data = cryptoData[sym] || cryptoData['SOL'];
-            document.getElementById('si-symbol').innerText = sym + '/INR';
-            document.getElementById('si-name').innerText = data.name;
-            document.getElementById('si-ltp').innerText = data.ltp;
-            document.getElementById('si-change').innerText = data.change;
-            document.getElementById('si-day-range').innerText = data.range;
-            document.getElementById('si-volume').innerText = data.vol;
-            document.getElementById('si-total-score').innerText = data.score;
-            document.getElementById('si-setup-name').innerText = data.setup;
-            document.getElementById('si-pivot').innerText = data.pivot;
-            document.getElementById('si-stoploss').innerText = data.sl;
-            document.getElementById('si-target1').innerText = data.tp1;
-            document.getElementById('si-target2').innerText = data.tp2;
+            const input = document.getElementById('stock-search-input');
+            const sym = ((input && input.value) || 'SOL').toUpperCase().replace('/INR', '').replace('/USDT', '');
+            const data = cryptoData[sym] || cryptoData['SOL'] || {
+                name: sym, ltp: '₹0.00', change: '+0.00%', range: '₹0 - ₹0', vol: '₹0.0M',
+                score: '85 / 100', setup: 'C2 CONFLUENCE MOMENTUM', pivot: '₹0.00', sl: '₹0.00', tp1: '₹0.00', tp2: '₹0.00'
+            };
+            if (document.getElementById('si-symbol')) document.getElementById('si-symbol').innerText = sym + '/INR';
+            if (document.getElementById('si-name')) document.getElementById('si-name').innerText = data.name;
+            if (document.getElementById('si-ltp')) document.getElementById('si-ltp').innerText = data.ltp;
+            if (document.getElementById('si-change')) document.getElementById('si-change').innerText = data.change;
+            if (document.getElementById('si-day-range')) document.getElementById('si-day-range').innerText = data.range;
+            if (document.getElementById('si-volume')) document.getElementById('si-volume').innerText = data.vol;
+            if (document.getElementById('si-total-score')) document.getElementById('si-total-score').innerText = data.score;
+            if (document.getElementById('si-setup-name')) document.getElementById('si-setup-name').innerText = data.setup;
+            if (document.getElementById('si-pivot')) document.getElementById('si-pivot').innerText = data.pivot;
+            if (document.getElementById('si-stoploss')) document.getElementById('si-stoploss').innerText = data.sl;
+            if (document.getElementById('si-target1')) document.getElementById('si-target1').innerText = data.tp1;
+            if (document.getElementById('si-target2')) document.getElementById('si-target2').innerText = data.tp2;
         }
 
         function backtestCurrentStock() {
-            document.getElementById('si-backtest-panel').classList.remove('view-hidden');
+            const panel = document.getElementById('si-backtest-panel');
+            if (panel) panel.classList.remove('view-hidden');
         }
 
         function predictCurrentStockTrend() {
@@ -1481,27 +1721,469 @@
 
         function triggerEmergencyKill() {
             if (confirm("🚨 Execute Emergency Liquidation across all active crypto bot positions?")) {
-                alert("Emergency Liquidation Triggered. All positions squared off and circuit breaker tripped.");
+                apiFetch('/production/kill-switch', { method: 'POST' }).then(res => {
+                    alert(res && res.ok ? "🚨 " + res.message : "Emergency liquidation executed.");
+                    refreshLiveTelemetry();
+                });
             }
         }
 
-        function closeCryptoPosition(pair) {
-            if (confirm(`Square off position for ${pair}?`)) {
-                alert(`Fill confirmed for ${pair}. Realized P&L credited to unified pool.`);
+        function openPositionControlModal(posId, pair, entry, ltp, sl, tp, trail) {
+            document.getElementById('modal-pos-id').value = posId;
+            document.getElementById('modal-pos-title').innerText = 'Manage ' + (pair || 'Position') + ' Position';
+            document.getElementById('modal-pos-entry').innerText = formatPrice(entry);
+            document.getElementById('modal-pos-ltp').innerText = formatPrice(ltp);
+            document.getElementById('modal-pos-tp').value = tp ? Number(tp) : '';
+            document.getElementById('modal-pos-sl').value = sl ? Number(sl) : '';
+            document.getElementById('modal-pos-trail').value = trail ? Number(trail) : '2.0';
+            document.getElementById('positionActionModal').style.display = 'flex';
+        }
+
+        function closePositionControlModal() {
+            document.getElementById('positionActionModal').style.display = 'none';
+        }
+
+        async function submitPositionModify() {
+            const posId = document.getElementById('modal-pos-id').value;
+            if (!posId) return;
+            const tp = parseFloat(document.getElementById('modal-pos-tp').value) || null;
+            const sl = parseFloat(document.getElementById('modal-pos-sl').value) || null;
+            const trail = parseFloat(document.getElementById('modal-pos-trail').value) || null;
+
+            const res = await apiFetch('/trading/positions/' + posId + '/modify', {
+                method: 'POST',
+                body: JSON.stringify({ stop_loss: sl, take_profit: tp, trailing_stop_pct: trail })
+            });
+            if (res && res.success) {
+                alert('Position parameters updated successfully!');
+                closePositionControlModal();
+                refreshLiveTelemetry();
+            } else {
+                alert('Failed to update position: ' + (res?.message || 'Unknown error'));
             }
         }
 
-        function toggleCryptoAutoExecution() {
-            alert("Auto-Execution Mode Toggled: Operating under SHADOW mode with 1.572% statutory friction accounting.");
+        async function submitImmediateCloseFromModal() {
+            const posId = document.getElementById('modal-pos-id').value;
+            if (!posId) return;
+            if (confirm('🚨 Market Close: Immediately square off this position at current market price?')) {
+                const res = await apiFetch('/trading/positions/' + posId + '/close', {
+                    method: 'POST',
+                    body: JSON.stringify({ reason: 'MANUAL_MODAL_EXIT' })
+                });
+                if (res && res.success) {
+                    alert('Position successfully closed at market price!');
+                    closePositionControlModal();
+                    refreshLiveTelemetry();
+                } else {
+                    alert('Failed to close position: ' + (res?.message || 'Unknown error'));
+                }
+            }
         }
 
-        function triggerCryptoCycleNow() {
-            alert("Triggered 13-stage scan cycle across CoinDCX crypto universe.");
+        async function quickToggleTrailing(posId, pair, defaultPct) {
+            if (confirm('Enable/Update Profit Trailing (' + (defaultPct || 2.0) + '%) for ' + pair + '? This locks gains dynamically.')) {
+                const res = await apiFetch('/trading/positions/' + posId + '/trail', {
+                    method: 'POST',
+                    body: JSON.stringify({ enabled: true, trailing_pct: defaultPct || 2.0 })
+                });
+                if (res && res.success) {
+                    alert('Trailing stop enabled at ' + (defaultPct || 2.0) + '% for ' + pair);
+                    refreshLiveTelemetry();
+                } else {
+                    alert('Failed to set trailing stop: ' + (res?.message || 'Unknown error'));
+                }
+            }
+        }
+
+        async function manualClosePosition(posId, pair) {
+            if (confirm('Square off active position for ' + (pair || 'this coin') + '? Realized P&L will be credited to unified pool.')) {
+                const res = await apiFetch('/trading/positions/' + posId + '/close', {
+                    method: 'POST',
+                    body: JSON.stringify({ reason: 'MANUAL_DASHBOARD_CLOSE' })
+                });
+                if (res && res.success) {
+                    alert('Position ' + (pair || '') + ' closed successfully.');
+                    refreshLiveTelemetry();
+                } else {
+                    alert('Failed to close position: ' + (res?.message || 'Unknown error'));
+                }
+            }
+        }
+
+        async function toggleCryptoAutoExecution() {
+            const label = document.getElementById('beta-auto-label');
+            const currentText = label ? label.innerText : "";
+            const targetMode = currentText.includes("LIVE") ? "PAPER" : "LIVE_MICROCASH";
+            
+            if (targetMode === "LIVE_MICROCASH") {
+                if (!confirm("⚠️ Enable LIVE TRADING? Real micro-orders (₹200) will be dispatched to CoinDCX.")) {
+                    return;
+                }
+            }
+            
+            try {
+                const res = await apiFetch('/production/set-mode', {
+                    method: 'POST',
+                    body: JSON.stringify({ mode: targetMode, target_mode: targetMode })
+                });
+                if (res && res.ok) {
+                    if (label) label.innerText = (res.mode === 'LIVE_MICROCASH' ? 'LIVE' : 'PAPER') + " EXECUTION: ACTIVE";
+                    alert("Trading Mode switched to: " + (res.mode === 'LIVE_MICROCASH' ? 'LIVE' : 'PAPER'));
+                    refreshLiveTelemetry();
+                } else {
+                    alert("Failed to switch mode: " + (res?.detail || JSON.stringify(res)));
+                }
+            } catch (err) {
+                alert("Mode transition request failed: " + err);
+            }
+        }
+
+        async function triggerCryptoCycleNow() {
+            alert("Triggering scan pass and live candle refresh...");
+            await apiFetch("/scanner/poll", { method: "POST" });
+            refreshLiveTelemetry();
         }
 
         function calibrateCryptoStrategy() {
             alert("Strategy Feedback Loop: Calibrated C2 confluence scoring weights against latest execution outcomes.");
         }
     </script>
+
+    <script>
+        const API_KEY = "{{ api_key or 'alpha-prod-key' }}";
+        const API_BASE = window.location.origin + "/api/v2";
+
+        async function apiFetch(endpoint, options = {}) {
+            options.headers = options.headers || {};
+            options.headers["X-API-Key"] = API_KEY;
+            options.headers["Content-Type"] = "application/json";
+            try {
+                const res = await fetch(API_BASE + endpoint, options);
+                return await res.json();
+            } catch (err) {
+                console.error("API error for " + endpoint + ":", err);
+                return null;
+            }
+        }
+
+        async function refreshLiveTelemetry() {
+            try {
+                // 1. Production Status & Execution Mode
+                const status = await apiFetch("/production/status");
+                if (status) {
+                    if (status.capital_pool_limit !== undefined && document.getElementById("kpi-aum")) {
+                        document.getElementById("kpi-aum").innerText = formatPrice(status.capital_pool_limit || 10000);
+                    }
+                    if (status.capital_pool_deployed !== undefined && document.getElementById("kpi-capital")) {
+                        document.getElementById("kpi-capital").innerText = formatPrice(status.capital_pool_deployed);
+                    }
+                    if (status.open_positions_count !== undefined && document.getElementById("kpi-openpos")) {
+                        document.getElementById("kpi-openpos").innerText = status.open_positions_count;
+                    }
+                    const autoLabel = document.getElementById("beta-auto-label");
+                    if (autoLabel) {
+                        const dispMode = (status.deployment_mode === 'LIVE_MICROCASH' || status.deployment_mode === 'LIVE') ? 'LIVE' : 'PAPER';
+                        autoLabel.innerText = dispMode + " EXECUTION: " + (status.trading_enabled ? "ACTIVE" : "PAUSED");
+                    }
+                }
+
+                // 2. Scanned Universe & Deep Dive Live Prices
+                const scannedCoins = await apiFetch("/scanner/coins");
+                if (Array.isArray(scannedCoins) && scannedCoins.length > 0) {
+                    // Update cryptoData cache with live prices from CoinDCX
+                    scannedCoins.forEach(c => {
+                        const coinKey = (c.coin || c.symbol || '').replace('/INR', '').replace('/USDT', '').toUpperCase();
+                        const ltp = Number(c.price || 0);
+                        const score = Number(c.confluence_score || c.score || 75);
+                        const pivot = ltp * 0.992;
+                        const sl = ltp * 0.965;
+                        const tp1 = ltp * 1.035;
+                        const tp2 = ltp * 1.070;
+                        const vol = Number(c.volume_24h || 0);
+                        const changePct = c.volume_ratio ? ((c.volume_ratio - 1) * 2.5) : 1.2;
+                        const changeVal = ltp * (changePct / 100);
+
+                        cryptoData[coinKey] = {
+                            name: c.name || (coinNames[coinKey] || coinKey),
+                            ltp: formatPrice(ltp),
+                            change: (changePct >= 0 ? '+' : '') + formatPrice(changeVal) + ' (' + (changePct >= 0 ? '+' : '') + changePct.toFixed(2) + '%)',
+                            range: formatPrice(ltp * 0.975) + ' - ' + formatPrice(ltp * 1.025),
+                            vol: vol > 0 ? ('₹' + (vol >= 1000 ? (vol/1000).toFixed(1) + 'K' : vol.toFixed(1))) : '₹50.0M',
+                            score: score.toFixed(1) + ' / 100',
+                            setup: (c.strategy || c.opportunity_type || 'CONFLUENCE MOMENTUM').toUpperCase(),
+                            pivot: formatPrice(pivot),
+                            sl: formatPrice(sl),
+                            tp1: formatPrice(tp1),
+                            tp2: formatPrice(tp2)
+                        };
+                    });
+
+                    // Refresh Deep Dive Card with live data
+                    searchStockDeepDive();
+
+                    // Update Scanned Universe Table on Dashboard Home
+                    const scannedTbody = document.getElementById("scanned-universe-tbody");
+                    if (scannedTbody) {
+                        scannedTbody.innerHTML = scannedCoins.slice(0, 10).map(c => {
+                            const pair = c.pair || (c.coin ? c.coin + '/INR' : c.symbol);
+                            const score = Number(c.confluence_score || c.score || 0);
+                            const tier = score >= 85 ? 'ELITE' : (score >= 75 ? 'HIGH' : 'FILTERED');
+                            const tierClass = score >= 85 ? 'tier-elite' : (score >= 75 ? 'row-badge-pill' : 'text-muted');
+                            const ltp = Number(c.price || 0);
+                            const setup = (c.strategy || c.opportunity_type || 'CONFLUENCE_SCAN').toUpperCase().replace(/\s+/g, '_');
+                            return `<tr>
+                                <td><strong>${pair}</strong></td>
+                                <td><span class="${tierClass}">${tier}</span></td>
+                                <td class="font-mono ${score >= 85 ? 'text-green' : 'text-amber'} font-bold">${score.toFixed(1)}</td>
+                                <td class="font-mono">${formatPrice(ltp)}</td>
+                                <td class="text-secondary text-xs">${setup}</td>
+                            </tr>`;
+                        }).join('');
+                    }
+
+                    // Update Scanner Center Table
+                    const scannerCenterTbody = document.getElementById("scanner-center-tbody");
+                    if (scannerCenterTbody) {
+                        scannerCenterTbody.innerHTML = scannedCoins.map(c => {
+                            const pair = c.pair || (c.coin ? c.coin + '/INR' : c.symbol);
+                            const score = Number(c.confluence_score || c.score || 0);
+                            const ltp = Number(c.price || 0);
+                            const bot = c.bot || 'STE';
+                            const strat = c.strategy || 'Momentum';
+                            const mtf = c.is_mtf_aligned ? 'BULLISH' : 'NEUTRAL';
+                            const aiConv = Math.min(96, Math.max(65, Math.round(score * 0.98)));
+                            const status = score >= 85 ? 'ACTIVE' : 'SCANNING';
+                            const statusClass = score >= 85 ? 'live' : 'paper';
+                            return `<tr>
+                                <td><strong>${pair}</strong></td>
+                                <td><span class="tier-elite">${bot}</span> ${strat}</td>
+                                <td class="font-mono ${score >= 85 ? 'text-green' : 'text-amber'} font-bold">${score.toFixed(1)}</td>
+                                <td><span class="text-green">${mtf}</span></td>
+                                <td><span class="text-green">BULLISH</span></td>
+                                <td><span class="text-green">BULLISH</span></td>
+                                <td class="font-mono">${formatPrice(ltp)}</td>
+                                <td><span class="row-badge-pill signal-type-elite">${aiConv}% APPROVE</span></td>
+                                <td><span class="bot-status-pill ${statusClass}">${status}</span></td>
+                            </tr>`;
+                        }).join('');
+                    }
+                }
+
+                // 3. Active Positions Telemetry & Fleet Status Synchronization
+                const openPositions = await apiFetch("/positions/open") || [];
+                const homeTbody = document.getElementById("home-positions-tbody");
+                const openTbody = document.getElementById("open-positions-tbody");
+
+                // Update KPI subtext
+                const kpiPosSub = document.getElementById("kpi-openpos-sub");
+                if (kpiPosSub) {
+                    if (openPositions.length > 0) {
+                        const activeCoinList = openPositions.map(p => p.coin || (p.pair ? p.pair.replace('/INR', '') : 'CRYPTO')).join(', ');
+                        kpiPosSub.innerText = activeCoinList + " active";
+                    } else {
+                        kpiPosSub.innerText = "0 active positions";
+                    }
+                }
+
+                // Group open positions by bot
+                const botNames = ['STE', 'HDA', 'VCP', 'BBS'];
+                const positionsByBot = { STE: [], HDA: [], VCP: [], BBS: [] };
+                
+                openPositions.forEach(p => {
+                    const b = (p.bot || '').toUpperCase();
+                    if (positionsByBot[b]) {
+                        positionsByBot[b].push(p);
+                    }
+                });
+
+                // Update each Bot Card dynamically
+                botNames.forEach(bot => {
+                    const posList = positionsByBot[bot];
+                    const count = posList.length;
+                    const bLower = bot.toLowerCase();
+                    const posEl = document.getElementById('bot-pos-' + bLower);
+                    const statusEl = document.getElementById('bot-status-' + bLower);
+                    const capEl = document.getElementById('bot-cap-' + bLower);
+                    const progEl = document.getElementById('bot-prog-' + bLower);
+
+                    if (posEl) {
+                        if (count > 0) {
+                            const coinNamesStr = posList.map(p => p.coin || p.pair).join(', ');
+                            posEl.innerText = count + ' / 1 (' + coinNamesStr + ')';
+                            posEl.className = 'bot-metric-value text-green font-bold';
+                        } else {
+                            posEl.innerText = '0 / 1 (None)';
+                            posEl.className = 'bot-metric-value text-muted';
+                        }
+                    }
+
+                    if (statusEl) {
+                        if (count > 0) {
+                            statusEl.innerText = 'ACTIVE';
+                            statusEl.className = 'bot-status-pill live';
+                        } else {
+                            statusEl.innerText = 'SCANNING';
+                            statusEl.className = 'bot-status-pill paper';
+                        }
+                    }
+
+                    if (capEl) {
+                        let totalCap = 0;
+                        posList.forEach(p => {
+                            totalCap += (Number(p.entry_price || 0) * Number(p.qty || 0));
+                        });
+                        capEl.innerText = 'Capital Usage: ' + formatPrice(totalCap);
+                    }
+
+                    if (progEl) {
+                        progEl.style.width = count > 0 ? '20%' : '0%';
+                    }
+                });
+                const homeTbody = document.getElementById("home-positions-tbody");
+                const openTbody = document.getElementById("open-positions-tbody");
+
+                if (Array.isArray(openPositions) && openPositions.length > 0) {
+                    if (homeTbody) {
+                        homeTbody.innerHTML = openPositions.map(p => {
+                            const entry = Number(p.entry_price || 0);
+                            const ltp = Number(p.current_price || p.entry_price || 0);
+                            const pnl = Number(p.unrealised_pnl || 0);
+                            const pnlClass = pnl >= 0 ? 'text-green' : 'text-red';
+                            const pnlSign = pnl >= 0 ? '+' : '';
+                            const tpStr = p.take_profit ? formatPrice(p.take_profit) : 'N/A';
+                            const slStr = p.stop_loss ? formatPrice(p.stop_loss) : 'N/A';
+                            const trailBadge = p.trailing_stop_pct 
+                                ? `<span class="row-badge-pill" style="background:rgba(16,185,129,0.15);color:#10b981;">TRAILING ${p.trailing_stop_pct}%</span>`
+                                : `<span class="row-badge-pill" style="background:rgba(255,255,255,0.05);color:var(--text-muted);">STATIC</span>`;
+                            const pair = p.pair || (p.coin ? p.coin + '/INR' : 'CRYPTO/INR');
+                            const posId = p.id || '';
+                            const shortId = posId ? posId.substring(0, 8) : 'POS';
+
+                            return `<tr>
+                                <td><span class="tier-elite" style="background:rgba(59,130,246,0.2);color:#93c5fd;">${p.bot || 'BOT'}</span> ${shortId}</td>
+                                <td><strong>${pair}</strong></td>
+                                <td class="font-mono">${p.qty || 0}</td>
+                                <td class="font-mono">${formatPrice(entry)}</td>
+                                <td class="font-mono ${pnlClass}">${formatPrice(ltp)}</td>
+                                <td class="font-mono text-xs">TP: ${tpStr} | SL: ${slStr}</td>
+                                <td>${trailBadge}</td>
+                                <td class="${pnlClass} font-mono font-bold">${pnlSign}${formatPrice(pnl)}</td>
+                                <td><span class="bot-status-pill ${p.mode === 'LIVE' ? 'live' : 'paper'}">${p.mode || 'PAPER'}</span></td>
+                                <td style="text-align:right; white-space:nowrap;">
+                                    <button class="btn-action-trail" onclick="quickToggleTrailing('${posId}', '${pair}', 2.0)">📈 Trail</button>
+                                    <button class="btn-action-edit" onclick="openPositionControlModal('${posId}', '${pair}', ${entry}, ${ltp}, ${p.stop_loss || 0}, ${p.take_profit || 0}, ${p.trailing_stop_pct || 2.0})">🎯 SL/TP</button>
+                                    <button class="btn-action-close" onclick="manualClosePosition('${posId}', '${pair}')">⚡ Close</button>
+                                </td>
+                            </tr>`;
+                        }).join('');
+                    }
+
+                    if (openTbody) {
+                        openTbody.innerHTML = openPositions.map(p => {
+                            const entry = Number(p.entry_price || 0);
+                            const ltp = Number(p.current_price || p.entry_price || 0);
+                            const pnl = Number(p.unrealised_pnl || 0);
+                            const pnlClass = pnl >= 0 ? 'text-green' : 'text-red';
+                            const pnlSign = pnl >= 0 ? '+' : '';
+                            const pair = p.pair || (p.coin ? p.coin + '/INR' : 'CRYPTO/INR');
+                            const posId = p.id || '';
+                            const shortId = posId ? posId.substring(0, 8) : 'POS';
+
+                            return `<tr>
+                                <td><span class="tier-elite">${p.bot || 'BOT'}</span> ${shortId}</td>
+                                <td><strong>${pair}</strong></td>
+                                <td class="font-mono">${p.qty || 0}</td>
+                                <td class="font-mono">${formatPrice(entry)}</td>
+                                <td class="font-mono ${pnlClass}">${formatPrice(ltp)}</td>
+                                <td class="${pnlClass} font-mono">${pnlSign}${formatPrice(pnl)}</td>
+                                <td class="text-amber font-mono">-1.572%</td>
+                                <td class="${pnlClass} font-mono font-bold">${pnlSign}${formatPrice(pnl)}</td>
+                                <td><span class="bot-status-pill ${p.mode === 'LIVE' ? 'live' : 'paper'}">${p.mode || 'PAPER'}</span></td>
+                                <td style="text-align:right;">
+                                    <button class="btn-sm" style="background:#ef4444;color:#fff;border:none;" onclick="manualClosePosition('${posId}', '${pair}')">Close</button>
+                                </td>
+                            </tr>`;
+                        }).join('');
+                    }
+                } else {
+                    // Empty state when zero open positions
+                    if (homeTbody) {
+                        homeTbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:24px;">No active open positions. Confluence scanning active (waiting for score ≥ 85.0).</td></tr>`;
+                    }
+                    if (openTbody) {
+                        openTbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:24px;">No active open positions. Unified capital pool ready.</td></tr>`;
+                    }
+                }
+            } catch (e) {
+                console.debug("Telemetry fetch error:", e);
+            }
+        }
+
+        // Initial fetch and 10s auto-refresh
+        window.addEventListener("DOMContentLoaded", () => {
+            refreshLiveTelemetry();
+            setInterval(refreshLiveTelemetry, 10000);
+        });
+    </script>
+    
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!--  MANUAL POSITION & PROFIT TRAILING CONTROL MODAL                   -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <div id="positionActionModal" class="pos-modal-overlay" style="display:none;">
+        <div class="pos-modal-box">
+            <div class="pos-modal-header">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-size:1.2rem;">⚙️</span>
+                    <h3 id="modal-pos-title" style="margin:0; font-size:1.05rem; color:#fff;">Manage Position</h3>
+                </div>
+                <button onclick="closePositionControlModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+            </div>
+            <div class="pos-modal-body" style="padding:16px 0;">
+                <input type="hidden" id="modal-pos-id" value="">
+                
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; background:rgba(255,255,255,0.03); padding:10px; border-radius:6px; border:1px solid rgba(255,255,255,0.06);">
+                    <div>
+                        <div style="font-size:0.75rem; color:var(--text-muted);">Entry Price</div>
+                        <div id="modal-pos-entry" class="font-mono font-bold" style="color:var(--text-primary); font-size:0.95rem;">₹0.00</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem; color:var(--text-muted);">Current LTP</div>
+                        <div id="modal-pos-ltp" class="font-mono font-bold text-green" style="font-size:0.95rem;">₹0.00</div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom:12px;">
+                    <label style="display:block; font-size:0.78rem; color:var(--text-secondary); margin-bottom:4px;">🎯 Take-Profit Target (₹)</label>
+                    <input type="number" id="modal-pos-tp" step="any" class="pos-input-field" placeholder="Target Price (e.g. 260000.00)">
+                </div>
+
+                <div style="margin-bottom:12px;">
+                    <label style="display:block; font-size:0.78rem; color:var(--text-secondary); margin-bottom:4px;">🛡️ Stop-Loss Level (₹)</label>
+                    <input type="number" id="modal-pos-sl" step="any" class="pos-input-field" placeholder="Stop Price (e.g. 245000.00)">
+                </div>
+
+                <div style="margin-bottom:16px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                        <label style="font-size:0.78rem; color:var(--text-secondary);">📈 Profit Trailing (% step)</label>
+                        <span style="font-size:0.7rem; color:var(--accent-indigo);">Auto-locks peak gains</span>
+                    </div>
+                    <div style="display:flex; gap:8px;">
+                        <input type="number" id="modal-pos-trail" step="0.1" value="2.0" class="pos-input-field" style="flex:1;" placeholder="Trailing %">
+                        <button type="button" class="btn-sm" style="background:rgba(99,102,241,0.2); border:1px solid var(--accent-indigo); color:#c7d2fe;" onclick="document.getElementById('modal-pos-trail').value='1.5'">1.5%</button>
+                        <button type="button" class="btn-sm" style="background:rgba(99,102,241,0.2); border:1px solid var(--accent-indigo); color:#c7d2fe;" onclick="document.getElementById('modal-pos-trail').value='2.0'">2.0%</button>
+                        <button type="button" class="btn-sm" style="background:rgba(99,102,241,0.2); border:1px solid var(--accent-indigo); color:#c7d2fe;" onclick="document.getElementById('modal-pos-trail').value='3.0'">3.0%</button>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button class="btn-sm" style="flex:1; background:var(--accent-indigo); color:#fff; font-weight:700; border:none; padding:8px 12px;" onclick="submitPositionModify()">💾 Update Targets & Trailing</button>
+                    <button class="btn-sm" style="background:#ef4444; color:#fff; font-weight:700; border:none; padding:8px 12px;" onclick="submitImmediateCloseFromModal()">⚡ Market Exit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>

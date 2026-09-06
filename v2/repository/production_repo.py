@@ -25,7 +25,7 @@ class ProductionRepository:
         async with self._conn.execute(
             """
             SELECT deployment_mode, is_active, global_kill_switch, updated_at
-            FROM production_runtime_state
+            FROM production_ops_state
             WHERE id = 1
             """
         ) as cursor:
@@ -49,7 +49,7 @@ class ProductionRepository:
         now = datetime.now(timezone.utc).isoformat()
         await self._conn.execute(
             """
-            INSERT INTO production_runtime_state (id, deployment_mode, is_active, global_kill_switch, updated_at)
+            INSERT INTO production_ops_state (id, deployment_mode, is_active, global_kill_switch, updated_at)
             VALUES (1, ?, 1, 0, ?)
             ON CONFLICT(id) DO UPDATE SET
                 deployment_mode = excluded.deployment_mode,
@@ -65,7 +65,7 @@ class ProductionRepository:
         now = datetime.now(timezone.utc).isoformat()
         await self._conn.execute(
             """
-            INSERT INTO production_runtime_state (id, deployment_mode, is_active, global_kill_switch, updated_at)
+            INSERT INTO production_ops_state (id, deployment_mode, is_active, global_kill_switch, updated_at)
             VALUES (1, 'SHADOW', ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 global_kill_switch = excluded.global_kill_switch,

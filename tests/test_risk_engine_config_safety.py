@@ -40,17 +40,9 @@ def tearDownModule():
 
 def _reload_risk_engine(env: dict):
     """Re-import risk_engine.config and risk_engine.engine under a given env."""
-<<<<<<< Updated upstream
     stub = types.ModuleType("bots.mtb_bot.storage")
     stub.get_open_positions = lambda: []
     sys.modules["bots.mtb_bot.storage"] = stub
-=======
-    # Stub out the bot storage modules so engine.py can import cleanly.
-    for mod in ("bots.mtb_bot.storage",):
-        stub = types.ModuleType(mod)
-        stub.get_open_positions = lambda: []          # type: ignore[attr-defined]
-        sys.modules[mod] = stub
->>>>>>> Stashed changes
 
     for key in list(sys.modules):
         if key.startswith("bots.risk_engine"):
@@ -110,10 +102,7 @@ class TestDenyByDefaultCapitalLimits(unittest.TestCase):
             "TRADING_ENABLED": "true",
             "MTB_CAPITAL_LIMIT": "3000",
             "MTB_BOT_MODE": "PAPER",
-<<<<<<< Updated upstream
-=======
             # TOTAL_CAPITAL_LIMIT intentionally absent
->>>>>>> Stashed changes
         }
         cfg, eng, decision = _decision(env, bot="MTB", amount=100.0)
 
@@ -128,10 +117,6 @@ class TestDenyByDefaultCapitalLimits(unittest.TestCase):
             "TRADING_ENABLED": "true",
             "TOTAL_CAPITAL_LIMIT": "10000",
             "MTB_BOT_MODE": "PAPER",
-<<<<<<< Updated upstream
-=======
-            # MTB_CAPITAL_LIMIT intentionally absent
->>>>>>> Stashed changes
         }
         cfg, eng, decision = _decision(env, bot="MTB", amount=100.0)
 
@@ -209,11 +194,7 @@ class TestDenyByDefaultCapitalLimits(unittest.TestCase):
         _, _, decision = _decision(env, bot="MTB", amount=100.0)
         self.assertIn("TOTAL_CAPITAL_LIMIT", decision.reason)
 
-<<<<<<< Updated upstream
     # ── Bot denied when limits are unconfigured ───────────────────────────────
-=======
-    # ── All bots denied when limits are unconfigured ───────────────────
->>>>>>> Stashed changes
     def test_all_bots_denied_when_no_limits_configured(self):
         env = {"TRADING_ENABLED": "true"}
         cfg, eng = _reload_risk_engine(env)

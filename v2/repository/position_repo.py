@@ -224,9 +224,27 @@ class PositionRepository(BaseRepository):
         )
         return float(row["total"]) if row else 0.0
 
+    async def update_brackets(
+        self,
+        position_id: str,
+        stop_loss: Optional[float] = None,
+        take_profit: Optional[float] = None,
+    ) -> None:
+        """Update stop loss and take profit targets for an open position."""
+        await self._execute(
+            """
+            UPDATE positions
+            SET stop_loss = COALESCE(?, stop_loss),
+                take_profit = COALESCE(?, take_profit)
+            WHERE id = ?
+            """,
+            (stop_loss, take_profit, position_id),
+        )
+
     async def get_all_deployed_capital(self) -> dict[str, float]:
         rows = await self._fetchall(
             "SELECT bot, COALESCE(SUM(qty * entry_price), 0.0) as total "
             "FROM positions WHERE status='OPEN' GROUP BY bot"
         )
         return {r["bot"]: float(r["total"]) for r in rows}
+

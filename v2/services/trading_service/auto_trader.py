@@ -16,7 +16,7 @@ from v2.bus.event_bus import EventBus
 from v2.bus.event_types import EventType
 from v2.core.logging import get_logger
 from v2.core.types import BotName, OppType, Signal
-from v2.trading.precision_rules import round_price, round_qty, validate_order_notional
+from v2.trading.precision_rules import extract_base_coin, round_price, round_qty, validate_order_notional
 from v2.trading.subaccount_manager import CoinDCXSubAccountClient, CoinDCXSubAccountManager
 
 logger = get_logger("v2.services.trading_service.auto_trader")
@@ -25,7 +25,7 @@ logger = get_logger("v2.services.trading_service.auto_trader")
 class AutoTradeRouter:
     """
     Auto Trade Dispatcher & Strategy Router.
-    Enforces signal idempotency, strategy mapping, precision rules, and HMAC-signed sub-account order dispatch.
+    Enforces signal idempotency, cross-strategy asset locking, precision rules, and HMAC-signed sub-account order dispatch.
     """
 
     def __init__(
@@ -33,10 +33,12 @@ class AutoTradeRouter:
         bus: EventBus,
         subaccount_manager: Optional[CoinDCXSubAccountManager] = None,
         dry_run: bool = False,
+        position_repo: Optional[Any] = None,
     ) -> None:
         self._bus = bus
         self._subaccount_manager = subaccount_manager or CoinDCXSubAccountManager()
         self.dry_run = dry_run
+        self._position_repo = position_repo
         self._processed_idempotency_keys: Set[str] = set()
         self._lock = threading.RLock()
 
@@ -127,6 +129,35 @@ class AutoTradeRouter:
             }
 
         target_bot = self.map_signal_to_bot(signal_data)
+
+        # Cross-Strategy Single Coin Lock: if coin is already open in any strategy bot, reject
+        if self._position_repo is not None:
+            try:
+                candidate_base = extract_base_coin(coin) or extract_base_coin(pair)
+                get_open_coro = self._position_repo.get_open()
+                if inspect.isawaitable(get_open_coro):
+                    open_positions = await get_open_coro
+                else:
+                    open_positions = get_open_coro
+                for op in open_positions:
+                    op_base = extract_base_coin(getattr(op, "coin", "")) or extract_base_coin(getattr(op, "pair", ""))
+                    if candidate_base and op_base and candidate_base == op_base:
+                        op_bot = getattr(op, "bot", "BOT")
+                        op_bot_name = op_bot.value if hasattr(op_bot, "value") else str(op_bot)
+                        target_bot_name = target_bot.value if hasattr(target_bot, "value") else str(target_bot)
+                        logger.warning(
+                            "AutoTradeRouter rejected signal for %s: active position already exists in strategy %s (target: %s)",
+                            candidate_base, op_bot_name, target_bot_name,
+                        )
+                        return {
+                            "success": False,
+                            "error": "OPPORTUNITY_LOCKED_ACTIVE_PAIR",
+                            "idempotency_key": idempotency_key,
+                            "message": f"Asset {candidate_base} already has an active open position in strategy {op_bot_name}. Cross-strategy lock prevents opening in {target_bot_name}.",
+                        }
+            except Exception as exc:
+                logger.debug("AutoTradeRouter active position cross-strategy check error: %s", exc)
+
         client = self._subaccount_manager.get_client(target_bot)
 
         price = float(signal_data.get("price") or signal_data.get("current_price") or 100.0)

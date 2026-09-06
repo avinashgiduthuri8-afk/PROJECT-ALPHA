@@ -147,6 +147,23 @@ class PositionSchema(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ManualCloseRequestSchema(BaseModel):
+    exit_price: Optional[float] = Field(default=None, description="Optional custom exit price (defaults to current market price)")
+    reason:     str             = Field(default="MANUAL", description="Reason for closure")
+
+
+class ModifyPositionRequestSchema(BaseModel):
+    stop_loss:         Optional[float] = Field(default=None, description="Updated Stop Loss price")
+    take_profit:       Optional[float] = Field(default=None, description="Updated Take Profit price")
+    trailing_stop_pct: Optional[float] = Field(default=None, description="Trailing stop percentage (e.g. 2.0 for 2%)")
+
+
+class TrailingProfitRequestSchema(BaseModel):
+    enabled:      bool  = Field(default=True, description="Enable or disable profit trailing")
+    trailing_pct: float = Field(default=2.0, description="Trailing step percentage (e.g. 1.5, 2.0, 3.0)")
+
+
+
 class TradeSchema(BaseModel):
     id:          str
     position_id: str
@@ -453,9 +470,14 @@ class SetModeRequestSchema(BaseModel):
 class SetModeResponseSchema(BaseModel):
     ok:              bool = True
     mode:            str
+    deployment_mode: Optional[str] = None
     trading_enabled: bool
     shadow_mode:     bool
     message:         str
+
+    def model_post_init(self, __context: Any) -> None:
+        if not self.deployment_mode and self.mode:
+            self.deployment_mode = self.mode
 
 
 class KillSwitchResponseSchema(BaseModel):
@@ -464,6 +486,12 @@ class KillSwitchResponseSchema(BaseModel):
     trading_enabled: bool
     status:          str
     message:         str
+    ok:                     bool = True
+    circuit_breaker:        str = "TRIPPED"
+    trading_enabled:        bool = False
+    status:                 str = "KILL_SWITCH_TRIPPED"
+    is_kill_switch_tripped: bool = True
+    message:                str = "Circuit breaker tripped. All orders blocked."
 
 
 class ResumeResponseSchema(BaseModel):
@@ -472,10 +500,24 @@ class ResumeResponseSchema(BaseModel):
     mode:            str
     trading_enabled: bool
     message:         str
+    ok:                     bool = True
+    circuit_breaker:        str = "NORMAL"
+    mode:                   str = "PAPER"
+    deployment_mode:        Optional[str] = None
+    trading_enabled:        bool = True
+    status:                 str = "ACTIVE"
+    is_kill_switch_tripped: bool = False
+    message:                str = "Trading resumed successfully."
+
+    def model_post_init(self, __context: Any) -> None:
+        if not self.deployment_mode and self.mode:
+            self.deployment_mode = self.mode
 
 
 class ProductionStatusSchema(BaseModel):
     mode:                   str
+    deployment_mode:        Optional[str] = None
+    is_kill_switch_tripped: bool = False
     trading_enabled:        bool
     shadow_mode:            bool
     capital_pool_limit:     Optional[float] = None
@@ -483,9 +525,26 @@ class ProductionStatusSchema(BaseModel):
     capital_pool_available: Optional[float] = None
     open_positions_count:   int
     circuit_breaker_status: str
+    wallet_limits_inr:      dict[str, float] = Field(default_factory=lambda: {
+        "STE": 10000.0,
+        "HDA": 10000.0,
+        "VCP": 15000.0,
+        "BBS": 15000.0,
+    })
+    micro_order_caps_inr:   dict[str, float] = Field(default_factory=lambda: {
+        "STE": 500.0,
+        "HDA": 500.0,
+        "VCP": 500.0,
+        "BBS": 500.0,
+    })
+    minimum_notional_inr:   float = 100.0
     watchdog_status:        Optional[str] = None
     subsystems_healthy:     Optional[bool] = None
     last_inspection:        Optional[str] = None
+
+    def model_post_init(self, __context: Any) -> None:
+        if not self.deployment_mode and self.mode:
+            self.deployment_mode = self.mode
 
 
 # ── Execution & Error Center Schemas ──────────────────────────────────────────

@@ -10,6 +10,7 @@ from typing import Optional
 from v2.core.config import V2Config
 from v2.core.types import BotName, RiskDecision
 from v2.core.logging import get_logger
+from v2.trading.precision_rules import extract_base_coin
 
 logger = get_logger("v2.services.risk_service.capital_guard")
 
@@ -33,35 +34,49 @@ class CapitalGuard:
     ) -> RiskDecision:
         t0 = time.perf_counter()
 
+        candidate_base = extract_base_coin(current_coin)
+
         # 0. Post-Exit Cooldown Check (Defense-in-Depth)
-        if current_coin and cooldowns:
-            coin_clean = current_coin.upper().replace("/INR", "").replace("/USDT", "").replace("B-", "")
-            if coin_clean in cooldowns:
+        if candidate_base and cooldowns:
+            if candidate_base in cooldowns:
                 ms = (time.perf_counter() - t0) * 1000.0
-                c_info = cooldowns[coin_clean]
+                c_info = cooldowns[candidate_base]
                 return RiskDecision(
                     allowed=False,
                     code="OPPORTUNITY_IN_COOLDOWN",
-                    reason=f"Asset {coin_clean} is in post-exit cooldown following {c_info.get('exit_reason', 'EXIT')}.",
+                    reason=f"Asset {candidate_base} is in post-exit cooldown following {c_info.get('exit_reason', 'EXIT')}.",
                     bot=bot,
                     amount=requested_amount,
                     adjusted_amount=0.0,
                     check_ms=round(ms, 2),
                 )
 
-        # 1. Single-Coin Asset Deduplication & Fleet Lock Check
-        if self._config.enforce_single_coin_lock and current_coin and active_positions:
-            coin_clean = current_coin.upper().replace("/INR", "").replace("/USDT", "").replace("B-", "")
+        # 1. Single-Coin Asset Deduplication & Cross-Strategy Fleet Lock Check
+        # If one coin position is active in ANY strategy bot, do not allow opening in any strategy bot.
+        if self._config.enforce_single_coin_lock and candidate_base and active_positions:
             for pos in active_positions:
-                pos_coin = getattr(pos, "coin", "") or ""
-                pos_pair = getattr(pos, "pair", "") or ""
-                pos_clean = pos_coin.upper().replace("/INR", "").replace("/USDT", "").replace("B-", "")
-                if pos_clean == coin_clean or coin_clean in pos_pair.upper():
+                pos_coin = getattr(pos, "coin", None) or (pos.get("coin") if isinstance(pos, dict) else "") or ""
+                pos_pair = getattr(pos, "pair", None) or (pos.get("pair") if isinstance(pos, dict) else "") or ""
+                pos_bot = getattr(pos, "bot", None) or (pos.get("bot") if isinstance(pos, dict) else "BOT")
+                pos_bot_name = pos_bot.value if hasattr(pos_bot, "value") else str(pos_bot)
+
+                pos_base = extract_base_coin(pos_coin) or extract_base_coin(pos_pair)
+                if candidate_base == pos_base:
                     ms = (time.perf_counter() - t0) * 1000.0
+                    target_bot_name = bot.value if hasattr(bot, "value") else str(bot)
+                    if pos_bot_name.upper() != target_bot_name.upper():
+                        reason_str = (
+                            f"Asset {candidate_base} already has an active open position in strategy {pos_bot_name}. "
+                            f"Cross-strategy lock prevents opening in {target_bot_name}."
+                        )
+                    else:
+                        reason_str = (
+                            f"Asset {candidate_base} already has an active open position in strategy {pos_bot_name}."
+                        )
                     return RiskDecision(
                         allowed=False,
                         code="OPPORTUNITY_LOCKED_ACTIVE_PAIR",
-                        reason=f"Asset {coin_clean} already has an active open position in the fleet ({getattr(pos, 'bot', 'BOT')}).",
+                        reason=reason_str,
                         bot=bot,
                         amount=requested_amount,
                         adjusted_amount=0.0,

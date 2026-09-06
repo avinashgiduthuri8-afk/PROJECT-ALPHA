@@ -1,44 +1,51 @@
 """
-<<<<<<< Updated upstream
 v2/services/production_service/controller.py — Production Controller & Emergency Kill-Switch.
 
 Manages:
 1. Dynamic mode switching between SHADOW, PAPER, and LIVE_MICROCASH with persistence.
 2. Global emergency kill-switch tripping the circuit breaker and halting orders.
 3. System resume procedure with database integrity checks and breaker re-arming.
-=======
-V2 Production Deployment Controller.
-
-Manages deployment modes (SHADOW, PAPER, LIVE_MICROCASH), sub-account wallet boundaries,
-micro-order sizing caps, minimum notional enforcement, and global kill switch protections.
->>>>>>> Stashed changes
 """
 
 from __future__ import annotations
 
-<<<<<<< Updated upstream
 import asyncio
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
+
+from enum import Enum
 
 from v2.bus.event_bus import EventBus
 from v2.bus.event_types import EventType
 from v2.core.config import V2Config, get_config
 from v2.core.logging import get_logger
-=======
-from enum import Enum
-from typing import Any, Dict, Optional, Tuple
-
-from v2.bus.event_bus import EventBus
-from v2.bus.event_types import EventType
-from v2.core.logging import get_logger
-from v2.repository.production_repo import ProductionRepository
->>>>>>> Stashed changes
 
 logger = get_logger("v2.services.production_service.controller")
 
+WALLET_LIMITS_INR: Dict[str, float] = {
+    "STE": 10000.0,
+    "HDA": 10000.0,
+    "VCP": 15000.0,
+    "BBS": 15000.0,
+}
 
-<<<<<<< Updated upstream
+MICRO_ORDER_CAPS_INR: Dict[str, float] = {
+    "STE": 500.0,
+    "HDA": 500.0,
+    "VCP": 500.0,
+    "BBS": 500.0,
+}
+
+MINIMUM_NOTIONAL_INR: float = 100.0
+
+
+class DeploymentMode(str, Enum):
+    """Execution deployment modes (PAPER simulation or LIVE microcash)."""
+    PAPER = "PAPER"
+    LIVE = "LIVE"
+    LIVE_MICROCASH = "LIVE_MICROCASH"
+
+
 class ProductionController:
     """
     Central controller orchestrating deployment mode transitions, emergency stops,
@@ -47,21 +54,96 @@ class ProductionController:
 
     def __init__(
         self,
-        config: V2Config,
-        bus: EventBus,
+        config: Optional[V2Config] = None,
+        bus: Optional[EventBus] = None,
         state_repo: Optional[Any] = None,
+        production_repo: Optional[Any] = None,
         risk_service: Optional[Any] = None,
         trading_service: Optional[Any] = None,
         event_log_repo: Optional[Any] = None,
         notification_service: Optional[Any] = None,
     ) -> None:
-        self._config = config
-        self._bus = bus
+        self._config = config or get_config()
+        self._bus = bus or EventBus()
         self._state_repo = state_repo
+        self._production_repo = production_repo
         self._risk_service = risk_service
         self._trading_service = trading_service
         self._event_log_repo = event_log_repo
         self._notification_service = notification_service
+        self._kill_switch_tripped = False
+
+    async def initialize_state(self) -> None:
+        """Initialize controller state from repository if available."""
+        if self._production_repo and hasattr(self._production_repo, "get_runtime_state"):
+            state = await self._production_repo.get_runtime_state()
+            mode = state.get("deployment_mode", "PAPER")
+            if mode == "SHADOW":
+                mode = "PAPER"
+            self._config.v2_deployment_mode = mode
+            self._kill_switch_tripped = bool(state.get("global_kill_switch", False))
+        elif self._state_repo and hasattr(self._state_repo, "get_runtime_state"):
+            state = await self._state_repo.get_runtime_state()
+            mode = state.get("deployment_mode", "PAPER")
+            if mode == "SHADOW":
+                mode = "PAPER"
+            self._config.v2_deployment_mode = mode
+            self._kill_switch_tripped = bool(state.get("global_kill_switch", False))
+
+
+    @property
+    def is_kill_switch_tripped(self) -> bool:
+        if self._kill_switch_tripped:
+            return True
+        if self._risk_service and hasattr(self._risk_service, "circuit_breaker"):
+            return bool(self._risk_service.circuit_breaker.is_open)
+        return False
+
+    async def trip_kill_switch(self, reason: str = "Manual kill switch trip") -> Dict[str, Any]:
+        self._kill_switch_tripped = True
+        if self._production_repo and hasattr(self._production_repo, "set_kill_switch"):
+            await self._production_repo.set_kill_switch(True)
+        return await self.kill_switch(reason=reason)
+
+    async def reset_kill_switch(self) -> Dict[str, Any]:
+        self._kill_switch_tripped = False
+        if self._production_repo and hasattr(self._production_repo, "set_kill_switch"):
+            await self._production_repo.set_kill_switch(False)
+        return await self.resume()
+
+    def validate_order_safety(
+        self,
+        bot_name: str,
+        amount: float,
+        current_wallet_exposure_inr: float = 0.0,
+    ) -> tuple[bool, str]:
+        """Validate order size against safety boundaries."""
+        if self.is_kill_switch_tripped:
+            return False, "Order rejected: Global kill switch is active — all orders halted."
+        if amount < MINIMUM_NOTIONAL_INR:
+            return False, f"Order amount ₹{amount:.2f} is below minimum notional ₹{MINIMUM_NOTIONAL_INR:.2f}."
+        cap = MICRO_ORDER_CAPS_INR.get(bot_name.upper(), 500.0)
+        if amount > cap:
+            return False, f"Order amount ₹{amount:.2f} exceeds micro-order cap ₹{cap:.2f} for bot {bot_name}."
+        ceiling = WALLET_LIMITS_INR.get(bot_name.upper(), 15000.0)
+        if current_wallet_exposure_inr + amount > ceiling:
+            return False, f"Total exposure ₹{current_wallet_exposure_inr + amount:.2f} exceeds wallet ceiling ₹{ceiling:.2f} for bot {bot_name}."
+        return True, "OK"
+
+    @property
+    def mode(self) -> DeploymentMode:
+        """Return the current DeploymentMode enum value."""
+        raw = self.get_active_mode()
+        try:
+            return DeploymentMode(raw)
+        except Exception:
+            return DeploymentMode.PAPER
+
+    async def set_deployment_mode(self, target_mode: Any, operator: str = "API") -> DeploymentMode:
+        """Set deployment mode accepting either a string or DeploymentMode enum."""
+        mode_val = target_mode.value if isinstance(target_mode, Enum) else str(target_mode)
+        await self.set_mode(mode_val, operator=operator)
+        return self.mode
 
     def wire_dependencies(
         self,
@@ -89,12 +171,16 @@ class ProductionController:
 
     async def set_mode(self, target_mode: str, operator: str = "API") -> Dict[str, Any]:
         """
-        Dynamically transition execution mode (SHADOW, PAPER, LIVE_MICROCASH).
+        Dynamically transition execution mode (PAPER, LIVE / LIVE_MICROCASH).
         Persists changes to database and config override file.
         """
-        mode = target_mode.strip().upper()
-        if mode not in ("SHADOW", "PAPER", "LIVE_MICROCASH"):
-            raise ValueError(f"Invalid mode '{target_mode}'. Valid modes: SHADOW, PAPER, LIVE_MICROCASH")
+        raw_mode = target_mode.strip().upper()
+        if raw_mode in ("LIVE", "LIVE_MICROCASH"):
+            mode = "LIVE_MICROCASH"
+        elif raw_mode in ("PAPER", "SHADOW"):
+            mode = "PAPER"
+        else:
+            raise ValueError(f"Invalid mode '{target_mode}'. Valid modes: PAPER, LIVE (LIVE_MICROCASH)")
 
         if mode == "LIVE_MICROCASH":
             if self._risk_service and hasattr(self._risk_service, "circuit_breaker") and self._risk_service.circuit_breaker.is_open:
@@ -109,16 +195,11 @@ class ProductionController:
             self._config.v2_trading_enabled = True
             self._config.v2_shadow_mode = False
             msg = f"Mode transitioned to LIVE_MICROCASH. Real micro-orders (₹{self._config.order_size_inr:.2f}) dispatch to CoinDCX."
-        elif mode == "PAPER":
+        else:
             self._config.v2_deployment_mode = "PAPER"
             self._config.v2_trading_enabled = True
             self._config.v2_shadow_mode = False
             msg = "Mode transitioned to PAPER. Virtual positions execute with live prices, SL/TP exits, and 1.572% friction."
-        else:
-            self._config.v2_deployment_mode = "SHADOW"
-            self._config.v2_trading_enabled = False
-            self._config.v2_shadow_mode = True
-            msg = "Mode transitioned to SHADOW. Passive observation only; zero order placement."
 
         # 1. Persist config overrides to filesystem
         try:
@@ -131,6 +212,12 @@ class ProductionController:
             logger.warning("Could not persist runtime override for set_mode: %s", exc)
 
         # 2. Persist to production_runtime_state table in SQLite
+        if self._production_repo and hasattr(self._production_repo, "set_deployment_mode"):
+            try:
+                await self._production_repo.set_deployment_mode(mode)
+            except Exception as exc:
+                logger.warning("Failed to persist mode to production_repo: %s", exc)
+
         if self._state_repo:
             try:
                 await self._state_repo.set_many({
@@ -165,11 +252,25 @@ class ProductionController:
         except Exception as exc:
             logger.debug("Bus notification failed: %s", exc)
 
+        # 5. Broadcast to Telegram
+        if self._notification_service and hasattr(self._notification_service, "telegram_client"):
+            try:
+                await self._notification_service.telegram_client.send_message(
+                    f"⚙️ <b>DEPLOYMENT MODE CHANGED</b>\n\n"
+                    f"• <b>New Mode:</b> <code>{mode}</code>\n"
+                    f"• <b>Operator:</b> <code>{operator}</code>\n"
+                    f"• <b>Trading:</b> {'ENABLED' if self._config.v2_trading_enabled else 'HALTED'}\n"
+                    f"• <b>Info:</b> {msg}"
+                )
+            except Exception as exc:
+                logger.debug("Failed sending mode change Telegram alert: %s", exc)
+
         logger.info("Production mode changed to %s by %s", mode, operator)
 
         return {
             "ok": True,
             "mode": mode,
+            "deployment_mode": mode,
             "trading_enabled": self._config.v2_trading_enabled,
             "shadow_mode": self._config.v2_shadow_mode,
             "message": msg,
@@ -182,7 +283,7 @@ class ProductionController:
     ) -> Dict[str, Any]:
         """
         Emergency Halt: Immediately trips the global circuit breaker, sets trading_enabled=False,
-        reverts mode to SHADOW, and halts all outbound orders.
+        and halts all outbound orders.
         """
         logger.critical("EMERGENCY KILL-SWITCH TRIGGERED by %s: %s", operator, reason)
 
@@ -191,16 +292,16 @@ class ProductionController:
             self._risk_service.circuit_breaker.trip(reason)
             self._risk_service.circuit_breaker.set_emergency_stop(True, reason)
 
-        # 2. Force configuration to fail-safe SHADOW mode
+        # 2. Force configuration to fail-safe mode with trading halted
         self._config.v2_trading_enabled = False
-        self._config.v2_deployment_mode = "SHADOW"
-        self._config.v2_shadow_mode = True
+        self._config.v2_deployment_mode = "PAPER"
+        self._config.v2_shadow_mode = False
 
         try:
             V2Config.save_runtime_overrides({
-                "v2_deployment_mode": "SHADOW",
+                "v2_deployment_mode": "PAPER",
                 "v2_trading_enabled": False,
-                "v2_shadow_mode": True,
+                "v2_shadow_mode": False,
             })
         except Exception as exc:
             logger.warning("Could not persist runtime overrides for kill-switch: %s", exc)
@@ -214,9 +315,9 @@ class ProductionController:
                     "circuit_breaker_status": "TRIPPED",
                     "circuit_breaker_reason": reason,
                     "emergency_stop": "true",
-                    "v2_deployment_mode": "SHADOW",
+                    "v2_deployment_mode": "PAPER",
                     "v2_trading_enabled": "false",
-                    "v2_shadow_mode": "true",
+                    "v2_shadow_mode": "false",
                     "last_kill_switch_at": now_str,
                     "kill_switch_operator": operator,
                 }, updated_by=operator)
@@ -282,7 +383,7 @@ class ProductionController:
         if self._risk_service and hasattr(self._risk_service, "is_safe_to_resume"):
             check_fn = getattr(self._risk_service, "is_safe_to_resume")
             res = check_fn()
-            if asyncio.iscoroutine(res):
+            if hasattr(res, "__await__") or asyncio.iscoroutine(res):
                 is_safe, unsafe_reason = await res
             elif isinstance(res, tuple):
                 is_safe, unsafe_reason = res
@@ -358,149 +459,4 @@ class ProductionController:
             "database_integrity": True,
             "message": f"Trading successfully resumed in {resume_mode} mode. Circuit breaker re-armed.",
         }
-=======
-class DeploymentMode(str, Enum):
-    SHADOW         = "SHADOW"
-    PAPER          = "PAPER"
-    LIVE_MICROCASH = "LIVE_MICROCASH"
 
-
-# Sub-Account Production Wallet Ceilings (INR)
-WALLET_LIMITS_INR: Dict[str, float] = {
-    "STE": 35000.0,
-    "HDA": 30000.0,
-    "VCP": 15000.0,
-    "BBS": 20000.0,
-}
-
-# Sub-Account Micro-Order Sizing Caps (INR)
-MICRO_ORDER_CAPS_INR: Dict[str, float] = {
-    "STE": 500.0,
-    "HDA": 600.0,
-    "VCP": 400.0,
-    "BBS": 400.0,
-}
-
-# Mandatory Minimum Notional Constraint (CoinDCX requirement)
-MINIMUM_NOTIONAL_INR: float = 100.0
-
-
-class ProductionController:
-    """Controls production deployment modes, order sizing bounds, and kill switch safety."""
-
-    def __init__(
-        self,
-        production_repo: Optional[ProductionRepository] = None,
-        bus: Optional[EventBus] = None,
-    ) -> None:
-        self._production_repo = production_repo
-        self._bus = bus
-        self._mode = DeploymentMode.SHADOW
-        self._kill_switch_tripped = False
-
-    @property
-    def mode(self) -> DeploymentMode:
-        return self._mode
-
-    @property
-    def is_kill_switch_tripped(self) -> bool:
-        return self._kill_switch_tripped
-
-    async def initialize_state(self) -> None:
-        """Load persistent runtime state from database."""
-        if self._production_repo:
-            state = await self._production_repo.get_runtime_state()
-            mode_str = state.get("deployment_mode", "SHADOW").upper()
-            try:
-                self._mode = DeploymentMode(mode_str)
-            except ValueError:
-                self._mode = DeploymentMode.SHADOW
-            self._kill_switch_tripped = bool(state.get("global_kill_switch", False))
-
-    async def set_deployment_mode(self, mode: str | DeploymentMode) -> DeploymentMode:
-        """Update deployment mode."""
-        mode_val = mode.value if isinstance(mode, DeploymentMode) else str(mode).upper()
-        if mode_val not in DeploymentMode._value2member_map_:
-            raise ValueError(f"Invalid deployment mode: {mode}. Must be one of SHADOW, PAPER, LIVE_MICROCASH.")
-
-        self._mode = DeploymentMode(mode_val)
-        if self._production_repo:
-            await self._production_repo.set_deployment_mode(self._mode.value)
-
-        if self._bus:
-            await self._bus.publish(
-                EventType.ALERT_GENERATED,
-                {
-                    "severity": "INFO",
-                    "title": "Deployment Mode Changed",
-                    "message": f"Production deployment mode transitioned to {self._mode.value}.",
-                },
-            )
-        logger.info("Production mode set to %s", self._mode.value)
-        return self._mode
-
-    async def trip_kill_switch(self) -> None:
-        """Trip global kill switch to halt all execution immediately."""
-        self._kill_switch_tripped = True
-        if self._production_repo:
-            await self._production_repo.set_kill_switch(True)
-
-        if self._bus:
-            await self._bus.publish(
-                EventType.CIRCUIT_BREAKER_TRIGGERED,
-                {
-                    "severity": "CRITICAL",
-                    "title": "GLOBAL KILL SWITCH TRIPPED",
-                    "message": "Global kill switch has been activated. All live order dispatching is halted.",
-                },
-            )
-        logger.critical("GLOBAL KILL SWITCH TRIPPED — All automated order dispatching halted")
-
-    async def reset_kill_switch(self) -> None:
-        """Reset global kill switch and resume operations."""
-        self._kill_switch_tripped = False
-        if self._production_repo:
-            await self._production_repo.set_kill_switch(False)
-
-        if self._bus:
-            await self._bus.publish(
-                EventType.ALERT_GENERATED,
-                {
-                    "severity": "INFO",
-                    "title": "Kill Switch Reset",
-                    "message": "Global kill switch has been reset. Automated operations resumed.",
-                },
-            )
-        logger.info("Global kill switch reset")
-
-    def validate_order_safety(
-        self,
-        bot_name: str,
-        amount_inr: float,
-        current_wallet_exposure_inr: float = 0.0,
-    ) -> Tuple[bool, str]:
-        """
-        Enforces:
-          1. Global kill switch check.
-          2. Mandatory ₹100 minimum notional requirement.
-          3. Sub-account micro-order sizing caps.
-          4. Sub-account total wallet ceiling limits.
-        """
-        bot_key = bot_name.upper()
-
-        if self._kill_switch_tripped:
-            return False, "Order rejected: Global kill switch is active."
-
-        if amount_inr < MINIMUM_NOTIONAL_INR:
-            return False, f"Order rejected: Amount ₹{amount_inr:.2f} is below minimum notional ₹{MINIMUM_NOTIONAL_INR:.2f}."
-
-        order_cap = MICRO_ORDER_CAPS_INR.get(bot_key, 500.0)
-        if amount_inr > order_cap:
-            return False, f"Order rejected: Amount ₹{amount_inr:.2f} exceeds micro-order cap ₹{order_cap:.2f} for {bot_key}."
-
-        wallet_limit = WALLET_LIMITS_INR.get(bot_key, 35000.0)
-        if (current_wallet_exposure_inr + amount_inr) > wallet_limit:
-            return False, f"Order rejected: Total exposure ₹{current_wallet_exposure_inr + amount_inr:.2f} exceeds wallet ceiling ₹{wallet_limit:.2f} for {bot_key}."
-
-        return True, "Order validated successfully."
->>>>>>> Stashed changes

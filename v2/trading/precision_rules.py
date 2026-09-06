@@ -216,3 +216,22 @@ def validate_order_notional(
     notional = price * qty
     return (qty >= spec.min_lot_qty) and (notional >= min_val)
 
+
+def extract_base_coin(sym: Optional[str]) -> str:
+    """Normalize any symbol, pair, or CoinDCX ticker (e.g. 'B-ETH_INR', 'ETH/INR', 'ETHUSDT', 'ETH') to base coin 'ETH'."""
+    if not sym:
+        return ""
+    s = str(sym).upper().strip()
+    if s.startswith("B-"):
+        s = s[2:]
+    if "/" in s:
+        s = s.split("/")[0]
+    elif "_" in s:
+        s = s.split("_")[0]
+    elif s.endswith("INR") and len(s) > 3:
+        s = s[:-3]
+    elif s.endswith("USDT") and len(s) > 4:
+        s = s[:-4]
+    return s.strip()
+
+

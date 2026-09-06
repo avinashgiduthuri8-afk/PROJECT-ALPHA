@@ -33,6 +33,7 @@ from v2.trading.precision_rules import validate_order_notional
 from v2.services.risk_service.capital_guard import CapitalGuard
 from v2.services.risk_service.service import RiskService
 from v2.services.trading_service.service import TradingService
+from v2.services.trading_service.auto_trader import AutoTradeRouter
 from v2.services.trading_service.adapters import StrategyAdapterFactory
 
 
@@ -133,6 +134,93 @@ async def test_single_coin_fleet_lock_in_capital_guard():
     assert d2.allowed is False
     assert d2.code == "OPPORTUNITY_LOCKED_ACTIVE_PAIR"
     assert "already has an active open position" in d2.reason
+    assert "Cross-strategy lock prevents opening in HDA" in d2.reason
+
+
+@pytest.mark.anyio
+async def test_cross_strategy_coin_lock_all_permutations():
+    cfg = V2Config(
+        total_capital_limit=10000.0,
+        max_concurrent_positions=10,
+        enforce_single_coin_lock=True,
+    )
+    guard = CapitalGuard(cfg)
+
+    # Active ETH position in BBS
+    now = datetime.now(timezone.utc)
+    active_pos = [
+        Position(
+            id=str(uuid.uuid4()),
+            bot=BotName.BBS,
+            coin="ETH",
+            pair="ETH/INR",
+            qty=0.01,
+            entry_price=250000.0,
+            entry_time=now,
+            mode=BotMode.PAPER,
+            status=PositionStatus.OPEN,
+        )
+    ]
+
+    # Test that STE, HDA, and VCP are all blocked from opening ETH
+    for other_bot in [BotName.STE, BotName.HDA, BotName.VCP]:
+        for notation in ["ETH", "ETH/INR", "B-ETH_INR", "B-ETH_USDT", "ETHUSDT"]:
+            decision = guard.check_trade(
+                bot=other_bot,
+                requested_amount=200.0,
+                current_bot_deployed=0.0,
+                total_deployed=200.0,
+                current_bot_positions=0,
+                active_positions=active_pos,
+                current_coin=notation,
+            )
+            assert decision.allowed is False, f"Expected {notation} to be blocked for {other_bot.value}"
+            assert decision.code == "OPPORTUNITY_LOCKED_ACTIVE_PAIR"
+            assert "Cross-strategy lock prevents opening" in decision.reason
+
+
+@pytest.mark.anyio
+async def test_auto_trade_router_cross_strategy_position_rejection():
+    bus = EventBus()
+    now = datetime.now(timezone.utc)
+    
+    # Mock position repo with an active BTC position in STE
+    class MockPositionRepo:
+        async def get_open(self):
+            return [
+                Position(
+                    id="mock-pos-1",
+                    bot=BotName.STE,
+                    coin="BTC",
+                    pair="BTC/INR",
+                    qty=0.001,
+                    entry_price=8000000.0,
+                    entry_time=now,
+                    mode=BotMode.PAPER,
+                    status=PositionStatus.OPEN,
+                )
+            ]
+
+    router = AutoTradeRouter(
+        bus=bus,
+        dry_run=True,
+        position_repo=MockPositionRepo(),
+    )
+
+    # Candidate signal for HDA on BTC -> should be rejected because STE already holds BTC
+    signal_hda = {
+        "id": "sig-btc-001",
+        "coin": "BTC",
+        "pair": "BTC/INR",
+        "target_bot": "HDA",
+        "price": 8000000.0,
+        "trade_amount": 200.0,
+    }
+    result = await router.handle_signal(signal_hda)
+    assert result["success"] is False
+    assert result["error"] == "OPPORTUNITY_LOCKED_ACTIVE_PAIR"
+    assert "Cross-strategy lock prevents opening in HDA" in result["message"]
+
 
 
 # ── 3. Fleet Capacity & Unified Pool Ceiling Tests ───────────────────────────

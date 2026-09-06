@@ -2,7 +2,7 @@
 -- Migration 011: Production Operations, Runtime State & Shadow Logs Schema
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS production_runtime_state (
+CREATE TABLE IF NOT EXISTS production_ops_state (
     id                  INTEGER PRIMARY KEY CHECK (id = 1),
     deployment_mode     TEXT NOT NULL DEFAULT 'SHADOW',  -- SHADOW, PAPER, LIVE_MICROCASH
     is_active           INTEGER NOT NULL DEFAULT 1,
@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS production_runtime_state (
     updated_at          TEXT NOT NULL
 );
 
-INSERT OR IGNORE INTO production_runtime_state (id, deployment_mode, is_active, global_kill_switch, updated_at)
+INSERT OR IGNORE INTO production_ops_state (id, deployment_mode, is_active, global_kill_switch, updated_at)
 VALUES (1, 'SHADOW', 1, 0, datetime('now'));
 
 CREATE TABLE IF NOT EXISTS shadow_trade_logs (

@@ -163,9 +163,10 @@ def test_pipeline_api_endpoints():
         assert "pipeline_stages" in ov_data
         assert len(ov_data["pipeline_stages"]) == 14
 
-        # 5. GET /v2/dashboard HTML includes pipeline UI and modal
+        # 5. GET /v2/dashboard HTML includes pipeline UI and analytics
         res_html = client.get("/v2/dashboard")
         assert res_html.status_code == 200
-        assert "14-Stage Autonomous Trading Pipeline" in res_html.text
-        assert "pipeline-stages-grid" in res_html.text
-        assert "stage-modal" in res_html.text
+        assert "ALPHA 13-Stage" in res_html.text
+        assert "beta-flowchart-grid" in res_html.text
+        assert "homePieChart" in res_html.text
+

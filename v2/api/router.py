@@ -34,18 +34,14 @@ from .schemas import (
     SetModeRequestSchema, SetModeResponseSchema,
     KillSwitchResponseSchema, ProductionStatusSchema,
     UnifiedOrderSchema, OrderLifecycleSchema, ErrorLogItemSchema,
+    ManualCloseRequestSchema, ModifyPositionRequestSchema, TrailingProfitRequestSchema,
 )
 from .research_routes import research_router, init_research_router
 from .production_routes import production_router, init_production_router
 
 router = APIRouter()
-<<<<<<< Updated upstream
 router.include_router(research_router, prefix="/research", tags=["research"])
 router.include_router(production_router, prefix="/production", tags=["production"])
-=======
-router.include_router(dashboard_router)
-router.include_router(production_router)
->>>>>>> Stashed changes
 
 # ── Injected service references (set by app_v2.py at startup) ────────────────
 _scanner_service = None
@@ -96,23 +92,9 @@ def init_router(
     dashboard_service=None,
     health_checker=None,
     metrics_collector=None,
-<<<<<<< Updated upstream
     research_service=None,
     production_controller=None,
     production_watchdog=None,
-=======
-    journal_repo=None,
-    journal_service=None,
-    analytics_service=None,
-    learning_repo=None,
-    learning_service=None,
-    backtest_repo=None,
-    backtest_service=None,
-    feedback_repo=None,
-    feedback_service=None,
-    production_repo=None,
-    production_service=None,
->>>>>>> Stashed changes
     **kwargs,
 ) -> None:
     """Called by app_v2.py lifespan after services are started."""
@@ -139,7 +121,6 @@ def init_router(
     _dashboard_service = dashboard_service
     _health_checker = health_checker
     _metrics_collector = metrics_collector
-<<<<<<< Updated upstream
     init_research_router(research_service or kwargs.get("research_service"))
     ctrl = production_controller or kwargs.get("production_controller")
     wd = production_watchdog or kwargs.get("production_watchdog")
@@ -150,32 +131,6 @@ def init_router(
         position_repo=position_repo,
         risk_service=risk_service,
     )
-=======
-    _journal_repo = journal_repo
-    _journal_service = journal_service
-    _analytics_service = analytics_service
-    _learning_repo = learning_repo
-    _learning_service = learning_service
-    _backtest_repo = backtest_repo
-    _backtest_service = backtest_service
-    _feedback_repo = feedback_repo
-    _feedback_service = feedback_service
-    if dashboard_service and hasattr(dashboard_service, "aggregator"):
-        init_dashboard_routes(dashboard_service.aggregator)
-    if production_service is not None:
-        init_production_routes(production_service)
-    _risk_service = risk_service
-    _portfolio_service = portfolio_service
-    _trading_service = trading_service
-    _shadow_service = shadow_service
-    _shadow_repo = shadow_repo
-    _position_repo = position_repo
-    _trade_repo = trade_repo
-    _notification_service = notification_service
-    _dashboard_service = dashboard_service
-    _health_checker = health_checker
-    _metrics_collector = metrics_collector
->>>>>>> Stashed changes
 
 
 # ── Health (no auth) ──────────────────────────────────────────────────────────
@@ -691,6 +646,93 @@ async def get_open_positions_alias() -> list[PositionSchema]:
     return await get_positions(status="OPEN")
 
 
+@router.post(
+    "/trading/positions/{position_id}/close",
+    response_model=dict,
+    dependencies=[Depends(require_api_key)],
+    tags=["trading"],
+)
+@router.post(
+    "/positions/{position_id}/close",
+    response_model=dict,
+    dependencies=[Depends(require_api_key)],
+    tags=["trading"],
+)
+async def manual_close_position_endpoint(
+    position_id: str,
+    body: Optional[ManualCloseRequestSchema] = None,
+) -> dict:
+    """Manually close an active position immediately at market price."""
+    if _trading_service is None:
+        raise HTTPException(status_code=503, detail="Trading service not initialized.")
+    exit_p = body.exit_price if body else None
+    reason = body.reason if body else "MANUAL"
+    res = await _trading_service.manual_close_position(position_id, exit_price=exit_p, reason=reason)
+    if not res.get("success"):
+        raise HTTPException(status_code=400, detail=res.get("message") or res.get("error"))
+    return res
+
+
+@router.post(
+    "/trading/positions/{position_id}/modify",
+    response_model=dict,
+    dependencies=[Depends(require_api_key)],
+    tags=["trading"],
+)
+@router.post(
+    "/positions/{position_id}/modify",
+    response_model=dict,
+    dependencies=[Depends(require_api_key)],
+    tags=["trading"],
+)
+async def modify_position_targets_endpoint(
+    position_id: str,
+    body: ModifyPositionRequestSchema,
+) -> dict:
+    """Manually adjust Stop Loss, Take Profit, or Trailing Stop % for an open position."""
+    if _trading_service is None:
+        raise HTTPException(status_code=503, detail="Trading service not initialized.")
+    res = await _trading_service.modify_position_targets(
+        position_id=position_id,
+        stop_loss=body.stop_loss,
+        take_profit=body.take_profit,
+        trailing_stop_pct=body.trailing_stop_pct,
+    )
+    if not res.get("success"):
+        raise HTTPException(status_code=400, detail=res.get("message") or res.get("error"))
+    return res
+
+
+@router.post(
+    "/trading/positions/{position_id}/trail",
+    response_model=dict,
+    dependencies=[Depends(require_api_key)],
+    tags=["trading"],
+)
+@router.post(
+    "/positions/{position_id}/trail",
+    response_model=dict,
+    dependencies=[Depends(require_api_key)],
+    tags=["trading"],
+)
+async def toggle_trailing_profit_endpoint(
+    position_id: str,
+    body: TrailingProfitRequestSchema,
+) -> dict:
+    """Toggle or set profit trailing percentage on an active position."""
+    if _trading_service is None:
+        raise HTTPException(status_code=503, detail="Trading service not initialized.")
+    trailing_pct = body.trailing_pct if body.enabled else None
+    res = await _trading_service.modify_position_targets(
+        position_id=position_id,
+        trailing_stop_pct=trailing_pct,
+    )
+    if not res.get("success"):
+        raise HTTPException(status_code=400, detail=res.get("message") or res.get("error"))
+    return res
+
+
+
 @router.get(
     "/trading/trades",
     response_model=list[TradeSchema],
@@ -991,11 +1033,7 @@ async def get_pipeline_stage_detail(stage_id: str) -> PipelineStageDetailSchema:
     tags=["bots"],
 )
 async def get_all_bots() -> list[BotStatusSchema]:
-<<<<<<< Updated upstream
     """Return current pipeline stage, status, and live metrics for all production trading bots (STE, HDA, VCP, BBS)."""
-=======
-    """Return current pipeline stage, status, and live metrics for all trading bots (STE, HDA, VCP, BBS)."""
->>>>>>> Stashed changes
     if _dashboard_service is None:
         raise HTTPException(status_code=503, detail="Dashboard service not initialized.")
 
@@ -1024,7 +1062,6 @@ async def get_bot_detail(bot_name: str) -> BotDetailSchema:
     return BotDetailSchema(**detail)
 
 
-<<<<<<< Updated upstream
 # ── Simulation & Learning Endpoints ───────────────────────────────────────────
 
 @router.post(
@@ -1390,226 +1427,3 @@ async def get_system_errors(limit: int = Query(default=50, ge=1, le=200)) -> lis
     errors.sort(key=lambda x: x.timestamp, reverse=True)
     return errors[:limit]
 
-
-=======
-# ── Phase 3 Post-Trade Journal & Analytics Endpoints ─────────────────────────
-
-@router.get(
-    "/journal/trades",
-    dependencies=[Depends(require_api_key)],
-    tags=["journal"],
-)
-async def get_journal_trades(
-    limit: int = Query(default=50, ge=1, le=1000),
-    offset: int = Query(default=0, ge=0),
-    bot_name: Optional[str] = Query(default=None),
-    pair: Optional[str] = Query(default=None),
-):
-    """Fetch paginated post-trade journal entries with statutory tax breakdowns and excursion metrics."""
-    if _journal_repo is None:
-        raise HTTPException(status_code=503, detail="Journal repository not initialized.")
-    return await _journal_repo.get_entries(limit=limit, offset=offset, bot_name=bot_name, pair=pair)
-
-
-@router.get(
-    "/analytics/performance",
-    dependencies=[Depends(require_api_key)],
-    tags=["analytics"],
-)
-async def get_analytics_performance(
-    bot_name: Optional[str] = Query(default=None),
-    pair: Optional[str] = Query(default=None),
-    limit: int = Query(default=1000, ge=1, le=10000),
-):
-    """Return quantitative performance metrics (Win Rates, Profit Factor, Max Drawdown, Sharpe, Sortino, Calmar)."""
-    if _analytics_service is None:
-        raise HTTPException(status_code=503, detail="Analytics service not initialized.")
-    return await _analytics_service.get_performance_summary(bot_name=bot_name, pair=pair, limit=limit)
-
-
-@router.get(
-    "/analytics/tax-ledger",
-    dependencies=[Depends(require_api_key)],
-    tags=["analytics"],
-)
-async def get_tax_ledger(
-    start_iso: Optional[str] = Query(default=None),
-    end_iso: Optional[str] = Query(default=None),
-):
-    """Return statutory tax & compliance summary (Sec 194S TDS, brokerage GST, quarterly breakdown)."""
-    if _analytics_service is None:
-        raise HTTPException(status_code=503, detail="Analytics service not initialized.")
-    return await _analytics_service.get_tax_ledger_summary(start_iso=start_iso, end_iso=end_iso)
-
-
-# ── Phase 4 Learning Engine & Mistake Diagnosis Endpoints ────────────────────
-
-@router.get(
-    "/learning/insights",
-    dependencies=[Depends(require_api_key)],
-    tags=["learning"],
-)
-async def get_learning_insights(
-    bot_name: Optional[str] = Query(default=None),
-    pair: Optional[str] = Query(default=None),
-):
-    """Return active learned lessons and mistake pattern diagnoses."""
-    if _learning_service is None:
-        raise HTTPException(status_code=503, detail="Learning service not initialized.")
-    return await _learning_service.get_active_insights(bot_name=bot_name, pair=pair)
-
-
-@router.get(
-    "/learning/calibrations",
-    dependencies=[Depends(require_api_key)],
-    tags=["learning"],
-)
-async def get_strategy_calibrations():
-    """Return current dynamic strategy weight multipliers and confluence score thresholds."""
-    if _learning_service is None:
-        raise HTTPException(status_code=503, detail="Learning service not initialized.")
-    return await _learning_service.get_calibrations()
-
-
-@router.post(
-    "/learning/run-cycle",
-    dependencies=[Depends(require_api_key)],
-    tags=["learning"],
-)
-async def run_learning_cycle():
-    """Trigger an on-demand learning evaluation pass to extract mistake patterns and calibrate strategies."""
-    if _learning_service is None:
-        raise HTTPException(status_code=503, detail="Learning service not initialized.")
-    return await _learning_service.run_learning_cycle()
-
-
-# ── Phase 5 Historical Backtest & Strategy Improvement Endpoints ─────────────
-
-class BacktestRunPayload(BaseModel):
-    strategy_name: str = "STE"
-    pair: str = "BTC/INR"
-    timeframe: str = "5m"
-    candles: Optional[list[dict]] = None
-    parameters: Optional[dict] = None
-
-
-@router.post(
-    "/backtest/run",
-    dependencies=[Depends(require_api_key)],
-    tags=["backtest"],
-)
-async def run_historical_backtest(
-    payload: Optional[BacktestRunPayload] = Body(default=None),
-    strategy_name: Optional[str] = Query(default=None),
-    pair: Optional[str] = Query(default=None),
-    timeframe: Optional[str] = Query(default=None),
-):
-    """Launch historical multi-timeframe backtest simulation."""
-    if _backtest_service is None:
-        raise HTTPException(status_code=503, detail="Backtest service not initialized.")
-
-    p = payload or BacktestRunPayload()
-    strat = strategy_name or p.strategy_name
-    pr = pair or p.pair
-    tf = timeframe or p.timeframe
-    candle_list = p.candles or []
-    params = p.parameters or {"timeframe": tf}
-
-    return await _backtest_service.run_backtest(
-        strategy_name=strat,
-        pair=pr,
-        candles=candle_list,
-        parameters=params,
-    )
-
-
-@router.get(
-    "/backtest/results",
-    dependencies=[Depends(require_api_key)],
-    tags=["backtest"],
-)
-async def get_backtest_results(
-    limit: int = Query(default=50, ge=1, le=1000),
-    offset: int = Query(default=0, ge=0),
-):
-    """List historical backtest summary runs."""
-    if _backtest_service is None:
-        raise HTTPException(status_code=503, detail="Backtest service not initialized.")
-    return await _backtest_service.get_runs(limit=limit, offset=offset)
-
-
-@router.get(
-    "/backtest/results/{run_id}",
-    dependencies=[Depends(require_api_key)],
-    tags=["backtest"],
-)
-async def get_backtest_run_detail(run_id: str):
-    """Return detailed trade log and equity curve metrics for a specific backtest run."""
-    if _backtest_service is None:
-        raise HTTPException(status_code=503, detail="Backtest service not initialized.")
-
-    detail = await _backtest_service.get_run_detail(run_id)
-    if detail is None:
-        raise HTTPException(status_code=404, detail=f"Backtest run '{run_id}' not found.")
-    return detail
-
-
-# ── Phase 6 Autonomous Recursive Feedback Loop Endpoints ─────────────────────
-
-class FeedbackTriggerPayload(BaseModel):
-    bot_name: str = "STE"
-    pair: str = "BTC/INR"
-    multiplier: float = 1.0
-    threshold: float = 85.0
-    candles: Optional[list[dict]] = None
-
-
-@router.get(
-    "/feedback/loop-status",
-    dependencies=[Depends(require_api_key)],
-    tags=["feedback"],
-)
-async def get_feedback_loop_status():
-    """Return current autonomous feedback loop state, active promotions, and system health."""
-    if _feedback_service is None:
-        raise HTTPException(status_code=503, detail="Feedback service not initialized.")
-    return await _feedback_service.get_loop_status()
-
-
-@router.get(
-    "/feedback/audit-trail",
-    dependencies=[Depends(require_api_key)],
-    tags=["feedback"],
-)
-async def get_feedback_audit_trail(
-    bot_name: Optional[str] = Query(default=None),
-    limit: int = Query(default=50, ge=1, le=1000),
-):
-    """Return chronological record of parameter adjustments, backtest validations, and rollbacks."""
-    if _feedback_service is None:
-        raise HTTPException(status_code=503, detail="Feedback service not initialized.")
-    return await _feedback_service.get_audit_trail(bot_name=bot_name, limit=limit)
-
-
-@router.post(
-    "/feedback/trigger-cycle",
-    dependencies=[Depends(require_api_key)],
-    tags=["feedback"],
-)
-async def trigger_feedback_cycle(
-    payload: Optional[FeedbackTriggerPayload] = Body(default=None),
-):
-    """Trigger an immediate autonomous feedback evaluation and pre-deployment backtest validation cycle."""
-    if _feedback_service is None:
-        raise HTTPException(status_code=503, detail="Feedback service not initialized.")
-
-    p = payload or FeedbackTriggerPayload()
-    return await _feedback_service.trigger_feedback_cycle(
-        bot_name=p.bot_name,
-        pair=p.pair,
-        multiplier=p.multiplier,
-        threshold=p.threshold,
-        candles=p.candles,
-    )
-
->>>>>>> Stashed changes

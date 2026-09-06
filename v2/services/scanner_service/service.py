@@ -33,6 +33,7 @@ from v2.repository.event_log_repo import EventLogRepository
 from v2.repository.candle_repo import CandleRepository
 from v2.repository.position_repo import PositionRepository
 from v2.repository.trade_repo import TradeRepository
+from v2.trading.precision_rules import extract_base_coin
 
 from .adapter import v1_response_to_signals
 from .confluence_engine import ConfluenceEngine
@@ -626,14 +627,13 @@ class ScannerService:
 
             self._latest_evaluated_coins = new_eval_snapshot
 
-            # 9. Suppress signal generation if coin has an active position or live signal
+            # 9. Suppress signal generation if coin has an active position or live signal across fleet
             open_coins: set[str] = set()
             if self._position_repo:
                 try:
                     open_positions = await self._position_repo.get_open()
                     for p in open_positions:
-                        p_coin = getattr(p, "coin", "") or ""
-                        p_clean = p_coin.upper().replace("/INR", "").replace("/USDT", "").replace("B-", "")
+                        p_clean = extract_base_coin(getattr(p, "coin", "")) or extract_base_coin(getattr(p, "pair", ""))
                         if p_clean:
                             open_coins.add(p_clean)
                 except Exception as e:
@@ -654,11 +654,11 @@ class ScannerService:
                 del self._cooldowns[c_coin]
                 logger.info("Post-exit cooldown expired for %s. Re-entry allowed for genuinely new opportunities.", c_coin)
 
-            live_coins = {s.coin.upper().replace("/INR", "").replace("/USDT", "").replace("B-", "") for s in self._live.values()}
+            live_coins = {extract_base_coin(s.coin) or extract_base_coin(s.pair) for s in self._live.values()}
 
             actionable_candidates = []
             for sig in high_conviction_signals:
-                sig_coin = sig.coin.upper().replace("/INR", "").replace("/USDT", "").replace("B-", "")
+                sig_coin = extract_base_coin(sig.coin) or extract_base_coin(sig.pair)
                 if sig_coin in self._cooldowns:
                     c_exit = self._cooldowns[sig_coin]["exit_time"]
                     if c_exit.tzinfo is None:

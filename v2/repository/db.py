@@ -116,6 +116,11 @@ class Database:
                 statements = [s.strip() for s in sql.split(";") if s.strip()]
                 for stmt in statements:
                     await self._conn.execute(stmt)
+                # Ensure migration version is recorded in schema_version
+                await self._conn.execute(
+                    "INSERT OR IGNORE INTO schema_version (version, applied_at, description) VALUES (?, datetime('now'), ?)",
+                    (version, sql_file.name),
+                )
                 await self._conn.commit()
                 logger.info("Migration applied", extra={"version": version})
             except Exception as exc:

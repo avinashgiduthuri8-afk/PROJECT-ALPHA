@@ -97,10 +97,12 @@ class EventBus:
 
         async def _safe_call(h: Handler) -> None:
             try:
-                await h(event_type, payload)
+                res = h(event_type, payload)
+                if hasattr(res, "__await__") or asyncio.iscoroutine(res):
+                    await res
             except Exception:
                 logger.exception(
-                    "Handler %s raised on event %s", h.__name__, event_type
+                    "Handler %s raised on event %s", getattr(h, "__name__", str(h)), event_type
                 )
 
         await asyncio.gather(*(_safe_call(h) for h in handlers))

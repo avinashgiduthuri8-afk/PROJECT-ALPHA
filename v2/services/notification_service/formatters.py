@@ -462,31 +462,29 @@ def format_telegram_health(h: dict[str, Any]) -> str:
 
 def format_telegram_mode(m: dict[str, Any]) -> str:
     """Format /mode response."""
-    mode = m.get("mode", "SHADOW").upper()
-    trading_enabled = m.get("trading_enabled", False)
+    mode = m.get("mode", "PAPER").upper()
+    trading_enabled = m.get("trading_enabled", True)
 
-    if mode == "LIVE_MICROCASH":
-        badge = "🔴 LIVE MICROCASH (REAL MONEY)"
-        desc = "Real orders are routed to CoinDCX exchange with live funds."
-    elif mode == "PAPER":
-        badge = "🟡 PAPER TRADING (SIMULATION ACTIVE)"
-        desc = "Real signals execute virtual positions with live PnL and exit tracking (zero capital risk)."
+    if mode in ("LIVE", "LIVE_MICROCASH"):
+        badge = "🔴 LIVE TRADING (REAL MONEY)"
+        desc = "Real orders are routed to CoinDCX exchange with live funds (₹200.00 micro-orders)."
     else:
-        badge = "🔵 SHADOW MODE (PASSIVE)"
-        desc = "Trades are evaluated and recorded to shadow ledger only."
+        badge = "🟡 PAPER TRADING (SIMULATION ACTIVE)"
+        desc = "Real signals execute virtual positions with live prices, SL/TP exits, and 1.572% friction."
 
     return (
         f"⚙️ <b>MODE: {mode}</b> — {badge}\n"
         f"━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"• <b>Active Mode:</b> <code>{mode}</code>\n"
-        f"• <b>Trading Status:</b> <code>{'YES (ACTIVE)' if trading_enabled else 'NO (PAUSED)'}</code>\n"
+        f"• <b>Trading Status:</b> <code>{'YES (ACTIVE)' if trading_enabled else 'NO (HALTED)'}</code>\n"
+        f"• <b>Micro-Order Size:</b> <code>₹200.00</code>\n"
         f"• <b>Description:</b> {desc}\n"
         f"━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"<i>To change mode, send:</i>\n"
         f"• <code>/mode paper</code> — activate virtual paper trading\n"
-        f"• <code>/mode shadow</code> — switch to passive shadow ledger\n"
         f"• <code>/mode live confirm</code> — activate live real-capital trading"
     )
+
 
 
 def format_telegram_uptime(u: dict[str, Any]) -> str:

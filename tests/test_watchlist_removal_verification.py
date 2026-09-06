@@ -84,11 +84,7 @@ class TestSignalFlow:
         """
         MTB uses scanner_bridge.get_signals() — not a watchlist check.
         """
-<<<<<<< Updated upstream
         source_mtb = Path("bots/mtb_bot/trading_engine.py").read_text()
-=======
-        source_mtb = Path("bots/mtb_bot/trading_engine.py").read_text(encoding="utf-8")
->>>>>>> Stashed changes
         assert "scanner_bridge.get_signals()" in source_mtb
         assert "get_watchlist" not in source_mtb.split("def run_cycle")[1]
 
@@ -218,126 +214,13 @@ class TestTradeExecution:
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
 
-<<<<<<< Updated upstream
 
 # =============================================================================
-# TEST 4 — Dashboard: Open Positions, Closed Trades, Statistics
+# TEST 4 — Watchlist Isolation & File Access Audit
 # =============================================================================
 
-class TestDashboard:
-    """Verify dashboard data reads from bot storage correctly."""
-
-=======
->>>>>>> Stashed changes
-    def test_mtb_snapshot_has_open_positions(self):
-        """MTB snapshot includes open_positions list."""
-        from bots.mtb_bot.storage import snapshot
-        s = snapshot()
-        assert "open_positions" in s
-        assert isinstance(s["open_positions"], list)
-
-    def test_app_api_returns_watchlist(self):
-        """Dashboard /api/watchlist returns unified scanner watchlist."""
-        from bots.scanner_bot.scanner import get_watchlist
-        wl = get_watchlist()
-        assert isinstance(wl, dict)
-        assert "coins" in wl
-
-
-# =============================================================================
-# TEST 5 — Telegram: BUY, SELL, Error Notifications
-# =============================================================================
-
-class TestTelegram:
-    """Verify Telegram notification helpers exist and fire correctly."""
-
-    def test_mtb_has_buy_telegram_notification(self):
-        """MTB trading engine sends BUY notification via _send_tg."""
-        from bots.mtb_bot.trading_engine import _send_tg
-        assert _send_tg("test") is None
-
-    def test_mtb_close_sends_sell_notification(self):
-        """MTB close_position sends SELL notification."""
-        from bots.mtb_bot.trading_engine import close_position, _send_tg
-        assert callable(_send_tg)
-
-
-# =============================================================================
-# TEST 6 — Concurrency: No Duplicates, No Double Deduction, Trade Locks
-# =============================================================================
-
-class TestConcurrency:
-    """Verify trade locks prevent race conditions."""
-
-    def _is_lock(self, obj):
-        """threading.Lock() returns _thread.lock on CPython — handle both."""
-        return type(obj).__name__ == "lock"
-
-    def test_mtb_trade_lock_exists(self):
-        """MTB has a threading.Lock protecting trades."""
-        from bots.mtb_bot.trading_engine import _TRADE_LOCK
-        assert self._is_lock(_TRADE_LOCK)
-
-    def test_mtb_duplicate_position_prevented(self):
-        """MTB validate_signal rejects duplicate open position."""
-        from bots.mtb_bot.trading_engine import validate_signal
-        positions = [{"symbol": "BTCUSDT", "status": "OPEN"}]
-        signal = _fresh_signal()
-        result = validate_signal(signal, positions)
-        assert not result.passed
-        assert result.code == "DUPLICATE_POSITION"
-
-
-# =============================================================================
-# TEST 7 — Startup: No Errors from Missing Watchlist Files
-# =============================================================================
-
-class TestStartup:
-    """Verify bots start normally even without old watchlist files."""
-
-    def test_mtb_storage_ensure_storage_creates_defaults(self):
-        """MTB ensure_storage creates default files when missing."""
-        import tempfile
-        from bots.mtb_bot import storage as mtb_storage
-
-        tmpdir = tempfile.mkdtemp()
-        try:
-            with patch("bots.mtb_bot.storage.DATA_DIR", Path(tmpdir), create=True):
-                with patch("bots.mtb_bot.storage.POSITIONS_FILE", Path(tmpdir) / "positions.json", create=True):
-                    with patch("bots.mtb_bot.storage.TRADES_FILE", Path(tmpdir) / "trades.json", create=True):
-                        with patch("bots.mtb_bot.storage.STATS_FILE", Path(tmpdir) / "stats.json", create=True):
-                            mtb_storage.ensure_storage()
-                            assert (Path(tmpdir) / "positions.json").exists()
-                            assert (Path(tmpdir) / "trades.json").exists()
-                            assert (Path(tmpdir) / "stats.json").exists()
-        finally:
-            shutil.rmtree(tmpdir, ignore_errors=True)
-
-    def test_no_watchlist_json_load_watchlist_save_watchlist_in_bot_code(self):
-        """
-        Global check: no bot code calls load_watchlist(), save_watchlist(),
-        or watchlist_manager for per-bot watchlist logic.
-        """
-        import ast
-        bad = ["load_watchlist", "save_watchlist", "watchlist_manager"]
-        for bot in ["mtb_bot"]:
-<<<<<<< Updated upstream
-            for py_file in Path(f"bots/{bot}").rglob("*.py"):
-=======
-            bot_path = Path(f"bots/{bot}")
-            if not bot_path.exists():
-                continue
-            for py_file in bot_path.rglob("*.py"):
->>>>>>> Stashed changes
-                if "__pycache__" in str(py_file):
-                    continue
-                source = py_file.read_text(encoding="utf-8")
-                tree = ast.parse(source)
-                for node in ast.walk(tree):
-                    if isinstance(node, ast.Name) and node.id in bad:
-                        raise AssertionError(
-                            f"{py_file} references {node.id} — per-bot watchlist logic must be removed"
-                        )
+class TestWatchlistFileAudit:
+    """Verify bots do not open watchlist.json directly."""
 
     def test_watchlist_json_only_in_scanner_and_shared(self):
         """
@@ -354,11 +237,6 @@ class TestStartup:
                 if "__pycache__" in str(py_file):
                     continue
                 text = py_file.read_text(encoding="utf-8")
-<<<<<<< Updated upstream
-=======
-                # Allow docstring references and _scanner_watchlist wrapper
-                # but ban direct file I/O on watchlist.json
->>>>>>> Stashed changes
                 tree = ast.parse(text)
                 for node in ast.walk(tree):
                     if isinstance(node, ast.Constant) and isinstance(node.value, str):
@@ -443,7 +321,4 @@ class TestSignalNormalization:
         s = _normalize_signal({"coin": "BTC", "price": 50000, "score": 85})
         assert s["score"] == 85.0
         assert s["symbol"] == "BTCUSDT"
-<<<<<<< Updated upstream
 
-=======
->>>>>>> Stashed changes

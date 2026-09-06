@@ -1,5 +1,4 @@
 """
-<<<<<<< Updated upstream
 v2/services/production_service/watchdog.py — 24/7 Watchdog Supervisor & Health Recovery.
 
 Monitors all 14 pipeline stages and 9 critical subsystem probes:
@@ -14,18 +13,11 @@ Monitors all 14 pipeline stages and 9 critical subsystem probes:
 9. Scheduler
 
 Provides automatic self-healing and alert dispatching.
-=======
-V2 24/7 Watchdog Supervisor.
-
-Continuously monitors system health across all services, triggers self-healing
-restarts for stale background workers, and broadcasts alerts upon sub-system degradations.
->>>>>>> Stashed changes
 """
 
 from __future__ import annotations
 
 import asyncio
-<<<<<<< Updated upstream
 from datetime import datetime, timezone
 import time
 from typing import Any, Dict, Optional
@@ -33,19 +25,12 @@ from typing import Any, Dict, Optional
 from v2.bus.event_bus import EventBus
 from v2.bus.event_types import EventType
 from v2.core.config import V2Config
-=======
-from typing import Any, Dict, List, Optional
-
-from v2.bus.event_bus import EventBus
-from v2.bus.event_types import EventType
->>>>>>> Stashed changes
 from v2.core.logging import get_logger
 
 logger = get_logger("v2.services.production_service.watchdog")
 
 
 class ProductionWatchdog:
-<<<<<<< Updated upstream
     """
     24/7 asynchronous watchdog supervisor monitoring subsystem probes,
     detecting stalled worker loops, and performing autonomous self-healing.
@@ -53,8 +38,8 @@ class ProductionWatchdog:
 
     def __init__(
         self,
-        config: V2Config,
-        bus: EventBus,
+        config: Optional[V2Config] = None,
+        bus: Optional[EventBus] = None,
         scanner_service: Optional[Any] = None,
         ai_service: Optional[Any] = None,
         risk_service: Optional[Any] = None,
@@ -65,9 +50,25 @@ class ProductionWatchdog:
         event_log_repo: Optional[Any] = None,
         notification_service: Optional[Any] = None,
         inspection_interval_sec: float = 30.0,
+        services: Optional[Dict[str, Any]] = None,
+        check_interval_sec: Optional[float] = None,
     ) -> None:
-        self._config = config
-        self._bus = bus
+        from v2.core.config import get_config
+        self._config = config or get_config()
+        self._bus = bus or EventBus()
+        self._services_dict = services or {}
+        
+        if services:
+            scanner_service = scanner_service or services.get("scanner_service")
+            ai_service = ai_service or services.get("ai_service")
+            risk_service = risk_service or services.get("risk_service")
+            trading_service = trading_service or services.get("trading_service")
+            db = db or services.get("db")
+            scheduler = scheduler or services.get("scheduler")
+            signal_repo = signal_repo or services.get("signal_repo")
+            event_log_repo = event_log_repo or services.get("event_log_repo")
+            notification_service = notification_service or services.get("notification_service")
+
         self._scanner_service = scanner_service
         self._ai_service = ai_service
         self._risk_service = risk_service
@@ -78,7 +79,7 @@ class ProductionWatchdog:
         self._event_log_repo = event_log_repo
         self._notification_service = notification_service
 
-        self._interval = inspection_interval_sec
+        self._interval = check_interval_sec if check_interval_sec is not None else inspection_interval_sec
         self._running = False
         self._task: Optional[asyncio.Task] = None
         self._start_time = datetime.now(timezone.utc)
@@ -86,6 +87,9 @@ class ProductionWatchdog:
         self._inspection_count = 0
         self._recovery_count = 0
         self._probe_history: Dict[str, Dict[str, Any]] = {}
+        self._last_alert_status = "HEALTHY"
+        self._last_alert_time: float = 0.0
+
 
     def wire_dependencies(
         self,
@@ -193,21 +197,55 @@ class ProductionWatchdog:
         self._probe_history = probes
 
         # Determine overall system health
-        all_ok = all(p.get("status") in ("OK", "NORMAL", "HEALTHY") for p in probes.values())
+        unhealthy_services = []
+        if self._services_dict:
+            for name, svc in self._services_dict.items():
+                started = getattr(svc, "_started", True)
+                if not started:
+                    unhealthy_services.append(name)
+
+        all_ok = all(p.get("status") in ("OK", "NORMAL", "HEALTHY") for p in probes.values()) and not unhealthy_services
         system_status = "HEALTHY" if all_ok else "DEGRADED"
 
+        now_ts = time.time()
         if not all_ok:
             degraded_probes = [k for k, v in probes.items() if v.get("status") not in ("OK", "NORMAL", "HEALTHY")]
-            logger.warning("Watchdog detected degraded subsystems: %s", degraded_probes)
+            logger.warning("Watchdog detected degraded subsystems: probes=%s, services=%s", degraded_probes, unhealthy_services)
+            # Only publish alert on state change from HEALTHY -> DEGRADED or after 1 hour (3600s) cooldown
+            if self._bus and (self._last_alert_status != "DEGRADED" or (now_ts - self._last_alert_time) > 3600.0):
+                self._last_alert_status = "DEGRADED"
+                self._last_alert_time = now_ts
+                try:
+                    await self._bus.publish(EventType.ALERT_GENERATED, {
+                        "title": "Watchdog Health Degradation Alert",
+                        "severity": "WARNING",
+                        "unhealthy_services": unhealthy_services,
+                        "degraded_probes": degraded_probes,
+                        "timestamp": self._last_inspection_at.isoformat(),
+                    })
+                except Exception as exc:
+                    logger.debug("Failed publishing watchdog health alert: %s", exc)
+        else:
+            if self._last_alert_status == "DEGRADED":
+                self._last_alert_status = "HEALTHY"
+                logger.info("Watchdog detected all subsystems recovered to HEALTHY state")
+
+
+        unhealthy_cnt = len(unhealthy_services) if self._services_dict else len([k for k, v in probes.items() if v.get("status") not in ("OK", "NORMAL", "HEALTHY", "UNKNOWN")])
 
         return {
             "status": system_status,
+            "overall_status": system_status,
+            "unhealthy_count": unhealthy_cnt,
+            "unhealthy_services": unhealthy_services,
             "subsystems_healthy": all_ok,
             "inspected_at": self._last_inspection_at.isoformat(),
             "inspection_count": self._inspection_count,
             "recovery_count": self._recovery_count,
             "probes": probes,
         }
+
+    inspect_system_health = inspect_system
 
     async def _probe_database(self) -> Dict[str, Any]:
         """Probe SQLite connectivity and query execution."""
@@ -371,99 +409,4 @@ class ProductionWatchdog:
         res = self.get_telemetry()
         res["inspections_total"] = self._inspection_count
         return res
-=======
-    """24/7 Health Inspection & Self-Healing Watchdog Supervisor."""
 
-    def __init__(
-        self,
-        services: Optional[Dict[str, Any]] = None,
-        bus: Optional[EventBus] = None,
-        check_interval_sec: float = 30.0,
-    ) -> None:
-        self._services = services or {}
-        self._bus = bus
-        self._check_interval_sec = check_interval_sec
-        self._loop_task: Optional[asyncio.Task] = None
-        self._started = False
-        self._last_health_status: Dict[str, Any] = {}
-
-    @property
-    def last_health_status(self) -> Dict[str, Any]:
-        return self._last_health_status
-
-    async def start(self) -> None:
-        if self._started:
-            return
-        self._started = True
-        self._loop_task = asyncio.create_task(self._watchdog_loop())
-        logger.info("ProductionWatchdog started (interval: %.1fs)", self._check_interval_sec)
-
-    async def stop(self) -> None:
-        self._started = False
-        if self._loop_task:
-            self._loop_task.cancel()
-            try:
-                await self._loop_task
-            except asyncio.CancelledError:
-                pass
-            self._loop_task = None
-        logger.info("ProductionWatchdog stopped")
-
-    async def inspect_system_health(self) -> Dict[str, Any]:
-        """Perform comprehensive health inspection across all sub-services."""
-        service_statuses: Dict[str, str] = {}
-        unhealthy_services: List[str] = []
-
-        for name, svc in self._services.items():
-            if svc is None:
-                service_statuses[name] = "NOT_CONFIGURED"
-                continue
-
-            # Check service running state or health checker
-            is_healthy = True
-            if hasattr(svc, "_started"):
-                is_healthy = bool(svc._started)
-            elif hasattr(svc, "is_healthy"):
-                is_healthy = bool(svc.is_healthy())
-
-            if is_healthy:
-                service_statuses[name] = "HEALTHY"
-            else:
-                service_statuses[name] = "UNHEALTHY"
-                unhealthy_services.append(name)
-
-        overall_status = "HEALTHY" if not unhealthy_services else "DEGRADED"
-
-        self._last_health_status = {
-            "overall_status": overall_status,
-            "unhealthy_count": len(unhealthy_services),
-            "unhealthy_services": unhealthy_services,
-            "services": service_statuses,
-        }
-
-        # Dispatch alert if degraded
-        if unhealthy_services and self._bus:
-            await self._bus.publish(
-                EventType.ALERT_GENERATED,
-                {
-                    "severity": "WARNING",
-                    "title": "Watchdog Detected Degraded Service",
-                    "message": f"Watchdog detected unhealthy services: {', '.join(unhealthy_services)}",
-                    "unhealthy_services": unhealthy_services,
-                },
-            )
-
-        return self._last_health_status
-
-    async def _watchdog_loop(self) -> None:
-        """Periodic background inspection loop."""
-        while self._started:
-            try:
-                await self.inspect_system_health()
-                await asyncio.sleep(self._check_interval_sec)
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                logger.warning("Error in watchdog inspection loop: %s", e)
-                await asyncio.sleep(5.0)
->>>>>>> Stashed changes

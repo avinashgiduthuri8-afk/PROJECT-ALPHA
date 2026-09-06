@@ -19,19 +19,11 @@ from fastapi.testclient import TestClient
 
 
 # =============================================================================
-<<<<<<< Updated upstream
 # STARTUP MODE LOGGING — bot announces its mode
 # =============================================================================
 
 class TestStartupModeLogging:
     """Each bot's startup_event source must contain a BOT_MODE log statement."""
-=======
-# STARTUP MODE LOGGING — MTB announces mode
-# =============================================================================
-
-class TestStartupModeLogging:
-    """MTB startup_event source must contain a BOT_MODE log statement."""
->>>>>>> Stashed changes
 
     def _source_of_fn(self, fn) -> str:
         import inspect

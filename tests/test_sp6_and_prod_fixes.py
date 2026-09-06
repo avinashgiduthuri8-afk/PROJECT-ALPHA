@@ -152,10 +152,7 @@ class TestRunAllChecksIncludesMTB:
             r.checked_at = datetime.now(timezone.utc)
             return r
 
-<<<<<<< Updated upstream
-=======
         # Simulate import failure for MTB config
->>>>>>> Stashed changes
         with patch.object(checker, "check_storage_file", side_effect=fake_check), \
              patch.dict(sys.modules, {
                  "bots.mtb_bot.config": None,
@@ -169,11 +166,6 @@ class TestRunAllChecksIncludesMTB:
         assert any("mtb" in n for n in names), \
             f"Expected warning entries for unavailable configs; got names={names}"
 
-<<<<<<< Updated upstream
-=======
-
-
->>>>>>> Stashed changes
 
 # =============================================================================
 # FIX 4 — /health probe + 503 when DASHBOARD_API_KEY unset
@@ -315,11 +307,6 @@ class TestCheckCandlesConnectivity:
 # FIX 6 — SCANNER_API_URL defaults
 # =============================================================================
 
-<<<<<<< Updated upstream
-=======
-
-
->>>>>>> Stashed changes
 class TestScannerApiUrlDefault:
     """FIX 6: MTB config defaults to port 5000."""
 

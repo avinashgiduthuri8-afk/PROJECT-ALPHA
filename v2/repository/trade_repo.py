@@ -108,6 +108,13 @@ class TradeRepository(BaseRepository):
         )
         return [_row_to_trade(r) for r in rows]
 
+    async def get_by_position(self, position_id: str) -> list[Trade]:
+        rows = await self._fetchall(
+            "SELECT * FROM trades WHERE position_id=? ORDER BY exit_time DESC",
+            (position_id,),
+        )
+        return [_row_to_trade(r) for r in rows]
+
     async def get_since(
         self, since: datetime, limit: Optional[int] = None
     ) -> list[Trade]:

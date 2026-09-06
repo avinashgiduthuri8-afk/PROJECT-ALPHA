@@ -595,21 +595,16 @@ class TelegramInteractiveInterface:
             return
 
         target = args[0].strip().upper()
-        if target == "PAPER":
+        if target in ("PAPER", "SHADOW"):
             self._config.v2_deployment_mode = "PAPER"
             self._config.v2_trading_enabled = True
             self._config.v2_shadow_mode = False
             msg = "✅ <b>Mode Switched to PAPER</b>\nSimulated execution active with zero capital risk."
-        elif target == "SHADOW":
-            self._config.v2_deployment_mode = "SHADOW"
-            self._config.v2_trading_enabled = False
-            self._config.v2_shadow_mode = True
-            msg = "✅ <b>Mode Switched to SHADOW</b>\nShadow ledger recording only."
         elif target in ("LIVE", "LIVE_MICROCASH"):
             if len(args) < 2 or args[1].lower() != "confirm":
                 warn = (
                     "⚠️ <b>CONFIRMATION REQUIRED</b>\n"
-                    "Switching to <b>LIVE_MICROCASH</b> enables real money orders dispatched to CoinDCX.\n\n"
+                    "Switching to <b>LIVE</b> enables real money orders dispatched to CoinDCX.\n\n"
                     "To proceed, send:\n"
                     "<code>/mode live confirm</code>"
                 )
@@ -618,13 +613,14 @@ class TelegramInteractiveInterface:
             self._config.v2_deployment_mode = "LIVE_MICROCASH"
             self._config.v2_trading_enabled = True
             self._config.v2_shadow_mode = False
-            msg = f"🔴 <b>Mode Switched to LIVE_MICROCASH</b>\nReal money micro-orders enabled (₹{self._config.order_size_inr:.2f} notional)."
+            msg = f"🔴 <b>Mode Switched to LIVE</b>\nReal money micro-orders enabled (₹{self._config.order_size_inr:.2f} notional)."
         else:
             await self._telegram.send_message(
-                text=f"❓ Invalid mode <code>{args[0]}</code>. Valid modes: <code>paper</code>, <code>shadow</code>, <code>live</code>.",
+                text=f"❓ Invalid mode <code>{args[0]}</code>. Valid modes: <code>paper</code>, <code>live</code>.",
                 target_chat_id=str(chat_id),
             )
             return
+
 
         try:
             from v2.core.config import V2Config

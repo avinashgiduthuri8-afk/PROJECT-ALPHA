@@ -54,15 +54,12 @@ from v2.repository.shadow_repo import ShadowRepository
 from v2.repository.metrics_repo import MetricsRepository
 from v2.repository.event_log_repo import EventLogRepository
 from v2.repository.candle_repo import CandleRepository
-<<<<<<< Updated upstream
 from v2.repository.production_state_repo import ProductionStateRepository
-=======
 from v2.repository.journal_repo import JournalRepository
 from v2.repository.learning_repo import LearningRepository
 from v2.repository.backtest_repo import BacktestRepository
 from v2.repository.feedback_repo import FeedbackRepository
 from v2.repository.production_repo import ProductionRepository
->>>>>>> Stashed changes
 
 from v2.services.scanner_service import ScannerService
 from v2.services.ai_intelligence_service import AIIntelligenceService
@@ -72,17 +69,14 @@ from v2.services.trading_service import TradingService
 from v2.services.shadow_service import ShadowService
 from v2.services.notification_service import NotificationService
 from v2.services.dashboard_service import DashboardService
-<<<<<<< Updated upstream
 from v2.services.research_service import CoinResearchService
-from v2.services.production_service import ProductionController, ProductionWatchdog
-=======
 from v2.services.journal_service import JournalService
 from v2.services.analytics_service import AnalyticsService
 from v2.services.learning_service import LearningService
 from v2.services.backtest_service import BacktestService
 from v2.services.feedback_service import FeedbackService
-from v2.services.production_service import ProductionService
->>>>>>> Stashed changes
+from v2.services.production_service import ProductionController, ProductionWatchdog
+from v2.services.production_service.service import ProductionService
 
 from v2.monitoring import HealthChecker, MetricsCollector, AlertManager
 from v2.scheduler import BackgroundScheduler, register_all_jobs
@@ -100,6 +94,12 @@ _risk_service: RiskService | None = None
 _portfolio_service: PortfolioService | None = None
 _trading_service: TradingService | None = None
 _shadow_service: ShadowService | None = None
+_journal_service: JournalService | None = None
+_analytics_service: AnalyticsService | None = None
+_learning_service: LearningService | None = None
+_backtest_service: BacktestService | None = None
+_feedback_service: FeedbackService | None = None
+_production_service: ProductionService | None = None
 _notification_service: NotificationService | None = None
 _dashboard_service: DashboardService | None = None
 _scheduler: BackgroundScheduler | None = None
@@ -116,6 +116,8 @@ async def lifespan(app: FastAPI):
     """FastAPI lifespan: startup then shutdown."""
     global _db, _scanner_service, _ai_service, _risk_service
     global _portfolio_service, _trading_service, _shadow_service
+    global _journal_service, _analytics_service, _learning_service
+    global _backtest_service, _feedback_service, _production_service
     global _notification_service, _dashboard_service, _scheduler
     global _metrics_collector, _health_checker, _alert_manager
     global _research_service, _production_controller, _production_watchdog
@@ -137,15 +139,12 @@ async def lifespan(app: FastAPI):
     metrics_repo   = MetricsRepository(conn)
     event_log_repo = EventLogRepository(conn)
     candle_repo    = CandleRepository(conn)
-<<<<<<< Updated upstream
     prod_state_repo = ProductionStateRepository(conn)
-=======
     journal_repo   = JournalRepository(conn)
     learning_repo  = LearningRepository(conn)
     backtest_repo  = BacktestRepository(conn)
     feedback_repo  = FeedbackRepository(conn)
     production_repo = ProductionRepository(conn)
->>>>>>> Stashed changes
 
     # 3. Services
     _scanner_service = ScannerService(
@@ -155,6 +154,7 @@ async def lifespan(app: FastAPI):
         config         = cfg,
         candle_repo    = candle_repo,
         position_repo  = position_repo,
+        trade_repo     = trade_repo,
     )
 
     await _scanner_service.start()
@@ -235,26 +235,8 @@ async def lifespan(app: FastAPI):
     )
     await _feedback_service.start()
 
-    _production_service = ProductionService(
-        production_repo = production_repo,
-        bus             = bus,
-        services        = {
-            "scanner_service": _scanner_service,
-            "ai_service": _ai_service,
-            "risk_service": _risk_service,
-            "portfolio_service": _portfolio_service,
-            "trading_service": _trading_service,
-            "shadow_service": _shadow_service,
-            "journal_service": _journal_service,
-            "analytics_service": _analytics_service,
-            "learning_service": _learning_service,
-            "backtest_service": _backtest_service,
-            "feedback_service": _feedback_service,
-        },
-    )
-    await _production_service.start()
-
     _notification_service = NotificationService(
+
         bus            = bus,
         config         = cfg,
         signal_repo    = signal_repo,
@@ -354,7 +336,14 @@ async def lifespan(app: FastAPI):
         event_log_repo       = event_log_repo,
         notification_service = _notification_service,
     )
-    await _production_watchdog.start()
+
+    _production_service = ProductionService(
+        production_repo = production_repo,
+        bus             = bus,
+        watchdog        = _production_watchdog,
+    )
+    await _production_service.start()
+
 
     # 7. Wire API router state
     init_router(
@@ -376,23 +365,9 @@ async def lifespan(app: FastAPI):
         dashboard_service    = _dashboard_service,
         health_checker       = _health_checker,
         metrics_collector    = _metrics_collector,
-<<<<<<< Updated upstream
         research_service     = _research_service,
         production_controller= _production_controller,
         production_watchdog  = _production_watchdog,
-=======
-        journal_repo         = journal_repo,
-        journal_service      = _journal_service,
-        analytics_service    = _analytics_service,
-        learning_repo        = learning_repo,
-        learning_service     = _learning_service,
-        backtest_repo        = backtest_repo,
-        backtest_service     = _backtest_service,
-        feedback_repo        = feedback_repo,
-        feedback_service     = _feedback_service,
-        production_repo      = production_repo,
-        production_service   = _production_service,
->>>>>>> Stashed changes
     )
 
     # Trigger initial warm-up scanner poll in background
@@ -403,14 +378,6 @@ async def lifespan(app: FastAPI):
 
     # ── Shutdown ──────────────────────────────────────────────────────────────
     logger.info("V2 shutting down")
-    if _production_watchdog:
-        await _production_watchdog.stop()
-    if _scheduler:
-        await _scheduler.stop()
-    if _dashboard_service:
-        await _dashboard_service.stop()
-    if _notification_service:
-        await _notification_service.stop()
     if _production_service:
         await _production_service.stop()
     if _feedback_service:
@@ -423,6 +390,14 @@ async def lifespan(app: FastAPI):
         await _analytics_service.stop()
     if _journal_service:
         await _journal_service.stop()
+    if _production_watchdog:
+        await _production_watchdog.stop()
+    if _scheduler:
+        await _scheduler.stop()
+    if _dashboard_service:
+        await _dashboard_service.stop()
+    if _notification_service:
+        await _notification_service.stop()
     if _trading_service:
         await _trading_service.stop()
     if _shadow_service:
@@ -457,7 +432,11 @@ app.include_router(ws_router)
 
 # Mount static assets and templates for V2 Mission Control Dashboard
 _v2_static_dir = _ROOT / "v2" / "static"
+_dashboard_static_dir = _ROOT / "dashboard" / "static"
 _v2_template_dir = _ROOT / "v2" / "templates"
+
+if _dashboard_static_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(_dashboard_static_dir)), name="static")
 
 if _v2_static_dir.exists():
     app.mount("/v2-static", StaticFiles(directory=str(_v2_static_dir)), name="v2-static")
@@ -476,7 +455,13 @@ async def serve_dashboard(request: Request):
     return templates.TemplateResponse(
         request=request,
         name="dashboard.html",
-        context={"api_key": cfg.dashboard_api_key or "alpha-prod-key"},
+        context={
+            "api_key": cfg.dashboard_api_key or "alpha-prod-key",
+            "data": {
+                "mtb_overview": {"daily_pnl": 0.0, "open_positions": []},
+                "service_statuses": {"scanner_telegram": "ONLINE", "mtb_telegram": "ONLINE"},
+            },
+        },
     )
 
 

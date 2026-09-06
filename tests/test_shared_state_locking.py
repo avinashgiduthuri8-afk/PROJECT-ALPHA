@@ -340,9 +340,3 @@ class TestAppendSignalHistoryLocking:
             # Release both acquires.
             sc._history_lock.release()
             sc._history_lock.release()
-<<<<<<< Updated upstream
-=======
-
-
-
->>>>>>> Stashed changes

@@ -28,6 +28,7 @@ from v2.repository.event_log_repo import EventLogRepository
 from v2.repository.position_repo import PositionRepository
 from v2.repository.trade_repo import TradeRepository
 from v2.trading.subaccount_manager import CoinDCXSubAccountManager
+from v2.trading.precision_rules import extract_base_coin
 from .adapters import BaseBotAdapter, StrategyAdapterFactory
 from .auto_trader import AutoTradeRouter
 from .position_manager import PositionManager
@@ -63,6 +64,7 @@ class TradingService:
             bus=self._bus,
             subaccount_manager=self._subaccount_manager,
             dry_run=not self._config.v2_trading_enabled,
+            position_repo=self._position_repo,
         )
         self.position_manager = PositionManager(
             position_repo=self._position_repo,
@@ -155,36 +157,22 @@ class TradingService:
                 ai_adjustments=ai_adjustments,
             )
 
-            # Strict Single-Position Asset Deduplication Check (Fleet-wide single coin lock)
+            # Strict Single-Position Asset Deduplication Check (Fleet-wide cross-strategy single coin lock)
             if self._config.enforce_single_coin_lock:
                 open_positions = await self._position_repo.get_open()
-                coin_clean = coin.upper().replace("/INR", "").replace("/USDT", "").replace("B-", "")
+                candidate_base = extract_base_coin(coin) or extract_base_coin(pair)
                 for op in open_positions:
-                    op_clean = op.coin.upper().replace("/INR", "").replace("/USDT", "").replace("B-", "")
-                    if op_clean == coin_clean or coin_clean in op.pair.upper():
+                    op_base = extract_base_coin(op.coin) or extract_base_coin(op.pair)
+                    if candidate_base and op_base and candidate_base == op_base:
+                        op_bot_name = op.bot.value if hasattr(op.bot, "value") else str(op.bot)
                         logger.warning(
-                            "Order skipped by Single-Coin Lock: %s already has active position in %s",
-                            coin_clean, op.bot.value,
+                            "Order skipped by Cross-Strategy Single-Coin Lock: %s already has active position in strategy %s (attempted: %s)",
+                            candidate_base, op_bot_name, bot.value,
                         )
                         return
 
-<<<<<<< Updated upstream
             deployment_mode = getattr(self._config, "v2_deployment_mode", "SHADOW").upper()
             is_live = (deployment_mode == "LIVE_MICROCASH" and self._config.v2_trading_enabled)
-=======
-            # 2. Active Execution through Isolated Sub-Account Client
-            if self._config.v2_trading_enabled:
-                # Dispatch order via dedicated Sub-Account Client with HMAC signing
-                sub_client = self._subaccount_manager.get_client(bot)
-                order_result = sub_client.place_order(
-                    pair=pair,
-                    side="BUY",
-                    price=order_data["entry_price"],
-                    qty=order_data["qty"],
-                )
-                if inspect.isawaitable(order_result):
-                    order_result = await order_result
->>>>>>> Stashed changes
 
             # 1. Shadow / Paper Simulation Routing
             if not is_live:
@@ -700,3 +688,149 @@ class TradingService:
             "reconciliation": self._last_reconciliation_report,
             "subaccounts": self._subaccount_manager.get_all_subaccount_telemetry(),
         }
+
+    # ── Manual Position Controls & Profit Trailing ───────────────────────────
+
+    async def manual_close_position(
+        self,
+        position_id: str,
+        exit_price: Optional[float] = None,
+        reason: str = "MANUAL",
+    ) -> dict:
+        """
+        Manually close an open position immediately at market price.
+        Deducts statutory 1.572% friction, records trade, and restores capacity.
+        """
+        from v2.backtest.friction import CoinDCXFrictionModel
+        friction_model = CoinDCXFrictionModel()
+
+        pos = await self._position_repo.get_by_id(position_id)
+        if not pos or pos.status != PositionStatus.OPEN:
+            return {"success": False, "error": "POSITION_NOT_OPEN", "message": f"Position {position_id} is not open."}
+
+        price = exit_price or pos.current_price or pos.entry_price
+        if price <= 0.0:
+            price = pos.entry_price
+
+        # 1. If live position, dispatch real CoinDCX sell order
+        deployment_mode = getattr(self._config, "v2_deployment_mode", "").upper()
+        if pos.mode == BotMode.LIVE and self._config.v2_trading_enabled and deployment_mode == "LIVE_MICROCASH":
+            sub_client = self._subaccount_manager.get_client(pos.bot)
+            sell_result = await sub_client.place_live_order(
+                pair=pos.pair,
+                side="SELL",
+                price=price,
+                qty=pos.qty,
+            )
+            if not sell_result.get("success"):
+                return {
+                    "success": False,
+                    "error": "EXCHANGE_ORDER_FAILED",
+                    "message": sell_result.get("message") or sell_result.get("error"),
+                }
+
+        # 2. Compute 1.572% statutory friction
+        pnl_data = friction_model.calculate_trade_net_pnl(
+            entry_price=pos.entry_price,
+            exit_price=price,
+            position_size_qty=pos.qty,
+        )
+        now = datetime.now(timezone.utc)
+        trade = Trade(
+            id=str(uuid.uuid4()),
+            position_id=pos.id,
+            bot=pos.bot,
+            coin=pos.coin,
+            pair=pos.pair,
+            entry_price=pos.entry_price,
+            exit_price=price,
+            qty=pos.qty,
+            pnl=round(pnl_data["net_pnl"], 2),
+            pnl_pct=round(pnl_data["net_pnl_pct"], 2),
+            entry_time=pos.entry_time,
+            exit_time=now,
+            exit_reason=ExitReason.MANUAL,
+            mode=pos.mode,
+            signal_id=pos.signal_id,
+        )
+
+        await self._trade_repo.insert(trade)
+        await self._position_repo.close(position_id=pos.id, exit_price=price, exit_reason=ExitReason.MANUAL)
+        self._pending_exits.discard(pos.id)
+
+        # Restore subaccount headroom
+        try:
+            sub_client = self._subaccount_manager.get_client(pos.bot)
+            sub_client.close_position_fill(
+                notional_returned=pos.entry_price * pos.qty,
+                realized_pnl=pnl_data["net_pnl"],
+            )
+        except Exception:
+            pass
+
+        trade_payload = {
+            "trade_id": trade.id,
+            "position_id": pos.id,
+            "bot": pos.bot.value,
+            "coin": pos.coin,
+            "pair": pos.pair,
+            "qty": trade.qty,
+            "pnl": trade.pnl,
+            "pnl_pct": trade.pnl_pct,
+            "exit_reason": "MANUAL",
+            "exit_price": price,
+            "closed_at": now.isoformat(),
+        }
+        await self._bus.publish(EventType.POSITION_CLOSED, trade_payload)
+        logger.info("Manual exit executed for position %s on %s (Net PnL: ₹%.2f)", pos.id, pos.coin, trade.pnl)
+
+        return {
+            "success": True,
+            "trade_id": trade.id,
+            "position_id": pos.id,
+            "coin": pos.coin,
+            "exit_price": price,
+            "pnl": trade.pnl,
+            "pnl_pct": trade.pnl_pct,
+            "message": f"Position {pos.coin} closed manually at ₹{price:.2f} (Net PnL: ₹{trade.pnl:.2f})",
+        }
+
+    async def modify_position_targets(
+        self,
+        position_id: str,
+        stop_loss: Optional[float] = None,
+        take_profit: Optional[float] = None,
+        trailing_stop_pct: Optional[float] = None,
+    ) -> dict:
+        """
+        Manually adjust Stop-Loss, Take-Profit targets, or Trailing Stop % on an active open position.
+        """
+        pos = await self._position_repo.get_by_id(position_id)
+        if not pos or pos.status != PositionStatus.OPEN:
+            return {"success": False, "error": "POSITION_NOT_OPEN", "message": f"Position {position_id} is not open."}
+
+        new_sl = float(stop_loss) if stop_loss is not None else pos.stop_loss
+        new_tp = float(take_profit) if take_profit is not None else pos.take_profit
+
+        await self._position_repo.update_brackets(position_id, stop_loss=new_sl, take_profit=new_tp)
+
+        trailing_stop_val = None
+        if trailing_stop_pct is not None and float(trailing_stop_pct) > 0:
+            trailing_stop_val = await self.position_manager.update_trailing_stop(
+                position_id=position_id,
+                current_price=pos.current_price or pos.entry_price,
+                trailing_pct=float(trailing_stop_pct) / 100.0 if float(trailing_stop_pct) > 1.0 else float(trailing_stop_pct),
+            )
+
+        logger.info("Modified targets for position %s on %s: SL=₹%s, TP=₹%s, Trailing SL=₹%s", pos.id, pos.coin, new_sl, new_tp, trailing_stop_val)
+
+        return {
+            "success": True,
+            "position_id": pos.id,
+            "coin": pos.coin,
+            "stop_loss": new_sl,
+            "take_profit": new_tp,
+            "trailing_stop": trailing_stop_val,
+            "message": f"Targets for {pos.coin} updated: SL=₹{new_sl or 0:.2f}, TP=₹{new_tp or 0:.2f}",
+        }
+

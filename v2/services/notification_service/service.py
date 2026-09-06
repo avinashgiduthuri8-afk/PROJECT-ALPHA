@@ -70,7 +70,9 @@ class NotificationService:
             production_controller=production_controller,
         )
         self._total_dispatched = 0
+        self._alert_rate_limits: dict[str, float] = {}
         self._started = False
+
 
     @property
     def telegram_client(self) -> TelegramClient:
@@ -124,13 +126,10 @@ class NotificationService:
         if self._started:
             return
         self._started = True
-        self._bus.subscribe(EventType.SIGNAL_AI_CONFIRMED, self._on_signal_ai_confirmed)
-        self._bus.subscribe(EventType.TRADE_APPROVED, self._on_trade_approved)
-        self._bus.subscribe(EventType.TRADE_DENIED, self._on_trade_denied)
+        # Essential high-conviction events only (to prevent notification spam)
         self._bus.subscribe(EventType.POSITION_OPENED, self._on_position_opened)
         self._bus.subscribe(EventType.POSITION_CLOSED, self._on_position_closed)
         self._bus.subscribe(EventType.CIRCUIT_BREAKER_TRIGGERED, self._on_circuit_breaker)
-        self._bus.subscribe(EventType.DIVERGENCE_DETECTED, self._on_divergence)
         self._bus.subscribe(EventType.ALERT_GENERATED, self._on_alert_generated)
         await self._bus.publish(EventType.SYSTEM_STARTUP, {"service": "notification_service"})
         await self._interactive_interface.start()
@@ -139,13 +138,9 @@ class NotificationService:
     async def stop(self) -> None:
         self._started = False
         await self._interactive_interface.stop()
-        self._bus.unsubscribe(EventType.SIGNAL_AI_CONFIRMED, self._on_signal_ai_confirmed)
-        self._bus.unsubscribe(EventType.TRADE_APPROVED, self._on_trade_approved)
-        self._bus.unsubscribe(EventType.TRADE_DENIED, self._on_trade_denied)
         self._bus.unsubscribe(EventType.POSITION_OPENED, self._on_position_opened)
         self._bus.unsubscribe(EventType.POSITION_CLOSED, self._on_position_closed)
         self._bus.unsubscribe(EventType.CIRCUIT_BREAKER_TRIGGERED, self._on_circuit_breaker)
-        self._bus.unsubscribe(EventType.DIVERGENCE_DETECTED, self._on_divergence)
         self._bus.unsubscribe(EventType.ALERT_GENERATED, self._on_alert_generated)
         logger.info("NotificationService stopped")
 
@@ -216,11 +211,22 @@ class NotificationService:
 
     async def _on_alert_generated(self, event_type: EventType, payload: dict) -> None:
         try:
+            import time as _time
+            title = payload.get("title", "Generic Alert")
+            now_ts = _time.time()
+            last_sent = self._alert_rate_limits.get(title, 0.0)
+            # Throttle identical alerts to at most once per 30 minutes (1800s) to prevent spamming
+            if now_ts - last_sent < 1800.0:
+                logger.debug("Suppressing duplicate Telegram alert: %s", title)
+                return
+            self._alert_rate_limits[title] = now_ts
+
             msg = format_generic_alert(payload)
             if await self._telegram.send_message(msg):
                 self._total_dispatched += 1
         except Exception as exc:
             logger.warning("Error dispatching Generic alert", extra={"error": str(exc)})
+
 
     def get_health(self) -> dict:
         return {

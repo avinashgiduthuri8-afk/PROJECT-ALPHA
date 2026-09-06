@@ -37,12 +37,7 @@ class RiskDecision:
 def _load_bot_positions(bot: str) -> list[dict]:
     """Return current open positions for `bot`.
 
-<<<<<<< Updated upstream
     For MTB: swallows import/IO errors and returns [].
-=======
-    For MTB: swallows import/IO errors and returns [] (same behaviour
-    as before — those modules have their own safe fallbacks).
->>>>>>> Stashed changes
     """
     if bot == "MTB":
         try:
@@ -73,14 +68,15 @@ def _deployed_capital(positions: list[dict]) -> float:
     return total
 
 
-def check_trade_allowed(bot: str, amount: float) -> RiskDecision:
+def check_trade_allowed(bot: str, amount: float, symbol: Optional[str] = None) -> RiskDecision:
     """
     Return RiskDecision.allowed=True only when:
       1. TRADING_ENABLED is True
       2. EMERGENCY_STOP is False
       3. Bot mode is not DISABLED or PAUSED
-      4. Proposed `amount` keeps bot within BOT_CAPITAL_LIMIT
-      5. Total deployed capital + `amount` stays within TOTAL_CAPITAL_LIMIT
+      4. Asset does not already have an active open position in any bot
+      5. Proposed `amount` keeps bot within BOT_CAPITAL_LIMIT
+      6. Total deployed capital + `amount` stays within TOTAL_CAPITAL_LIMIT
     """
     bot = bot.upper()
 
@@ -97,6 +93,23 @@ def check_trade_allowed(bot: str, amount: float) -> RiskDecision:
     if mode in ("DISABLED", "PAUSED"):
         return RiskDecision(False, "BOT_INACTIVE",
                             f"{bot} is {mode}. Set {bot}_BOT_MODE=PAPER or LIVE to enable.")
+
+    # ── Single-Coin Asset Deduplication across bots ──────────────────────────
+    if symbol:
+        clean_sym = str(symbol).upper().replace("USDT", "").replace("INR", "").replace("/", "").replace("_", "").replace("B-", "")
+        for b in ["MTB"]:
+            try:
+                b_positions = _load_bot_positions(b)
+                for p in b_positions:
+                    if str(p.get("status", "")).upper() == "OPEN":
+                        p_sym = str(p.get("symbol", "") or p.get("coin", "")).upper().replace("USDT", "").replace("INR", "").replace("/", "").replace("_", "").replace("B-", "")
+                        if clean_sym and p_sym and clean_sym == p_sym:
+                            return RiskDecision(
+                                False, "OPPORTUNITY_LOCKED_ACTIVE_PAIR",
+                                f"Asset {symbol} already has an active open position in {b}."
+                            )
+            except Exception:
+                pass
 
     # ── Deny-by-default: capital limits must be explicitly configured ─────────
     # A limit of 0 means "not set" — never trade with an unconfigured limit.

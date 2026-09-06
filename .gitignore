@@ -1,4 +1,4 @@
-new# Secrets & credentials
+# Secrets & credentials
 .env
 .env.*
 *.env
@@ -10,6 +10,7 @@ credentials.json
 # Python
 __pycache__/
 *.pyc
+*.pyo
 
 # Backup files
 *.json.bak
@@ -31,14 +32,15 @@ logs/*.log
 *.log
 
 # Test artifacts
-.pytest_temp/
+.pytest_temp*
 .pytest_cache/
-.pytest_tmp*/
-.pytest_tmp_*
+.pytest_tmp*
 .test_dbs/
+tests_tmp*
 
 # Platform artifacts (Replit / Emergent)
 .replit
 .emergent/
 skills-lock.json
 PROJECT-ALPHA/
+
