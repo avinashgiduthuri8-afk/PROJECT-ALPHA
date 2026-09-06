@@ -368,6 +368,15 @@ async def lifespan(app: FastAPI):
         research_service     = _research_service,
         production_controller= _production_controller,
         production_watchdog  = _production_watchdog,
+        journal_repo         = journal_repo,
+        journal_service      = _journal_service,
+        analytics_service    = _analytics_service,
+        learning_repo        = learning_repo,
+        learning_service     = _learning_service,
+        backtest_repo        = backtest_repo,
+        backtest_service     = _backtest_service,
+        feedback_repo        = feedback_repo,
+        feedback_service     = _feedback_service,
     )
 
     # Trigger initial warm-up scanner poll in background

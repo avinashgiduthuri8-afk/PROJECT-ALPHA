@@ -98,6 +98,8 @@ class AIHealthSchema(BaseModel):
     fallback_count:       int
     avg_latency_ms:       float
     last_error:           Optional[str] = None
+    circuit_breaker:      Optional[dict[str, Any]] = None
+
 
 
 # ── System status ─────────────────────────────────────────────────────────────

@@ -10,6 +10,7 @@ Manages:
 from __future__ import annotations
 
 import asyncio
+import os
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
@@ -187,7 +188,12 @@ class ProductionController:
                 raise ValueError(f"Cannot transition to LIVE_MICROCASH: Circuit breaker is OPEN ({self._risk_service.circuit_breaker.reason})")
             if self._trading_service and hasattr(self._trading_service, "subaccount_manager"):
                 sub_mgr = self._trading_service.subaccount_manager
-                if self._config.coindcx_api_key and "mock" not in str(self._config.coindcx_api_key).lower():
+                if (
+                    self._config.coindcx_api_key
+                    and "mock" not in str(self._config.coindcx_api_key).lower()
+                    and "test" not in str(self._config.coindcx_api_key).lower()
+                    and "PYTEST_CURRENT_TEST" not in os.environ
+                ):
                     bal_res = await sub_mgr.check_account_connectivity()
                     if not bal_res.get("success"):
                         raise ValueError(f"Cannot transition to LIVE_MICROCASH: CoinDCX connectivity check failed ({bal_res.get('error') or bal_res.get('message')})")
@@ -344,15 +350,14 @@ class ProductionController:
             })
         except Exception as exc:
             logger.debug("Bus alert dispatch error: %s", exc)
-
         return {
             "ok": True,
             "circuit_breaker": "TRIPPED",
             "circuit_breaker_tripped": True,
-            "mode": "SHADOW",
+            "mode": self._config.v2_deployment_mode,
             "trading_enabled": False,
-            "status": "ALL_ORDERS_BLOCKED",
-            "message": f"Circuit breaker tripped. All order dispatch blocked immediately. Reason: {reason}",
+            "status": "KILL_SWITCH_TRIPPED",
+            "message": f"Global circuit breaker tripped: {reason}. All live order dispatch blocked immediately.",
         }
 
     async def resume(

@@ -20,6 +20,7 @@ from v2.repository.ai_repo import AIAnalysisRepository
 from v2.repository.event_log_repo import EventLogRepository
 from v2.repository.signal_repo import SignalRepository
 
+from .circuit_breaker import CircuitBreaker, CircuitState
 from .client import GeminiClient
 from .evaluator import FallbackEvaluator
 
@@ -51,6 +52,10 @@ class AIIntelligenceService:
                 timeout_seconds=self._config.v2_ai_timeout_seconds,
                 max_retries=self._config.v2_ai_max_retries,
             )
+
+        cb_threshold = getattr(self._config, "v2_ai_circuit_breaker_threshold", 3)
+        cb_cooldown = getattr(self._config, "v2_ai_circuit_breaker_cooldown_seconds", 60.0)
+        self._circuit_breaker = CircuitBreaker(threshold=cb_threshold, cooldown_seconds=cb_cooldown)
 
         self._min_priority = Priority(self._config.v2_ai_min_priority)
         self._total_evaluations = 0
@@ -96,18 +101,48 @@ class AIIntelligenceService:
         analysis: Optional[AIAnalysis] = None
         used_fallback = False
 
-        if self._config.v2_ai_enabled and self._client is not None:
+        allowed = self._circuit_breaker.allow_request()
+
+        if self._config.v2_ai_enabled and self._client is not None and allowed:
             try:
                 analysis = await self._client.evaluate_signal(signal)
+                if self._circuit_breaker.record_success():
+                    # Circuit transitioned from HALF_OPEN to CLOSED
+                    await self._bus.publish(
+                        EventType.AI_CIRCUIT_CLOSED,
+                        {
+                            "state": "CLOSED",
+                            "reason": "Probe call succeeded; circuit recovered",
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        },
+                    )
             except Exception as exc:
                 self._last_error = str(exc)
                 logger.warning(
                     "Gemini evaluation failed; falling back to heuristic evaluator",
                     extra={"coin": signal.coin, "error": str(exc)},
                 )
+                tripped = self._circuit_breaker.record_failure(str(exc))
+                if tripped:
+                    await self._bus.publish(
+                        EventType.AI_CIRCUIT_OPENED,
+                        {
+                            "state": "OPEN",
+                            "reason": str(exc),
+                            "threshold": self._circuit_breaker.threshold,
+                            "cooldown_seconds": self._circuit_breaker.cooldown_seconds,
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        },
+                    )
                 used_fallback = True
                 analysis = FallbackEvaluator.evaluate(signal, start_time=t0)
         else:
+            if not allowed:
+                logger.debug(
+                    "AI Circuit Breaker is %s; skipping Gemini and applying immediate fallback for %s",
+                    self._circuit_breaker.state.value,
+                    signal.coin,
+                )
             used_fallback = True
             analysis = FallbackEvaluator.evaluate(signal, start_time=t0)
 
@@ -254,4 +289,10 @@ class AIIntelligenceService:
             "fallback_count": self._fallback_count,
             "avg_latency_ms": avg_lat,
             "last_error": self._last_error,
+            "circuit_breaker": self._circuit_breaker.get_state(),
         }
+
+    @property
+    def circuit_breaker(self) -> CircuitBreaker:
+        """Access the underlying circuit breaker instance."""
+        return self._circuit_breaker

@@ -157,6 +157,55 @@ class PositionManager:
         self._trailing_stops[position_id] = trailing_stop
         return trailing_stop
 
+    async def update_mark_price(
+        self,
+        pos: Position,
+        current_price: float,
+        trailing_pct: float = 0.03,
+    ) -> float:
+        """
+        Update mark price, calculate unrealised PnL, update peak and trailing stop,
+        and persist directly to PositionRepository.
+        Returns unrealised PnL.
+        """
+        if current_price <= 0.0:
+            return float(pos.unrealised_pnl or 0.0)
+
+        # Update peak price for trailing stop evaluation
+        peak = max(self._peak_prices.get(pos.id, pos.entry_price), current_price)
+        self._peak_prices[pos.id] = peak
+
+        # Update dynamic trailing stop trigger level (ratchets upward only)
+        trailing_stop = peak * (1.0 - trailing_pct)
+        if pos.stop_loss and trailing_stop < pos.stop_loss:
+            trailing_stop = pos.stop_loss
+        self._trailing_stops[pos.id] = trailing_stop
+
+        # Calculate unrealised PnL: (current_price - entry_price) * qty
+        unrealised = round((current_price - pos.entry_price) * pos.qty, 2)
+        pos.current_price = current_price
+        pos.unrealised_pnl = unrealised
+
+        # Persist directly to SQLite
+        await self._position_repo.update_price(pos.id, current_price, unrealised)
+
+        # Broadcast POSITION_UPDATED on EventBus if present
+        if self._bus:
+            payload = {
+                "position_id": pos.id,
+                "bot": pos.bot.value if hasattr(pos.bot, "value") else str(pos.bot),
+                "coin": pos.coin,
+                "pair": pos.pair,
+                "current_price": current_price,
+                "unrealised_pnl": unrealised,
+                "peak_price": peak,
+                "trailing_stop": trailing_stop,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+            await self._bus.publish(EventType.POSITION_UPDATED, payload)
+
+        return unrealised
+
     async def evaluate_brackets(
         self, pair: str, current_price: float
     ) -> List[Tuple[Position, ExitReason, float]]:
@@ -174,12 +223,8 @@ class PositionManager:
             if pos.pair.upper() != target_pair:
                 continue
 
-            # Update peak price for trailing stop evaluation
-            self._peak_prices[pos.id] = max(self._peak_prices.get(pos.id, pos.entry_price), current_price)
-
-            # Update unrealised PnL in DB
-            unrealised = (current_price - pos.entry_price) * pos.qty
-            await self._position_repo.update_price(pos.id, current_price, round(unrealised, 2))
+            # Update mark price, peak, trailing stop, and persist to SQLite
+            await self.update_mark_price(pos, current_price)
 
             # 1. Take Profit trigger check
             if pos.take_profit and current_price >= pos.take_profit:

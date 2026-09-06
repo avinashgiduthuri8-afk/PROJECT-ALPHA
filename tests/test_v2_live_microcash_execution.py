@@ -181,11 +181,10 @@ def test_production_mode_controller_api():
         assert r_kill.json()["circuit_breaker"] == "TRIPPED"
         assert r_kill.json()["trading_enabled"] is False
 
-        # 4. Switch back to SHADOW
-        r_shadow = client.post("/api/v2/production/set-mode", json={"mode": "SHADOW"}, headers=headers)
+        # 4. Switch back to PAPER
+        r_shadow = client.post("/api/v2/production/set-mode", json={"mode": "PAPER"}, headers=headers)
         assert r_shadow.status_code == 200
-        assert r_shadow.json()["mode"] == "SHADOW"
-        assert r_shadow.json()["trading_enabled"] is False
+        assert r_shadow.json()["mode"] == "PAPER"
 
         # 5. Query active positions list
         r_pos = client.get("/api/v2/trading/positions", headers=headers)

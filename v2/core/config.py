@@ -159,13 +159,15 @@ class V2Config(BaseSettings):
     )
 
     # ── AI Intelligence (Phase 4) ─────────────────────────────────────────────
-    gemini_api_key:             Optional[str] = Field(default=None, alias="GEMINI_API_KEY")
-    v2_ai_enabled:              bool          = Field(default=True, description="Enable AI Intelligence Layer.")
-    v2_ai_model:                str           = Field(default="gemini-2.5-flash", description="Gemini model identifier.")
-    v2_ai_min_priority:         str           = Field(default="Medium", description="Min signal priority to trigger AI evaluation.")
-    v2_ai_confidence_threshold: int           = Field(default=70, description="Confidence threshold (0-100) to confirm trade signals.")
-    v2_ai_timeout_seconds:      float         = Field(default=10.0, description="Timeout in seconds for AI API calls.")
-    v2_ai_max_retries:          int           = Field(default=2, description="Max retries on AI call failures.")
+    gemini_api_key:                         Optional[str] = Field(default=None, alias="GEMINI_API_KEY")
+    v2_ai_enabled:                          bool          = Field(default=True, description="Enable AI Intelligence Layer.")
+    v2_ai_model:                            str           = Field(default="gemini-2.5-flash", description="Gemini model identifier.")
+    v2_ai_min_priority:                     str           = Field(default="Medium", description="Min signal priority to trigger AI evaluation.")
+    v2_ai_confidence_threshold:             int           = Field(default=70, description="Confidence threshold (0-100) to confirm trade signals.")
+    v2_ai_timeout_seconds:                  float         = Field(default=10.0, description="Timeout in seconds for AI API calls.")
+    v2_ai_max_retries:                      int           = Field(default=2, description="Max retries on AI call failures.")
+    v2_ai_circuit_breaker_threshold:        int           = Field(default=3, description="Consecutive Gemini failures before circuit breaker trips to OPEN.")
+    v2_ai_circuit_breaker_cooldown_seconds: float         = Field(default=60.0, description="Cooldown seconds before circuit breaker probes HALF_OPEN.")
 
     # ── Auth (shared with V1) ─────────────────────────────────────────────────
     dashboard_api_key: Optional[str] = Field(

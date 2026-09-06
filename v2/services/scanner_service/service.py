@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timezone
+import json
 from typing import Optional
 
 import httpx
@@ -37,7 +38,7 @@ from v2.trading.precision_rules import extract_base_coin
 
 from .adapter import v1_response_to_signals
 from .confluence_engine import ConfluenceEngine
-from .calibration_worker import CalibrationWorker
+from .calibration_worker import CalibrationWorker, get_data_file_path
 from .market_context import MarketContextService, calculate_ema
 from .news_fetcher import NewsRiskService
 from .signal_filter import (
@@ -345,27 +346,21 @@ class ScannerService:
             logger.exception("[Bootstrap] Critical failure during candle warm-up", extra={"error": str(exc)})
 
     async def _fetch_watchlist_coins(self) -> list[str]:
-        """Fetch current watchlist coins from V1 scanner."""
-        url = f"{self._config.v2_scanner_base_url}/watchlist"
-        headers = {}
-        if self._config.dashboard_api_key:
-            headers["X-API-Key"] = self._config.dashboard_api_key
-
+        """Fetch current watchlist coins from local storage or fallback defaults."""
+        data_path = get_data_file_path("watchlist.json")
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                resp = await client.get(url, headers=headers)
-                resp.raise_for_status()
-                data = resp.json()
-                if isinstance(data, dict) and "coins" in data:
-                    return data["coins"]
+            if data_path.exists():
+                with open(data_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    if isinstance(data, dict) and "coins" in data:
+                        return [str(c).upper() for c in data["coins"]]
+                    if isinstance(data, list):
+                        return [str(c).upper() for c in data]
         except Exception as exc:
-            logger.warning(
-                "Failed to fetch watchlist from V1 scanner, falling back to defaults: %s",
-                exc
-            )
-        
-        # Default fallback
-        return ["BTC", "ETH", "SOL", "BNB", "XRP", "ZEC"]
+            logger.debug("Could not read watchlist.json, using defaults: %s", exc)
+
+        # Default canonical CoinDCX watchlist
+        return ["BTC", "ETH", "SOL", "BNB", "XRP", "ZEC", "AVAX", "LINK", "DOGE", "SHIB", "MATIC"]
 
     async def _fetch_coindcx_candles(
         self, coindcx_pair: str, interval: str, limit: int = 120
@@ -794,28 +789,10 @@ class ScannerService:
     # ── Internal helpers ──────────────────────────────────────────────────────
 
     async def _fetch_v1_signals(self) -> list[dict]:
-        """Call V1 scanner signals endpoint, falling back to native CoinDCX candle scanning."""
-        url = f"{self._config.v2_scanner_base_url}/signals"
-        headers = {}
-        if self._config.dashboard_api_key:
-            headers["X-API-Key"] = self._config.dashboard_api_key
-
-        try:
-            async with httpx.AsyncClient(timeout=3.0) as client:
-                response = await client.get(url, headers=headers)
-                if response.status_code == 200:
-                    data = response.json()
-                    if isinstance(data, list) and data:
-                        return data
-                    if isinstance(data, dict):
-                        signals = data.get("signals", [])
-                        if signals:
-                            return signals
-        except Exception:
-            # V1 is not running locally — fall back to native candle scanning
-            pass
-
+        """Generate candidate signals natively from cached/fetched CoinDCX candles."""
         return await self._generate_native_candidates()
+
+    fetch_candidate_signals = _fetch_v1_signals
 
     async def _generate_native_candidates(self) -> list[dict]:
         """Generate candidate signals natively from cached/fetched CoinDCX candles with full technical features."""

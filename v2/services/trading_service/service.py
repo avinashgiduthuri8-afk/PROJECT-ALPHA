@@ -364,10 +364,26 @@ class TradingService:
             if pos.id in self._pending_exits:
                 continue
 
-            price = current_prices.get(pos.coin) or current_prices.get(pos.pair)
+            clean_coin = extract_base_coin(pos.coin) or extract_base_coin(pos.pair)
+            price = (
+                current_prices.get(pos.pair)
+                or current_prices.get(pos.coin)
+                or (current_prices.get(clean_coin) if clean_coin else None)
+                or (current_prices.get(f"{clean_coin}/INR") if clean_coin else None)
+                or (current_prices.get(f"{clean_coin}INR") if clean_coin else None)
+            )
+
             if price is None or price <= 0.0:
+                logger.debug(
+                    "No fresh ticker price for open position %s (%s). Preserving last mark.",
+                    pos.id, pos.coin,
+                )
                 continue
 
+            # 1. Update mark price, peak, trailing stop, and unrealised PnL in SQLite
+            await self.position_manager.update_mark_price(pos, price)
+
+            # 2. Evaluate exit triggers: strategy adapter TP/SL or dynamic trailing stop
             adapter = StrategyAdapterFactory.get_adapter(pos.bot)
             exit_trigger = adapter.check_exit(
                 entry_price=pos.entry_price,
@@ -375,6 +391,10 @@ class TradingService:
                 stop_loss=pos.stop_loss,
                 take_profit=pos.take_profit,
             )
+            if exit_trigger is None:
+                trailing_stop = self.position_manager._trailing_stops.get(pos.id)
+                if trailing_stop is not None and price <= trailing_stop:
+                    exit_trigger = (ExitReason.STOP_LOSS, price)
 
             if exit_trigger is not None:
                 exit_reason, exit_price = exit_trigger
@@ -487,6 +507,8 @@ class TradingService:
                         exit_price=exit_price,
                         exit_reason=exit_reason,
                     )
+                    self.position_manager._peak_prices.pop(pos.id, None)
+                    self.position_manager._trailing_stops.pop(pos.id, None)
                     self._pending_exits.discard(pos.id)
 
                     # Inform sub-account client of balance restoration
@@ -557,7 +579,12 @@ class TradingService:
                             last_p = float(item.get("last_price", 0.0) or 0.0)
                             if last_p > 0:
                                 current_prices[m] = last_p
-                                if m.endswith("INR"):
+                                base = extract_base_coin(m)
+                                if base:
+                                    current_prices[base] = last_p
+                                    current_prices[f"{base}/INR"] = last_p
+                                    current_prices[f"{base}INR"] = last_p
+                                elif m.endswith("INR"):
                                     coin = m[:-3]
                                     current_prices[coin] = last_p
                                     current_prices[f"{coin}/INR"] = last_p

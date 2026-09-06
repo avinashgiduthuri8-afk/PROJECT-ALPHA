@@ -30,9 +30,8 @@ class DashboardAnalyticsService:
     def _get_data_path(self, filename: str) -> Path:
         root = Path(__file__).resolve().parents[3]
         candidates = [
-            root / "bots" / "scanner_bot" / "data" / filename,
-            root / "data" / filename,
             root / "v2" / "data" / filename,
+            root / "data" / filename,
         ]
         for p in candidates:
             if p.exists():

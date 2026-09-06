@@ -26,12 +26,11 @@ logger = get_logger("v2.services.scanner_service.calibration_worker")
 
 
 def get_data_file_path(filename: str) -> Path:
-    """Resolve data file location checking bots/scanner_bot/data/, data/, and v2/data/."""
+    """Resolve data file location checking v2/data/ and data/."""
     root = Path(__file__).resolve().parents[3]
     candidates = [
-        root / "bots" / "scanner_bot" / "data" / filename,
-        root / "data" / filename,
         root / "v2" / "data" / filename,
+        root / "data" / filename,
     ]
     for p in candidates:
         if p.exists():

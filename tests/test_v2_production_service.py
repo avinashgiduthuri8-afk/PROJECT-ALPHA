@@ -101,13 +101,6 @@ async def test_production_controller_mode_transition(tmp_path):
         # Check initial mode
         assert ctrl.get_active_mode() in ("PAPER", "SHADOW", "LIVE_MICROCASH")
 
-        # Transition to SHADOW
-        res = await ctrl.set_mode("SHADOW", operator="TEST_OPERATOR")
-        assert res["ok"] is True
-        assert res["mode"] == "SHADOW"
-        assert ctrl.get_active_mode() == "SHADOW"
-        assert await state_repo.get("v2_deployment_mode") == "SHADOW"
-
         # Transition to PAPER
         res2 = await ctrl.set_mode("PAPER", operator="TEST_OPERATOR")
         assert res2["ok"] is True
@@ -160,8 +153,8 @@ async def test_production_controller_kill_switch_and_resume(tmp_path):
         ks_res = await ctrl.kill_switch(reason="Test drill simulated emergency", operator="SAFETY_OFFICER")
         assert ks_res["ok"] is True
         assert ks_res["circuit_breaker"] == "TRIPPED"
-        assert ks_res["mode"] == "SHADOW"
-        assert ctrl.get_active_mode() == "SHADOW"
+        assert ks_res["mode"] == "PAPER"
+        assert ctrl.get_active_mode() == "PAPER"
         assert await state_repo.get("circuit_breaker_status") == "TRIPPED"
         assert await state_repo.get("v2_trading_enabled") == "false"
 

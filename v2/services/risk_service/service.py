@@ -337,4 +337,6 @@ class RiskService:
             "hda_capital_limit": self._config.hda_capital_limit,
             "vcp_capital_limit": self._config.vcp_capital_limit,
             "bbs_capital_limit": self._config.bbs_capital_limit,
+            "native_oco_supported": False,
+            "protective_orders_source": "ENGINE_POLLING",
         }

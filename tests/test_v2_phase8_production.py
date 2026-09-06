@@ -61,7 +61,7 @@ class TestProductionControllerAndSafety:
             controller = ProductionController(production_repo=prod_repo, bus=bus)
             await controller.initialize_state()
 
-            assert controller.mode == DeploymentMode.SHADOW
+            assert controller.mode == DeploymentMode.PAPER
 
             # 1. Transition to PAPER
             mode_paper = await controller.set_deployment_mode(DeploymentMode.PAPER)

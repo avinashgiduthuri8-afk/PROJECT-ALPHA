@@ -1,4 +1,4 @@
-﻿"""
+"""
 Unit and Integration Tests for CoinDCX Master API Key Authentication & Unified Execution Engine.
 """
 
@@ -10,7 +10,7 @@ import time
 import pytest
 import httpx
 
-from v2.core.config import V2Config
+from v2.core.config import V2Config, invalidate_config
 from v2.core.types import BotName
 from v2.trading.subaccount_manager import (
     CoinDCXExecutionManager,
@@ -137,24 +137,30 @@ async def test_get_balances_rate_limited_429():
 # ── 3. Live Order Dispatch & Precision Enforcement ────────────────────────────
 
 @pytest.mark.anyio
-async def test_place_live_order_success_mock():
+async def test_place_live_order_success_mock(monkeypatch):
+    from v2.core.config import get_config
+    live_cfg = get_config().model_copy(update={"v2_deployment_mode": "LIVE_MICROCASH", "v2_trading_enabled": True})
+    monkeypatch.setattr("v2.core.config.get_config", lambda: live_cfg)
     mock_order_response = {
         "id": "ORD_COINDCX_9999",
         "market": "SOLINR",
+        "side": "buy",
         "price_per_unit": 12500.0,
         "total_quantity": 0.02,
-        "side": "buy",
         "status": "open",
     }
 
     async def mock_handler(request: httpx.Request):
-        assert request.url.path == "/exchange/v1/orders/create"
-        body = json.loads(request.content.decode("utf-8"))
-        assert body["market"] == "SOLINR"
-        assert body["side"] == "buy"
-        assert body["price_per_unit"] == 12500.0
-        assert body["total_quantity"] == 0.02
-        return httpx.Response(200, json=mock_order_response)
+        if request.url.path == "/exchange/v1/users/balances":
+            return httpx.Response(200, json=[{"currency": "INR", "balance": 10000.0, "locked_balance": 0.0}])
+        if request.url.path == "/exchange/v1/orders/create":
+            body = json.loads(request.content.decode("utf-8"))
+            assert body["market"] == "SOLINR"
+            assert body["side"] == "buy"
+            assert body["price_per_unit"] == 12500.0
+            assert body["total_quantity"] == 0.02
+            return httpx.Response(200, json=mock_order_response)
+        return httpx.Response(404)
 
     transport = httpx.MockTransport(mock_handler)
     async with httpx.AsyncClient(transport=transport) as http_client:
@@ -181,7 +187,10 @@ async def test_place_live_order_success_mock():
 
 
 @pytest.mark.anyio
-async def test_place_live_order_min_notional_rejection():
+async def test_place_live_order_min_notional_rejection(monkeypatch):
+    from v2.core.config import get_config
+    live_cfg = get_config().model_copy(update={"v2_deployment_mode": "LIVE_MICROCASH", "v2_trading_enabled": True})
+    monkeypatch.setattr("v2.core.config.get_config", lambda: live_cfg)
     config = SubAccountConfig(
         bot_name=BotName.BBS,
         subaccount_id="ALPHA_BBS_01",

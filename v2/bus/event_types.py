@@ -76,3 +76,6 @@ class EventType(str, Enum):
     MARKET_DATA_UPDATED   = "market_data.updated"
     ORDERBOOK_UPDATED     = "orderbook.updated"
 
+    # ── AI Intelligence Circuit Breaker ──────────────────────────────────────
+    AI_CIRCUIT_OPENED     = "ai.circuit_opened"
+    AI_CIRCUIT_CLOSED     = "ai.circuit_closed"
