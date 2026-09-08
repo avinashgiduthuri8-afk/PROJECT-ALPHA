@@ -153,16 +153,20 @@ async def test_02_authoritative_precision_rules_and_no_arbitrary_100_floor(tmp_d
         event_log_repo=event_repo,
     )
 
-    # Setting order amount to 50 INR succeeds (not blocked by arbitrary 100 floor)
+    # Setting order amount to 50 INR is rejected by the minimum ₹200 floor
     await c2._handle_incoming_message({"chat": {"id": 12345}, "text": "/setamount 50"})
     assert len(tg_client.sent_messages) == 1
+    assert "Order Amount Below Minimum" in tg_client.sent_messages[-1]["text"]
+
+    # Setting order amount to valid 250 INR succeeds
+    await c2._handle_incoming_message({"chat": {"id": 12345}, "text": "/setamount 250"})
     assert "ORDER AMOUNT UPDATED" in tg_client.sent_messages[-1]["text"]
-    assert "50.00" in tg_client.sent_messages[-1]["text"]
-    assert sub_mgr.get_client(BotName.STE).config.default_trade_amount_inr == 50.0
+    assert "250.00" in tg_client.sent_messages[-1]["text"]
+    assert sub_mgr.get_client(BotName.STE).config.default_trade_amount_inr == 250.0
 
     # Authoritative precision rules check pair-specific min_notional
     btc_spec = get_pair_spec("BTC/INR")
-    assert btc_spec.min_notional_inr > 0
+    assert btc_spec.min_notional_inr >= 200.0
     await db.close()
 
 

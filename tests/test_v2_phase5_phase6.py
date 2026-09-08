@@ -188,7 +188,7 @@ def test_capital_guard_limits():
     # 2. Blocked by max positions
     d2 = guard.check_trade(
         bot=BotName.STE,
-        requested_amount=100.0,
+        requested_amount=200.0,
         current_bot_deployed=200.0,
         total_deployed=200.0,
         current_bot_positions=2,

@@ -165,7 +165,7 @@ def test_production_mode_controller_api():
         assert "open_positions_count" in data_status
 
         # 2. Switch to LIVE_MICROCASH
-        r_mode = client.post("/api/v2/production/set-mode", json={"mode": "LIVE_MICROCASH"}, headers=headers)
+        r_mode = client.post("/api/v2/production/set-mode", json={"mode": "LIVE_MICROCASH", "password": "110299"}, headers=headers)
         assert r_mode.status_code == 200
         assert r_mode.json()["mode"] == "LIVE_MICROCASH"
         assert r_mode.json()["trading_enabled"] is True

@@ -66,14 +66,14 @@ class TestPrecisionAndNotionalEnforcement:
         assert round_price("SHIB/INR", 0.0018456) == 0.001846
         assert round_qty("SHIB/INR", 12345.67) == 12000.0
 
-    def test_rejects_order_below_100_inr_notional(self):
-        """Assert orders with notional value < ₹100.0 are rejected pre-flight."""
-        # Price = 50.0, Qty = 1.0 -> Notional = 50.0 (< 100.0)
+    def test_rejects_order_below_200_inr_notional(self):
+        """Assert orders with notional value < ₹200.0 are rejected pre-flight."""
+        # Price = 50.0, Qty = 1.0 -> Notional = 50.0 (< 200.0)
         assert not validate_order_notional("BTC/INR", 50.0, 1.0)
-        # Price = 8000000.0, Qty = 0.00001 -> Notional = 80.0 (< 100.0)
+        # Price = 8000000.0, Qty = 0.00001 -> Notional = 80.0 (< 200.0)
         assert not validate_order_notional("BTC/INR", 8000000.0, 0.00001)
-        # Valid order >= 100.0
-        assert validate_order_notional("BTC/INR", 8000000.0, 0.00002)
+        # Valid order >= 200.0 (0.00003 * 8000000 = 240)
+        assert validate_order_notional("BTC/INR", 8000000.0, 0.00003)
 
     @pytest.mark.anyio
     async def test_auto_trader_rejects_notional_below_100(self):
