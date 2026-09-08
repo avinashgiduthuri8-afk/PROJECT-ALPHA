@@ -89,10 +89,10 @@ class MockTelegramClient:
         self.answered_callbacks: list[dict] = []
         self.is_configured = True
 
-    async def send_message(self, text: str, target_chat_id: str, reply_markup: Any = None) -> dict:
+    async def send_message(self, text: str, target_chat_id: Optional[str] = None, reply_markup: Any = None) -> dict:
         msg = {
             "text": text,
-            "target_chat_id": str(target_chat_id),
+            "target_chat_id": str(target_chat_id) if target_chat_id is not None else None,
             "reply_markup": reply_markup,
             "sent_at": datetime.now(timezone.utc).isoformat(),
         }
@@ -360,7 +360,7 @@ async def test_cmd_uptime():
 
 @pytest.mark.anyio
 async def test_cmd_scan_and_signals():
-    """Verify /scan and /signals display latest cycle and active signals."""
+    """Verify /scan and /signals display latest cycle and 1-line high-conviction signals."""
     db, bus, pos_repo, trade_repo, sig_repo, event_repo, cfg, subaccount_mgr, risk, trading, scanner, health, tg_client, c2 = await _setup_telegram_test_env()
 
     # Inject mock signal into scanner
@@ -378,7 +378,7 @@ async def test_cmd_scan_and_signals():
         mtf_alignment=True,
         generated_at=datetime.now(timezone.utc),
         expires_at=datetime.now(timezone.utc) + timedelta(minutes=15),
-        raw_payload={"price": 12500.0},
+        raw_payload={"price": 12500.0, "bot": "STE"},
     )
     scanner._live[mock_sig.id] = mock_sig
 
@@ -390,13 +390,15 @@ async def test_cmd_scan_and_signals():
     await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/signals"})
     text = tg_client.sent_messages[-1]["text"]
     assert "HIGH-CONVICTION SIGNALS" in text
-    assert "SOL" in text
+    assert "• <b>SOL</b> | <code>STE</code> | C2: <code>88</code>" in text
+    assert "/signal" in text
+    assert "technical breakdown" in text
     await db.close()
 
 
 @pytest.mark.anyio
 async def test_cmd_signal_detail_deep_dive():
-    """Verify /signal BTCINR inspects technical breakdown."""
+    """Verify /signal BTCINR inspects 4-pillar scores and AI conviction."""
     db, bus, pos_repo, trade_repo, sig_repo, event_repo, cfg, subaccount_mgr, risk, trading, scanner, health, tg_client, c2 = await _setup_telegram_test_env()
 
     # Prepopulate scanner latest evaluated coin snapshot
@@ -410,15 +412,25 @@ async def test_cmd_signal_detail_deep_dive():
         "mtf_alignment": "15m_1h",
         "confluence_score": 91,
         "status": "PASSED",
+        "bot": "STE",
+        "ai_recommendation": "APPROVE",
+        "ai_confidence": 92,
+        "ai_strengths": ["Strong MTF alignment", "High volume expansion"],
         "rejection_reasons": [],
     }
 
     await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/signal BTCINR"})
     text = tg_client.sent_messages[-1]["text"]
-    assert "SIGNAL INSPECTOR" in text
-    assert "BTC/INR" in text
-    assert "BULLISH" in text
-    assert "91/100" in text
+    assert "SIGNAL INSPECTOR — BTC/INR" in text
+    assert "4-Pillar Breakdown:" in text
+    assert "Technical Setup:" in text
+    assert "Chart Structure:" in text
+    assert "Volume & Liquidity:" in text
+    assert "Market Regime & News:" in text
+    assert "AI Conviction:" in text
+    assert "APPROVE" in text
+    assert "92%" in text
+    assert "Strong MTF alignment" in text
     await db.close()
 
 
@@ -429,7 +441,7 @@ async def test_cmd_watchlist_and_funnel():
 
     await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/watchlist"})
     assert "ACTIVE SCANNER WATCHLIST" in tg_client.sent_messages[-1]["text"]
-    assert "BTC" in tg_client.sent_messages[-1]["text"]
+    assert "SOL" in tg_client.sent_messages[-1]["text"]
 
     await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/funnel"})
     assert "5-LAYER SCANNER CONVERSION FUNNEL" in tg_client.sent_messages[-1]["text"]
@@ -441,8 +453,27 @@ async def test_cmd_watchlist_and_funnel():
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @pytest.mark.anyio
+async def test_cmd_bots_fleet():
+    """Verify /bots displays the 4 production bots fleet telemetry card."""
+    db, bus, pos_repo, trade_repo, sig_repo, event_repo, cfg, subaccount_mgr, risk, trading, scanner, health, tg_client, c2 = await _setup_telegram_test_env()
+
+    await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/bots"})
+    text = tg_client.sent_messages[-1]["text"]
+    assert "BOT FLEET" in text
+    assert "STE   🟢 ACTIVE" in text
+    assert "HDA   🟢 ACTIVE" in text
+    assert "VCP   🟢 ACTIVE" in text
+    assert "BBS   🟢 ACTIVE" in text
+    assert "Open Positions:" in text
+    assert "Today's Trades:" in text
+    assert "Today's P&L:" in text
+    assert "Signals Today:" in text
+    await db.close()
+
+
+@pytest.mark.anyio
 async def test_cmd_positions_and_trades():
-    """Verify /positions and /trades display active positions and history."""
+    """Verify /positions shows Coin, Entry, Capital deployed, Unrealized P&L (₹ and %), TP, SL, Status, omitting raw Qty and LTP."""
     db, bus, pos_repo, trade_repo, sig_repo, event_repo, cfg, subaccount_mgr, risk, trading, scanner, health, tg_client, c2 = await _setup_telegram_test_env()
 
     # Create an open position
@@ -463,8 +494,18 @@ async def test_cmd_positions_and_trades():
     await pos_repo.insert(pos)
 
     await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/positions"})
-    assert "ACTIVE FLEET POSITIONS" in tg_client.sent_messages[-1]["text"]
-    assert "SOL" in tg_client.sent_messages[-1]["text"]
+    pos_text = tg_client.sent_messages[-1]["text"]
+    assert "ACTIVE FLEET POSITIONS" in pos_text
+    assert "SOL/INR" in pos_text
+    assert "Entry: ₹12000.00" in pos_text
+    assert "Capital: ₹600.00" in pos_text
+    assert "Unrealized P&L:" in pos_text
+    assert "TP: ₹13000.00" in pos_text
+    assert "SL: ₹11500.00" in pos_text
+    assert "Status: <code>OPEN</code>" in pos_text
+    # Assert raw Qty and Current LTP are omitted from displayed line
+    assert "• Qty:" not in pos_text
+    assert "Current:" not in pos_text
 
     await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/orders"})
     assert "RECENT ORDERS LEDGER" in tg_client.sent_messages[-1]["text"]
@@ -653,3 +694,77 @@ async def test_cmd_risk_limits_alerts_logs():
     assert "***REDACTED***" in logs_text
     await db.close()
 
+
+@pytest.mark.anyio
+async def test_notification_alert_dedup_and_high_conviction_filter():
+    """Verify alert dedup suppresses duplicate alerts and risk rejection only alerts on high conviction (C2 >= 85, AI approved)."""
+    from v2.services.notification_service.service import NotificationService
+
+    bus = EventBus()
+    cfg = V2Config(
+        v2_deployment_mode="PAPER",
+        alert_chat_id="999888",
+    )
+    mock_tg = MockTelegramClient()
+    notif = NotificationService(bus=bus, config=cfg, telegram_client=mock_tg)
+    await notif.start()
+
+    # 1. Low conviction trade denied -> suppressed (no alert)
+    await bus.publish(
+        EventType.TRADE_DENIED,
+        {
+            "coin": "DOGE",
+            "bot": "STE",
+            "confluence_score": 70,
+            "ai_recommendation": "WATCH",
+            "reason": "Max positions reached",
+        },
+    )
+    # Wait small moment for async bus dispatch
+    await asyncio.sleep(0.05)
+    assert len(mock_tg.sent_messages) == 0
+
+    # 2. High conviction trade denied (C2 >= 85 and AI approved) -> fires alert
+    await bus.publish(
+        EventType.TRADE_DENIED,
+        {
+            "coin": "SOL",
+            "bot": "STE",
+            "confluence_score": 90,
+            "ai_recommendation": "APPROVE",
+            "reason": "Capital limit reached",
+        },
+    )
+    await asyncio.sleep(0.05)
+    assert len(mock_tg.sent_messages) == 1
+    assert "Trade Blocked by Risk Engine — SOL" in mock_tg.sent_messages[0]["text"]
+
+    # 3. Duplicate trade denied alert for same coin and reason -> suppressed
+    await bus.publish(
+        EventType.TRADE_DENIED,
+        {
+            "coin": "SOL",
+            "bot": "STE",
+            "confluence_score": 90,
+            "ai_recommendation": "APPROVE",
+            "reason": "Capital limit reached",
+        },
+    )
+    await asyncio.sleep(0.05)
+    # Message count should still be 1 (duplicate suppressed)
+    assert len(mock_tg.sent_messages) == 1
+
+    await notif.stop()
+
+
+@pytest.mark.anyio
+async def test_no_dashboard_telegram_command():
+    """Verify that /dashboard does NOT exist as a Telegram command and is rejected as unknown."""
+    db, *_, tg_client, c2 = await _setup_telegram_test_env()
+
+    await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/dashboard"})
+    assert len(tg_client.sent_messages) == 1
+    reply = tg_client.sent_messages[-1]["text"]
+    assert "Unknown command" in reply or "Use /help" in reply
+    assert "/dashboard" in reply
+    await db.close()

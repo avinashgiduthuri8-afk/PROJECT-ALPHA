@@ -1,4 +1,4 @@
-﻿"""
+"""
 PROJECT-ALPHA V2 — Live Execution Wiring, Fill Confirmation, and Order Reconciliation Tests.
 """
 
@@ -452,12 +452,15 @@ async def test_12_live_mode_never_calls_paper_place_order(tmp_path):
 @pytest.mark.anyio
 async def test_13_timeout_safety_no_blind_duplicate(tmp_path):
     """13. HTTP timeout returns proper error with client_order_id without duplicating or opening phantom position."""
+    live_cfg = V2Config(v2_deployment_mode="LIVE_MICROCASH", v2_trading_enabled=True)
     client = CoinDCXSubAccountClient(SubAccountConfig(bot_name=BotName.STE, subaccount_id="STE_01", api_key="k", api_secret="s"))
+    client.get_balances = AsyncMock(return_value={"success": True, "inr_balance": 10000.0})
     mock_http = AsyncMock()
     import httpx
     mock_http.post.side_effect = httpx.TimeoutException("Network timeout connecting to CoinDCX")
 
-    res = await client.place_live_order(pair="SOL/INR", side="BUY", price=10000.0, qty=0.02, client=mock_http)
+    with patch("v2.core.config.get_config", return_value=live_cfg):
+        res = await client.place_live_order(pair="SOL/INR", side="BUY", price=10000.0, qty=0.02, client=mock_http)
     assert res["success"] is False
     assert res["error"] == "TIMEOUT"
     assert res["requires_reconciliation"] is True
@@ -481,6 +484,7 @@ async def test_14_order_reconciliation_repairs_cancelled_orders(tmp_path):
     client = mgr.get_client(BotName.STE)
     client.get_order_status = AsyncMock(return_value={
         "success": True,
+        "status": "CANCELLED",
         "order": {"id": "EX-CANCELLED-1", "status": "CANCELLED"},
     })
 

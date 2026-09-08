@@ -81,6 +81,8 @@ from v2.services.production_service.service import ProductionService
 from v2.monitoring import HealthChecker, MetricsCollector, AlertManager
 from v2.scheduler import BackgroundScheduler, register_all_jobs
 from v2.api.router import router as api_router, init_router
+from v2.api.dashboard_routes import init_dashboard_routes
+from v2.services.dashboard_service.aggregator import DashboardAggregator
 from v2.api.websocket import router as ws_router, init_websocket
 from v2.bus.subscribers import register_all as register_all_subscribers
 
@@ -378,6 +380,16 @@ async def lifespan(app: FastAPI):
         feedback_repo        = feedback_repo,
         feedback_service     = _feedback_service,
     )
+
+    init_dashboard_routes(DashboardAggregator(
+        scanner_service   = _scanner_service,
+        trading_service   = _trading_service,
+        portfolio_service = _portfolio_service,
+        risk_service      = _risk_service,
+        journal_service   = _journal_service,
+        analytics_service = _analytics_service,
+        feedback_service  = _feedback_service,
+    ))
 
     # Trigger initial warm-up scanner poll in background
     asyncio.create_task(_scanner_service.poll())

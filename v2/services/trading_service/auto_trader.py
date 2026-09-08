@@ -16,7 +16,7 @@ from v2.bus.event_bus import EventBus
 from v2.bus.event_types import EventType
 from v2.core.logging import get_logger
 from v2.core.types import BotName, OppType, Signal
-from v2.trading.precision_rules import extract_base_coin, round_price, round_qty, validate_order_notional
+from v2.trading.precision_rules import extract_base_coin, round_price, round_qty, round_qty_up, validate_order_notional
 from v2.trading.subaccount_manager import CoinDCXSubAccountClient, CoinDCXSubAccountManager
 
 logger = get_logger("v2.services.trading_service.auto_trader")
@@ -169,16 +169,22 @@ class AutoTradeRouter:
         rounded_qty = round_qty(pair, qty)
         notional_value = rounded_price * rounded_qty
 
-        if not validate_order_notional(pair, rounded_price, rounded_qty):
+        # Hard ₹200 minimum trading value invariant:
+        # If calculated notional is below ₹200.00, round quantity UP to the next valid exchange lot step
+        if notional_value < 200.0:
+            rounded_qty = round_qty_up(pair, qty)
+            notional_value = rounded_price * rounded_qty
+
+        if not validate_order_notional(pair, rounded_price, rounded_qty, min_notional=200.0) or notional_value < 200.0:
             logger.warning(
-                "Order rejected by precision gate: notional value INR %.2f < min ₹100.00 for pair %s",
+                "Order rejected by precision gate: notional value INR %.2f < min ₹200.00 for pair %s",
                 notional_value, pair,
             )
             return {
                 "success": False,
                 "error": "ORDER_NOTIONAL_BELOW_MINIMUM",
                 "notional_value": notional_value,
-                "message": f"Notional value INR {notional_value:.2f} is below minimum INR 100.00",
+                "message": f"Notional value INR {notional_value:.2f} is below minimum INR 200.00",
             }
 
         # Mark signal as processed once validated

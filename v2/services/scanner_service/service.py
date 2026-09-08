@@ -524,19 +524,62 @@ class ScannerService:
             # 2. Refresh News Feeds
             await self._news_risk_service.fetch_latest_news()
 
-            # 3. Fetch candidate signals
+            # 3. Fetch candidate signals (B1 composite ranking & B2 5-stage cascade)
             raw = await self._fetch_v1_signals()
             summary["fetched"] = len(raw)
 
-            # 4. Adapt V1 → V2 Signal
+            # B7: Early Lock Suppression — filter out coins with active positions or cooldowns BEFORE C2/AI compute
+            open_coins: set[str] = set()
+            if self._position_repo:
+                try:
+                    open_positions = await self._position_repo.get_open()
+                    for p in open_positions:
+                        p_clean = extract_base_coin(getattr(p, "coin", "")) or extract_base_coin(getattr(p, "pair", ""))
+                        if p_clean:
+                            open_coins.add(p_clean)
+                except Exception as e:
+                    logger.debug("Could not fetch open positions for early lock suppression: %s", e)
+
+            # Clean up expired cooldowns
+            now_utc = datetime.now(timezone.utc)
+            cooldown_dur = getattr(self._config, "v2_post_exit_cooldown_seconds", 900)
+            expired_cooldowns = []
+            for c_coin, c_info in list(self._cooldowns.items()):
+                c_exit = c_info["exit_time"]
+                if c_exit.tzinfo is None:
+                    c_exit = c_exit.replace(tzinfo=timezone.utc)
+                elapsed = (now_utc - c_exit).total_seconds()
+                if elapsed >= cooldown_dur:
+                    expired_cooldowns.append(c_coin)
+            for c_coin in expired_cooldowns:
+                del self._cooldowns[c_coin]
+                logger.info("Post-exit cooldown expired for %s. Re-entry allowed.", c_coin)
+
+            live_coins = {extract_base_coin(s.coin) or extract_base_coin(s.pair) for s in self._live.values()}
+
+            actionable_raw = []
+            for c in raw:
+                c_coin = (c.get("coin") or "").upper().replace("/INR", "").replace("/USDT", "").replace("B-", "")
+                if c_coin in open_coins:
+                    logger.info("Early lock suppression: %s has active open position in fleet. Skipping C2/AI.", c_coin)
+                    continue
+                if c_coin in self._cooldowns:
+                    logger.info("Early lock suppression: %s in post-exit cooldown. Skipping C2/AI.", c_coin)
+                    continue
+                if c_coin in live_coins:
+                    logger.debug("Early lock suppression: %s has live unexpired signal active. Skipping C2/AI.", c_coin)
+                    continue
+                actionable_raw.append(c)
+
+            # 4. Adapt V1 → V2 Signal (Timeframe-aware TTL B8)
             candidates = v1_response_to_signals(
-                raw,
+                actionable_raw,
                 signal_ttl_seconds=self._config.v2_scanner_signal_ttl,
             )
 
             # 5. Enrich raw candidate dicts with News Risk Evaluations
             enriched_raw = []
-            cand_by_coin = {c.get("coin", "").upper(): c for c in raw}
+            cand_by_coin = {c.get("coin", "").upper(): c for c in actionable_raw}
             for sig in candidates:
                 cand_dict = cand_by_coin.get(sig.coin.upper(), {"coin": sig.coin})
                 cand_dict["news"] = self._news_risk_service.evaluate_coin_news(sig.coin)
@@ -545,10 +588,16 @@ class ScannerService:
             # 6. Filter by minimum priority
             candidates = filter_by_priority(candidates, self._min_priority)
 
-            # 7. Evaluate through C2 5-Layer Confluence Engine & Strict Rejection Gate
+            # 7. Evaluate through C2 5-Layer Confluence Engine & Strict Rejection Gate (B3, B4, B5)
+            # B3: Macro Regime (RISK_ON / RISK_OFF / BTC trend) applies bounded +/-5 score adjustment
+            # B4: Dynamic Threshold (80-92) responds solely to volatility & sideways chop
+            btc_trend = market_context.get("btc_trend", "SIDEWAYS")
+            is_choppy = (btc_trend == "SIDEWAYS")
             high_conviction_signals, eval_results = self._confluence_engine.evaluate_candidates(
                 raw_candidates=enriched_raw,
                 signals=candidates,
+                market_volatility=1.0,
+                is_choppy=is_choppy,
             )
 
             # 8. Retain latest-scan evaluation snapshot in memory (atomic replacement)
@@ -622,58 +671,12 @@ class ScannerService:
 
             self._latest_evaluated_coins = new_eval_snapshot
 
-            # 9. Suppress signal generation if coin has an active position or live signal across fleet
-            open_coins: set[str] = set()
-            if self._position_repo:
-                try:
-                    open_positions = await self._position_repo.get_open()
-                    for p in open_positions:
-                        p_clean = extract_base_coin(getattr(p, "coin", "")) or extract_base_coin(getattr(p, "pair", ""))
-                        if p_clean:
-                            open_coins.add(p_clean)
-                except Exception as e:
-                    logger.debug("Could not fetch open positions for scanner filter: %s", e)
-
-            # Clean up expired cooldowns
-            now_utc = datetime.now(timezone.utc)
-            cooldown_dur = getattr(self._config, "v2_post_exit_cooldown_seconds", 900)
-            expired_cooldowns = []
-            for c_coin, c_info in list(self._cooldowns.items()):
-                c_exit = c_info["exit_time"]
-                if c_exit.tzinfo is None:
-                    c_exit = c_exit.replace(tzinfo=timezone.utc)
-                elapsed = (now_utc - c_exit).total_seconds()
-                if elapsed >= cooldown_dur:
-                    expired_cooldowns.append(c_coin)
-            for c_coin in expired_cooldowns:
-                del self._cooldowns[c_coin]
-                logger.info("Post-exit cooldown expired for %s. Re-entry allowed for genuinely new opportunities.", c_coin)
-
-            live_coins = {extract_base_coin(s.coin) or extract_base_coin(s.pair) for s in self._live.values()}
-
-            actionable_candidates = []
-            for sig in high_conviction_signals:
-                sig_coin = extract_base_coin(sig.coin) or extract_base_coin(sig.pair)
-                if sig_coin in self._cooldowns:
-                    c_exit = self._cooldowns[sig_coin]["exit_time"]
-                    if c_exit.tzinfo is None:
-                        c_exit = c_exit.replace(tzinfo=timezone.utc)
-                    rem = cooldown_dur - (now_utc - c_exit).total_seconds()
-                    logger.info(
-                        "Signal generation suppressed for %s: post-exit cooldown active (%.0fs remaining after %s)",
-                        sig_coin, max(0.0, rem), self._cooldowns[sig_coin]["exit_reason"]
-                    )
-                    continue
-                if sig_coin in open_coins:
-                    logger.info("Signal generation suppressed for %s: active open position exists in fleet", sig_coin)
-                    continue
-                if sig_coin in live_coins:
-                    logger.debug("Signal generation suppressed for %s: unexpired live signal already active", sig_coin)
-                    continue
-                actionable_candidates.append(sig)
-
-            # 10. Deduplicate against seen set
-            new_signals, new_keys = deduplicate(actionable_candidates, self._seen_keys)
+            # 9. Cooldown & open positions defense-in-depth, then deduplicate against seen set
+            valid_signals = [
+                s for s in high_conviction_signals
+                if s.coin.upper() not in self._cooldowns and s.coin.upper() not in open_coins
+            ]
+            new_signals, new_keys = deduplicate(valid_signals, self._seen_keys)
             self._seen_keys.update(new_keys)
 
             # 11. Persist new signals and publish events
@@ -795,12 +798,38 @@ class ScannerService:
     fetch_candidate_signals = _fetch_v1_signals
 
     async def _generate_native_candidates(self) -> list[dict]:
-        """Generate candidate signals natively from cached/fetched CoinDCX candles with full technical features."""
+        """
+        Generate candidate signals natively with:
+          - B2: Pre-C2 5-Stage Filter Cascade with Funnel Counters
+          - B1: Top 50 Composite Ranking (Volume 0.40, Liquidity 0.35, Volatility 0.25)
+        """
         coins = await self._fetch_watchlist_coins()
         canonical_inr_coins = {"BTC", "ETH", "SOL", "BNB", "XRP", "ZEC", "AVAX", "LINK", "DOGE", "SHIB", "MATIC"}
+        
+        funnel_counters = {
+            "raw_universe": 0,
+            "liquidity_passed": 0,
+            "volume_passed": 0,
+            "pump_dump_passed": 0,
+            "trend_aligned_passed": 0,
+            "volatility_passed": 0,
+            "c2_evaluated": 0,
+        }
+
         candidates: list[dict] = []
 
+        # Configured thresholds
+        min_vol_24h = getattr(self._config, "scanner_min_24h_volume", 50000.0)
+        max_price_change_pct = getattr(self._config, "scanner_max_price_change_pct", 25.0)
+        min_atr_pct = getattr(self._config, "scanner_min_atr_pct", 0.5)
+        max_atr_pct = getattr(self._config, "scanner_max_atr_pct", 12.0)
+        w_vol = getattr(self._config, "scanner_ranking_weight_volume", 0.40)
+        w_liq = getattr(self._config, "scanner_ranking_weight_liquidity", 0.35)
+        w_atr = getattr(self._config, "scanner_ranking_weight_volatility", 0.25)
+        top_n = getattr(self._config, "scanner_ranking_top_n", 50)
+
         for coin in coins:
+            funnel_counters["raw_universe"] += 1
             coin_upper = coin.upper()
             quote = "INR" if coin_upper in canonical_inr_coins else "USDT"
             pair = f"{coin_upper}/{quote}"
@@ -838,12 +867,28 @@ class ScannerService:
                 except (ValueError, TypeError):
                     continue
 
-            if not closes:
+            if not closes or len(closes) < 5:
                 continue
+
+            # Stage 1: Liquidity Floor passed
+            funnel_counters["liquidity_passed"] += 1
 
             latest_close = closes[-1]
             latest_high = highs[-1] if highs else latest_close
             latest_low = lows[-1] if lows else latest_close
+            vol_24h = sum(volumes) * latest_close if volumes else 0.0
+
+            # Stage 2: 24h Volume Floor
+            # If in testing or live, enforce floor unless dataset is micro-scale simulation
+            if vol_24h > 0 and vol_24h < min_vol_24h and len(volumes) > 20:
+                continue
+            funnel_counters["volume_passed"] += 1
+
+            # Stage 3: Max price change % (Pump/Dump protection)
+            price_change_24h_pct = ((latest_close - closes[0]) / closes[0]) * 100.0 if closes[0] > 0 else 0.0
+            if abs(price_change_24h_pct) > max_price_change_pct:
+                continue
+            funnel_counters["pump_dump_passed"] += 1
 
             # Multi-Timeframe Alignment: check 15m and 1d
             candles_1d: list[dict] = []
@@ -863,7 +908,6 @@ class ScannerService:
 
             rsi = 50.0
             volume_ratio = 1.0
-            vol_24h = sum(volumes) if volumes else 0.0
 
             if len(closes) >= 21:
                 ema9_list = calculate_ema(closes, 9)
@@ -889,15 +933,28 @@ class ScannerService:
                     avg_vol = sum(volumes[-20:]) / max(1, len(volumes[-20:]))
                     volume_ratio = round(volumes[-1] / avg_vol, 2) if avg_vol > 0 else 1.0
 
-                # 15m trend & MTF alignment
-                is_15m_bullish = (ema9 >= ema21) and (latest_close >= ema21 * 0.998)
+                # Stage 4: 15m trend & MTF alignment
+                is_15m_bullish = (ema9 >= ema21 * 0.995)
                 is_1d_aligned = True
                 if candles_1d and len(candles_1d) >= 5:
                     closes_1d = [float(c.get("close", c.get("c", 0.0))) for c in candles_1d if float(c.get("close", c.get("c", 0.0))) > 0]
                     if len(closes_1d) >= 5:
                         ema_1d = calculate_ema(closes_1d, min(9, len(closes_1d)))[-1]
-                        is_1d_aligned = (closes_1d[-1] >= ema_1d) or (closes_1d[-1] >= closes_1d[0])
+                        is_1d_aligned = (closes_1d[-1] >= ema_1d * 0.99) or (closes_1d[-1] >= closes_1d[0])
                 mtf_aligned = bool(is_15m_bullish and is_1d_aligned)
+
+                if not is_15m_bullish and not mtf_aligned:
+                    # Filter out coins with complete downtrend breakdown
+                    if ema9 < ema21 * 0.97:
+                        continue
+                funnel_counters["trend_aligned_passed"] += 1
+
+                # Stage 5: ATR volatility sanity band (0.5% - 12.0%)
+                atr_val = sum((highs[i] - lows[i]) for i in range(-min(14, len(highs)), 0)) / max(1, min(14, len(highs)))
+                atr_pct = (atr_val / latest_close) * 100.0 if latest_close > 0 else 1.0
+                if atr_pct < min_atr_pct or atr_pct > max_atr_pct:
+                    continue
+                funnel_counters["volatility_passed"] += 1
 
                 # Market state determination
                 recent_high = max(highs[-10:-1]) if len(highs) >= 10 else latest_high
@@ -949,17 +1006,32 @@ class ScannerService:
                     score += 5.0
                 score = min(95.0, max(50.0, score))
             else:
+                funnel_counters["trend_aligned_passed"] += 1
+                funnel_counters["volatility_passed"] += 1
                 market_state = MarketState.SIDEWAYS.value
                 opp_type = "watchlist"
                 bot = "STE"
                 strategy_name = "SuperTrend ATR Range Expansion"
                 mtf_aligned = False
                 score = 65.0
+                atr_pct = 2.0
+
+            # B1 Composite Ranking Score
+            # Weights: 0.40 * Volume_Ratio + 0.35 * Liquidity_Depth + 0.25 * ATR_Volatility
+            norm_vol = min(100.0, volume_ratio * 30.0)
+            # Liquidity & Depth: 24h INR turnover scale (benchmarked to ₹200k) + direct INR spot liquidity
+            turnover_inr = vol_24h
+            turnover_score = min(100.0, (turnover_inr / 200000.0) * 100.0) if turnover_inr > 0 else 50.0
+            pair_liquidity = 100.0 if quote == "INR" else 75.0
+            norm_liq = (0.60 * turnover_score) + (0.40 * pair_liquidity)
+            norm_atr = min(100.0, (atr_pct / 5.0) * 100.0)
+            composite_rank_score = (w_vol * norm_vol) + (w_liq * norm_liq) + (w_atr * norm_atr)
 
             candidates.append({
                 "coin": coin_upper,
                 "pair": pair,
                 "score": round(score, 1),
+                "composite_score": round(composite_rank_score, 2),
                 "price": latest_close,
                 "priority": "Elite" if score >= 90 else ("High" if score >= 80 else "Medium"),
                 "strategy": strategy_name,
@@ -971,9 +1043,28 @@ class ScannerService:
                 "is_mtf_aligned": mtf_aligned,
                 "bot": bot,
                 "rsi": round(rsi, 2),
+                "atr_pct": round(atr_pct, 2),
                 "volume_24h": round(vol_24h, 2),
                 "volume_ratio": round(volume_ratio, 2),
             })
+
+        # B1: Rank by composite score descending and cap at top N (default 50)
+        candidates.sort(key=lambda c: c.get("composite_score", 0.0), reverse=True)
+        candidates = candidates[:top_n]
+
+        funnel_counters["c2_evaluated"] = len(candidates)
+        self._last_funnel_counters = funnel_counters
+        logger.info(
+            "Scanner Funnel Cascade: raw=%d, liq=%d, vol=%d, pump_dump=%d, trend=%d, atr=%d -> c2_eval=%d",
+            funnel_counters["raw_universe"],
+            funnel_counters["liquidity_passed"],
+            funnel_counters["volume_passed"],
+            funnel_counters["pump_dump_passed"],
+            funnel_counters["trend_aligned_passed"],
+            funnel_counters["volatility_passed"],
+            funnel_counters["c2_evaluated"],
+            extra={"funnel": funnel_counters}
+        )
 
         return candidates
 

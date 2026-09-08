@@ -169,15 +169,15 @@ async def test_notification_service_event_subscriptions():
     service = NotificationService(bus=bus, config=cfg, telegram_client=telegram)
     await service.start()
 
-    # 1. Publish SIGNAL_AI_CONFIRMED
+    # 1. Publish POSITION_OPENED
     await bus.publish(
-        EventType.SIGNAL_AI_CONFIRMED,
+        EventType.POSITION_OPENED,
         {
             "coin": "MATIC",
-            "recommendation": "APPROVE",
-            "confidence_score": 85,
-            "trend_evaluation": "Bull trend",
-            "setup_quality": "Breakout",
+            "bot": "STE",
+            "entry_price": 48.0,
+            "qty": 10.0,
+            "amount": 480.0,
         },
     )
     await asyncio.sleep(0.05)

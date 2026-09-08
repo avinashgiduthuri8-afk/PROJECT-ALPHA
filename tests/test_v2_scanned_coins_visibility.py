@@ -63,7 +63,7 @@ async def test_scanner_snapshot_retention_and_overwrite(tmp_path):
         return [{"coin": "BTC", "price": 6500000.0, "rsi": 58.0}, {"coin": "ETH", "price": 280000.0, "rsi": 48.0}, {"coin": "SOL", "price": 14500.0, "rsi": 42.0}]
 
     scanner._fetch_v1_signals = mock_fetch_v1
-    scanner._confluence_engine.evaluate_candidates = lambda raw_candidates, signals: ([sig_btc], [res_btc, res_eth, res_sol])
+    scanner._confluence_engine.evaluate_candidates = lambda *args, **kwargs: ([sig_btc], [res_btc, res_eth, res_sol])
 
     summary = await scanner.poll()
     assert summary["new_signals"] == 1
@@ -97,7 +97,7 @@ async def test_scanner_snapshot_retention_and_overwrite(tmp_path):
         return [{"coin": "ETH", "price": 282000.0, "rsi": 50.0}]
 
     scanner._fetch_v1_signals = mock_fetch_v1_pass2
-    scanner._confluence_engine.evaluate_candidates = lambda raw_candidates, signals: ([], [res_eth])
+    scanner._confluence_engine.evaluate_candidates = lambda *args, **kwargs: ([], [res_eth])
 
     await scanner.poll()
     scanned_pass2 = scanner.get_scanned_coins()

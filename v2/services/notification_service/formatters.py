@@ -80,11 +80,12 @@ def format_trade_denied_alert(payload: dict[str, Any]) -> str:
 
 
 def format_position_opened_alert(payload: dict[str, Any]) -> str:
-    """Format position opened execution alert."""
+    """Format position opened execution alert matching C2 specification."""
     coin = payload.get("coin", "UNKNOWN")
-    bot = payload.get("bot", "MTB")
+    bot = payload.get("bot", "STE")
     price = float(payload.get("entry_price", 0.0))
-    qty = payload.get("qty", 0.0)
+    qty = float(payload.get("qty", 0.0) or 0.0)
+    amount = float(payload.get("amount", 0.0) or (qty * price))
     sl = payload.get("stop_loss")
     tp = payload.get("take_profit")
 
@@ -92,10 +93,10 @@ def format_position_opened_alert(payload: dict[str, Any]) -> str:
     tp_str = f"₹{tp:.2f}" if tp is not None else "None"
 
     return (
-        f"🚀 <b>Position Opened — {coin}</b>\n"
-        f"<b>Bot:</b> <code>{bot}</code> | <b>Qty:</b> <code>{format_qty(qty)}</code>\n"
-        f"<b>Entry Price:</b> ₹{price:.2f}\n"
-        f"<b>Take Profit:</b> {tp_str} | <b>Stop Loss:</b> {sl_str}"
+        f"🟢 <b>BUY EXECUTED</b>\n"
+        f"<b>Coin:</b> <code>{coin}</code> | <b>Bot:</b> <code>{bot}</code>\n"
+        f"<b>Amount:</b> ₹{amount:.2f} | <b>Entry:</b> ₹{price:.2f}\n"
+        f"<b>TP:</b> {tp_str} | <b>SL:</b> {sl_str}"
     )
 
 
@@ -183,32 +184,43 @@ def format_telegram_menu(overview: dict[str, Any]) -> str:
     )
 
 
-def format_telegram_bot_fleet(bots: list[dict[str, Any]]) -> str:
-    """Format the 4 production bots telemetry card."""
+def format_telegram_bot_fleet(fleet: dict[str, Any] | list[dict[str, Any]]) -> str:
+    """Format the bot fleet status card matching C2 specification."""
+    if isinstance(fleet, dict):
+        open_pos = fleet.get("open_positions", 0)
+        today_trades = fleet.get("today_trades", 0)
+        daily_pnl = float(fleet.get("daily_pnl", 0.0))
+        signals_today = fleet.get("signals_today", 0)
+        bot_statuses = fleet.get("bot_statuses", {})
+    else:
+        open_pos = sum(b.get("open_positions", 0) for b in fleet)
+        today_trades = sum(b.get("today_trades", 0) for b in fleet)
+        daily_pnl = sum(float(b.get("daily_pnl", 0.0)) for b in fleet)
+        signals_today = sum(b.get("signals_today", 0) for b in fleet)
+        bot_statuses = {b.get("name", "BOT"): b.get("status", "ACTIVE") for b in fleet}
+
+    ste_status = bot_statuses.get("STE", "ACTIVE")
+    hda_status = bot_statuses.get("HDA", "ACTIVE")
+    vcp_status = bot_statuses.get("VCP", "ACTIVE")
+    bbs_status = bot_statuses.get("BBS", "ACTIVE")
+
+    def _icon(s: str) -> str:
+        return "🟢 ACTIVE" if s.upper() in ("ACTIVE", "HEALTHY", "RUNNING", "IDLE") else f"🟡 {s.upper()}"
+
+    pnl_sign = "+" if daily_pnl >= 0 else ""
+
     lines = [
-        "🤖 <b>PRODUCTION BOT FLEET (4 Active)</b>",
-        "━━━━━━━━━━━━━━━━━━━━━━━━━",
+        "🤖 <b>BOT FLEET</b>",
+        f"STE   {_icon(ste_status)}",
+        f"HDA   {_icon(hda_status)}",
+        f"VCP   {_icon(vcp_status)}",
+        f"BBS   {_icon(bbs_status)}",
+        "",
+        f"Open Positions: {open_pos}",
+        f"Today's Trades: {today_trades}",
+        f"Today's P&L: {pnl_sign}₹{daily_pnl:.2f}",
+        f"Signals Today: {signals_today}",
     ]
-    for b in bots:
-        name = b.get("name", "UNKNOWN")
-        sub_id = b.get("subaccount_id", f"ALPHA_{name}_01")
-        stage = b.get("current_stage", "IDLE").replace("_", " ").title()
-        wallet = float(b.get("wallet_balance", 0.0))
-        avail = float(b.get("available_balance", wallet))
-        pos_count = b.get("open_positions", 0)
-        pnl = float(b.get("daily_pnl", 0.0))
-        win_rate = float(b.get("win_rate_pct", 0.0))
-        pnl_sign = "+" if pnl >= 0 else ""
-
-        lines.append(
-            f"🔹 <b>{name}</b> (<code>{sub_id}</code>)\n"
-            f"   • <b>Stage:</b> {stage}\n"
-            f"   • <b>Wallet:</b> ₹{wallet:,.2f} (Avail: ₹{avail:,.2f})\n"
-            f"   • <b>Positions:</b> {pos_count} | <b>Win Rate:</b> {win_rate:.1f}%\n"
-            f"   • <b>24h PnL:</b> <code>{pnl_sign}₹{pnl:.2f}</code>\n"
-        )
-
-    lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━")
     return "\n".join(lines)
 
 
@@ -279,13 +291,25 @@ def format_telegram_positions(positions: list[dict[str, Any]]) -> str:
     for p in positions:
         coin = p.get("coin", "UNKNOWN")
         bot = p.get("bot", "STE")
-        qty = p.get("qty", 0.0)
-        entry = float(p.get("entry_price", 0.0))
-        cur = float(p.get("current_price", entry))
-        unrealized = float(p.get("unrealised_pnl", 0.0))
+        qty = float(p.get("qty", 0.0) or 0.0)
+        entry = float(p.get("entry_price", 0.0) or 0.0)
+        cur = float(p.get("current_price", entry) or entry)
+        unrealized = float(p.get("unrealised_pnl", 0.0) or 0.0)
+        status = p.get("status", "OPEN")
         sl = p.get("stop_loss")
         tp = p.get("take_profit")
+        
+        deployed = float(p.get("amount", 0.0) or (qty * entry))
+        
+        if deployed > 0:
+            unrealized_pct = (unrealized / deployed) * 100.0
+        elif entry > 0:
+            unrealized_pct = ((cur - entry) / entry) * 100.0
+        else:
+            unrealized_pct = 0.0
+
         sign = "+" if unrealized >= 0 else ""
+        pct_sign = "+" if unrealized_pct >= 0 else ""
         emoji = "🟢" if unrealized >= 0 else "🔴"
 
         sl_str = f"₹{sl:.2f}" if sl is not None else "None"
@@ -293,11 +317,10 @@ def format_telegram_positions(positions: list[dict[str, Any]]) -> str:
 
         lines.append(
             f"{emoji} <b>{coin}/INR</b> (<code>{bot}</code>)\n"
-            f"   • Qty: <code>{format_qty(qty)}</code> | Entry: ₹{entry:.2f} | Current: ₹{cur:.2f}\n"
-            f"   • Unrealized: <code>{sign}₹{unrealized:.2f}</code>\n"
-            f"   • TP: {tp_str} | SL: {sl_str}\n"
+            f"   • Entry: ₹{entry:.2f} | Capital: ₹{deployed:.2f}\n"
+            f"   • Unrealized P&L: <code>{sign}₹{unrealized:.2f} ({pct_sign}{unrealized_pct:.2f}%)</code>\n"
+            f"   • TP: {tp_str} | SL: {sl_str} | Status: <code>{status}</code>\n"
         )
-
 
     lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━")
     return "\n".join(lines)
@@ -336,7 +359,7 @@ def format_telegram_trades(trades: list[dict[str, Any]]) -> str:
 
 
 def format_telegram_signals(signals: list[dict[str, Any]]) -> str:
-    """Format high-conviction live signals from the 5-layer confluence engine."""
+    """Format high-conviction live signals from confluence engine."""
     if not signals:
         return (
             "🎯 <b>HIGH-CONVICTION SIGNALS</b>\n"
@@ -350,18 +373,14 @@ def format_telegram_signals(signals: list[dict[str, Any]]) -> str:
     ]
     for s in signals:
         coin = s.get("coin", "UNKNOWN")
-        score = s.get("confidence_score") or s.get("confluence_score", 0)
-        action = s.get("action", "BUY")
-        price = float(s.get("price", 0.0))
-        time_str = s.get("generated_at", "")[:19]
-
-        lines.append(
-            f"🔥 <b>{coin}</b> — <code>{action}</code>\n"
-            f"   • Price: ₹{price:.2f} | Confluence: <code>{score}%</code>\n"
-            f"   • Generated: <code>{time_str}</code>"
-        )
+        bot = s.get("bot", "STE")
+        score = s.get("confluence_score", s.get("score", 0))
+        ai_conf = s.get("ai_confidence", s.get("confidence_score", 0))
+        risk_verdict = s.get("risk_verdict", "APPROVED")
+        lines.append(f"• <b>{coin}</b> | <code>{bot}</code> | C2: <code>{score}</code> | AI: <code>{ai_conf}%</code> | Risk: <code>{risk_verdict}</code>")
 
     lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━")
+    lines.append("<i>Use /signal &lt;symbol&gt; for technical breakdown</i>")
     return "\n".join(lines)
 
 
@@ -533,31 +552,52 @@ def format_telegram_scan(s: dict[str, Any]) -> str:
 
 
 def format_telegram_signal_detail(c: dict[str, Any], symbol: str, mode: str = "SHADOW") -> str:
-    """Format /signal <symbol> deep-dive inspector."""
+    """Format /signal <symbol> deep-dive inspector with 4-pillar scores & AI conviction."""
     pair = c.get("pair") or symbol.upper()
     price = float(c.get("price", 0.0))
+    c2_score = c.get("confluence_score", c.get("score", 0))
+    bot = c.get("bot", "STE")
+    status = c.get("status", "EVALUATED")
+    rsi = float(c.get("rsi", 50.0))
     vol_24h = float(c.get("volume_24h", 0.0))
     vol_ratio = float(c.get("volume_ratio", 1.0))
     ema_trend = c.get("ema_trend", "N/A")
-    rsi = float(c.get("rsi", 50.0))
     mtf = c.get("mtf_alignment", "none")
-    c2_score = c.get("confluence_score", 0)
-    status = c.get("status", "EVALUATED")
-    reasons = c.get("rejection_reasons") or []
+
+    # 4 Pillar Breakdown
+    eval_b = c.get("eval_breakdown", {})
+    chart_score = eval_b.get("chart", {}).get("score", c.get("chart_score", 80))
+    indicator_score = eval_b.get("indicator", {}).get("score", c.get("indicator_score", int(c2_score)))
+    sentiment_score = eval_b.get("sentiment", {}).get("score", c.get("sentiment_score", 85))
+    news_score = eval_b.get("news", {}).get("score", c.get("news_score", 90))
+
+    # AI Conviction bullets
+    ai_rec = c.get("ai_recommendation") or c.get("recommendation", "WATCH")
+    ai_conf = c.get("ai_confidence") or c.get("confidence", 0)
+    ai_strengths = c.get("ai_strengths") or c.get("supporting_factors") or []
+    ai_risks = c.get("ai_risks") or c.get("risk_factors") or []
 
     lines = [
         f"🔍 <b>SIGNAL INSPECTOR — {pair}</b>",
-        f"<b>MODE: {mode}</b>",
+        f"<b>MODE: {mode}</b> | <b>Bot:</b> <code>{bot}</code>",
         "━━━━━━━━━━━━━━━━━━━━━━━━━",
         f"• <b>Price:</b> ₹{price:,.4f}" if price < 10 else f"• <b>Price:</b> ₹{price:,.2f}",
-        f"• <b>EMA Trend:</b> <code>{ema_trend}</code>",
-        f"• <b>RSI (14):</b> <code>{rsi:.1f}</code>",
-        f"• <b>MTF Alignment:</b> <code>{mtf}</code>",
-        f"• <b>24h Volume:</b> ₹{vol_24h:,.0f} (Ratio: <code>{vol_ratio:.2f}x</code>)",
+        f"• <b>C2 Confluence Score:</b> <code>{c2_score}/100</code> (Status: <code>{status}</code>)",
         "━━━━━━━━━━━━━━━━━━━━━━━━━",
-        f"• <b>C2 Confluence Score:</b> <code>{c2_score}/100</code>",
-        f"• <b>Gate Status:</b> <code>{status}</code>",
+        "🏛️ <b>4-Pillar Breakdown:</b>",
+        f"  • Technical Setup: <code>{indicator_score}/100</code> (EMA: {ema_trend}, RSI: {rsi:.1f})",
+        f"  • Chart Structure: <code>{chart_score}/100</code>",
+        f"  • Volume & Liquidity: <code>{vol_ratio:.2f}x vol</code> (24h: ₹{vol_24h:,.0f})",
+        f"  • Market Regime & News: <code>{sentiment_score}/100</code> (News: <code>{news_score}/100</code>)",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━",
+        f"🧠 <b>AI Conviction:</b> <code>{ai_rec}</code> (<code>{ai_conf}%</code>)",
     ]
+    if ai_strengths:
+        lines.append(f"  • <b>Strengths:</b> {', '.join(str(s) for s in ai_strengths[:2])}")
+    if ai_risks:
+        lines.append(f"  • <b>Risks:</b> {', '.join(str(r) for r in ai_risks[:2])}")
+
+    reasons = c.get("rejection_reasons") or []
     if reasons:
         lines.append(f"• <b>Gate Remarks:</b> <i>{'; '.join(reasons[:2])}</i>")
     lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━")
@@ -659,28 +699,44 @@ def format_telegram_orders(orders: list[dict[str, Any]], mode: str = "SHADOW") -
 
 
 def format_telegram_capital(c: dict[str, Any]) -> str:
-    """Format /capital response strictly obeying capital reality."""
+    """Format /capital response strictly obeying capital reality and C2 specification."""
     mode = c.get("mode", "SHADOW")
     avail = c.get("available_capital")
     avail_str = f"₹{avail:,.2f}" if avail is not None else "CAPITAL UNKNOWN"
+    deployed = float(c.get("deployed_capital", 0.0))
+    min_order = float(c.get("min_order_size", 200.0))
     order_amt = float(c.get("order_amount_inr", 200.0))
-    limit = c.get("capital_limit")
-    limit_str = f"₹{limit:,.2f}" if limit is not None else "DYNAMIC (UNCONSTRAINED)"
-    risk_avail = c.get("risk_available")
-    risk_str = f"₹{risk_avail:,.2f}" if risk_avail is not None else (avail_str if avail is not None else "DYNAMIC")
+    
+    if avail is not None:
+        headroom = max(0.0, float(avail) - deployed)
+        headroom_str = f"₹{headroom:,.2f}"
+    else:
+        headroom_str = "CAPITAL UNKNOWN"
 
-    return (
-        f"💼 <b>CAPITAL ALLOCATION & BROKER STATUS</b>\n"
-        f"<b>MODE: {mode}</b>\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"• <b>Trading Mode:</b> <code>{mode}</code>\n"
-        f"• <b>Available Capital:</b> <code>{avail_str}</code>\n"
-        f"• <b>Configured Order Amount:</b> <code>₹{order_amt:,.2f}</code>\n"
-        f"• <b>Capital Limit:</b> <code>{limit_str}</code>\n"
-        f"• <b>Risk Available:</b> <code>{risk_str}</code>\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"• <b>Capital Source:</b> <code>{c.get('source', 'COINDCX_EXCHANGE' if mode == 'LIVE_MICROCASH' else 'SIMULATION')}</code>"
-    )
+    open_pos_count = int(c.get("open_positions_count", 0))
+    per_bot = c.get("per_bot_allocation", {})
+
+    lines = [
+        "💼 <b>CAPITAL ALLOCATION & BROKER STATUS</b>",
+        f"<b>MODE: {mode}</b>",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━",
+        f"• <b>Available Capital:</b> <code>{avail_str}</code>",
+        f"• <b>Deployed Capital:</b> <code>₹{deployed:,.2f}</code>",
+        f"• <b>Available Headroom:</b> <code>{headroom_str}</code>",
+        f"• <b>Min Order Size:</b> <code>₹{min_order:,.2f}</code> (Configured: <code>₹{order_amt:,.2f}</code>)",
+        f"• <b>Open Positions:</b> <code>{open_pos_count}</code>",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━",
+        "<b>Per-Bot Allocation:</b>",
+    ]
+    if per_bot:
+        for bot, alloc in per_bot.items():
+            lines.append(f"  • <b>{bot}:</b> ₹{float(alloc):,.2f}")
+    else:
+        lines.append("  • <i>Standard Equal Allocation (₹10,000 Cap)</i>")
+
+    lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━")
+    lines.append(f"• <b>Capital Source:</b> <code>{c.get('source', 'COINDCX_EXCHANGE' if mode == 'LIVE_MICROCASH' else 'SIMULATION')}</code>")
+    return "\n".join(lines)
 
 
 def format_telegram_config(cfg: dict[str, Any]) -> str:

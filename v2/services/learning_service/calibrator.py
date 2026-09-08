@@ -18,9 +18,22 @@ from v2.services.analytics_service.engine import AnalyticsEngine
 
 logger = get_logger("v2.services.learning_service.calibrator")
 
+# B10 Immutable Safety Boundary: Learning service CANNOT mutate risk gates or filter cascade rules
+IMMUTABLE_SAFETY_BOUNDARIES: frozenset[str] = frozenset({
+    "scanner_min_24h_volume",
+    "scanner_max_price_change_pct",
+    "scanner_min_atr_pct",
+    "scanner_max_atr_pct",
+    "v2_scanner_max_signals",
+    "enforce_single_coin_lock",
+    "order_size_inr",
+    "total_capital_limit",
+    "v2_max_drawdown_pct",
+})
+
 
 class StrategyCalibrator:
-    """Dynamic Strategy Weight & Score Threshold Calibrator."""
+    """Dynamic Strategy Weight & Score Threshold Calibrator with strict safety boundary."""
 
     def __init__(
         self,
@@ -31,6 +44,18 @@ class StrategyCalibrator:
         self._learning_repo = learning_repo
         self._analytics_engine = analytics_engine
         self._bus = bus
+
+    @staticmethod
+    def validate_safety_boundary(proposed_overrides: Dict[str, Any]) -> None:
+        """
+        Enforce B10 Learning Safety Boundary.
+        Raises PermissionError if proposed calibration touches immutable safety invariants.
+        """
+        for key in proposed_overrides:
+            if key in IMMUTABLE_SAFETY_BOUNDARIES:
+                raise PermissionError(
+                    f"Safety Violation: Learning service cannot mutate immutable invariant '{key}'"
+                )
 
     async def calibrate_all_strategies(
         self, insights: List[Dict[str, Any]]

@@ -125,9 +125,9 @@ def test_telegram_formatters():
         {"name": "HDA", "subaccount_id": "ALPHA_HDA_01", "current_stage": "IDLE", "wallet_balance": 30000.0, "available_balance": 30000.0, "open_positions": 0, "daily_pnl": 0.0, "win_rate_pct": 80.0},
     ]
     bots_txt = format_telegram_bot_fleet(bots_data)
-    assert "PRODUCTION BOT FLEET" in bots_txt
-    assert "ALPHA_STE_01" in bots_txt
-    assert "75.0%" in bots_txt
+    assert "BOT FLEET" in bots_txt
+    assert "STE" in bots_txt
+    assert "HDA" in bots_txt
 
     stages_data = [
         {"number": 1, "name": "Market Data", "status": "ACTIVE", "processed_count": 100, "rejected_count": 0},
@@ -224,7 +224,7 @@ async def test_telegram_command_routing(tmp_path):
 
         # 2. Test /bots
         await tg_iface._handle_incoming_message({"chat": {"id": 12345}, "text": "/bots"})
-        assert "PRODUCTION BOT FLEET" in mock_client.sent_messages[-1]["text"]
+        assert "BOT FLEET" in mock_client.sent_messages[-1]["text"]
         assert "STE" in mock_client.sent_messages[-1]["text"]
 
         # 3. Test /stages
@@ -301,7 +301,7 @@ async def test_telegram_callback_queries(tmp_path):
         cb_bots = {"id": "cb_01", "data": "cb:bots", "message": {"chat": {"id": 12345}, "message_id": 101}}
         await tg_iface._handle_callback_query(cb_bots)
         assert len(mock_client.edited_messages) == 1
-        assert "PRODUCTION BOT FLEET" in mock_client.edited_messages[-1]["text"]
+        assert "BOT FLEET" in mock_client.edited_messages[-1]["text"]
         assert len(mock_client.answered_callbacks) == 1
 
         # 2. Tap 11 Stages button (cb:stages)
@@ -377,7 +377,8 @@ async def test_notification_service_with_interactive_telegram(tmp_path):
         )
         await asyncio.sleep(0.1)
         assert len(mock_client.sent_messages) >= 1
-        assert "Position Opened — ETH" in mock_client.sent_messages[-1]["text"]
+        assert "BUY EXECUTED" in mock_client.sent_messages[-1]["text"]
+        assert "ETH" in mock_client.sent_messages[-1]["text"]
 
         await notif_svc.stop()
         assert notif_svc.interactive_interface._running is False

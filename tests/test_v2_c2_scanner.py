@@ -327,7 +327,7 @@ class TestPostExitCooldownAndSignalLifecycle:
         sig_zec = _make_test_signal("ZEC", score=92)
         sig_btc = _make_test_signal("BTC", score=90)
 
-        scanner._confluence_engine.evaluate_candidates = lambda raw_candidates, signals: (
+        scanner._confluence_engine.evaluate_candidates = lambda raw_candidates, signals=None, *args, **kwargs: (
             [sig_zec, sig_btc], []
         )
         scanner._fetch_v1_signals = AsyncMock(return_value=[
@@ -420,7 +420,7 @@ class TestPostExitCooldownAndSignalLifecycle:
         }
 
         sig_zec = _make_test_signal("ZEC", score=92)
-        scanner._confluence_engine.evaluate_candidates = lambda raw_candidates, signals: ([sig_zec], [])
+        scanner._confluence_engine.evaluate_candidates = lambda raw_candidates, signals=None, *args, **kwargs: ([sig_zec], [])
         scanner._fetch_v1_signals = AsyncMock(return_value=[{"coin": "ZEC", "score": 92}])
         scanner._market_context_service.refresh_market_context = AsyncMock(return_value={
             "btc_trend": "BULLISH", "eth_trend": "BULLISH", "market_regime": "RISK_ON", "fear_and_greed": 70

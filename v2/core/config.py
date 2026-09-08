@@ -118,6 +118,48 @@ class V2Config(BaseSettings):
         default=85,
         description="Minimum confluence score (0-100) required to accept a signal.",
     )
+    v2_scanner_dynamic_threshold_min: int = Field(
+        default=80,
+        description="Minimum dynamic C2 threshold bound.",
+    )
+    v2_scanner_dynamic_threshold_max: int = Field(
+        default=92,
+        description="Maximum dynamic C2 threshold bound.",
+    )
+    # B1 Composite Ranking Weights
+    scanner_ranking_weight_volume: float = Field(
+        default=0.40,
+        description="Weight for 24h volume in top-N composite ranking.",
+    )
+    scanner_ranking_weight_liquidity: float = Field(
+        default=0.35,
+        description="Weight for liquidity/spread in top-N composite ranking.",
+    )
+    scanner_ranking_weight_volatility: float = Field(
+        default=0.25,
+        description="Weight for ATR/volatility in top-N composite ranking.",
+    )
+    scanner_ranking_top_n: int = Field(
+        default=50,
+        description="Top N coins selected after composite ranking.",
+    )
+    # B2 Filter Cascade Thresholds
+    scanner_min_24h_volume: float = Field(
+        default=50000.0,
+        description="Minimum 24h volume in INR for candidate coins.",
+    )
+    scanner_max_price_change_pct: float = Field(
+        default=25.0,
+        description="Maximum absolute 24h price change % to reject pump/dump moves.",
+    )
+    scanner_min_atr_pct: float = Field(
+        default=0.5,
+        description="Minimum ATR % of price (volatility sanity floor).",
+    )
+    scanner_max_atr_pct: float = Field(
+        default=12.0,
+        description="Maximum ATR % of price (volatility sanity ceiling).",
+    )
     v2_scanner_market_sentiment_enabled: bool = Field(
         default=True,
         description="Enable BTC/ETH Market Sentiment Layer.",

@@ -81,6 +81,10 @@ class TestWebSocketTelemetryGateway:
 # 3. Fleet Command & Control REST API Tests
 # =============================================================================
 
+from fastapi import FastAPI
+from v2.api.dashboard_routes import router as dashboard_router, init_dashboard_routes
+
+
 class TestDashboardAPIEndpoints:
 
     @pytest.fixture(autouse=True)
@@ -94,7 +98,12 @@ class TestDashboardAPIEndpoints:
 
     def test_dashboard_overview_fleet_and_signals_endpoints(self):
         """Verify GET /dashboard/overview, GET /dashboard/fleet, GET /dashboard/signals."""
-        with TestClient(app) as client:
+        test_app = FastAPI()
+        agg = DashboardAggregator()
+        init_dashboard_routes(agg)
+        test_app.include_router(dashboard_router, prefix="/api/v2")
+
+        with TestClient(test_app) as client:
             headers = {"X-API-Key": "test-dashboard-key"}
 
             # 1. GET /dashboard/overview
@@ -119,7 +128,12 @@ class TestDashboardAPIEndpoints:
 
     def test_fleet_bot_pause_resume_and_emergency_stop(self):
         """Verify bot pause/resume and global emergency stop endpoints."""
-        with TestClient(app) as client:
+        test_app = FastAPI()
+        agg = DashboardAggregator()
+        init_dashboard_routes(agg)
+        test_app.include_router(dashboard_router, prefix="/api/v2")
+
+        with TestClient(test_app) as client:
             headers = {"X-API-Key": "test-dashboard-key"}
 
             # 1. Pause STE bot

@@ -14,6 +14,7 @@ Evaluates:
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -21,6 +22,22 @@ from v2.core.logging import get_logger
 from v2.core.types import MarketState, Priority, RiskLevel, Signal
 
 logger = get_logger("v2.services.scanner_service.confluence_engine")
+
+
+class SentimentProvider(ABC):
+    """Abstract interface for external sentiment / news data providers (B9)."""
+
+    @abstractmethod
+    async def get_sentiment(self, coin: str) -> Optional[float]:
+        """Return sentiment score between 0.0 and 1.0, or None if unavailable."""
+        pass
+
+
+class NoOpSentimentProvider(SentimentProvider):
+    """Default no-op provider returning None (disabled pending external feed selection)."""
+
+    async def get_sentiment(self, coin: str) -> Optional[float]:
+        return None
 
 
 @dataclass
@@ -37,6 +54,9 @@ class ConfluenceResult:
     signal: Signal
     accepted: bool
     confluence_score: int  # 0 - 100
+    base_score: int = 0
+    regime_adjustment: int = 0
+    dynamic_threshold: int = 85
     rank: int = 0
     layer_evaluations: Dict[str, LayerEvaluation] = field(default_factory=dict)
     rejection_reasons: List[str] = field(default_factory=list)
@@ -227,15 +247,34 @@ class ConfluenceEngine:
         self,
         strict_threshold: int = 85,
         max_signals: int = 2,
+        dynamic_min: int = 80,
+        dynamic_max: int = 92,
+        sentiment_provider: Optional[SentimentProvider] = None,
     ) -> None:
         self.strict_threshold = strict_threshold
         self.max_signals = max_signals
+        self.dynamic_min = dynamic_min
+        self.dynamic_max = dynamic_max
+        self.sentiment_provider = sentiment_provider or NoOpSentimentProvider()
         self.coin_penalties: Dict[str, int] = {}
 
         self.chart_evaluator = ChartStructureEvaluator()
         self.indicator_evaluator = IndicatorEvaluator()
         self.sentiment_evaluator = MarketSentimentEvaluator()
         self.news_evaluator = NewsEventsEvaluator()
+
+    def get_dynamic_threshold(self, market_volatility: float = 1.0, is_choppy: bool = False) -> int:
+        """
+        B4: Dynamic C2 threshold bounded between dynamic_min (80) and dynamic_max (92).
+        Tighter during chop / high volatility, standard/relaxed during clean trends.
+        """
+        base = self.strict_threshold
+        if is_choppy or market_volatility > 1.5:
+            adj = int(min(7, (market_volatility - 1.0) * 5 + (3 if is_choppy else 0)))
+            return max(self.dynamic_min, min(self.dynamic_max, base + adj))
+        elif market_volatility < 0.8:
+            return max(self.dynamic_min, min(self.dynamic_max, base - 3))
+        return max(self.dynamic_min, min(self.dynamic_max, base))
 
     def update_market_sentiment(
         self,
@@ -250,6 +289,8 @@ class ConfluenceEngine:
         self,
         raw_candidates: List[Dict[str, Any]],
         signals: List[Signal],
+        market_volatility: float = 1.0,
+        is_choppy: bool = False,
     ) -> Tuple[List[Signal], List[ConfluenceResult]]:
         """
         Evaluates a list of candidate signals through all 5 layers.
@@ -257,6 +298,19 @@ class ConfluenceEngine:
         """
         results: List[ConfluenceResult] = []
         accepted_signals: List[Signal] = []
+
+        # Calculate dynamic threshold for this cycle (B4: 80 - 92)
+        active_threshold = self.get_dynamic_threshold(market_volatility=market_volatility, is_choppy=is_choppy)
+
+        # B3: Macro BTC/ETH/market regime gives a bounded +/- 5 score adjustment in C2
+        regime_adj = 0
+        if self.sentiment_evaluator.market_regime == "RISK_ON" and self.sentiment_evaluator.btc_trend == "BULLISH":
+            regime_adj = 5
+        elif self.sentiment_evaluator.market_regime == "RISK_OFF" or self.sentiment_evaluator.btc_trend == "BEARISH":
+            regime_adj = -5
+        elif self.sentiment_evaluator.btc_trend == "SIDEWAYS":
+            regime_adj = 0
+        bounded_regime_adj = max(-5, min(5, regime_adj))
 
         # Map candidate raw payload to signal by id or coin
         cand_map = {c.get("coin", "").upper(): c for c in raw_candidates}
@@ -272,12 +326,15 @@ class ConfluenceEngine:
 
             # Combined Confluence Score (Weighted average)
             # Chart 30%, Indicators 35%, Sentiment 20%, News 15%
-            combined_score = int(
+            base_score = int(
                 (l1.score * 0.30) +
                 (l2.score * 0.35) +
                 (l3.score * 0.20) +
                 (l4.score * 0.15)
             )
+
+            # Apply bounded regime adjustment (+/- 5)
+            combined_score = max(0, min(100, base_score + bounded_regime_adj))
 
             # Apply dynamic calibration coin penalty if active
             coin_key = sig.coin.upper()
@@ -292,16 +349,19 @@ class ConfluenceEngine:
             if not l3.passed: rejection_reasons.extend([f"[Sentiment] {r}" for r in l3.reasons])
             if not l4.passed: rejection_reasons.extend([f"[News] {r}" for r in l4.reasons])
 
-            if combined_score < self.strict_threshold:
-                rejection_reasons.append(f"Confluence score ({combined_score}) below strict threshold ({self.strict_threshold})")
+            if combined_score < active_threshold:
+                rejection_reasons.append(f"Confluence score ({combined_score}) below dynamic threshold ({active_threshold})")
 
             # Strict Rejection Mentality: ALL layers must pass & score >= threshold
-            accepted = len(rejection_reasons) == 0 and combined_score >= self.strict_threshold
+            accepted = len(rejection_reasons) == 0 and combined_score >= active_threshold
 
             res = ConfluenceResult(
                 signal=sig,
                 accepted=accepted,
                 confluence_score=combined_score,
+                base_score=base_score,
+                regime_adjustment=bounded_regime_adj,
+                dynamic_threshold=active_threshold,
                 layer_evaluations={
                     "chart": l1,
                     "indicator": l2,
@@ -329,6 +389,8 @@ class ConfluenceEngine:
                 "sentiment_score": res.layer_evaluations["sentiment"].score,
                 "news_score": res.layer_evaluations["news"].score,
                 "confluence_score": res.confluence_score,
+                "dynamic_threshold": active_threshold,
+                "regime_adjustment": bounded_regime_adj,
                 "rank": i,
                 "total_candidates": len(signals),
                 "high_conviction_count": len(final_results),
@@ -342,6 +404,8 @@ class ConfluenceEngine:
                 "confluence_passed": len(accepted_results),
                 "final_signals_output": len(accepted_signals),
                 "max_signals_cap": self.max_signals,
+                "dynamic_threshold": active_threshold,
+                "regime_adjustment": bounded_regime_adj,
             },
         )
 

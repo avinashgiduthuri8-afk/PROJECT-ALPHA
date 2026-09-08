@@ -162,7 +162,17 @@ def v1_response_to_signals(
             if generated_at is None:
                 generated_at = now
 
-            expires_at = generated_at + timedelta(seconds=signal_ttl_seconds)
+            # Timeframe-aware TTL (B8)
+            timeframe_ttl_map = {
+                "5m": 300,
+                "15m": 900,
+                "1h": 3600,
+                "4h": 14400,
+                "1d": 86400,
+            }
+            tf = str(item.get("timeframe") or item.get("interval") or "").strip().lower()
+            effective_ttl = timeframe_ttl_map.get(tf, signal_ttl_seconds)
+            expires_at = generated_at + timedelta(seconds=effective_ttl)
 
             sig = Signal(
                 id               = str(uuid.uuid4()),

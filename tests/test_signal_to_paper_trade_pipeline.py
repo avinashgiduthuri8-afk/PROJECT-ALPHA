@@ -62,17 +62,17 @@ async def test_complete_signal_to_paper_trade_pipeline():
     for i in range(30):
         ts = now_ms - (30 - i) * step_15m
         if i % 2 == 0 and i > 0:
-            price -= 1500.0  # healthy pullback
+            price -= 15000.0  # healthy pullback
         else:
-            price += 2000.0  # upward continuation
+            price += 25000.0  # upward continuation
         vol = 25.0 if i >= 27 else 10.0
         candles_15m.append({
             "pair": "BTC/INR",
             "timeframe": "15m",
             "timestamp": ts,
-            "open": price - 500.0,
-            "high": price + 1000.0,
-            "low": price - 1000.0,
+            "open": price - 20000.0,
+            "high": price + 50000.0,
+            "low": price - 50000.0,
             "close": price,
             "volume": vol,
         })

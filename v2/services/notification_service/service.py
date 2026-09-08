@@ -71,6 +71,7 @@ class NotificationService:
         )
         self._total_dispatched = 0
         self._alert_rate_limits: dict[str, float] = {}
+        self._dedup_cache: dict[tuple[str, str, str], float] = {}
         self._started = False
 
 
@@ -81,6 +82,20 @@ class NotificationService:
     @property
     def interactive_interface(self) -> TelegramInteractiveInterface:
         return self._interactive_interface
+
+    def _is_duplicate_alert(self, event_type: str, coin: str, reason: str, ttl_seconds: float = 1800.0) -> bool:
+        """In-memory alert dedup counter keyed on (event_type, coin, reason) with a flush window."""
+        import time as _time
+        now_ts = _time.time()
+        key = (str(event_type).upper(), str(coin).upper(), str(reason).strip())
+        last_sent = self._dedup_cache.get(key, 0.0)
+        if now_ts - last_sent < ttl_seconds:
+            return True
+        self._dedup_cache[key] = now_ts
+        # Prune old cache entries
+        if len(self._dedup_cache) > 200:
+            self._dedup_cache = {k: ts for k, ts in self._dedup_cache.items() if now_ts - ts < ttl_seconds}
+        return False
 
     def wire_dependencies(
         self,
@@ -131,6 +146,7 @@ class NotificationService:
         self._bus.subscribe(EventType.POSITION_CLOSED, self._on_position_closed)
         self._bus.subscribe(EventType.CIRCUIT_BREAKER_TRIGGERED, self._on_circuit_breaker)
         self._bus.subscribe(EventType.ALERT_GENERATED, self._on_alert_generated)
+        self._bus.subscribe(EventType.TRADE_DENIED, self._on_trade_denied)
         await self._bus.publish(EventType.SYSTEM_STARTUP, {"service": "notification_service"})
         await self._interactive_interface.start()
         logger.info("NotificationService started", extra={"telegram_configured": self._telegram.is_configured})
@@ -142,6 +158,7 @@ class NotificationService:
         self._bus.unsubscribe(EventType.POSITION_CLOSED, self._on_position_closed)
         self._bus.unsubscribe(EventType.CIRCUIT_BREAKER_TRIGGERED, self._on_circuit_breaker)
         self._bus.unsubscribe(EventType.ALERT_GENERATED, self._on_alert_generated)
+        self._bus.unsubscribe(EventType.TRADE_DENIED, self._on_trade_denied)
         logger.info("NotificationService stopped")
 
     # ── Dispatch Handlers ─────────────────────────────────────────────────────
@@ -155,6 +172,10 @@ class NotificationService:
 
     async def _on_signal_ai_confirmed(self, event_type: EventType, payload: dict) -> None:
         try:
+            coin = payload.get("coin", "UNKNOWN")
+            rec = payload.get("recommendation", "WATCH")
+            if self._is_duplicate_alert("SIGNAL_AI", coin, rec):
+                return
             msg = format_signal_ai_alert(payload)
             if await self._telegram.send_message(msg):
                 self._total_dispatched += 1
@@ -171,6 +192,20 @@ class NotificationService:
 
     async def _on_trade_denied(self, event_type: EventType, payload: dict) -> None:
         try:
+            coin = payload.get("coin", "UNKNOWN")
+            reason = payload.get("reason", "Capital limit reached")
+            c2_score = int(payload.get("confluence_score") or payload.get("c2_score") or payload.get("score") or 0)
+            ai_rec = payload.get("ai_recommendation") or payload.get("recommendation") or "APPROVE"
+            
+            # Risk rejection alerts only fire for high-conviction candidates (C2 >= 85, AI-approved)
+            if c2_score < 85 or ai_rec not in ("APPROVE", "SCALE_DOWN"):
+                logger.debug("Suppressing low-conviction trade denied alert for %s (C2: %d, AI: %s)", coin, c2_score, ai_rec)
+                return
+
+            if self._is_duplicate_alert("TRADE_DENIED", coin, reason):
+                logger.debug("Suppressing duplicate Trade Denied alert for %s: %s", coin, reason)
+                return
+
             msg = format_trade_denied_alert(payload)
             if await self._telegram.send_message(msg):
                 self._total_dispatched += 1
@@ -195,6 +230,9 @@ class NotificationService:
 
     async def _on_circuit_breaker(self, event_type: EventType, payload: dict) -> None:
         try:
+            reason = payload.get("reason", "Threshold breached")
+            if self._is_duplicate_alert("CIRCUIT_BREAKER", "SYSTEM", reason, ttl_seconds=600.0):
+                return
             msg = format_circuit_breaker_alert(payload)
             if await self._telegram.send_message(msg):
                 self._total_dispatched += 1
@@ -203,6 +241,10 @@ class NotificationService:
 
     async def _on_divergence(self, event_type: EventType, payload: dict) -> None:
         try:
+            coin = payload.get("coin", "UNKNOWN")
+            div_type = payload.get("divergence_type", "AI_FILTERED")
+            if self._is_duplicate_alert("DIVERGENCE", coin, div_type):
+                return
             msg = format_divergence_alert(payload)
             if await self._telegram.send_message(msg):
                 self._total_dispatched += 1
@@ -211,15 +253,12 @@ class NotificationService:
 
     async def _on_alert_generated(self, event_type: EventType, payload: dict) -> None:
         try:
-            import time as _time
             title = payload.get("title", "Generic Alert")
-            now_ts = _time.time()
-            last_sent = self._alert_rate_limits.get(title, 0.0)
-            # Throttle identical alerts to at most once per 30 minutes (1800s) to prevent spamming
-            if now_ts - last_sent < 1800.0:
+            coin = payload.get("coin", "SYSTEM")
+            msg_body = payload.get("message", "")
+            if self._is_duplicate_alert("ALERT_GENERATED", coin, f"{title}:{msg_body[:40]}"):
                 logger.debug("Suppressing duplicate Telegram alert: %s", title)
                 return
-            self._alert_rate_limits[title] = now_ts
 
             msg = format_generic_alert(payload)
             if await self._telegram.send_message(msg):

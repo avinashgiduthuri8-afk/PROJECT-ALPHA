@@ -202,6 +202,27 @@ def round_qty(pair: str, qty: float) -> float:
     return res
 
 
+def round_qty_up(pair: str, qty: float) -> float:
+    """Round lot quantity UP to pair step size (ceil)."""
+    if qty <= 0:
+        return 0.0
+
+    spec = get_pair_spec(pair)
+    if spec.lot_step_decimals < 0:
+        step = 10 ** abs(spec.lot_step_decimals)
+        res = float(math.ceil(qty / step) * step)
+    elif spec.lot_step_decimals == 0:
+        res = float(math.ceil(qty))
+    else:
+        factor = 10 ** spec.lot_step_decimals
+        res = float(math.ceil(qty * factor) / factor)
+
+    if res == 0.0 and qty > 0:
+        res = float(math.ceil(qty * 1_000_000) / 1_000_000)
+
+    return res
+
+
 def validate_order_notional(
     pair: str,
     price: float,
@@ -209,7 +230,7 @@ def validate_order_notional(
     min_notional: Optional[float] = None,
 ) -> bool:
     """
-    Validate that the order meets both minimum lot size and minimum order value (₹100).
+    Validate that the order meets both minimum lot size and minimum order value (₹200).
     """
     spec = get_pair_spec(pair)
     min_val = min_notional if min_notional is not None else spec.min_notional_inr
