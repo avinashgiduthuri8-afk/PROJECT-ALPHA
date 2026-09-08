@@ -477,7 +477,7 @@ async def serve_dashboard(request: Request):
         request=request,
         name="dashboard.html",
         context={
-            "api_key": cfg.dashboard_api_key or "alpha-prod-key",
+            "api_key": cfg.dashboard_api_key or "",
             "data": {
                 "mtb_overview": {"daily_pnl": 0.0, "open_positions": []},
                 "service_statuses": {"scanner_telegram": "ONLINE", "mtb_telegram": "ONLINE"},

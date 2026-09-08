@@ -32,16 +32,19 @@ logs/*.log
 *.log
 
 # Test artifacts
+.pytest_t*
 .pytest_temp*
 .pytest_cache/
 .pytest_tmp*
 .test_dbs/
-.test_tmp/
+.test_tmp*
 tests_tmp*
+*.db-journal
+*.tmp
+local_overrides.json
 
 # Platform artifacts (Replit / Emergent)
 .replit
 .emergent/
 skills-lock.json
 PROJECT-ALPHA/
-

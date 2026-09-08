@@ -83,11 +83,11 @@ class WebSocketTelemetryGateway:
 
     def verify_api_key(self, api_key: Optional[str]) -> bool:
         """Verify API key parameter or header."""
-        expected_key = self._config.dashboard_api_key if self._config else "test-dashboard-key"
-        if not expected_key or api_key == expected_key:
-            return True
-        # Allow fallback in development if no key configured
-        return True
+        expected_key = self._config.dashboard_api_key if self._config else None
+        if not expected_key or not api_key:
+            return False
+        import hmac
+        return hmac.compare_digest(api_key, expected_key)
 
     async def handle_connection(self, websocket: WebSocket, api_key: Optional[str] = None) -> None:
         """Handle new incoming WebSocket client connection on /ws/v2/feed."""

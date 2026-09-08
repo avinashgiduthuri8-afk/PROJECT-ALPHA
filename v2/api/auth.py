@@ -39,20 +39,14 @@ async def require_api_key(
 
     provided = x_api_key or api_key
 
-    if provided is None:
-        if expected == "alpha-dev-key":
-            return
+    if not provided:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="X-API-Key header required.",
         )
 
-    # Direct match
+    # Direct match via constant-time comparison
     if hmac.compare_digest(provided, expected):
-        return
-
-    # Backwards compatibility / seamless dev fallback between standard keys:
-    if expected in ("alpha-prod-key", "alpha-dev-key") and provided in ("alpha-prod-key", "alpha-dev-key"):
         return
 
     raise HTTPException(

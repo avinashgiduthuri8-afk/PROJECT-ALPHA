@@ -294,37 +294,40 @@ def format_telegram_positions(positions: list[dict[str, Any]]) -> str:
         bot = p.get("bot", "STE")
         qty = float(p.get("qty", 0.0) or 0.0)
         entry = float(p.get("entry_price", 0.0) or 0.0)
-        cur = float(p.get("current_price", entry) or entry)
-        unrealized = float(p.get("unrealised_pnl", 0.0) or 0.0)
+        raw_cur = p.get("current_price")
+        cur = float(raw_cur) if (raw_cur is not None and float(raw_cur) > 0) else None
         status = p.get("status", "OPEN")
         sl = p.get("stop_loss")
         tp = p.get("take_profit")
         
         is_usdt = "USDT" in pair or p.get("quote") == "USDT"
         sym = "$" if is_usdt else "₹"
-        
         deployed = float(p.get("amount", 0.0) or (qty * entry))
-        
-        if deployed > 0:
-            unrealized_pct = (unrealized / deployed) * 100.0
-        elif entry > 0:
-            unrealized_pct = ((cur - entry) / entry) * 100.0
+
+        sl_str = f"{sym}{float(sl):.2f}" if sl is not None else "None"
+        tp_str = f"{sym}{float(tp):.2f}" if tp is not None else "None"
+
+        if cur is None:
+            lines.append(
+                f"⚪ <b>{pair}</b> [{status}]\n"
+                f"   • Entry: {sym}{entry:.2f} | Capital: {sym}{deployed:.2f}\n"
+                f"   • Unrealized P&L: <code>UNAVAILABLE</code>\n"
+                f"   • TP: {tp_str} | SL: {sl_str}\n"
+                f"   • Status: <code>{status}</code>"
+            )
         else:
-            unrealized_pct = 0.0
-
-        sign = "+" if unrealized >= 0 else ""
-        pct_sign = "+" if unrealized_pct >= 0 else ""
-        emoji = "🟢" if unrealized >= 0 else "🔴"
-
-        sl_str = f"{sym}{sl:.2f}" if sl is not None else "None"
-        tp_str = f"{sym}{tp:.2f}" if tp is not None else "None"
-
-        lines.append(
-            f"{emoji} <b>{pair}</b> (<code>{bot}</code>)\n"
-            f"   • Entry: {sym}{entry:.2f} | Capital: {sym}{deployed:.2f}\n"
-            f"   • Unrealized P&L: <code>{sign}{sym}{unrealized:.2f} ({pct_sign}{unrealized_pct:.2f}%)</code>\n"
-            f"   • TP: {tp_str} | SL: {sl_str} | Status: <code>{status}</code>\n"
-        )
+            unrealized = float(p.get("unrealised_pnl", 0.0) if p.get("unrealised_pnl") is not None else (cur - entry) * qty)
+            unrealized_pct = (unrealized / deployed * 100.0) if deployed > 0 else (((cur - entry) / entry) * 100.0 if entry > 0 else 0.0)
+            sign = "+" if unrealized >= 0 else ""
+            pct_sign = "+" if unrealized_pct >= 0 else ""
+            emoji = "🟢" if unrealized >= 0 else "🔴"
+            lines.append(
+                f"{emoji} <b>{pair}</b> [{status}]\n"
+                f"   • Entry: {sym}{entry:.2f} | Capital: {sym}{deployed:.2f}\n"
+                f"   • Unrealized P&L: <code>{sign}{sym}{unrealized:.2f} ({pct_sign}{unrealized_pct:.2f}%)</code>\n"
+                f"   • TP: {tp_str} | SL: {sl_str}\n"
+                f"   • Status: <code>{status}</code>"
+            )
 
     lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━")
     return "\n".join(lines)
