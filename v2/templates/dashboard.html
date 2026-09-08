@@ -532,6 +532,168 @@
             color: #fff;
         }
 
+        /* ── Dashboard Security Overlay & Lock Screen ── */
+        .security-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(8, 12, 20, 0.94);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            z-index: 999999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .security-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        .security-card {
+            background: #0f172a;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.7), 0 0 30px rgba(99, 102, 241, 0.2);
+            border-radius: 16px;
+            padding: 32px 28px;
+            max-width: 380px;
+            width: 90%;
+            text-align: center;
+            position: relative;
+        }
+        .security-icon {
+            font-size: 2.5rem;
+            margin-bottom: 12px;
+            display: inline-block;
+            filter: drop-shadow(0 0 10px rgba(99, 102, 241, 0.6));
+        }
+        .security-title {
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+        }
+        .security-subtitle {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+        }
+        .security-input-group {
+            position: relative;
+            margin-bottom: 16px;
+        }
+        .security-input {
+            width: 100%;
+            padding: 12px 42px 12px 16px;
+            background: #090d16;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: #fff;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.1rem;
+            text-align: center;
+            letter-spacing: 0.2em;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .security-input:focus {
+            border-color: var(--accent-indigo);
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.35);
+        }
+        .security-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            color: #fff;
+            font-weight: 700;
+            font-size: 0.85rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+        }
+        .security-btn:hover {
+            background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+            transform: translateY(-1px);
+        }
+        .security-error {
+            color: #f87171;
+            font-size: 0.78rem;
+            margin-top: 10px;
+            min-height: 18px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+        .shake {
+            animation: shake 0.4s ease-in-out;
+        }
+
+        /* ── Header Mode Switcher Toggle ── */
+        .mode-switch-wrapper {
+            display: inline-flex;
+            align-items: center;
+            background: #090d16;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 3px;
+            gap: 3px;
+        }
+        .mode-toggle-btn {
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 0.74rem;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            font-family: 'JetBrains Mono', monospace;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+            color: var(--text-secondary);
+            background: transparent;
+        }
+        .mode-toggle-btn:hover {
+            color: #fff;
+        }
+        .mode-toggle-btn.active-paper {
+            background: #6366f1;
+            color: #fff;
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
+        }
+        .mode-toggle-btn.active-live {
+            background: #ef4444;
+            color: #fff;
+            box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
+        }
+        .btn-lock-nav {
+            padding: 5px 10px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            border-radius: 6px;
+            font-size: 0.74rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.2s;
+        }
+        .btn-lock-nav:hover {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            border-color: rgba(255,255,255,0.2);
+        }
     </style>
 </head>
 <body>
@@ -662,10 +824,25 @@
                     </div>
                 </div>
 
-                <div class="status-right-group">
+                <div class="status-right-group" style="display:flex;align-items:center;gap:10px;">
+                    <!-- Interactive Mode Switcher (PAPER vs LIVE) -->
+                    <div class="mode-switch-wrapper" title="Switch Execution Mode">
+                        <button id="btn-mode-paper" onclick="handleModeSwitchClick('PAPER')" class="mode-toggle-btn active-paper">
+                            <span>🟡</span> PAPER TRADE
+                        </button>
+                        <button id="btn-mode-live" onclick="handleModeSwitchClick('LIVE_MICROCASH')" class="mode-toggle-btn">
+                            <span>🔴</span> LIVE TRADE
+                        </button>
+                    </div>
+
                     <span class="status-badge-item font-mono text-xs text-secondary">
                         MARKET: <strong class="text-green">24/7 SPOT CRYPTO</strong>
                     </span>
+
+                    <button onclick="lockDashboard()" class="btn-lock-nav" title="Lock Dashboard with Security Password">
+                        <span>🔒</span> Lock
+                    </button>
+
                     <button onclick="triggerEmergencyKill()" class="btn-sm" style="background:#ef4444;color:#fff;font-weight:700;border:none;">
                         🚨 KILL SWITCH
                     </button>
@@ -2148,6 +2325,7 @@
                         const dispMode = (status.deployment_mode === 'LIVE_MICROCASH' || status.deployment_mode === 'LIVE') ? 'LIVE' : 'PAPER';
                         autoLabel.innerText = dispMode + " EXECUTION: " + (status.trading_enabled ? "ACTIVE" : "PAUSED");
                     }
+                    updateModeUI(status.deployment_mode || 'PAPER');
                 }
 
                 // 2. Scanned Universe & Deep Dive Live Prices
@@ -2522,8 +2700,172 @@
             }
         }
 
+        // ═══════════════════════════════════════════════════════════════════
+        //  DASHBOARD SECURITY GATEWAY & TRADING MODE CONTROLLER (PIN: 110299)
+        // ═══════════════════════════════════════════════════════════════════
+        const DASHBOARD_SECURITY_PIN = "110299";
+
+        function checkDashboardSecurity() {
+            const overlay = document.getElementById("dashboardSecurityOverlay");
+            const storedPin = sessionStorage.getItem("alpha_auth_pin");
+            if (storedPin === DASHBOARD_SECURITY_PIN) {
+                if (overlay) overlay.style.display = "none";
+            } else {
+                if (overlay) {
+                    overlay.style.display = "flex";
+                    const input = document.getElementById("securityPasswordInput");
+                    if (input) {
+                        input.value = "";
+                        setTimeout(() => input.focus(), 150);
+                    }
+                }
+            }
+        }
+
+        async function handleSecurityUnlockSubmit(event) {
+            if (event) event.preventDefault();
+            const input = document.getElementById("securityPasswordInput");
+            const errDiv = document.getElementById("securityErrorMsg");
+            const cardBox = document.getElementById("securityCardBox");
+            if (!input) return;
+
+            const entered = input.value.trim();
+            if (!entered) {
+                if (errDiv) errDiv.innerText = "Please enter the security password";
+                return;
+            }
+
+            try {
+                const res = await fetch(API_BASE + "/auth/verify-password", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ password: entered })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    sessionStorage.setItem("alpha_auth_pin", entered);
+                    const overlay = document.getElementById("dashboardSecurityOverlay");
+                    if (overlay) overlay.style.display = "none";
+                    if (errDiv) errDiv.innerText = "";
+                } else {
+                    if (errDiv) errDiv.innerText = "❌ Incorrect password. Access denied.";
+                    if (cardBox) {
+                        cardBox.classList.remove("shake");
+                        void cardBox.offsetWidth; // trigger reflow
+                        cardBox.classList.add("shake");
+                    }
+                    input.select();
+                }
+            } catch (err) {
+                if (entered === DASHBOARD_SECURITY_PIN) {
+                    sessionStorage.setItem("alpha_auth_pin", entered);
+                    const overlay = document.getElementById("dashboardSecurityOverlay");
+                    if (overlay) overlay.style.display = "none";
+                    if (errDiv) errDiv.innerText = "";
+                } else {
+                    if (errDiv) errDiv.innerText = "❌ Incorrect password. Access denied.";
+                }
+            }
+        }
+
+        function lockDashboard() {
+            sessionStorage.removeItem("alpha_auth_pin");
+            const overlay = document.getElementById("dashboardSecurityOverlay");
+            if (overlay) {
+                overlay.style.display = "flex";
+                const input = document.getElementById("securityPasswordInput");
+                if (input) {
+                    input.value = "";
+                    setTimeout(() => input.focus(), 150);
+                }
+            }
+        }
+
+        function updateModeUI(mode) {
+            const isLive = (mode === 'LIVE' || mode === 'LIVE_MICROCASH');
+            const btnPaper = document.getElementById('btn-mode-paper');
+            const btnLive = document.getElementById('btn-mode-live');
+
+            if (btnPaper && btnLive) {
+                if (isLive) {
+                    btnLive.classList.add('active-live');
+                    btnPaper.classList.remove('active-paper');
+                } else {
+                    btnPaper.classList.add('active-paper');
+                    btnLive.classList.remove('active-live');
+                }
+            }
+        }
+
+        async function handleModeSwitchClick(targetMode) {
+            if (targetMode === 'PAPER') {
+                try {
+                    const res = await fetch(API_BASE + "/production/set-mode", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ mode: "PAPER" })
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        updateModeUI('PAPER');
+                        refreshLiveTelemetry();
+                    } else {
+                        alert(data.error || "Failed to switch to PAPER mode");
+                    }
+                } catch (e) {
+                    console.error("Error setting PAPER mode:", e);
+                }
+            } else if (targetMode === 'LIVE' || targetMode === 'LIVE_MICROCASH') {
+                const modal = document.getElementById('liveTradeConfirmModal');
+                const passInput = document.getElementById('liveModePasswordInput');
+                const errDiv = document.getElementById('liveModeErrorMsg');
+                if (errDiv) errDiv.innerText = "";
+                if (passInput) passInput.value = "";
+                if (modal) {
+                    modal.style.display = "flex";
+                    if (passInput) setTimeout(() => passInput.focus(), 150);
+                }
+            }
+        }
+
+        function closeLiveConfirmModal() {
+            const modal = document.getElementById('liveTradeConfirmModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        async function confirmLiveTradeMode() {
+            const passInput = document.getElementById('liveModePasswordInput');
+            const errDiv = document.getElementById('liveModeErrorMsg');
+            const entered = passInput ? passInput.value.trim() : "";
+
+            if (!entered) {
+                if (errDiv) errDiv.innerText = "Please enter security password (110299)";
+                return;
+            }
+
+            try {
+                const res = await fetch(API_BASE + "/production/set-mode", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ mode: "LIVE_MICROCASH", password: entered })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    closeLiveConfirmModal();
+                    updateModeUI('LIVE_MICROCASH');
+                    refreshLiveTelemetry();
+                } else {
+                    if (errDiv) errDiv.innerText = "❌ " + (data.error || "Invalid security password (110299 required)");
+                    if (passInput) passInput.select();
+                }
+            } catch (err) {
+                if (errDiv) errDiv.innerText = "❌ Error connecting to server: " + err.message;
+            }
+        }
+
         // Initial fetch, fast 1s/2s polling intervals, and WebSocket connection
         window.addEventListener("DOMContentLoaded", () => {
+            checkDashboardSecurity();
             refreshLiveTelemetry();
             connectLiveWebSocket();
             // Fast 1-second live ticker snapshot refresh
@@ -2592,6 +2934,59 @@
                 <div style="display:flex; gap:10px; margin-top:20px;">
                     <button class="btn-sm" style="flex:1; background:var(--accent-indigo); color:#fff; font-weight:700; border:none; padding:8px 12px;" onclick="submitPositionModify()">💾 Update Targets & Trailing</button>
                     <button class="btn-sm" style="background:#ef4444; color:#fff; font-weight:700; border:none; padding:8px 12px;" onclick="submitImmediateCloseFromModal()">⚡ Market Exit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!--  DASHBOARD SECURITY PASSWORD LOCK SCREEN (PIN: 110299)              -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <div id="dashboardSecurityOverlay" class="security-overlay">
+        <div class="security-card" id="securityCardBox">
+            <div class="security-icon">🔒</div>
+            <div class="security-title">PROJECT-ALPHA V2</div>
+            <div class="security-subtitle">MISSION CONTROL SECURITY GATEWAY</div>
+            
+            <form onsubmit="handleSecurityUnlockSubmit(event)">
+                <div class="security-input-group">
+                    <input type="password" id="securityPasswordInput" class="security-input" placeholder="••••••" maxlength="12" autocomplete="off" autofocus>
+                </div>
+                <button type="submit" class="security-btn" id="btnUnlockDashboard">
+                    🔓 Unlock Mission Control
+                </button>
+            </form>
+            <div id="securityErrorMsg" class="security-error"></div>
+            <div style="font-size:0.68rem; color:var(--text-muted); margin-top:14px; font-family:'JetBrains Mono',monospace;">
+                ENTER AUTHORIZED SECURITY PASSWORD (110299)
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!--  LIVE TRADING MODE SECURITY CONFIRMATION MODAL                      -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <div id="liveTradeConfirmModal" class="pos-modal-overlay" style="display:none;">
+        <div class="pos-modal-box" style="border: 1px solid #ef4444; box-shadow: 0 0 30px rgba(239, 68, 68, 0.3);">
+            <div class="pos-modal-header" style="border-bottom: 1px solid rgba(239, 68, 68, 0.3);">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-size:1.3rem;">⚠️</span>
+                    <h3 style="margin:0; font-size:1.05rem; color:#f87171;">Confirm LIVE Trade Mode</h3>
+                </div>
+                <button onclick="closeLiveConfirmModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
+            </div>
+            <div class="pos-modal-body" style="padding:16px 0;">
+                <p style="font-size:0.84rem; color:#fca5a5; line-height:1.4; margin-bottom:14px;">
+                    <strong>CAUTION:</strong> Switching to <strong>LIVE</strong> mode activates real-capital order dispatching to CoinDCX exchange.
+                </p>
+                <div style="margin-bottom:14px;">
+                    <label style="display:block; font-size:0.78rem; color:var(--text-secondary); margin-bottom:6px;">Enter Security Password (110299) to Authorize:</label>
+                    <input type="password" id="liveModePasswordInput" class="pos-input-field" placeholder="Security Password (110299)" autocomplete="off" style="text-align:center; font-size:1.1rem; letter-spacing:0.15em;">
+                </div>
+                <div id="liveModeErrorMsg" style="color:#ef4444; font-size:0.75rem; min-height:16px; margin-bottom:10px; font-family:'JetBrains Mono',monospace;"></div>
+                <div style="display:flex; gap:10px;">
+                    <button type="button" class="btn-sm" style="background:rgba(255,255,255,0.1); color:#fff; border:1px solid var(--border-color); flex:1; padding:8px;" onclick="closeLiveConfirmModal()">Cancel</button>
+                    <button type="button" class="btn-sm" style="background:#ef4444; color:#fff; font-weight:700; border:none; flex:1.2; padding:8px;" onclick="confirmLiveTradeMode()">🔴 Authorize & Switch to LIVE</button>
                 </div>
             </div>
         </div>

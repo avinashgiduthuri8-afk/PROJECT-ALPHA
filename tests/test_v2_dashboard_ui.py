@@ -77,3 +77,62 @@ def test_websocket_connection_and_auth():
                 if "pong" in msg:
                     break
             assert any("pong" in m for m in received), f"Expected pong in received messages, got: {received}"
+
+
+def test_dashboard_security_elements_rendered():
+    """Verify Dashboard HTML contains security PIN overlay, live mode confirmation modal, and mode buttons."""
+    with TestClient(app) as client:
+        resp = client.get("/dashboard")
+        assert resp.status_code == 200
+        assert "dashboardSecurityOverlay" in resp.text
+        assert "securityPasswordInput" in resp.text
+        assert "110299" in resp.text
+        assert "btn-mode-paper" in resp.text
+        assert "btn-mode-live" in resp.text
+        assert "liveTradeConfirmModal" in resp.text
+        assert "liveModePasswordInput" in resp.text
+
+
+def test_auth_verify_password_endpoint():
+    """Verify POST /api/v2/auth/verify-password succeeds only with PIN 110299."""
+    with TestClient(app) as client:
+        # 1. Correct PIN
+        resp = client.post("/api/v2/auth/verify-password", json={"password": "110299"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is True
+        assert data["authorized"] is True
+
+        # 2. Incorrect PIN
+        resp_wrong = client.post("/api/v2/auth/verify-password", json={"password": "wrong"})
+        assert resp_wrong.status_code == 401
+        data_wrong = resp_wrong.json()
+        assert "detail" in data_wrong
+
+
+def test_set_mode_security_password_protection():
+    """Verify switching to LIVE requires PIN 110299, while PAPER is permitted."""
+    with TestClient(app) as client:
+        headers = {"X-API-Key": "test-ui-key"}
+
+        # 1. Switching to PAPER succeeds without password
+        resp_paper = client.post("/api/v2/production/set-mode", json={"mode": "PAPER"}, headers=headers)
+        assert resp_paper.status_code == 200
+        assert resp_paper.json()["success"] is True
+        assert resp_paper.json()["mode"] == "PAPER"
+
+        # 2. Switching to LIVE without password fails
+        resp_live_fail = client.post("/api/v2/production/set-mode", json={"mode": "LIVE_MICROCASH"}, headers=headers)
+        assert resp_live_fail.status_code == 403
+        assert "Security password required" in resp_live_fail.json()["detail"]
+
+        # 3. Switching to LIVE with wrong password fails
+        resp_live_wrong = client.post("/api/v2/production/set-mode", json={"mode": "LIVE_MICROCASH", "password": "999"}, headers=headers)
+        assert resp_live_wrong.status_code == 403
+
+        # 4. Switching to LIVE with correct PIN 110299 succeeds
+        resp_live_ok = client.post("/api/v2/production/set-mode", json={"mode": "LIVE_MICROCASH", "password": "110299"}, headers=headers)
+        assert resp_live_ok.status_code == 200
+        assert resp_live_ok.json()["success"] is True
+        assert resp_live_ok.json()["mode"] == "LIVE_MICROCASH"
+

@@ -466,11 +466,13 @@ class SimulateSignalResponseSchema(BaseModel):
 # ── Production Mode Controller Schemas ────────────────────────────────────────
 
 class SetModeRequestSchema(BaseModel):
-    mode: str = Field(description="'LIVE_MICROCASH' or 'SHADOW'")
+    mode: str = Field(description="'LIVE_MICROCASH', 'PAPER', or 'SHADOW'")
+    password: Optional[str] = Field(default=None, description="Dashboard security password (110299) for LIVE mode authorization")
 
 
 class SetModeResponseSchema(BaseModel):
     ok:              bool = True
+    success:         bool = True
     mode:            str
     deployment_mode: Optional[str] = None
     trading_enabled: bool

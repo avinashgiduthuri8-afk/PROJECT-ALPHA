@@ -159,6 +159,21 @@ async def health() -> OkSchema:
     return OkSchema(ok=True, detail="V2 running")
 
 
+# ── Dashboard Security Password Auth ──────────────────────────────────────────
+
+class VerifyPasswordRequestSchema(BaseModel):
+    password: str
+
+@router.post("/auth/verify-password", tags=["auth"])
+async def verify_dashboard_password(body: VerifyPasswordRequestSchema) -> dict:
+    """Verify the 6-digit dashboard security password (110299)."""
+    DASHBOARD_SECURITY_PASSWORD = "110299"
+    if body.password.strip() == DASHBOARD_SECURITY_PASSWORD:
+        return {"ok": True, "success": True, "valid": True, "authorized": True, "message": "Authenticated successfully."}
+    raise HTTPException(status_code=401, detail="Invalid security password.")
+
+
+
 # ── Status (auth required) ────────────────────────────────────────────────────
 
 @router.get(

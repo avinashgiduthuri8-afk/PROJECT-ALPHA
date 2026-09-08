@@ -148,6 +148,14 @@ async def set_execution_mode(body: SetModeRequestSchema) -> SetModeResponseSchem
             detail="Invalid mode. Must be 'LIVE_MICROCASH', 'PAPER', or 'SHADOW'.",
         )
 
+    DASHBOARD_SECURITY_PASSWORD = "110299"
+    if target in ("LIVE", "LIVE_MICROCASH"):
+        if not body.password or body.password.strip() != DASHBOARD_SECURITY_PASSWORD:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Security password required (PIN: 110299) to switch to LIVE mode.",
+            )
+
     if _controller:
         try:
             res = await _controller.set_mode(target, operator="API")
