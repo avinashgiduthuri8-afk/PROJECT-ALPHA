@@ -139,7 +139,7 @@ class TradingService:
             coin = payload.get("coin", "UNKNOWN")
             pair = payload.get("pair") or f"{coin}/INR"
             bot_str = payload.get("bot", "STE")
-            approved_amount = float(payload.get("approved_amount") or self._config.order_size_inr)
+            approved_amount = max(200.0, float(payload.get("approved_amount") or self._config.order_size_inr))
             ai_adjustments = payload.get("ai_adjustments") or {}
             price = float(payload.get("price") or payload.get("current_price") or 100.0)
 
@@ -156,6 +156,12 @@ class TradingService:
                 current_price=price,
                 ai_adjustments=ai_adjustments,
             )
+
+            # Mandatory defense: enforce minimum ₹200.00 position amount in all modes (Paper & Live)
+            entry_px = float(order_data.get("entry_price") or price)
+            if order_data.get("amount", 0.0) < 200.0 and entry_px > 0:
+                order_data["qty"] = round_qty_up(pair, 200.0 / entry_px)
+                order_data["amount"] = round(entry_px * order_data["qty"], 2)
 
             # Strict Single-Position Asset Deduplication Check (Fleet-wide cross-strategy single coin lock)
             if self._config.enforce_single_coin_lock:

@@ -1165,6 +1165,16 @@ class TelegramInteractiveInterface:
             )
             return
 
+        if val < 200.0:
+            await self._telegram.send_message(
+                text=(
+                    f"❌ <b>Order Amount Below Minimum: ₹{val:,.2f}</b>\n"
+                    "Mandatory minimum order size is <b>₹200.00</b> across all modes (PAPER & LIVE)."
+                ),
+                target_chat_id=str(chat_id),
+            )
+            return
+
         # Persist through existing central V2 configuration mechanism
         try:
             V2Config.save_runtime_overrides({"order_size_inr": val})

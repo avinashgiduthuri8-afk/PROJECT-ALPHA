@@ -43,10 +43,11 @@ class STEAdapter(BaseBotAdapter):
         rounded_sl = round_price(pair, raw_sl)
         rounded_tp = round_price(pair, raw_tp)
 
+        approved_amount = max(200.0, float(approved_amount))
         raw_qty = approved_amount / rounded_entry if rounded_entry > 0 else 0.0
         rounded_qty = round_qty(pair, raw_qty)
-        if rounded_entry * rounded_qty < 200.0 and raw_qty > 0:
-            rounded_qty = round_qty_up(pair, raw_qty)
+        if rounded_entry * rounded_qty < 200.0 and rounded_entry > 0:
+            rounded_qty = round_qty_up(pair, 200.0 / rounded_entry)
 
         return {
             "bot": self.bot_name,

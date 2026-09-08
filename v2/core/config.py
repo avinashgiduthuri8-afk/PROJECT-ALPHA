@@ -259,6 +259,11 @@ class V2Config(BaseSettings):
     def telegram_chat_id(self) -> Optional[str]:
         return self.alert_chat_id
 
+    @field_validator("order_size_inr")
+    @classmethod
+    def validate_order_size(cls, v: float) -> float:
+        return max(200.0, float(v))
+
     @field_validator("v2_scanner_min_priority", "v2_ai_min_priority")
     @classmethod
     def validate_priority(cls, v: str) -> str:
@@ -305,6 +310,8 @@ class V2Config(BaseSettings):
             return self
 
         updates = {k: v for k, v in overrides.items() if k in HOT_RELOAD_KEYS}
+        if "order_size_inr" in updates:
+            updates["order_size_inr"] = max(200.0, float(updates["order_size_inr"]))
         if not updates:
             return self
         return self.model_copy(update=updates)
@@ -320,10 +327,14 @@ class V2Config(BaseSettings):
                 existing = json.loads(path.read_text(encoding="utf-8"))
             except Exception:
                 existing = {}
+        if "order_size_inr" in overrides:
+            overrides["order_size_inr"] = max(200.0, float(overrides["order_size_inr"]))
         existing.update(overrides)
+        if "order_size_inr" in existing:
+            existing["order_size_inr"] = max(200.0, float(existing["order_size_inr"]))
         path.write_text(json.dumps(existing, indent=2), encoding="utf-8")
         invalidate_config()
-        return get_config()
+        return cls().apply_override(override_path=str(path))
 
 
 @lru_cache(maxsize=1)

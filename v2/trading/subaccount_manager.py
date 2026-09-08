@@ -893,16 +893,17 @@ class CoinDCXSubAccountManager:
 
     def update_order_size(self, new_amount: float) -> None:
         """Dynamically update configurable micro-order amount across all strategy clients."""
+        clamped_amount = max(200.0, float(new_amount))
         with self._lock:
             for client in self._clients.values():
-                client.config.default_trade_amount_inr = new_amount
+                client.config.default_trade_amount_inr = clamped_amount
             if self._config:
-                self._config.order_size_inr = new_amount
-                self._config.v2_default_trade_amount_ste = new_amount
-                self._config.v2_default_trade_amount_hda = new_amount
-                self._config.v2_default_trade_amount_vcp = new_amount
-                self._config.v2_default_trade_amount_bbs = new_amount
-        logger.info("Subaccount manager dynamically updated order size to INR %.2f across all clients", new_amount)
+                self._config.order_size_inr = clamped_amount
+                self._config.v2_default_trade_amount_ste = clamped_amount
+                self._config.v2_default_trade_amount_hda = clamped_amount
+                self._config.v2_default_trade_amount_vcp = clamped_amount
+                self._config.v2_default_trade_amount_bbs = clamped_amount
+        logger.info("Subaccount manager dynamically updated order size to INR %.2f across all clients", clamped_amount)
 
     async def fetch_live_balance(self, client: Optional[httpx.AsyncClient] = None) -> Dict[str, Any]:
         """Fetch and synchronize real CoinDCX available INR balance."""

@@ -250,15 +250,15 @@ class RiskService:
         return BotName.STE
 
     def _get_default_amount_for_bot(self, bot: BotName) -> float:
-        if bot == BotName.STE and self._config.v2_default_trade_amount_ste != 200.0:
-            return self._config.v2_default_trade_amount_ste
-        if bot == BotName.HDA and self._config.v2_default_trade_amount_hda != 200.0:
-            return self._config.v2_default_trade_amount_hda
-        if bot == BotName.VCP and self._config.v2_default_trade_amount_vcp != 200.0:
-            return self._config.v2_default_trade_amount_vcp
-        if bot == BotName.BBS and self._config.v2_default_trade_amount_bbs != 200.0:
-            return self._config.v2_default_trade_amount_bbs
-        return self._config.order_size_inr
+        if bot == BotName.STE and self._config.v2_default_trade_amount_ste > 200.0:
+            return float(self._config.v2_default_trade_amount_ste)
+        if bot == BotName.HDA and self._config.v2_default_trade_amount_hda > 200.0:
+            return float(self._config.v2_default_trade_amount_hda)
+        if bot == BotName.VCP and self._config.v2_default_trade_amount_vcp > 200.0:
+            return float(self._config.v2_default_trade_amount_vcp)
+        if bot == BotName.BBS and self._config.v2_default_trade_amount_bbs > 200.0:
+            return float(self._config.v2_default_trade_amount_bbs)
+        return max(200.0, float(self._config.order_size_inr))
 
     async def is_safe_to_resume(self) -> tuple[bool, str]:
         """

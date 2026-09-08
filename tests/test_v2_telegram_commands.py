@@ -580,25 +580,30 @@ async def test_cmd_setamount_rejects_invalid_values():
     """Verify /setamount accepts valid amounts without arbitrary ₹100 floor, but rejects negative, zero, non-numeric, or NaN values."""
     db, *_, tg_client, c2 = await _setup_telegram_test_env()
 
-    # 1. Valid positive amount below 100 (verifies no arbitrary 100 floor)
-    await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/setamount 50"})
+    # 1. Valid positive amount >= 200
+    await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/setamount 250"})
     assert "ORDER AMOUNT UPDATED" in tg_client.sent_messages[-1]["text"]
-    assert "50.00" in tg_client.sent_messages[-1]["text"]
+    assert "250.00" in tg_client.sent_messages[-1]["text"]
 
-    # 2. Negative amount rejected
+    # 2. Amount below 200 rejected
+    await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/setamount 50"})
+    assert "Order Amount Below Minimum" in tg_client.sent_messages[-1]["text"]
+    assert "200.00" in tg_client.sent_messages[-1]["text"]
+
+    # 3. Negative amount rejected
     await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/setamount -200"})
     assert "Invalid Order Amount" in tg_client.sent_messages[-1]["text"]
     assert "positive finite number" in tg_client.sent_messages[-1]["text"]
 
-    # 3. Zero rejected
+    # 4. Zero rejected
     await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/setamount 0"})
     assert "Invalid Order Amount" in tg_client.sent_messages[-1]["text"]
 
-    # 4. Non-numeric rejected
+    # 5. Non-numeric rejected
     await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/setamount abc"})
     assert "Invalid Number:" in tg_client.sent_messages[-1]["text"]
 
-    # 5. Empty arg
+    # 6. Empty arg
     await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/setamount"})
     assert "Missing Order Amount" in tg_client.sent_messages[-1]["text"]
     await db.close()

@@ -34,6 +34,19 @@ class CapitalGuard:
     ) -> RiskDecision:
         t0 = time.perf_counter()
 
+        # -1. Minimum Order Sizing Gate (Mandatory >= ₹200.00 in all execution modes)
+        if requested_amount < 200.0:
+            ms = (time.perf_counter() - t0) * 1000.0
+            return RiskDecision(
+                allowed=False,
+                code="BLOCKED_MIN_ORDER_SIZE",
+                reason=f"Requested order amount ₹{requested_amount:.2f} is below mandatory minimum order size of ₹200.00.",
+                bot=bot,
+                amount=requested_amount,
+                adjusted_amount=0.0,
+                check_ms=round(ms, 2),
+            )
+
         candidate_base = extract_base_coin(current_coin)
 
         # 0. Post-Exit Cooldown Check (Defense-in-Depth)

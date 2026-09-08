@@ -1,5 +1,5 @@
 {
-  "order_size_inr": 50.0,
+  "order_size_inr": 250.0,
   "v2_deployment_mode": "PAPER",
   "v2_trading_enabled": true,
   "v2_shadow_mode": false
