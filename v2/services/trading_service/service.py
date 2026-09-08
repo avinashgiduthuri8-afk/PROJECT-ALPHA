@@ -112,7 +112,6 @@ class TradingService:
 
         # Subscribe handlers
         self._bus.subscribe(EventType.TRADE_APPROVED, self.on_trade_approved)
-        self._bus.subscribe(EventType.SIGNAL_GENERATED, self.auto_trader.handle_signal_event)
 
         # Start reconciliation worker
         await self.reconciliation_service.start()
@@ -126,7 +125,6 @@ class TradingService:
     async def stop(self) -> None:
         self._started = False
         self._bus.unsubscribe(EventType.TRADE_APPROVED, self.on_trade_approved)
-        self._bus.unsubscribe(EventType.SIGNAL_GENERATED, self.auto_trader.handle_signal_event)
         await self.reconciliation_service.stop()
         logger.info("TradingService stopped")
 
@@ -139,7 +137,13 @@ class TradingService:
             coin = payload.get("coin", "UNKNOWN")
             pair = payload.get("pair") or f"{coin}/INR"
             bot_str = payload.get("bot", "STE")
-            approved_amount = max(200.0, float(payload.get("approved_amount") or self._config.order_size_inr))
+            approved_amount = float(payload.get("approved_amount") or self._config.order_size_inr)
+            if approved_amount < 200.0:
+                logger.warning(
+                    "Trade approval below mandatory minimum rejected before construction: %.2f",
+                    approved_amount,
+                )
+                return
             ai_adjustments = payload.get("ai_adjustments") or {}
             price = float(payload.get("price") or payload.get("current_price") or 100.0)
 
@@ -162,6 +166,25 @@ class TradingService:
             if order_data.get("amount", 0.0) < 200.0 and entry_px > 0:
                 order_data["qty"] = round_qty_up(pair, 200.0 / entry_px)
                 order_data["amount"] = round(entry_px * order_data["qty"], 2)
+            if (
+                entry_px <= 0
+                or order_data.get("qty", 0.0) <= 0
+                or order_data.get("amount", 0.0) < 200.0
+                or not validate_order_notional(
+                    pair,
+                    entry_px,
+                    order_data["qty"],
+                    min_notional=200.0,
+                )
+            ):
+                logger.warning(
+                    "Final execution validation rejected order for %s: amount=%.2f qty=%s price=%.8f",
+                    pair,
+                    float(order_data.get("amount", 0.0) or 0.0),
+                    order_data.get("qty"),
+                    entry_px,
+                )
+                return
 
             # Strict Single-Position Asset Deduplication Check (Fleet-wide cross-strategy single coin lock)
             if self._config.enforce_single_coin_lock:

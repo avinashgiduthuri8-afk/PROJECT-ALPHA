@@ -191,6 +191,9 @@ class BackgroundScheduler:
 
         try:
             result = await job.fn()
+            if isinstance(result, dict) and result.get("next_interval_s") is not None:
+                next_interval = max(1, int(result["next_interval_s"]))
+                job.interval = next_interval
             duration_ms = int((datetime.now(timezone.utc) - start).total_seconds() * 1000)
 
             job.run_count += 1

@@ -912,10 +912,11 @@
                         <!-- Telemetry Strip -->
                         <div class="beta-telemetry-strip">
                             <div class="tel-item">Market Session: <strong class="text-green">24/7 SPOT CRYPTO</strong></div>
-                            <div class="tel-item">Pool Limit: <strong class="text-blue">₹10,000.00</strong></div>
+                            <div class="tel-item">Pool Limit: <strong class="text-blue">Configured server-side</strong></div>
                             <div class="tel-item">Single-Coin Lock: <strong class="text-green">ACTIVE (1/1 per coin)</strong></div>
                             <div class="tel-item">Statutory Friction: <strong class="text-amber">-1.572% (TDS+GST+Fee)</strong></div>
                             <div class="tel-item">AI Decision Engine: <strong class="text-indigo">Gemini 2.5 Flash</strong></div>
+                            <div class="tel-item" id="api-auth-state"><strong class="text-amber">Telemetry access requires API configuration</strong></div>
                         </div>
                     </div>
 
@@ -924,18 +925,18 @@
                     <div class="kpi-row">
                         <div class="kpi-card accent-blue">
                             <div class="kpi-label">Total Crypto Equity</div>
-                            <div class="kpi-value font-mono" id="kpi-aum">₹10,452.80</div>
-                            <div class="kpi-sub">Daily Δ: <span class="text-green">+₹452.80 (+4.53%)</span></div>
+                            <div class="kpi-value font-mono" id="kpi-aum">Unavailable</div>
+                            <div class="kpi-sub">Authenticated telemetry required</div>
                         </div>
                         <div class="kpi-card accent-green">
                             <div class="kpi-label">Net Daily Realized P&amp;L</div>
-                            <div class="kpi-value font-mono text-green" id="kpi-pnl">+₹452.80</div>
-                            <div class="kpi-sub">STE + HDA + VCP + BBS (Post-Tax)</div>
+                            <div class="kpi-value font-mono text-green" id="kpi-pnl">Unavailable</div>
+                            <div class="kpi-sub">Authenticated telemetry required</div>
                         </div>
                         <div class="kpi-card accent-indigo">
                             <div class="kpi-label">Signal Win Rate</div>
-                            <div class="kpi-value font-mono" id="kpi-winrate">88.5%</div>
-                            <div class="kpi-sub">23W / 3L (Score ≥ 85)</div>
+                            <div class="kpi-value font-mono" id="kpi-winrate">Unavailable</div>
+                            <div class="kpi-sub">Awaiting execution history</div>
                         </div>
                                                 <div class="kpi-card accent-blue">
                             <div class="kpi-label">Open Positions</div>
@@ -944,13 +945,13 @@
                         </div>
                         <div class="kpi-card accent-green">
                             <div class="kpi-label">Capital Deployed</div>
-                            <div class="kpi-value font-mono" id="kpi-capital">₹600.00</div>
-                            <div class="kpi-sub">6.0% of ₹10,000 limit</div>
+                            <div class="kpi-value font-mono" id="kpi-capital">Unavailable</div>
+                            <div class="kpi-sub">Authenticated telemetry required</div>
                         </div>
                         <div class="kpi-card accent-amber">
                             <div class="kpi-label">Friction Deducted</div>
-                            <div class="kpi-value font-mono text-amber" id="kpi-health">-₹38.60</div>
-                            <div class="kpi-sub">1.572% Statutory Drag</div>
+                            <div class="kpi-value font-mono text-amber" id="kpi-health">Unavailable</div>
+                            <div class="kpi-sub">Authenticated telemetry required</div>
                         </div>
                     </div>
 
@@ -963,9 +964,9 @@
                                 <span class="bot-status-pill paper" id="bot-status-ste">SCANNING</span>
                             </div>
                             <div class="bot-card-metrics">
-                                <div class="bot-metric"><span class="bot-metric-label">Headroom</span><span class="bot-metric-value text-blue">₹10,000</span></div>
+                                <div class="bot-metric"><span class="bot-metric-label">Headroom</span><span class="bot-metric-value text-blue">Shared pool</span></div>
                                 <div class="bot-metric"><span class="bot-metric-label">Net Daily PnL</span><span class="bot-metric-value text-green" id="bot-pnl-ste">₹0.00</span></div>
-                                <div class="bot-metric"><span class="bot-metric-label">Win Rate</span><span class="bot-metric-value">86.5%</span></div>
+                                <div class="bot-metric"><span class="bot-metric-label">Win Rate</span><span class="bot-metric-value">Unavailable</span></div>
                                 <div class="bot-metric"><span class="bot-metric-label">Active Positions</span><span class="bot-metric-value text-muted" id="bot-pos-ste">0 / 1 (None)</span></div>
                             </div>
                             <div class="bot-card-footer">
@@ -979,9 +980,9 @@
                                 <span class="bot-status-pill paper" id="bot-status-hda">SCANNING</span>
                             </div>
                             <div class="bot-card-metrics">
-                                <div class="bot-metric"><span class="bot-metric-label">Headroom</span><span class="bot-metric-value text-blue">₹10,000</span></div>
+                                <div class="bot-metric"><span class="bot-metric-label">Headroom</span><span class="bot-metric-value text-blue">Shared pool</span></div>
                                 <div class="bot-metric"><span class="bot-metric-label">Net Daily PnL</span><span class="bot-metric-value text-green" id="bot-pnl-hda">₹0.00</span></div>
-                                <div class="bot-metric"><span class="bot-metric-label">Win Rate</span><span class="bot-metric-value">91.0%</span></div>
+                                <div class="bot-metric"><span class="bot-metric-label">Win Rate</span><span class="bot-metric-value">Unavailable</span></div>
                                 <div class="bot-metric"><span class="bot-metric-label">Active Positions</span><span class="bot-metric-value text-muted" id="bot-pos-hda">0 / 1 (None)</span></div>
                             </div>
                             <div class="bot-card-footer">
@@ -995,9 +996,9 @@
                                 <span class="bot-status-pill paper" id="bot-status-vcp">SCANNING</span>
                             </div>
                             <div class="bot-card-metrics">
-                                <div class="bot-metric"><span class="bot-metric-label">Headroom</span><span class="bot-metric-value text-blue">₹10,000</span></div>
+                                <div class="bot-metric"><span class="bot-metric-label">Headroom</span><span class="bot-metric-value text-blue">Shared pool</span></div>
                                 <div class="bot-metric"><span class="bot-metric-label">Net Daily PnL</span><span class="bot-metric-value text-green" id="bot-pnl-vcp">₹0.00</span></div>
-                                <div class="bot-metric"><span class="bot-metric-label">Win Rate</span><span class="bot-metric-value">89.0%</span></div>
+                                <div class="bot-metric"><span class="bot-metric-label">Win Rate</span><span class="bot-metric-value">Unavailable</span></div>
                                 <div class="bot-metric"><span class="bot-metric-label">Active Positions</span><span class="bot-metric-value text-muted" id="bot-pos-vcp">0 / 1 (None)</span></div>
                             </div>
                             <div class="bot-card-footer">
@@ -1011,9 +1012,9 @@
                                 <span class="bot-status-pill paper" id="bot-status-bbs">SCANNING</span>
                             </div>
                             <div class="bot-card-metrics">
-                                <div class="bot-metric"><span class="bot-metric-label">Headroom</span><span class="bot-metric-value text-blue">₹10,000</span></div>
+                                <div class="bot-metric"><span class="bot-metric-label">Headroom</span><span class="bot-metric-value text-blue">Shared pool</span></div>
                                 <div class="bot-metric"><span class="bot-metric-label">Net Daily PnL</span><span class="bot-metric-value text-green" id="bot-pnl-bbs">₹0.00</span></div>
-                                <div class="bot-metric"><span class="bot-metric-label">Win Rate</span><span class="bot-metric-value">100.0%</span></div>
+                                <div class="bot-metric"><span class="bot-metric-label">Win Rate</span><span class="bot-metric-value">Unavailable</span></div>
                                 <div class="bot-metric"><span class="bot-metric-label">Active Positions</span><span class="bot-metric-value text-muted" id="bot-pos-bbs">0 / 1 (None)</span></div>
                             </div>
                             <div class="bot-card-footer">
@@ -1165,7 +1166,7 @@
                         <div class="stage-card span-4">
                             <div class="stage-card-header"><span class="badge-num">6</span> <h5>RMS &amp; Capital Guard</h5> <span class="stage-live-badge status-live">GATE ACTIVE</span></div>
                             <div class="stage-metric-row"><span class="label">Single-Coin Lock:</span> <span class="val font-mono text-green">OPPORTUNITY_LOCKED_ACTIVE_PAIR</span></div>
-                            <div class="stage-metric-row"><span class="label">Capital Pool Cap:</span> <span class="val font-mono text-blue">₹10,000 Unified Shared Pool</span></div>
+                            <div class="stage-metric-row"><span class="label">Capital Pool:</span> <span class="val font-mono text-blue">Configured server-side shared pool</span></div>
                             <div class="stage-metric-row"><span class="label">Circuit Breaker:</span> <span class="val font-mono text-green">Max ₹1,500 Daily Drawdown Gate</span></div>
                         </div>
 
@@ -1493,21 +1494,21 @@
                     <div class="dashboard-grid-matrix">
                         <div class="metric-card span-12">
                             <h3>💼 Unified Capital Pool &amp; Portfolio Breakdown</h3>
-                            <p style="color:var(--text-secondary); font-size:0.85rem; margin-top:4px;">Strict ₹10,000 total exposure ceiling with zero sub-account isolation bypass.</p>
+                            <p style="color:var(--text-secondary); font-size:0.85rem; margin-top:4px;">Shared-pool exposure and risk limits are enforced by runtime configuration.</p>
                         </div>
                         <div class="metric-card span-4">
                             <h5>Unified Pool Capacity</h5>
-                            <h2 class="text-blue font-mono" style="margin:12px 0;">₹10,000.00</h2>
-                            <div class="nested-status-well"><h6>Available Headroom</h6><h3 class="text-green font-mono">₹9,950.50</h3></div>
-                            <div class="nested-status-well" style="margin-top:8px;"><h6>Deployed Microcash</h6><h3 class="text-amber font-mono">₹49.50</h3></div>
+                            <h2 class="text-blue font-mono" style="margin:12px 0;">Configured server-side</h2>
+                            <div class="nested-status-well"><h6>Available Headroom</h6><h3 class="text-green font-mono">Authenticated telemetry required</h3></div>
+                            <div class="nested-status-well" style="margin-top:8px;"><h6>Deployed Capital</h6><h3 class="text-amber font-mono">Authenticated telemetry required</h3></div>
                         </div>
                         <div class="metric-card span-8">
                             <h5>Bot Sub-Account Capital Allocation</h5>
                             <div class="layout-matrix-inner-row" style="grid-template-columns: repeat(2, 1fr); gap:12px; margin-top:12px;">
-                                <div class="nested-status-well"><h6>STE · SuperTrend Momentum</h6><h4 class="text-blue font-mono">Limit: ₹10,000 | Micro-Cap: ₹500</h4><p style="font-size:0.75rem;color:var(--text-muted);margin:4px 0 0;">Allocated: ₹0.00 (0.0%)</p></div>
-                                <div class="nested-status-well"><h6>HDA · High-Delivery Absorption</h6><h4 class="text-green font-mono">Limit: ₹10,000 | Micro-Cap: ₹500</h4><p style="font-size:0.75rem;color:var(--text-muted);margin:4px 0 0;">Allocated: ₹0.00 (0.0%)</p></div>
-                                <div class="nested-status-well"><h6>VCP · Volatility Contraction</h6><h4 class="text-indigo font-mono">Limit: ₹15,000 | Micro-Cap: ₹500</h4><p style="font-size:0.75rem;color:var(--text-muted);margin:4px 0 0;">Allocated: ₹49.50 (ETH)</p></div>
-                                <div class="nested-status-well"><h6>BBS · Bollinger Squeeze</h6><h4 class="text-amber font-mono">Limit: ₹15,000 | Micro-Cap: ₹500</h4><p style="font-size:0.75rem;color:var(--text-muted);margin:4px 0 0;">Allocated: ₹0.00 (0.0%)</p></div>
+                                <div class="nested-status-well"><h6>STE · SuperTrend Momentum</h6><h4 class="text-blue font-mono">Shared pool allocation</h4><p style="font-size:0.75rem;color:var(--text-muted);margin:4px 0 0;">Live allocation requires authenticated telemetry.</p></div>
+                                <div class="nested-status-well"><h6>HDA · High-Delivery Absorption</h6><h4 class="text-green font-mono">Shared pool allocation</h4><p style="font-size:0.75rem;color:var(--text-muted);margin:4px 0 0;">Live allocation requires authenticated telemetry.</p></div>
+                                <div class="nested-status-well"><h6>VCP · Volatility Contraction</h6><h4 class="text-indigo font-mono">Shared pool allocation</h4><p style="font-size:0.75rem;color:var(--text-muted);margin:4px 0 0;">Live allocation requires authenticated telemetry.</p></div>
+                                <div class="nested-status-well"><h6>BBS · Bollinger Squeeze</h6><h4 class="text-amber font-mono">Shared pool allocation</h4><p style="font-size:0.75rem;color:var(--text-muted);margin:4px 0 0;">Live allocation requires authenticated telemetry.</p></div>
                             </div>
                         </div>
                     </div>
@@ -2290,10 +2291,19 @@
     </script>
 
     <script>
-        const API_KEY = "{{ api_key or 'alpha-prod-key' }}";
+        const API_KEY = "{{ api_key or '' }}";
         const API_BASE = window.location.origin + "/api/v2";
+        let apiAuthWarningShown = false;
 
         async function apiFetch(endpoint, options = {}) {
+            if (!API_KEY) {
+                if (!apiAuthWarningShown) {
+                    apiAuthWarningShown = true;
+                    const state = document.getElementById("api-auth-state");
+                    if (state) state.innerText = "API telemetry unavailable: configure DASHBOARD_API_KEY";
+                }
+                return null;
+            }
             options.headers = options.headers || {};
             options.headers["X-API-Key"] = API_KEY;
             options.headers["Content-Type"] = "application/json";
@@ -2311,8 +2321,8 @@
                 // 1. Production Status & Execution Mode
                 const status = await apiFetch("/production/status");
                 if (status) {
-                    if (status.capital_pool_limit !== undefined && document.getElementById("kpi-aum")) {
-                        document.getElementById("kpi-aum").innerText = formatPrice(status.capital_pool_limit || 10000);
+                    if (Number.isFinite(Number(status.capital_pool_limit)) && document.getElementById("kpi-aum")) {
+                        document.getElementById("kpi-aum").innerText = formatPrice(Number(status.capital_pool_limit));
                     }
                     if (status.capital_pool_deployed !== undefined && document.getElementById("kpi-capital")) {
                         document.getElementById("kpi-capital").innerText = formatPrice(status.capital_pool_deployed);
@@ -2408,7 +2418,10 @@
                 }
 
                 // 3. Active Positions Telemetry & Fleet Status Synchronization
-                const openPositions = await apiFetch("/trading/positions?status=OPEN") || await apiFetch("/positions/open") || [];
+                const openPositionsResponse = await apiFetch("/trading/positions?status=OPEN");
+                const openPositions = Array.isArray(openPositionsResponse)
+                    ? openPositionsResponse
+                    : (Array.isArray(openPositionsResponse?.positions) ? openPositionsResponse.positions : []);
                 const homeTbody = document.getElementById("home-positions-tbody");
                 const openTbody = document.getElementById("open-positions-tbody");
 
@@ -2674,6 +2687,7 @@
 
         // Connect WebSocket for instantaneous real-time push updates
         function connectLiveWebSocket() {
+            if (!API_KEY) return;
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${protocol}//${window.location.host}/ws/v2/feed?api_key=${encodeURIComponent(API_KEY)}`;
             try {
@@ -2701,9 +2715,10 @@
         }
 
         // ═══════════════════════════════════════════════════════════════════
-        //  DASHBOARD SECURITY GATEWAY & TRADING MODE CONTROLLER (PIN: 110299)
+        //  DASHBOARD SECURITY GATEWAY & TRADING MODE CONTROLLER
         // ═══════════════════════════════════════════════════════════════════
-        const DASHBOARD_SECURITY_PIN = "110299";
+        // Never embed the operator secret in the dashboard bundle.
+        const DASHBOARD_SECURITY_PIN = null;
 
         function checkDashboardSecurity() {
             const overlay = document.getElementById("dashboardSecurityOverlay");
@@ -2839,7 +2854,7 @@
             const entered = passInput ? passInput.value.trim() : "";
 
             if (!entered) {
-                if (errDiv) errDiv.innerText = "Please enter security password (110299)";
+                if (errDiv) errDiv.innerText = "Please enter the configured security password";
                 return;
             }
 
@@ -2855,7 +2870,7 @@
                     updateModeUI('LIVE_MICROCASH');
                     refreshLiveTelemetry();
                 } else {
-                    if (errDiv) errDiv.innerText = "❌ " + (data.error || "Invalid security password (110299 required)");
+                    if (errDiv) errDiv.innerText = "❌ " + (data.error || "Invalid security password");
                     if (passInput) passInput.select();
                 }
             } catch (err) {
@@ -2894,7 +2909,7 @@
                 </div>
                 <button onclick="closePositionControlModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">&times;</button>
             </div>
-            <div class="pos-modal-body" style="padding:16px 0;">
+            <form class="pos-modal-body" style="padding:16px 0;" onsubmit="event.preventDefault(); confirmLiveTradeMode();">
                 <input type="hidden" id="modal-pos-id" value="">
                 
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; background:rgba(255,255,255,0.03); padding:10px; border-radius:6px; border:1px solid rgba(255,255,255,0.06);">
@@ -2940,7 +2955,7 @@
     </div>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
-    <!--  DASHBOARD SECURITY PASSWORD LOCK SCREEN (PIN: 110299)              -->
+    <!--  DASHBOARD SECURITY PASSWORD LOCK SCREEN              -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <div id="dashboardSecurityOverlay" class="security-overlay">
         <div class="security-card" id="securityCardBox">
@@ -2958,7 +2973,7 @@
             </form>
             <div id="securityErrorMsg" class="security-error"></div>
             <div style="font-size:0.68rem; color:var(--text-muted); margin-top:14px; font-family:'JetBrains Mono',monospace;">
-                ENTER AUTHORIZED SECURITY PASSWORD (110299)
+                ENTER AUTHORIZED SECURITY PASSWORD
             </div>
         </div>
     </div>
@@ -2980,15 +2995,15 @@
                     <strong>CAUTION:</strong> Switching to <strong>LIVE</strong> mode activates real-capital order dispatching to CoinDCX exchange.
                 </p>
                 <div style="margin-bottom:14px;">
-                    <label style="display:block; font-size:0.78rem; color:var(--text-secondary); margin-bottom:6px;">Enter Security Password (110299) to Authorize:</label>
-                    <input type="password" id="liveModePasswordInput" class="pos-input-field" placeholder="Security Password (110299)" autocomplete="off" style="text-align:center; font-size:1.1rem; letter-spacing:0.15em;">
+                    <label style="display:block; font-size:0.78rem; color:var(--text-secondary); margin-bottom:6px;">Enter the configured security password to authorize:</label>
+                    <input type="password" id="liveModePasswordInput" class="pos-input-field" placeholder="Security Password" autocomplete="off" style="text-align:center; font-size:1.1rem; letter-spacing:0.15em;">
                 </div>
                 <div id="liveModeErrorMsg" style="color:#ef4444; font-size:0.75rem; min-height:16px; margin-bottom:10px; font-family:'JetBrains Mono',monospace;"></div>
                 <div style="display:flex; gap:10px;">
                     <button type="button" class="btn-sm" style="background:rgba(255,255,255,0.1); color:#fff; border:1px solid var(--border-color); flex:1; padding:8px;" onclick="closeLiveConfirmModal()">Cancel</button>
-                    <button type="button" class="btn-sm" style="background:#ef4444; color:#fff; font-weight:700; border:none; flex:1.2; padding:8px;" onclick="confirmLiveTradeMode()">🔴 Authorize & Switch to LIVE</button>
+                    <button type="submit" class="btn-sm" style="background:#ef4444; color:#fff; font-weight:700; border:none; flex:1.2; padding:8px;">🔴 Authorize & Switch to LIVE</button>
                 </div>
-            </div>
+            </form>
         </div>
     </div>
 

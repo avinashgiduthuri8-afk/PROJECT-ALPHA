@@ -457,7 +457,7 @@ class TelegramInteractiveInterface:
                 if bal.get("success"):
                     avail_cap = bal.get("inr_balance")
         else:
-            avail_cap = self._config.total_capital_limit or 10000.0
+            avail_cap = self._config.total_capital_limit
 
         # Scanner status
         poll_count = 0
@@ -1051,7 +1051,7 @@ class TelegramInteractiveInterface:
                 avail_cap = None
                 source = "UNAVAILABLE"
         else:
-            avail_cap = self._config.total_capital_limit or 10000.0
+            avail_cap = self._config.total_capital_limit
             source = "SIMULATION"
 
         deployed_cap = 0.0
@@ -1080,7 +1080,7 @@ class TelegramInteractiveInterface:
             "per_bot_allocation": per_bot_alloc,
             "order_amount_inr": max(200.0, float(getattr(self._config, "order_size_inr", 200.0))),
             "min_order_size": 200.0,
-            "capital_limit": self._config.total_capital_limit or 10000.0,
+            "capital_limit": self._config.total_capital_limit,
             "risk_available": avail_cap,
             "source": source,
         }
@@ -1609,11 +1609,13 @@ class TelegramInteractiveInterface:
         if self._dashboard_service and hasattr(self._dashboard_service, "bot_pipeline_tracker"):
             return self._dashboard_service.bot_pipeline_tracker.get_all_bot_summaries()
 
+        # Do not fabricate balances in operator output.  Return an explicit
+        # unavailable state until the dashboard pipeline has real telemetry.
         return [
-            {"name": "STE", "subaccount_id": "ALPHA_STE_01", "current_stage": "IDLE", "wallet_balance": 35000.0, "available_balance": 35000.0, "open_positions": 0, "daily_pnl": 0.0, "win_rate_pct": 0.0},
-            {"name": "HDA", "subaccount_id": "ALPHA_HDA_01", "current_stage": "IDLE", "wallet_balance": 30000.0, "available_balance": 30000.0, "open_positions": 0, "daily_pnl": 0.0, "win_rate_pct": 0.0},
-            {"name": "VCP", "subaccount_id": "ALPHA_VCP_01", "current_stage": "IDLE", "wallet_balance": 15000.0, "available_balance": 15000.0, "open_positions": 0, "daily_pnl": 0.0, "win_rate_pct": 0.0},
-            {"name": "BBS", "subaccount_id": "ALPHA_BBS_01", "current_stage": "IDLE", "wallet_balance": 20000.0, "available_balance": 20000.0, "open_positions": 0, "daily_pnl": 0.0, "win_rate_pct": 0.0},
+            {"name": name, "current_stage": "UNKNOWN", "status": "UNAVAILABLE",
+             "wallet_balance": None, "available_balance": None,
+             "open_positions": 0, "daily_pnl": 0.0, "win_rate_pct": 0.0}
+            for name in ("STE", "HDA", "VCP", "BBS")
         ]
 
     async def _send_pipeline_stages(self, chat_id: str | int) -> None:

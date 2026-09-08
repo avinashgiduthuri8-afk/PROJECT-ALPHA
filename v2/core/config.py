@@ -75,11 +75,12 @@ class V2Config(BaseSettings):
     coindcx_api_key:    Optional[str] = Field(default=None, validation_alias=AliasChoices("COINDCX_API_KEY", "coindcx_api_key"))
     coindcx_api_secret: Optional[str] = Field(default=None, validation_alias=AliasChoices("COINDCX_API_SECRET", "coindcx_api_secret"))
 
-    # Strategy bot capital limits (defaults to unified pool)
-    ste_capital_limit:   float = Field(default=10000.0,  alias="STE_CAPITAL_LIMIT")
-    hda_capital_limit:   float = Field(default=10000.0,  alias="HDA_CAPITAL_LIMIT")
-    vcp_capital_limit:   float = Field(default=10000.0,  alias="VCP_CAPITAL_LIMIT")
-    bbs_capital_limit:   float = Field(default=10000.0,  alias="BBS_CAPITAL_LIMIT")
+    # Strategy bot capital limits. 0 means no separate bot ceiling; the shared
+    # pool (when configured) remains the only capital limit.
+    ste_capital_limit:   float = Field(default=0.0,  alias="STE_CAPITAL_LIMIT")
+    hda_capital_limit:   float = Field(default=0.0,  alias="HDA_CAPITAL_LIMIT")
+    vcp_capital_limit:   float = Field(default=0.0,  alias="VCP_CAPITAL_LIMIT")
+    bbs_capital_limit:   float = Field(default=0.0,  alias="BBS_CAPITAL_LIMIT")
 
     # ── Trade sizing & bot limits (Phase 5 / Unified Fleet) ───────────────────
     v2_default_trade_amount_ste: float = Field(default=200.0, alias="STE_TRADE_AMOUNT")
@@ -142,6 +143,10 @@ class V2Config(BaseSettings):
     scanner_ranking_top_n: int = Field(
         default=50,
         description="Top N coins selected after composite ranking.",
+    )
+    scanner_max_spread_pct: float = Field(
+        default=2.0,
+        description="Maximum bid/ask spread percentage allowed before candle fetches.",
     )
     # B2 Filter Cascade Thresholds
     scanner_min_24h_volume: float = Field(
@@ -213,8 +218,16 @@ class V2Config(BaseSettings):
 
     # ── Auth (shared with V1) ─────────────────────────────────────────────────
     dashboard_api_key: Optional[str] = Field(
-        default="alpha-dev-key",
+        default=None,
         validation_alias=AliasChoices("DASHBOARD_API_KEY", "dashboard_api_key"),
+    )
+    dashboard_security_password: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "DASHBOARD_SECURITY_PASSWORD",
+            "dashboard_security_password",
+        ),
+        description="Optional operator password required for live-mode transitions.",
     )
 
     # ── Network & Server Bindings ─────────────────────────────────────────────
@@ -234,7 +247,7 @@ class V2Config(BaseSettings):
     v2_websocket_enabled: bool = Field(default=False)
     v2_shadow_mode:       bool = Field(default=False)
     v2_trading_enabled:   bool = Field(
-        default=True,
+        default=False,
         validation_alias=AliasChoices("V2_TRADING_ENABLED", "TRADING_ENABLED", "v2_trading_enabled"),
     )
 

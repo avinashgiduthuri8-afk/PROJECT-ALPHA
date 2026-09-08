@@ -23,21 +23,12 @@ from v2.core.logging import get_logger
 
 logger = get_logger("v2.services.production_service.controller")
 
-WALLET_LIMITS_INR: Dict[str, float] = {
-    "STE": 10000.0,
-    "HDA": 10000.0,
-    "VCP": 15000.0,
-    "BBS": 15000.0,
-}
-
-MICRO_ORDER_CAPS_INR: Dict[str, float] = {
-    "STE": 500.0,
-    "HDA": 500.0,
-    "VCP": 500.0,
-    "BBS": 500.0,
-}
-
-MINIMUM_NOTIONAL_INR: float = 100.0
+MINIMUM_NOTIONAL_INR: float = 200.0
+# Compatibility exports for older status consumers.  These maps are
+# intentionally empty: capital allocation belongs to the configured shared
+# pool and risk engine, not hard-coded bot/subaccount ceilings.
+WALLET_LIMITS_INR: Dict[str, float] = {}
+MICRO_ORDER_CAPS_INR: Dict[str, float] = {}
 
 
 class DeploymentMode(str, Enum):
@@ -123,12 +114,6 @@ class ProductionController:
             return False, "Order rejected: Global kill switch is active — all orders halted."
         if amount < MINIMUM_NOTIONAL_INR:
             return False, f"Order amount ₹{amount:.2f} is below minimum notional ₹{MINIMUM_NOTIONAL_INR:.2f}."
-        cap = MICRO_ORDER_CAPS_INR.get(bot_name.upper(), 500.0)
-        if amount > cap:
-            return False, f"Order amount ₹{amount:.2f} exceeds micro-order cap ₹{cap:.2f} for bot {bot_name}."
-        ceiling = WALLET_LIMITS_INR.get(bot_name.upper(), 15000.0)
-        if current_wallet_exposure_inr + amount > ceiling:
-            return False, f"Total exposure ₹{current_wallet_exposure_inr + amount:.2f} exceeds wallet ceiling ₹{ceiling:.2f} for bot {bot_name}."
         return True, "OK"
 
     @property

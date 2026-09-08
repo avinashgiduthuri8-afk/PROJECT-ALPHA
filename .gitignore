@@ -40,7 +40,11 @@ logs/*.log
 .test_tmp*
 tests_tmp*
 *.db-journal
+*.sqlite
+*.sqlite3
 *.tmp
+*.temp
+*.bak
 local_overrides.json
 
 # Platform artifacts (Replit / Emergent)

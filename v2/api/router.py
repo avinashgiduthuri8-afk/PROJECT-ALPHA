@@ -6,6 +6,7 @@ Mounted in v2/app_v2.py under the prefix /api/v2.
 from __future__ import annotations
 
 import uuid
+import hmac
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
@@ -13,6 +14,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 
 from v2.bus.event_types import EventType
+from v2.core.config import get_config
 from v2.core.types import MarketState, OppType, Priority, RiskLevel, Signal
 from .auth import require_api_key
 from .dashboard_routes import router as dashboard_router, init_dashboard_routes
@@ -164,11 +166,20 @@ async def health() -> OkSchema:
 class VerifyPasswordRequestSchema(BaseModel):
     password: str
 
-@router.post("/auth/verify-password", tags=["auth"])
+@router.post(
+    "/auth/verify-password",
+    tags=["auth"],
+    dependencies=[Depends(require_api_key)],
+)
 async def verify_dashboard_password(body: VerifyPasswordRequestSchema) -> dict:
-    """Verify the 6-digit dashboard security password (110299)."""
-    DASHBOARD_SECURITY_PASSWORD = "110299"
-    if body.password.strip() == DASHBOARD_SECURITY_PASSWORD:
+    """Verify the configured operator password without embedding it in code."""
+    expected = get_config().dashboard_security_password
+    if not expected:
+        raise HTTPException(
+            status_code=503,
+            detail="DASHBOARD_SECURITY_PASSWORD is not configured.",
+        )
+    if hmac.compare_digest(body.password.strip(), expected):
         return {"ok": True, "success": True, "valid": True, "authorized": True, "message": "Authenticated successfully."}
     raise HTTPException(status_code=401, detail="Invalid security password.")
 

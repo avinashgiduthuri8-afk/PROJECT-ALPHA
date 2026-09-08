@@ -1,7 +1,8 @@
 """
 CoinDCX Unified Capital Pool & Execution Manager Architecture.
 
-Migrated from isolated sub-accounts to a Single Unified Capital Pool (₹10,000 shared ceiling)
+Migrated from isolated sub-accounts to a single unified capital pool with
+runtime-configured exposure controls and no hard-coded per-bot ceiling.
 with standardized micro-order allocation (₹200 per trade), master HMAC-SHA256 request signing,
 order book precision rounding, mandatory ₹100 minimum notional enforcement, and live REST order dispatch.
 """

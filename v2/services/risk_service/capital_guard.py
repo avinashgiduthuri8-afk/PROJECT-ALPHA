@@ -35,7 +35,10 @@ class CapitalGuard:
         t0 = time.perf_counter()
 
         # -1. Minimum Order Sizing Gate (Mandatory >= ₹200.00 in all execution modes)
-        if requested_amount < 200.0:
+        # Reject non-finite values as well as values below the project invariant.
+        if not isinstance(requested_amount, (int, float)) or not (
+            requested_amount == requested_amount
+        ) or requested_amount < 200.0:
             ms = (time.perf_counter() - t0) * 1000.0
             return RiskDecision(
                 allowed=False,

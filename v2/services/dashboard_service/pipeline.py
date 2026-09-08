@@ -23,7 +23,7 @@ class PipelineStageCollector:
     def __init__(self, bus: Optional[EventBus] = None, config: Optional[V2Config] = None) -> None:
         self._bus = bus
         self._config = config
-        self._auto_trade_enabled = getattr(config, "v2_trading_enabled", True) if config else True
+        self._auto_trade_enabled = getattr(config, "v2_trading_enabled", False) if config else False
         self._paper_mode = getattr(config, "v2_shadow_mode", True) if config else True
 
         # Stage definitions with contracts and initial telemetry
@@ -199,7 +199,7 @@ class PipelineStageCollector:
                 },
                 "last_event": None,
                 "telemetry": {
-                    "total_capital_limit": "₹10,000",
+                    "total_capital_limit": "CONFIGURED_SERVER_SIDE",
                     "max_consecutive_losses": 5,
                 },
             },

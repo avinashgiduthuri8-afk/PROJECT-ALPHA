@@ -59,17 +59,7 @@ class ProductionService:
             "deployment_mode": self.controller.mode.value,
             "is_kill_switch_tripped": self.controller.is_kill_switch_tripped,
             "system_health": health,
-            "wallet_limits_inr": {
-                "STE": 35000.0,
-                "HDA": 30000.0,
-                "VCP": 15000.0,
-                "BBS": 20000.0,
-            },
-            "micro_order_caps_inr": {
-                "STE": 500.0,
-                "HDA": 600.0,
-                "VCP": 400.0,
-                "BBS": 400.0,
-            },
-            "minimum_notional_inr": 100.0,
+            "wallet_limits_inr": {},
+            "micro_order_caps_inr": {},
+            "minimum_notional_inr": 200.0,
         }

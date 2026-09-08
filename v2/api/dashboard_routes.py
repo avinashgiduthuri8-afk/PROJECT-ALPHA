@@ -53,7 +53,7 @@ async def get_fleet_telemetry():
     overview = await agg.get_overview_snapshot()
     return {
         "execution_fleet": overview.get("execution_fleet", {}),
-        "total_allocated_inr": 1000000.0,
+        "total_allocated_inr": overview.get("total_deployed", 0.0),
     }
 
 

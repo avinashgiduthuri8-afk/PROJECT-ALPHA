@@ -467,7 +467,7 @@ class SimulateSignalResponseSchema(BaseModel):
 
 class SetModeRequestSchema(BaseModel):
     mode: str = Field(description="'LIVE_MICROCASH', 'PAPER', or 'SHADOW'")
-    password: Optional[str] = Field(default=None, description="Dashboard security password (110299) for LIVE mode authorization")
+    password: Optional[str] = Field(default=None, description="Configured operator password for LIVE mode authorization")
 
 
 class SetModeResponseSchema(BaseModel):
@@ -529,19 +529,11 @@ class ProductionStatusSchema(BaseModel):
     capital_pool_available: Optional[float] = None
     open_positions_count:   int
     circuit_breaker_status: str
-    wallet_limits_inr:      dict[str, float] = Field(default_factory=lambda: {
-        "STE": 10000.0,
-        "HDA": 10000.0,
-        "VCP": 15000.0,
-        "BBS": 15000.0,
-    })
-    micro_order_caps_inr:   dict[str, float] = Field(default_factory=lambda: {
-        "STE": 500.0,
-        "HDA": 500.0,
-        "VCP": 500.0,
-        "BBS": 500.0,
-    })
-    minimum_notional_inr:   float = 100.0
+    # Retained as response fields for backwards compatibility; no artificial
+    # per-bot capital ceilings or microcash caps are advertised here.
+    wallet_limits_inr:      dict[str, float] = Field(default_factory=dict)
+    micro_order_caps_inr:   dict[str, float] = Field(default_factory=dict)
+    minimum_notional_inr:   float = 200.0
     watchdog_status:        Optional[str] = None
     subsystems_healthy:     Optional[bool] = None
     last_inspection:        Optional[str] = None

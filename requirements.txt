@@ -25,3 +25,21 @@ aiosqlite
 # Testing
 pytest
 pytest-asyncio>=0.23.0,<1.5.0
+aiofiles
+aiosqlite
+fastapi==0.116.1
+httpx
+itsdangerous
+jinja2==3.1.6
+numpy
+pandas
+psutil
+pydantic
+pydantic-settings
+pytest
+pytest-asyncio
+python-multipart
+starlette
+ta
+uvicorn==0.35.0
+yfinance

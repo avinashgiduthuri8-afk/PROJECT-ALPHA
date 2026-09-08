@@ -8,6 +8,7 @@ and 24/7 watchdog supervisor telemetry. Guarded by require_api_key.
 from __future__ import annotations
 
 from typing import Any, Dict, Optional
+import hmac
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from .auth import require_api_key
@@ -148,12 +149,14 @@ async def set_execution_mode(body: SetModeRequestSchema) -> SetModeResponseSchem
             detail="Invalid mode. Must be 'LIVE_MICROCASH', 'PAPER', or 'SHADOW'.",
         )
 
-    DASHBOARD_SECURITY_PASSWORD = "110299"
     if target in ("LIVE", "LIVE_MICROCASH"):
-        if not body.password or body.password.strip() != DASHBOARD_SECURITY_PASSWORD:
+        expected_password = getattr(_config, "dashboard_security_password", None)
+        if not expected_password or not body.password or not hmac.compare_digest(
+            body.password.strip(), expected_password
+        ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Security password required (PIN: 110299) to switch to LIVE mode.",
+                detail="Configured security password required to switch to LIVE mode.",
             )
 
     if _controller:

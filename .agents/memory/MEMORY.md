@@ -6,3 +6,4 @@
 - [TestClient anyio conflict](testclient-anyio.md) — FastAPI TestClient + asyncio.to_thread in pytest produces spurious 422; call async route handlers directly instead
 - [Watchlist manager locking](watchlist-manager-locking.md) — RLock + migration once-guard; ensure_migration() before lock in add/remove; atomic temp-file writes
 - [Scanner history lock upgrade](scanner-history-lock.md) — _history_lock must be RLock; append_signal_history() holds it across read+write to close concurrent-append race
+- [Legacy safety-test compatibility](legacy-safety-tests.md) — preserve import compatibility for retired limits, but never restore their production enforcement

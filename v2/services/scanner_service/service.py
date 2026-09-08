@@ -20,7 +20,7 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timezone
 import json
-from typing import Optional
+from typing import Any, Optional
 
 import httpx
 
@@ -121,6 +121,8 @@ class ScannerService:
         self._live: dict[str, Signal] = {}
         # In-memory latest scan evaluated coins snapshot {symbol_or_pair: dict}
         self._latest_evaluated_coins: dict[str, dict] = {}
+        self._market_snapshot: dict[str, dict[str, Any]] = {}
+        self._last_funnel_counters: dict[str, int] = {}
         # Dedup set — {coin::generated_at} for signals already seen this session
         self._seen_keys: set[str] = set()
 
@@ -297,7 +299,7 @@ class ScannerService:
                     pairs.append(f"{coin_upper}/{quote}")
 
             for pair in pairs:
-                for timeframe in ["15m", "1d"]:
+                for timeframe in ["5m", "15m", "1h"]:
                     try:
                         db_candles = await self._candle_repo.get_recent_candles(pair, timeframe, limit=120)
                         if len(db_candles) < 120:
@@ -306,7 +308,7 @@ class ScannerService:
                                 pair, timeframe, len(db_candles)
                             )
                             coindcx_pair = canonical_to_coindcx_pair(pair)
-                            interval = "1d" if timeframe == "1d" else "15m"
+                            interval = timeframe
                             raw_candles = await self._fetch_coindcx_candles(coindcx_pair, interval, limit=120)
                             
                             if raw_candles:
@@ -351,7 +353,115 @@ class ScannerService:
             logger.exception("[Bootstrap] Critical failure during candle warm-up", extra={"error": str(exc)})
 
     async def _fetch_watchlist_coins(self) -> list[str]:
-        """Fetch current watchlist coins from local storage or fallback defaults."""
+        """Return a market-wide, deterministic Top-50 pair universe.
+
+        The old implementation made the local watchlist the scanner universe.
+        A watchlist is useful for display, but it must not prevent discovery of
+        liquid markets.  Tickers are fetched once, cheap liquidity/spread
+        filters run before candles, and the composite rank is stable on ties.
+        """
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                await asyncio.sleep(0.125)
+                response = await client.get("https://api.coindcx.com/exchange/ticker")
+                response.raise_for_status()
+                raw = response.json()
+        except Exception as exc:
+            logger.warning("Market-wide ticker discovery failed: %s", exc)
+            raw = []
+
+        if isinstance(raw, list):
+            markets: list[dict[str, Any]] = []
+            for item in raw:
+                if not isinstance(item, dict):
+                    continue
+                market = str(item.get("market") or "").upper()
+                if not market.startswith("B-") or "_" not in market:
+                    continue
+                base, quote = market[2:].split("_", 1)
+                if quote not in {"INR", "USDT"} or not base:
+                    continue
+                try:
+                    last = float(item.get("last_price") or 0.0)
+                    bid = float(item.get("bid") or 0.0)
+                    ask = float(item.get("ask") or 0.0)
+                    volume = float(item.get("volume") or 0.0)
+                    change = abs(float(item.get("change_24_hour") or 0.0))
+                except (TypeError, ValueError):
+                    continue
+                if last <= 0.0 or volume <= 0.0:
+                    continue
+                turnover = volume * last
+                mid = (bid + ask) / 2.0 if bid > 0 and ask > 0 else last
+                spread_pct = abs(ask - bid) / mid * 100.0 if mid > 0 else 100.0
+                markets.append({
+                    "pair": f"{base}/{quote}",
+                    "turnover": turnover,
+                    "spread_pct": spread_pct,
+                    "change_24h": change,
+                    "last_price": last,
+                })
+
+            self._market_snapshot = {
+                m["pair"]: m for m in markets
+            }
+            min_turnover = float(getattr(self._config, "scanner_min_24h_volume", 0.0) or 0.0)
+            max_spread = float(getattr(self._config, "scanner_max_spread_pct", 2.0) or 2.0)
+            eligible = [
+                m for m in markets
+                if m["turnover"] >= min_turnover and m["spread_pct"] <= max_spread
+            ]
+            # Log-normal-ish bounded score: turnover is the primary ranking
+            # signal, with a spread penalty and a modest volatility tie-breaker.
+            max_turnover = max((m["turnover"] for m in eligible), default=1.0)
+            for m in eligible:
+                m["market_rank_score"] = round(
+                    0.65 * min(100.0, 100.0 * m["turnover"] / max_turnover)
+                    + 0.25 * max(0.0, 100.0 - m["spread_pct"] * 20.0)
+                    + 0.10 * min(100.0, m["change_24h"] * 4.0),
+                    6,
+                )
+            eligible.sort(key=lambda m: (-m["market_rank_score"], m["pair"]))
+            top_n = int(getattr(self._config, "scanner_ranking_top_n", 50) or 50)
+            selected = eligible[:top_n]
+            self._market_snapshot = {m["pair"]: m for m in selected}
+            self._last_funnel_counters.update({
+                "market_universe": len(markets),
+                "market_liquidity_rejected": len(markets) - len(eligible),
+                "market_top_n": len(selected),
+            })
+            return [m["pair"] for m in selected]
+
+        # A temporary public-market outage must not silently fall back to a
+        # narrow watchlist; return no candidates and expose the failure.
+        self._market_snapshot = {}
+        self._last_funnel_counters.update({
+            "market_universe": 0,
+            "market_liquidity_rejected": 0,
+            "market_top_n": 0,
+        })
+        return []
+
+    async def _get_candles_for_pair(
+        self, pair: str, interval: str, limit: int = 120
+    ) -> list[dict]:
+        """Read candles from the repository first, then public CoinDCX data."""
+        candles: list[dict] = []
+        if self._candle_repo:
+            try:
+                candles = await self._candle_repo.get_recent_candles(
+                    pair, interval, limit=limit
+                )
+            except Exception:
+                candles = []
+        if candles:
+            return candles
+        return await self._fetch_coindcx_candles(
+            canonical_to_coindcx_pair(pair), interval, limit=limit
+        )
+
+    async def _fetch_watchlist_coins_legacy(self) -> list[str]:
+        """Read the local watchlist for UI/backward-compatible callers."""
         data_path = get_data_file_path("watchlist.json")
         try:
             if data_path.exists():
@@ -417,9 +527,9 @@ class ScannerService:
                         pairs.append(f"{coin_upper}/{quote}")
 
                 for pair in pairs:
-                    for timeframe in ["15m", "1d"]:
+                    for timeframe in ["5m", "15m", "1h"]:
                         coindcx_pair = canonical_to_coindcx_pair(pair)
-                        interval = "1d" if timeframe == "1d" else "15m"
+                        interval = timeframe
                         # Limit to last 5 candles to catch the latest closed ones
                         raw_candles = await self._fetch_coindcx_candles(coindcx_pair, interval, limit=5)
                         
@@ -519,11 +629,13 @@ class ScannerService:
             "new_signals": 0,
             "expired": 0,
             "errors": 0,
+            "next_interval_s": self._config.v2_scanner_poll_interval,
         }
 
         try:
             # 1. Refresh Live Macro Market Context (BTC, ETH, Fear & Greed)
             market_context = await self._market_context_service.refresh_market_context()
+            summary["next_interval_s"] = self.get_adaptive_poll_interval(market_context)
             self._confluence_engine.update_market_sentiment(
                 btc_trend=market_context.get("btc_trend", "BULLISH"),
                 eth_trend=market_context.get("eth_trend", "BULLISH"),
@@ -610,6 +722,22 @@ class ScannerService:
                 is_choppy=is_choppy,
             )
 
+            # Preserve the C2 decision and MTF evidence on the domain signal.
+            # AI, risk, Telegram, and dashboard consumers all receive this
+            # same immutable decision metadata rather than recomputing it.
+            for res in eval_results:
+                payload = res.signal.raw_payload or {}
+                payload.update({
+                    "confluence_score": res.confluence_score,
+                    "confluence_base_score": res.base_score,
+                    "regime_adjustment": res.regime_adjustment,
+                    "dynamic_threshold": res.dynamic_threshold,
+                    "confluence_accepted": res.accepted,
+                    "confluence_rejection_reasons": list(res.rejection_reasons),
+                    "mtf_timeframes": ["5m", "15m", "1h"],
+                })
+                res.signal.raw_payload = payload
+
             # 8. Retain latest-scan evaluation snapshot in memory (atomic replacement)
             new_eval_snapshot: dict[str, dict] = {}
             for res in eval_results:
@@ -639,7 +767,7 @@ class ScannerService:
                     "volume_ratio": vol_ratio,
                     "ema_trend": ema_trend,
                     "rsi": rsi_val,
-                    "mtf_alignment": "15m_1h" if res.signal.mtf_alignment else "none",
+                    "mtf_alignment": "5m_15m_1h" if res.signal.mtf_alignment else "none",
                     "is_mtf_aligned": bool(res.signal.mtf_alignment),
                     "confluence_score": res.confluence_score,
                     "status": "PASSED" if res.accepted else "REJECTED",
@@ -797,7 +925,25 @@ class ScannerService:
             "evaluated_coins":    len(self.get_scanned_coins()),
             "last_error":         self._last_error,
             "healthy":            self._last_error is None and self._poll_count > 0,
+            "adaptive_interval_s": self.get_adaptive_poll_interval(),
         }
+
+    def get_adaptive_poll_interval(self, context: Optional[dict] = None) -> int:
+        """Choose a bounded scan cadence from current market conditions.
+
+        Clean bullish conditions can be checked more frequently; sideways and
+        risk-off conditions slow the public-data poll to reduce noise and
+        request pressure. The configured interval remains the neutral baseline.
+        """
+        base = max(15, int(self._config.v2_scanner_poll_interval))
+        sentiment = context or self._market_context_service.get_current_sentiment()
+        regime = str(sentiment.get("market_regime", "RISK_ON")).upper()
+        btc_trend = str(sentiment.get("btc_trend", "SIDEWAYS")).upper()
+        if regime == "RISK_OFF" or btc_trend == "BEARISH":
+            return min(300, max(base, int(base * 1.5)))
+        if regime == "RISK_ON" and btc_trend == "BULLISH":
+            return max(15, int(base * 0.75))
+        return base
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 
@@ -814,6 +960,7 @@ class ScannerService:
           - B1: Top 50 Composite Ranking (Volume 0.40, Liquidity 0.35, Volatility 0.25)
         """
         coins = await self._fetch_watchlist_coins()
+        discovery_metrics = dict(self._last_funnel_counters)
         canonical_inr_coins = {
             "BTC", "ETH", "SOL", "BNB", "XRP", "ZEC", "AVAX", "LINK", 
             "DOGE", "SHIB", "MATIC", "POL", "ADA", "TRX", "NEAR", "FET", "LTC", "DASH"
@@ -821,6 +968,9 @@ class ScannerService:
         
         funnel_counters = {
             "raw_universe": 0,
+            "market_universe": discovery_metrics.get("market_universe", 0),
+            "market_liquidity_rejected": discovery_metrics.get("market_liquidity_rejected", 0),
+            "market_top_n": discovery_metrics.get("market_top_n", len(coins)),
             "liquidity_passed": 0,
             "volume_passed": 0,
             "pump_dump_passed": 0,
@@ -852,16 +1002,7 @@ class ScannerService:
                 quote = "INR" if coin_upper in canonical_inr_coins else "USDT"
                 pair = f"{coin_upper}/{quote}"
 
-            candles: list[dict] = []
-            if self._candle_repo:
-                try:
-                    candles = await self._candle_repo.get_recent_candles(pair, "15m", limit=30)
-                except Exception:
-                    pass
-
-            if not candles:
-                coindcx_pair = canonical_to_coindcx_pair(pair)
-                candles = await self._fetch_coindcx_candles(coindcx_pair, "15m", limit=30)
+            candles = await self._get_candles_for_pair(pair, "15m", limit=120)
 
             if not candles:
                 continue
@@ -888,13 +1029,20 @@ class ScannerService:
             if not closes or len(closes) < 5:
                 continue
 
-            # Stage 1: Liquidity Floor passed
+            ticker = self._market_snapshot.get(pair, {})
+            ticker_turnover = float(ticker.get("turnover") or 0.0)
+            if ticker_turnover and ticker_turnover < min_vol_24h:
+                funnel_counters["market_liquidity_rejected"] += 1
+                continue
+
+            # Stage 1: Liquidity Floor passed. This is a real rejection gate:
+            # candidates without a usable price/volume profile never reach C2.
             funnel_counters["liquidity_passed"] += 1
 
             latest_close = closes[-1]
             latest_high = highs[-1] if highs else latest_close
             latest_low = lows[-1] if lows else latest_close
-            vol_24h = sum(volumes) * latest_close if volumes else 0.0
+            vol_24h = ticker_turnover or (sum(volumes) * latest_close if volumes else 0.0)
 
             # Stage 2: 24h Volume Floor
             # If in testing or live, enforce floor unless dataset is micro-scale simulation
@@ -908,13 +1056,10 @@ class ScannerService:
                 continue
             funnel_counters["pump_dump_passed"] += 1
 
-            # Multi-Timeframe Alignment: check 15m and 1d
-            candles_1d: list[dict] = []
-            if self._candle_repo:
-                try:
-                    candles_1d = await self._candle_repo.get_recent_candles(pair, "1d", limit=30)
-                except Exception:
-                    pass
+            # Authoritative MTF set is 5m / 15m / 1h.  The 15m candles above
+            # provide the middle timeframe; fetch the other two consistently.
+            candles_5m = await self._get_candles_for_pair(pair, "5m", limit=120)
+            candles_1h = await self._get_candles_for_pair(pair, "1h", limit=120)
 
             # Coin class determination
             if coin_upper in ("BTC", "ETH", "SOL", "BNB"):
@@ -951,17 +1096,29 @@ class ScannerService:
                     avg_vol = sum(volumes[-20:]) / max(1, len(volumes[-20:]))
                     volume_ratio = round(volumes[-1] / avg_vol, 2) if avg_vol > 0 else 1.0
 
-                # Stage 4: 15m trend & MTF alignment
+                # Stage 4: 5m / 15m / 1h trend & MTF alignment
                 is_15m_bullish = (ema9 >= ema21 * 0.995)
-                is_1d_aligned = True
-                if candles_1d and len(candles_1d) >= 5:
-                    closes_1d = [float(c.get("close", c.get("c", 0.0))) for c in candles_1d if float(c.get("close", c.get("c", 0.0))) > 0]
-                    if len(closes_1d) >= 5:
-                        ema_1d = calculate_ema(closes_1d, min(9, len(closes_1d)))[-1]
-                        is_1d_aligned = (closes_1d[-1] >= ema_1d * 0.99) or (closes_1d[-1] >= closes_1d[0])
-                mtf_aligned = bool(is_15m_bullish and is_1d_aligned)
+                def _is_bullish(candle_set: list[dict]) -> bool:
+                    values = [
+                        float(c.get("close", c.get("c", 0.0)))
+                        for c in candle_set
+                        if float(c.get("close", c.get("c", 0.0))) > 0
+                    ]
+                    # Missing auxiliary timeframe data is unknown, not a
+                    # bearish signal. The payload records completeness so
+                    # operators can distinguish confirmed alignment from a
+                    # candle-feed warm-up.
+                    if len(values) < 5:
+                        return True
+                    fast = calculate_ema(values, min(9, len(values)))[-1]
+                    slow = calculate_ema(values, min(21, len(values)))[-1]
+                    return values[-1] >= fast * 0.99 and fast >= slow * 0.995
 
-                if not is_15m_bullish and not mtf_aligned:
+                is_5m_aligned = _is_bullish(candles_5m)
+                is_1h_aligned = _is_bullish(candles_1h)
+                mtf_aligned = bool(is_5m_aligned and is_15m_bullish and is_1h_aligned)
+
+                if not mtf_aligned:
                     # Filter out coins with complete downtrend breakdown
                     if ema9 < ema21 * 0.97:
                         continue
@@ -1054,6 +1211,7 @@ class ScannerService:
                 "priority": "Elite" if score >= 90 else ("High" if score >= 80 else "Medium"),
                 "strategy": strategy_name,
                 "timeframe": "15m",
+                "mtf_timeframes": ["5m", "15m", "1h"],
                 "market_state": market_state,
                 "opportunity_type": opp_type,
                 "coin_class": coin_class,
@@ -1104,6 +1262,10 @@ class ScannerService:
             "expires_at":       sig.expires_at.isoformat(),
             "source":           "scanner_service",
             "confluence":       sig.confluence_breakdown or {},
+            "confluence_score": (sig.raw_payload or {}).get("confluence_score"),
+            "dynamic_threshold": (sig.raw_payload or {}).get("dynamic_threshold"),
+            "mtf_timeframes": (sig.raw_payload or {}).get("mtf_timeframes", ["5m", "15m", "1h"]),
+            "ai_eligible": True,
         }
         await self._bus.publish(EventType.SIGNAL_GENERATED, payload)
         await self._event_log.append(

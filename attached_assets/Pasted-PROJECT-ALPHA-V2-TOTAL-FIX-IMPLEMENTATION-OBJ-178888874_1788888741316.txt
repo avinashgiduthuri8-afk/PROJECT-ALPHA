@@ -1,0 +1,1165 @@
+PROJECT-ALPHA V2 — TOTAL FIX IMPLEMENTATION
+================================================
+
+OBJECTIVE
+---------
+Implement ALL confirmed blockers and required fixes from the latest repository audit.
+
+This is a PRODUCTION-HARDENING implementation phase.
+
+DO NOT:
+- enable LIVE trading
+- place any real exchange order
+- commit
+- push
+- rewrite architecture unnecessarily
+- change strategy mathematics
+- change C2 scoring logic unless required for wiring
+- change AI decision logic unless required for metadata/wiring
+- bypass Risk Engine
+- remove safety locks
+- reintroduce sub-account capital isolation
+- reintroduce a hard ₹10,000 capital ceiling
+- reduce the ₹200 minimum
+- make ₹200 the maximum
+- perform unrelated refactoring
+
+KEEP:
+- shared capital pool
+- PAPER as active runtime mode
+- Risk Engine as final authority
+- maximum 2 signals/cycle
+- high-quality signal priority
+- active-position same-coin suppression
+- duplicate signal suppression
+- dynamic signal expiry
+- adaptive scanner frequency
+- Top-50 quality objective
+- Telegram as full control center
+
+
+================================================
+PHASE 1 — REPOSITORY INTEGRITY
+================================================
+
+1. Inspect:
+   git status
+   git branch
+   git log -1
+   git diff --stat
+   git diff --check
+
+2. Scan entire repository for:
+   - conflict markers
+   - duplicate files
+   - nested repositories
+   - legacy V1 copies accidentally imported by V2
+   - generated databases
+   - pytest artifacts
+   - temporary files
+   - credentials/secrets
+   - suspicious tracked runtime files
+
+3. Remove ONLY confirmed generated/test artifacts that should not be tracked.
+
+4. Update .gitignore for all confirmed test/runtime artifacts, including:
+   .pytest_t*
+   .test_tmp*
+   temporary SQLite databases
+   test-generated runtime files
+   local override files
+
+5. DO NOT delete legitimate production data/schema/source files.
+
+6. Verify repository remains structurally valid.
+
+
+================================================
+PHASE 2 — CRITICAL API AUTHENTICATION FIX
+================================================
+
+File:
+v2/api/auth.py
+
+Current problem:
+- development API key fallback exists
+- alpha-dev-key may be accepted in production
+- production/dev keys may be interchangeable
+- missing API key may effectively become accepted under fallback behavior
+
+IMPLEMENT:
+
+1. Production authentication must FAIL CLOSED.
+
+2. Never use:
+   alpha-dev-key
+   as a production fallback.
+
+3. Never accept a default hardcoded API key.
+
+4. Production API key must come from environment/configuration.
+
+5. If required production API key is missing:
+   - protected API endpoints must reject access
+   - startup should clearly report configuration error where appropriate
+   - never silently create a usable default key
+
+6. Development/test behavior may use explicit test configuration ONLY.
+
+7. Ensure:
+   - dashboard APIs
+   - production control APIs
+   - trading-control APIs
+   - configuration APIs
+   are protected.
+
+8. Do not expose secrets in:
+   - Telegram
+   - logs
+   - API responses
+   - exceptions
+
+9. Add regression tests:
+
+   test_missing_production_api_key_fails_closed
+   test_dev_key_not_accepted_in_production
+   test_valid_production_key_accepted
+   test_invalid_key_rejected
+   test_protected_production_endpoint_requires_auth
+
+IMPORTANT:
+Do not weaken authentication simply to make tests pass.
+
+
+================================================
+PHASE 3 — ₹200 MINIMUM ORDER VALUE
+================================================
+
+AUTHORITATIVE RULE:
+
+MINIMUM TRADING VALUE = ₹200
+
+The actual submitted order value MUST NEVER be below ₹200.
+
+₹200 is the MINIMUM.
+₹200 is NOT a fixed order amount.
+₹200 is NOT a maximum.
+
+Higher values are allowed if capital/risk/exchange rules permit.
+
+Existing exchange requirements must ALSO be respected.
+
+Effective minimum:
+
+    max(
+        project_minimum = ₹200,
+        exchange_min_notional,
+        exchange_min_quantity requirements
+    )
+
+
+IMPLEMENT ROUND-UP:
+
+If calculated quantity produces:
+
+    price × quantity < ₹200
+
+then round QUANTITY UP to the next valid exchange quantity step.
+
+After rounding:
+
+    final_notional = price × final_quantity
+
+MUST verify:
+
+    final_notional >= ₹200
+
+AND:
+
+    quantity satisfies exchange precision
+    quantity satisfies exchange minimum quantity
+    quantity satisfies exchange maximum quantity
+    capital is sufficient
+    risk limits are sufficient
+
+If rounding up causes insufficient capital/risk:
+
+    REJECT TRADE
+
+DO NOT reduce quantity to get under capital.
+
+DO NOT submit an order below ₹200.
+
+
+IMPORTANT BUG TO FIX:
+
+Verify v2/services/trading_service/service.py
+
+The current trading service appears to call:
+
+    round_qty_up(...)
+
+but may not import it.
+
+Fix the import/wiring.
+
+Trace every caller.
+
+Ensure the below-minimum correction path is executable.
+
+
+ENFORCE MINIMUM AT ALL ENTRY POINTS:
+
+- Telegram /setamount
+- Telegram configuration
+- dashboard configuration
+- REST config API
+- trade constructor
+- Risk Engine
+- AutoTradeRouter
+- final execution validation
+
+Risk Engine must independently reject:
+
+₹0
+₹50
+₹100
+₹150
+₹199.99
+
+Risk Engine must accept:
+
+₹200
+
+subject to all other risk/exchange requirements.
+
+Test:
+
+₹199 -> reject
+₹199.99 -> reject
+₹200 -> accept
+₹200.01 -> accept
+₹250 -> accept
+₹500 -> accept
+₹1000 -> accept
+
+Test calculated quantity rounding:
+
+price × raw_qty < ₹200
+        ↓
+round quantity UP
+        ↓
+price × final_qty >= ₹200
+        ↓
+execute only if all constraints pass
+
+Never silently change user-configured amount without reporting it.
+
+
+================================================
+PHASE 4 — TRUE TOP-50 SCANNER UNIVERSE
+================================================
+
+Current issue:
+
+Scanner appears to use the watchlist/fallback universe and then cap it at 50.
+
+That is NOT equivalent to a true Top-50 market-wide universe.
+
+IMPLEMENT:
+
+1. Build a market-wide candidate universe from the existing CoinDCX market-data layer.
+
+2. Rank eligible INR/required trading pairs.
+
+3. Select the best 50 coins using a deterministic composite ranking.
+
+Suggested ranking dimensions:
+
+- 24h quote volume
+- liquidity/turnover
+- volatility quality
+- price activity
+- spread quality if available
+- market relevance
+- data completeness
+
+Do NOT select Top 50 purely by price or volume.
+
+4. Exclude:
+   - invalid symbols
+   - unavailable markets
+   - stale ticker data
+   - unusable candle data
+   - clearly illiquid markets
+   - markets failing minimum data quality
+
+5. Watchlist may still be used as:
+   - manual priority
+   - temporary override
+   - testing universe
+
+BUT normal scanner operation must genuinely support market-wide Top 50 selection.
+
+6. Preserve existing scanner snapshot/telemetry.
+
+7. Add telemetry:
+
+   total_markets_seen
+   eligible_markets
+   filtered_markets
+   top50_selected
+   watchlist_overrides
+
+8. Never run expensive C2/AI on all markets.
+
+
+================================================
+PHASE 5 — CHEAP PRE-C2 FILTERING
+================================================
+
+Goal:
+
+Fewer candidates.
+Higher-quality signals.
+Lower API/rate-limit usage.
+
+Pipeline:
+
+MARKET-WIDE DATA
+      ↓
+CHEAP FILTERS
+      ↓
+TOP 50
+      ↓
+TECHNICAL QUALITY FILTER
+      ↓
+C2
+      ↓
+AI
+      ↓
+RISK
+
+Implement cheap filters BEFORE expensive C2/AI.
+
+Use only existing authoritative market data.
+
+Possible filters:
+
+- stale price
+- missing candles
+- insufficient candle history
+- minimum turnover
+- abnormal spread if available
+- unusable volatility
+- extreme bad data
+- duplicate symbol
+- market unavailable
+- obvious liquidity failure
+
+Do NOT create arbitrary thresholds that conflict with existing strategy design.
+
+The purpose is efficiency, not to artificially increase win rate.
+
+
+================================================
+PHASE 6 — REAL LIQUIDITY FILTER
+================================================
+
+Current issue:
+
+"liquidity_passed" telemetry appears to exist without a sufficiently strong actual liquidity rejection mechanism.
+
+Audit the existing CoinDCX data capabilities.
+
+If order book data is already available:
+
+Use:
+- bid/ask spread
+- depth
+- usable bid/ask liquidity
+
+If only ticker/turnover data is available:
+
+Use the strongest existing authoritative proxy.
+
+Do NOT invent fake order-book data.
+
+Ensure the scanner distinguishes:
+
+liquidity measured
+vs
+liquidity actually passed.
+
+Add tests proving illiquid candidates are filtered before C2 where appropriate.
+
+
+================================================
+PHASE 7 — MTF CONSISTENCY
+================================================
+
+Current scanner has:
+
+5m
+15m
+1h
+
+MTF infrastructure.
+
+But native candidate generation appears to use:
+
+15m + 1d preliminary alignment.
+
+Audit the actual intended V2 C2 architecture.
+
+Required:
+
+C2 must receive the intended timeframe structure consistently.
+
+Do not simply add 1h because it sounds correct.
+
+Determine the authoritative current V2 MTF design from:
+- C2 engine
+- scanner service
+- adapter
+- feature generation
+- tests
+
+Then make scanner → C2 data wiring consistent.
+
+Ensure:
+
+- no missing timeframe
+- no stale timeframe
+- no accidental 1d substitution where 1h is required
+- no duplicated candle fetches unnecessarily
+
+Add regression tests for MTF payload completeness.
+
+
+================================================
+PHASE 8 — SCANNER ADAPTIVE FREQUENCY
+================================================
+
+Implement/verify adaptive scan frequency.
+
+GOOD MARKET:
+- normal/high-quality scanning frequency
+
+NEUTRAL MARKET:
+- moderate frequency
+
+POOR/RISK-OFF MARKET:
+- slower frequency
+- highly selective
+- fewer expensive evaluations
+
+Do NOT stop the scanner completely unless an existing safety condition requires it.
+
+BTC/major-market condition:
+
+Use SCORE ADJUSTMENT,
+not automatic hard rejection.
+
+Final C2 threshold must remain dynamically adjustable based on market conditions.
+
+Preserve:
+- maximum 2 signals/cycle
+- high-quality-first behavior
+
+
+================================================
+PHASE 9 — DUPLICATE SIGNAL SUPPRESSION
+================================================
+
+Requirement:
+
+Same coin/opportunity must NOT repeatedly flow:
+
+Scanner
+→ AI
+→ Risk
+→ notification
+
+while the previous signal is still active.
+
+Correct behavior:
+
+ACTIVE POSITION
+    → suppress same-coin new opportunity
+
+ACTIVE SIGNAL
+    → suppress duplicate opportunity until signal expires
+
+DUPLICATE EVENT
+    → group/suppress notification
+
+EXPIRED SIGNAL
+    → coin may be evaluated again
+
+NEW GENUINE OPPORTUNITY
+    → may be evaluated
+
+Do NOT globally blacklist a coin.
+
+Do NOT remove the Risk Engine asset lock.
+
+Risk remains final authority.
+
+Add tests for:
+
+same coin same active signal
+same coin new signal before expiry
+same coin after expiry
+same coin while position open
+different coin
+different bot
+new genuine opportunity after closure
+
+
+================================================
+PHASE 10 — SIGNAL EXPIRY
+================================================
+
+Signal expiry must be dynamic by timeframe.
+
+Do NOT use one universal fixed expiry if the current architecture already supports timeframe-aware expiry.
+
+Examples:
+
+short timeframe
+→ shorter expiry
+
+longer timeframe
+→ longer expiry
+
+Use existing authoritative timeframe metadata.
+
+Expired signals must be removed from active evaluation state.
+
+
+================================================
+PHASE 11 — AI GATING + METADATA
+================================================
+
+AI must receive ONLY C2-qualified candidates.
+
+Flow:
+
+Scanner
+→ cheap filters
+→ C2
+→ only qualified candidates
+→ AI
+
+Do not send rejected C2 candidates to AI.
+
+Preserve metadata through:
+
+Scanner
+→ Signal
+→ AI
+→ Risk
+→ Trade Constructor
+→ Execution
+→ Telegram
+→ Dashboard
+
+Required metadata where available:
+
+coin
+pair
+bot
+price
+market_state
+opportunity_type
+trend
+setup
+timeframe
+C2 score
+AI confidence
+reasons
+
+No formatter should invent:
+
+Trend = N/A
+Setup = N/A
+
+when the authoritative data exists.
+
+Trace the actual payload and formatter.
+
+If data genuinely does not exist, display N/A honestly.
+
+
+================================================
+PHASE 12 — TELEGRAM CONTROL CENTER
+================================================
+
+Telegram is the full operational control center.
+
+KEEP:
+- operator-only authorization
+- no secret exposure
+- no direct unsafe exchange bypass
+- Risk Engine remains authoritative
+
+IMPLEMENT/VERIFY:
+
+/start
+/help
+/status
+/health
+/mode
+/uptime
+/scan
+/signals
+/signal SYMBOL
+/watchlist
+/funnel
+/positions
+/trades
+/pnl
+/orders
+/capital
+/config
+/setamount
+/pause
+/resume
+/emergency_stop
+/reconcile
+/risk
+/limits
+/alerts
+/logs
+/bots
+
+Exact existing command set may be larger; preserve useful existing commands.
+
+
+================================================
+PHASE 13 — TELEGRAM /POSITIONS
+================================================
+
+/positions must show ONLY:
+
+COIN
+ENTRY
+AMOUNT/CAPITAL
+P&L
+P&L %
+TP
+SL
+POSITION STATUS
+
+Do NOT clutter it with unnecessary:
+- bot details
+- technical indicators
+- internal IDs
+- verbose execution metadata
+
+Ensure values are authoritative.
+
+Current price must come from live/authoritative mark-to-market state.
+
+Never use entry price as a silent fallback when current price is missing.
+
+If current price is unavailable:
+
+display clearly:
+
+Current: UNAVAILABLE
+
+and do not report false zero P&L.
+
+
+================================================
+PHASE 14 — TELEGRAM /SIGNALS
+================================================
+
+/signals = SHORT SUMMARY.
+
+For each active signal show:
+
+COIN
+BOT
+DIRECTION
+C2 SCORE
+AI CONFIDENCE
+ENTRY
+TP
+SL
+STATUS
+
+Keep reasons concise.
+
+Do not dump the entire internal payload.
+
+
+================================================
+PHASE 15 — TELEGRAM /BOTS
+================================================
+
+/bots = FULL FLEET DASHBOARD.
+
+Show per bot:
+
+- enabled/disabled
+- paused/running
+- current state
+- open positions
+- today's trades
+- P&L
+- active signals
+- scanner status
+- configured order amount
+- relevant scanner settings
+
+Controls must support:
+
+- enable bot
+- disable bot
+- pause
+- resume
+- order amount
+- emergency stop
+- scanner settings
+
+Every control must pass through existing safety authorities.
+
+Telegram must never bypass Risk Engine.
+
+
+================================================
+PHASE 16 — TELEGRAM /CAPITAL
+================================================
+
+/capital must clearly show:
+
+MODE
+AVAILABLE CAPITAL
+CONFIGURED ORDER AMOUNT
+MINIMUM ORDER VALUE = ₹200
+DEPLOYED CAPITAL
+REMAINING RISK CAPITAL
+OPEN POSITIONS
+
+Do NOT display ₹200 as maximum.
+
+Do NOT display a hard ₹10,000 system ceiling.
+
+If ₹10,000 appears, it must only be actual available/configured capital from the current environment, NOT an artificial safety ceiling.
+
+Use shared capital pool.
+
+
+================================================
+PHASE 17 — TELEGRAM ALERT POLICY
+================================================
+
+IMPORTANT EVENTS:
+→ notify
+
+NEW HIGH-QUALITY SIGNAL:
+→ full details + reasons
+
+TRADE EXECUTED:
+→ notify
+
+TRADE EXIT:
+→ notify
+
+EMERGENCY STOP:
+→ notify
+
+SYSTEM FAILURE:
+→ notify
+
+HIGH-CONVICTION SIGNAL REJECTED BY RISK:
+→ notify
+
+LOW-CONFIDENCE/LOW-SCORE RISK REJECTION:
+→ do not spam
+
+ZERO SIGNALS:
+→ no notification
+
+DUPLICATE EVENT:
+→ group/suppress
+
+Repeated BNB-style:
+
+AI APPROVE
+→ Risk reject
+→ same signal
+→ AI approve
+→ Risk reject
+→ repeat
+
+must NOT generate an endless notification loop.
+
+
+================================================
+PHASE 18 — MARK-TO-MARKET / P&L
+================================================
+
+Verify current implementation:
+
+TradingService
+→ CoinDCX fresh ticker
+→ PositionManager.update_mark_price()
+→ repository persistence
+→ Telegram/Dashboard
+
+Every active position must receive refreshed market price.
+
+For LONG:
+
+unrealized_pnl =
+    (current_price - entry_price) * quantity
+
+For SHORT, use the correct existing short formula.
+
+Do not alter:
+- entry
+- quantity
+- TP
+- SL
+- risk rules
+- execution sizing
+
+Do not use entry price as current price fallback for active positions.
+
+Verify:
+- database
+- API
+- Telegram
+- dashboard
+
+all reflect current mark price.
+
+Add regression test:
+
+entry != current
+
+and verify:
+
+current price updates
+P&L updates
+P&L% updates
+
+
+================================================
+PHASE 19 — PAPER/LIVE ISOLATION
+================================================
+
+PAPER remains the active runtime.
+
+Verify:
+
+PAPER order
+→ local simulation only
+
+LIVE order
+→ only possible when explicitly configured
+
+No accidental CoinDCX live POST from PAPER.
+
+Verify all execution paths.
+
+No real LIVE trade.
+
+No live credentials required for this phase.
+
+
+================================================
+PHASE 20 — RISK ENGINE
+================================================
+
+Verify all existing safety controls remain intact:
+
+- minimum order ₹200
+- available capital
+- insufficient capital rejection
+- capital guard
+- loss limits
+- drawdown limits
+- circuit breaker
+- emergency stop
+- active coin lock
+- live balance validation
+- duplicate protection
+
+Risk remains final authority.
+
+Do not bypass risk because scanner confidence is high.
+
+
+================================================
+PHASE 21 — PRECISION / PAIR SAFETY
+================================================
+
+Verify all registered pairs, especially:
+
+BTC
+ETH
+BNB
+SOL
+ZEC
+POL
+
+Use authoritative exchange precision rules.
+
+Order creation must satisfy:
+
+quantity precision
+minimum quantity
+minimum notional
+₹200 project minimum
+round-up behavior
+
+Test both BUY and SELL paths.
+
+Never round down when that would violate ₹200.
+
+
+================================================
+PHASE 22 — TESTS
+================================================
+
+First discover exact test count:
+
+pytest --collect-only -q tests/
+
+Then run FULL SUITE:
+
+pytest -q tests/
+
+Do NOT stop after targeted tests.
+
+If a test fails:
+
+1. classify:
+   - implementation bug
+   - stale test
+   - environment issue
+   - invalid test assumption
+
+2. Fix implementation if it is genuinely wrong.
+
+3. Do NOT weaken assertions.
+
+4. Do NOT delete tests just to achieve green.
+
+5. Do NOT modify safety requirements to satisfy old tests.
+
+Required regression areas:
+
+AUTH
+₹200 minimum
+round-up quantity
+exchange precision
+scanner Top50
+pre-C2 filters
+liquidity
+MTF
+adaptive scanning
+duplicate suppression
+signal expiry
+active-position suppression
+AI gating
+metadata propagation
+mark-to-market
+P&L
+Telegram
+PAPER/LIVE isolation
+Risk Engine
+
+
+================================================
+PHASE 23 — STATIC VALIDATION
+================================================
+
+Run:
+
+python -m compileall -q .
+
+git diff --check
+
+Search:
+
+<<<<<<<
+=======
+>>>>>>>
+
+Search for:
+
+alpha-dev-key
+alpha-prod-key
+TOTAL_CAPITAL_LIMIT
+MIN_ORDER_AMOUNT_INR
+round_qty_up
+current_price
+update_mark_price
+
+Verify there are no accidental duplicate implementations.
+
+
+================================================
+PHASE 24 — VPS PAPER VERIFICATION
+================================================
+
+AFTER local tests pass:
+
+Deploy ONLY to PAPER VPS environment.
+
+DO NOT switch LIVE.
+
+Verify:
+
+systemd service active
+no crash loops
+scanner running
+CoinDCX market data updating
+Top50 selection working
+cheap filters working
+C2 receiving correct MTF data
+AI only receiving C2-qualified signals
+Risk receiving qualified signals
+₹200 validation working
+paper execution working
+mark prices changing
+P&L changing
+Telegram commands working
+Telegram positions correct
+Telegram capital correct
+Telegram bots correct
+duplicate suppression working
+alerts not spamming
+watchdog healthy
+
+
+================================================
+PHASE 25 — NATURAL PAPER TEST
+================================================
+
+Do NOT manually inject fake trades as the only proof.
+
+Observe natural flow:
+
+Market Data
+→ Scanner
+→ Top50
+→ Cheap Filters
+→ C2
+→ Signal
+→ AI
+→ Risk
+→ Trade Constructor
+→ PAPER Execution
+→ Position
+→ Mark Price
+→ P&L
+→ Telegram/Dashboard
+
+Verify at least several natural cycles.
+
+Record:
+
+cycles
+markets scanned
+Top50 selected
+cheap-filter pass
+C2-qualified
+signals generated
+AI approvals
+risk approvals
+risk rejections
+paper executions
+open positions
+mark-price updates
+P&L updates
+duplicate suppressions
+
+
+================================================
+PHASE 26 — FINAL REPORT
+================================================
+
+At the end, report EXACTLY:
+
+1. Files changed
+2. Files added
+3. Files removed
+4. Critical fixes
+5. High fixes
+6. Medium fixes
+7. Tests collected
+8. Tests passed
+9. Tests failed
+10. Tests skipped
+11. Warnings
+12. Compile result
+13. git diff --check result
+14. Conflict-marker result
+15. Authentication result
+16. ₹200 minimum result
+17. Round-up result
+18. Top50 result
+19. Liquidity result
+20. MTF result
+21. Duplicate suppression result
+22. Mark-to-market result
+23. Telegram result
+24. PAPER/LIVE isolation result
+25. VPS PAPER result
+26. Remaining issues
+27. LIVE readiness verdict
+
+LIVE READINESS MUST BE ONE OF:
+
+RED — NOT READY
+ORANGE — CONDITIONAL
+GREEN — READY FOR CONTROLLED MICRO-LIVE
+
+Do NOT claim GREEN unless all critical/high blockers are resolved AND
+full tests + VPS PAPER verification pass.
+
+
+================================================
+FINAL SAFETY INVARIANTS
+================================================
+
+These MUST remain true:
+
+1. ₹200 is the absolute project minimum order value.
+2. Actual submitted order value can never be below ₹200.
+3. Quantity must round UP when required to satisfy ₹200.
+4. If round-up exceeds capital/risk, reject.
+5. ₹200 is not a maximum.
+6. No artificial ₹10,000 capital ceiling.
+7. Shared capital pool.
+8. No sub-account capital isolation.
+9. Risk Engine remains final authority.
+10. PAPER remains active.
+11. No LIVE trades.
+12. Maximum 2 signals/cycle.
+13. Same-coin active position blocks new same-coin opportunity.
+14. Active duplicate signals are suppressed until expiry.
+15. AI receives only C2-qualified candidates.
+16. Scanner prioritizes signal quality over quantity.
+17. Top-50 objective must be genuinely market-wide.
+18. Current price must update independently from entry price.
+19. P&L must use authoritative current mark price.
+20. Telegram cannot bypass execution/risk safety.
+21. Emergency stop blocks new execution.
+22. Production authentication fails closed.
+23. Secrets never appear in logs or Telegram.
+24. No test assertions may be weakened.
+25. No unrelated architecture rewrite.
+
+STOP after implementation + validation.
+
+DO NOT COMMIT.
+DO NOT PUSH.
+DO NOT ENABLE LIVE.

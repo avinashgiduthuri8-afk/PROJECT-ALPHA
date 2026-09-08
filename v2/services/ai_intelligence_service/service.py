@@ -168,6 +168,10 @@ class AIIntelligenceService:
             "model_name": analysis.model_name,
             "setup_quality": analysis.setup_quality,
             "latency_ms": analysis.execution_latency_ms,
+            "confluence_score": (signal.raw_payload or {}).get("confluence_score"),
+            "dynamic_threshold": (signal.raw_payload or {}).get("dynamic_threshold"),
+            "mtf_timeframes": (signal.raw_payload or {}).get("mtf_timeframes", ["5m", "15m", "1h"]),
+            "expires_at": signal.expires_at.isoformat(),
         }
         await self._bus.publish(EventType.SIGNAL_AI_EVALUATED, eval_payload)
 
@@ -200,6 +204,10 @@ class AIIntelligenceService:
                 "risk_factors": analysis.risk_factors,
                 "suggested_adjustments": analysis.suggested_adjustments,
                 "model_name": analysis.model_name,
+                "confluence_score": (signal.raw_payload or {}).get("confluence_score"),
+                "dynamic_threshold": (signal.raw_payload or {}).get("dynamic_threshold"),
+                "mtf_timeframes": (signal.raw_payload or {}).get("mtf_timeframes", ["5m", "15m", "1h"]),
+                "expires_at": signal.expires_at.isoformat(),
             }
             await self._bus.publish(EventType.SIGNAL_AI_CONFIRMED, confirm_payload)
             await self._event_log.append(
@@ -231,6 +239,10 @@ class AIIntelligenceService:
                 "conflicts": analysis.conflicts,
                 "risk_factors": analysis.risk_factors,
                 "model_name": analysis.model_name,
+                "confluence_score": (signal.raw_payload or {}).get("confluence_score"),
+                "dynamic_threshold": (signal.raw_payload or {}).get("dynamic_threshold"),
+                "mtf_timeframes": (signal.raw_payload or {}).get("mtf_timeframes", ["5m", "15m", "1h"]),
+                "expires_at": signal.expires_at.isoformat(),
             }
 
             await self._bus.publish(EventType.SIGNAL_AI_REJECTED, reject_payload)
