@@ -13,6 +13,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from .auth import require_api_key
 from .schemas import (
     ResearchPairSchema,
+    ResolvedPairsSchema,
+    TickerStreamSchema,
     CoinProfileSchema,
     VCPSetupSchema,
     VCPStageSchema,
@@ -38,15 +40,19 @@ def init_research_router(research_service) -> None:
     _research_service = research_service
 
 
-# ── Helper: ensure service is available ──────────────────────────────────────
-
 def _get_service():
+    global _research_service
     if _research_service is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Research service not initialised",
-        )
+        try:
+            from v2.services.research_service.service import CoinResearchService
+            _research_service = CoinResearchService()
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Research service not initialised",
+            )
     return _research_service
+
 
 
 # ── GET /research/coins ───────────────────────────────────────────────────────
@@ -63,6 +69,56 @@ async def list_research_coins() -> list[ResearchPairSchema]:
     from v2.services.research_service.symbol_normalizer import get_supported_pairs_info
     pairs = get_supported_pairs_info()
     return [ResearchPairSchema(**p) for p in pairs]
+
+
+# ── GET /research/pairs/{symbol:path} ─────────────────────────────────────────
+
+@research_router.get(
+    "/pairs/{symbol:path}",
+    response_model=ResolvedPairsSchema,
+    dependencies=[Depends(require_api_key)],
+    tags=["research"],
+    summary="Discover available INR and USDT quote pairs for a coin",
+)
+async def resolve_coin_pairs(symbol: str) -> ResolvedPairsSchema:
+    """
+    Resolve and discover all active quote pairs for a base asset on CoinDCX.
+    Prioritizes active INR pairs with seamless fallback to USDT.
+    """
+    svc = _get_service()
+    try:
+        data = await svc.resolve_coin_pairs(symbol)
+        return ResolvedPairsSchema(**data)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Pair resolution failed: {exc}",
+        )
+
+
+# ── GET /research/ticker/{symbol:path} ────────────────────────────────────────
+
+@research_router.get(
+    "/ticker/{symbol:path}",
+    response_model=TickerStreamSchema,
+    dependencies=[Depends(require_api_key)],
+    tags=["research"],
+    summary="High-frequency sub-50ms live ticker snapshot",
+)
+async def get_coin_ticker(symbol: str) -> TickerStreamSchema:
+    """
+    Return sub-50ms live ticker snapshot for fast 1-second UI ticker tape updates.
+    """
+    svc = _get_service()
+    try:
+        data = await svc.get_ticker_snapshot(symbol)
+        return TickerStreamSchema(**data)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Ticker snapshot failed: {exc}",
+        )
+
 
 
 # ── GET /research/coin/{symbol:path} ──────────────────────────────────────────

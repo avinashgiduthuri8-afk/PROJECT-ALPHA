@@ -161,30 +161,40 @@ class AutoTradeRouter:
         client = self._subaccount_manager.get_client(target_bot)
 
         price = float(signal_data.get("price") or signal_data.get("current_price") or 100.0)
-        trade_amount = float(signal_data.get("trade_amount") or signal_data.get("amount") or client.config.default_trade_amount_inr)
-        qty = trade_amount / price if price > 0 else 0.0
+        trade_amount_inr = float(signal_data.get("trade_amount") or signal_data.get("amount") or client.config.default_trade_amount_inr)
+        
+        is_usdt_pair = pair.upper().endswith("/USDT") or pair.upper().endswith("USDT")
+        usdt_inr_rate = float(signal_data.get("usdt_inr_rate") or 91.50)
+
+        if is_usdt_pair:
+            target_usdt = trade_amount_inr / usdt_inr_rate if usdt_inr_rate > 0 else (trade_amount_inr / 91.50)
+            qty = target_usdt / price if price > 0 else 0.0
+        else:
+            qty = trade_amount_inr / price if price > 0 else 0.0
 
         # Pre-trade precision validation
         rounded_price = round_price(pair, price)
         rounded_qty = round_qty(pair, qty)
         notional_value = rounded_price * rounded_qty
+        notional_inr = (notional_value * usdt_inr_rate) if is_usdt_pair else notional_value
 
         # Hard ₹200 minimum trading value invariant:
         # If calculated notional is below ₹200.00, round quantity UP to the next valid exchange lot step
-        if notional_value < 200.0:
+        if notional_inr < 200.0:
             rounded_qty = round_qty_up(pair, qty)
             notional_value = rounded_price * rounded_qty
+            notional_inr = (notional_value * usdt_inr_rate) if is_usdt_pair else notional_value
 
-        if not validate_order_notional(pair, rounded_price, rounded_qty, min_notional=200.0) or notional_value < 200.0:
+        if not validate_order_notional(pair, rounded_price, rounded_qty, min_notional=200.0, usdt_inr_rate=usdt_inr_rate) or notional_inr < 200.0:
             logger.warning(
                 "Order rejected by precision gate: notional value INR %.2f < min ₹200.00 for pair %s",
-                notional_value, pair,
+                notional_inr, pair,
             )
             return {
                 "success": False,
                 "error": "ORDER_NOTIONAL_BELOW_MINIMUM",
-                "notional_value": notional_value,
-                "message": f"Notional value INR {notional_value:.2f} is below minimum INR 200.00",
+                "notional_value": notional_inr,
+                "message": f"Notional value INR {notional_inr:.2f} is below minimum INR 200.00",
             }
 
         # Mark signal as processed once validated
@@ -192,8 +202,8 @@ class AutoTradeRouter:
 
         if is_dry_run:
             logger.info(
-                "[DRY-RUN] AutoTradeRouter mapped signal %s to bot %s for pair %s @ INR %.2f (Qty: %s, Notional: INR %.2f)",
-                signal_id, target_bot.value, pair, rounded_price, rounded_qty, notional_value,
+                "[DRY-RUN] AutoTradeRouter mapped signal %s to bot %s for pair %s @ %.4f (Qty: %s, Notional INR: %.2f)",
+                signal_id, target_bot.value, pair, rounded_price, rounded_qty, notional_inr,
             )
             return {
                 "success": True,

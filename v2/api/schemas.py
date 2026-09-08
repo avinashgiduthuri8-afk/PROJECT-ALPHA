@@ -608,6 +608,54 @@ class ResearchPairSchema(BaseModel):
     quote: str
 
 
+class ResolvedPairsSchema(BaseModel):
+    """Multi-quote resolution response for a coin symbol."""
+    base_asset:      str
+    primary_pair:    str
+    available_pairs: list[str]
+    preferred_quote: str
+    usdt_inr_rate:   float
+    has_inr:         bool
+    has_usdt:        bool
+
+
+class TickerStreamSchema(BaseModel):
+    """High-frequency 1-second price ticker stream response."""
+    symbol:               str
+    pair:                 str
+    quote:                str
+    price:                float
+    price_inr_equiv:      float
+    change_24h:           float
+    high_24h:             float
+    low_24h:              float
+    volume_24h:           float
+    bid:                  float
+    ask:                  float
+    timestamp:            int
+    ltp:                  Optional[float] = None
+    quote_currency:       Optional[str] = None
+    change_24h_pct:       Optional[float] = None
+    usdt_inr_rate:        Optional[float] = None
+    inr_equivalent_ltp:   Optional[float] = None
+    usdt_equivalent_ltp:  Optional[float] = None
+
+    def model_post_init(self, __context: Any) -> None:
+        if self.ltp is None:
+            self.ltp = self.price
+        if self.quote_currency is None:
+            self.quote_currency = self.quote
+        if self.change_24h_pct is None:
+            self.change_24h_pct = self.change_24h
+        if self.inr_equivalent_ltp is None:
+            self.inr_equivalent_ltp = self.price_inr_equiv
+        if self.usdt_equivalent_ltp is None:
+            rate = self.usdt_inr_rate or 91.50
+            self.usdt_equivalent_ltp = self.price if self.quote == "USDT" else (self.price / rate if rate > 0 else self.price)
+
+
+
+
 class VCPStageSchema(BaseModel):
     stage:            str
     high:             float

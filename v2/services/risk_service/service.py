@@ -158,12 +158,14 @@ class RiskService:
 
             # Select target bot strategy archetype
             bot = self._select_bot_for_signal(payload)
-            # Dynamic amount flow: check explicit amount or use dynamically configured order_size_inr
-            requested_base = float(payload.get("amount") or payload.get("order_size_inr") or self._get_default_amount_for_bot(bot))
+            # Dynamic amount flow: check explicit amount or use dynamically configured order_size_inr (minimum ₹200.00)
+            configured_default = self._get_default_amount_for_bot(bot)
+            raw_req = float(payload.get("amount") or payload.get("order_size_inr") or configured_default)
+            requested_base = max(200.0, raw_req)
 
             # Apply AI position size scaling multiplier
             size_multiplier = float(ai_adjustments.get("size_multiplier", 1.0))
-            scaled_amount = max(0.0, requested_base * size_multiplier)
+            scaled_amount = max(200.0, requested_base * size_multiplier)
 
             decision = await self.check_trade_allowed(bot, scaled_amount, coin=coin, pair=pair)
 

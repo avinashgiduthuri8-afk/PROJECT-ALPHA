@@ -22,6 +22,20 @@ class PairPrecisionSpec:
     lot_step_decimals: int # Decimal places for quantity step rounding (roundp)
     min_lot_qty: float     # Minimum tradeable quantity
     min_notional_inr: float = 100.0  # CoinDCX minimum order value in INR
+    min_notional_usdt: float = 1.0   # CoinDCX minimum order value in USDT
+    quote_currency: str = "INR"
+
+    @property
+    def min_quantity(self) -> float:
+        return self.min_lot_qty
+
+    def __getitem__(self, item: str):
+        if hasattr(self, item):
+            return getattr(self, item)
+        if item == "min_quantity":
+            return self.min_lot_qty
+        raise KeyError(item)
+
 
 
 # ── Canonical 12 CoinDCX INR Trading Pairs Precision Table ──────────────────
@@ -128,13 +142,13 @@ PRECISION_TABLE: Dict[str, PairPrecisionSpec] = {
         min_notional_inr=100.0,
     ),
     "ZEC/INR": PairPrecisionSpec(
-
         pair="ZEC/INR",
         base_price=3500.0,
         price_decimals=1,      # Tick: ₹0.10
         lot_step_decimals=4,   # Step: 0.0001 ZEC
         min_lot_qty=0.0001,
         min_notional_inr=100.0,
+        min_notional_usdt=1.0,
     ),
     "POL/INR": PairPrecisionSpec(
         pair="POL/INR",
@@ -143,6 +157,99 @@ PRECISION_TABLE: Dict[str, PairPrecisionSpec] = {
         lot_step_decimals=1,
         min_lot_qty=0.1,
         min_notional_inr=100.0,
+        min_notional_usdt=1.0,
+    ),
+
+    # ── USDT Direct Pairs ─────────────────────────────────────────────────────
+    "BTC/USDT": PairPrecisionSpec(
+        pair="BTC/USDT",
+        base_price=90000.0,
+        price_decimals=2,      # Tick: $0.01
+        lot_step_decimals=5,   # Step: 0.00001 BTC
+        min_lot_qty=0.00001,
+        min_notional_inr=100.0,
+        min_notional_usdt=1.0,
+        quote_currency="USDT",
+    ),
+    "ETH/USDT": PairPrecisionSpec(
+        pair="ETH/USDT",
+        base_price=2700.0,
+        price_decimals=2,      # Tick: $0.01
+        lot_step_decimals=4,   # Step: 0.0001 ETH
+        min_lot_qty=0.0001,
+        min_notional_inr=100.0,
+        min_notional_usdt=1.0,
+        quote_currency="USDT",
+    ),
+    "SOL/USDT": PairPrecisionSpec(
+        pair="SOL/USDT",
+        base_price=135.0,
+        price_decimals=2,      # Tick: $0.01
+        lot_step_decimals=3,   # Step: 0.001 SOL
+        min_lot_qty=0.001,
+        min_notional_inr=100.0,
+        min_notional_usdt=1.0,
+        quote_currency="USDT",
+    ),
+    "BNB/USDT": PairPrecisionSpec(
+        pair="BNB/USDT",
+        base_price=600.0,
+        price_decimals=2,
+        lot_step_decimals=3,
+        min_lot_qty=0.001,
+        min_notional_inr=100.0,
+        min_notional_usdt=1.0,
+        quote_currency="USDT",
+    ),
+    "NEAR/USDT": PairPrecisionSpec(
+        pair="NEAR/USDT",
+        base_price=2.50,
+        price_decimals=3,
+        lot_step_decimals=2,
+        min_lot_qty=0.01,
+        min_notional_inr=100.0,
+        min_notional_usdt=1.0,
+        quote_currency="USDT",
+    ),
+    "RENDER/USDT": PairPrecisionSpec(
+        pair="RENDER/USDT",
+        base_price=6.0,
+        price_decimals=3,
+        lot_step_decimals=2,
+        min_lot_qty=0.01,
+        min_notional_inr=100.0,
+        min_notional_usdt=1.0,
+        quote_currency="USDT",
+    ),
+    "PEPE/USDT": PairPrecisionSpec(
+        pair="PEPE/USDT",
+        base_price=0.000008,
+        price_decimals=8,
+        lot_step_decimals=-2,  # Step: 100 PEPE
+        min_lot_qty=100.0,
+        min_notional_inr=100.0,
+        min_notional_usdt=1.0,
+        quote_currency="USDT",
+    ),
+    "DOGE/USDT": PairPrecisionSpec(
+        pair="DOGE/USDT",
+        base_price=0.10,
+        price_decimals=4,
+        lot_step_decimals=1,
+        min_lot_qty=0.1,
+        min_notional_inr=100.0,
+        min_notional_usdt=1.0,
+        quote_currency="USDT",
+    ),
+    "FET/USDT": PairPrecisionSpec(
+        pair="FET/USDT",
+        base_price=1.20,
+        price_decimals=3,
+        lot_step_decimals=2,
+        min_lot_qty=0.01,
+        min_notional_inr=100.0,
+        min_notional_usdt=1.0,
+        quote_currency="USDT",
     ),
 }
 
@@ -153,6 +260,8 @@ DEFAULT_SPEC = PairPrecisionSpec(
     lot_step_decimals=6,
     min_lot_qty=0.000001,
     min_notional_inr=100.0,
+    min_notional_usdt=1.0,
+    quote_currency="INR",
 )
 
 
@@ -165,6 +274,23 @@ def get_pair_spec(pair: str) -> PairPrecisionSpec:
         return PRECISION_TABLE[clean_pair]
 
     base_coin = clean_pair.split("/")[0]
+    quote = clean_pair.split("/")[1] if "/" in clean_pair else "INR"
+
+    if quote == "USDT":
+        usdt_key = f"{base_coin}/USDT"
+        if usdt_key in PRECISION_TABLE:
+            return PRECISION_TABLE[usdt_key]
+        return PairPrecisionSpec(
+            pair=usdt_key,
+            base_price=1.0,
+            price_decimals=4,
+            lot_step_decimals=4,
+            min_lot_qty=0.0001,
+            min_notional_inr=100.0,
+            min_notional_usdt=1.0,
+            quote_currency="USDT",
+        )
+
     inr_key = f"{base_coin}/INR"
     if inr_key in PRECISION_TABLE:
         return PRECISION_TABLE[inr_key]
@@ -202,6 +328,11 @@ def round_qty(pair: str, qty: float) -> float:
     return res
 
 
+# Alias for explicit clarity
+round_qty_down = round_qty
+
+
+
 def round_qty_up(pair: str, qty: float) -> float:
     """Round lot quantity UP to pair step size (ceil)."""
     if qty <= 0:
@@ -228,13 +359,24 @@ def validate_order_notional(
     price: float,
     qty: float,
     min_notional: Optional[float] = None,
+    usdt_inr_rate: float = 91.50,
 ) -> bool:
     """
-    Validate that the order meets both minimum lot size and minimum order value (₹200).
+    Validate that the order meets both minimum lot size and minimum order value (₹200 or USDT equivalent).
     """
     spec = get_pair_spec(pair)
-    min_val = min_notional if min_notional is not None else spec.min_notional_inr
     notional = price * qty
+    is_usdt = pair.upper().endswith("/USDT") or pair.upper().endswith("USDT")
+    
+    if min_notional is not None:
+        min_val = min_notional
+    else:
+        min_val = spec.min_notional_usdt if is_usdt else spec.min_notional_inr
+
+    # If pair is USDT and min_val is given in INR (e.g. 200.0), convert to USDT equivalent
+    if is_usdt and min_val >= 50.0:
+        min_val = min_val / usdt_inr_rate
+
     return (qty >= spec.min_lot_qty) and (notional >= min_val)
 
 

@@ -1,4 +1,4 @@
-﻿"""
+"""
 CoinDCX Public REST Market Data Client.
 
 Provides zero-credential access to live tickers, historical OHLCV candles,

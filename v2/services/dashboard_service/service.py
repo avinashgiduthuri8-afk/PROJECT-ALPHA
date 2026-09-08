@@ -262,6 +262,7 @@ class DashboardService:
             EventType.CIRCUIT_BREAKER_TRIGGERED,
             EventType.ALERT_GENERATED,
             EventType.CALIBRATION_UPDATED,
+            EventType.TICKER_PRICE_UPDATE,
         ]:
             self._bus.subscribe(et, self._on_event_broadcast)
 
@@ -285,6 +286,7 @@ class DashboardService:
             EventType.CIRCUIT_BREAKER_TRIGGERED,
             EventType.ALERT_GENERATED,
             EventType.CALIBRATION_UPDATED,
+            EventType.TICKER_PRICE_UPDATE,
         ]:
             self._bus.unsubscribe(et, self._on_event_broadcast)
 

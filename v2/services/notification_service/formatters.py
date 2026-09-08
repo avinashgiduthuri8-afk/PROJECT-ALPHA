@@ -702,16 +702,17 @@ def format_telegram_capital(c: dict[str, Any]) -> str:
     """Format /capital response strictly obeying capital reality and C2 specification."""
     mode = c.get("mode", "SHADOW")
     avail = c.get("available_capital")
-    avail_str = f"₹{avail:,.2f}" if avail is not None else "CAPITAL UNKNOWN"
     deployed = float(c.get("deployed_capital", 0.0))
     min_order = float(c.get("min_order_size", 200.0))
     order_amt = float(c.get("order_amount_inr", 200.0))
     
     if avail is not None:
+        avail_str = f"₹{avail:,.2f}"
         headroom = max(0.0, float(avail) - deployed)
         headroom_str = f"₹{headroom:,.2f}"
     else:
-        headroom_str = "CAPITAL UNKNOWN"
+        avail_str = "CAPITAL UNKNOWN" if mode == "LIVE_MICROCASH" else "DYNAMIC (UNCONSTRAINED)"
+        headroom_str = "CAPITAL UNKNOWN" if mode == "LIVE_MICROCASH" else "DYNAMIC (UNCONSTRAINED)"
 
     open_pos_count = int(c.get("open_positions_count", 0))
     per_bot = c.get("per_bot_allocation", {})
@@ -732,7 +733,7 @@ def format_telegram_capital(c: dict[str, Any]) -> str:
         for bot, alloc in per_bot.items():
             lines.append(f"  • <b>{bot}:</b> ₹{float(alloc):,.2f}")
     else:
-        lines.append("  • <i>Standard Equal Allocation (₹10,000 Cap)</i>")
+        lines.append("  • <i>Unified Dynamic Fleet Allocation</i>")
 
     lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━")
     lines.append(f"• <b>Capital Source:</b> <code>{c.get('source', 'COINDCX_EXCHANGE' if mode == 'LIVE_MICROCASH' else 'SIMULATION')}</code>")

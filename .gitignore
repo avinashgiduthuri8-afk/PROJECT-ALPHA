@@ -36,6 +36,7 @@ logs/*.log
 .pytest_cache/
 .pytest_tmp*
 .test_dbs/
+.test_tmp/
 tests_tmp*
 
 # Platform artifacts (Replit / Emergent)

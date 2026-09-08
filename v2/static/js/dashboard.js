@@ -42,8 +42,8 @@ class V2InstitutionalDashboard {
     this.connectWebSocket();
     this.loadCoinResearch('BTC/INR');
 
-    // Regular polling fallback every 8s
-    this.pollInterval = setInterval(() => this.fetchAllData(), 8000);
+    // Regular fast polling fallback every 2s
+    this.pollInterval = setInterval(() => this.fetchAllData(), 2000);
   }
 
   // ── Precision & Formatting Helpers ──────────────────────────────────────────

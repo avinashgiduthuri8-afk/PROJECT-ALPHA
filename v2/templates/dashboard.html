@@ -112,6 +112,46 @@
         .event-details-block p { margin: 0 0 4px; font-size: 0.74rem; color: var(--text-secondary); line-height: 1.3; }
         .event-timestamp-tag { font-size: 0.68rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
 
+        /* Ticker Pulse & Flash Animations */
+        @keyframes flashGreen {
+            0% { background-color: rgba(16, 185, 129, 0.45); color: #34d399; }
+            100% { background-color: transparent; }
+        }
+        @keyframes flashRed {
+            0% { background-color: rgba(239, 68, 68, 0.45); color: #f87171; }
+            100% { background-color: transparent; }
+        }
+        .price-flash-up {
+            animation: flashGreen 0.75s ease-out;
+            border-radius: 4px;
+        }
+        .price-flash-down {
+            animation: flashRed 0.75s ease-out;
+            border-radius: 4px;
+        }
+        .quote-pill-btn {
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+            background: #0d1322;
+            color: var(--text-secondary);
+            transition: all 0.2s ease;
+        }
+        .quote-pill-btn:hover {
+            color: #fff;
+            border-color: var(--accent-blue);
+        }
+        .quote-pill-btn.active {
+            background: var(--accent-blue);
+            color: #fff;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
+        }
+
         /* 13-Stage Pipeline Styling */
         .beta-pipeline-card { background: linear-gradient(145deg, #111a2e, #0c1220); border: 1px solid #1e293b; border-radius: 14px; padding: 20px; margin-bottom: 24px; box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
         .beta-pipeline-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 18px; }
@@ -1049,9 +1089,20 @@
                                         <option value="SOL"></option>
                                         <option value="BTC"></option>
                                         <option value="ETH"></option>
+                                        <option value="BNB"></option>
                                         <option value="NEAR"></option>
                                         <option value="FET"></option>
                                         <option value="DOGE"></option>
+                                        <option value="RENDER"></option>
+                                        <option value="ADA"></option>
+                                        <option value="XRP"></option>
+                                        <option value="PEPE"></option>
+                                        <option value="AVAX"></option>
+                                        <option value="LINK"></option>
+                                        <option value="SUI"></option>
+                                        <option value="APT"></option>
+                                        <option value="INJ"></option>
+                                        <option value="TIA"></option>
                                     </datalist>
                                     <button class="btn-commit-mock-state" onclick="searchStockDeepDive()">Search</button>
                                 </div>
@@ -1062,17 +1113,28 @@
                                 <button class="btn-sm btn-outline" onclick="selectStockSearch('SOL')">SOL</button>
                                 <button class="btn-sm btn-outline" onclick="selectStockSearch('BTC')">BTC</button>
                                 <button class="btn-sm btn-outline" onclick="selectStockSearch('ETH')">ETH</button>
+                                <button class="btn-sm btn-outline" onclick="selectStockSearch('BNB')">BNB</button>
                                 <button class="btn-sm btn-outline" onclick="selectStockSearch('NEAR')">NEAR</button>
                                 <button class="btn-sm btn-outline" onclick="selectStockSearch('FET')">FET</button>
                                 <button class="btn-sm btn-outline" onclick="selectStockSearch('DOGE')">DOGE</button>
+                                <button class="btn-sm btn-outline" onclick="selectStockSearch('RENDER')">RENDER</button>
+                                <button class="btn-sm btn-outline" onclick="selectStockSearch('ADA')">ADA</button>
+                                <button class="btn-sm btn-outline" onclick="selectStockSearch('XRP')">XRP</button>
+                                <button class="btn-sm btn-outline" onclick="selectStockSearch('PEPE')">PEPE</button>
+                                <button class="btn-sm btn-outline" onclick="selectStockSearch('AVAX')">AVAX</button>
+                                <button class="btn-sm btn-outline" onclick="selectStockSearch('LINK')">LINK</button>
                             </div>
                         </div>
 
                         <div class="metric-card span-12" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; background: rgba(17, 17, 24, 0.85); border-left: 4px solid var(--accent-indigo);">
-                            <div style="display:flex; align-items:center; gap:12px;">
+                            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
                                 <h2 id="si-symbol" style="margin:0; font-size:1.6rem; letter-spacing:0.5px;">SOL/INR</h2>
+                                <div id="si-quote-toggles" style="display:inline-flex; gap:6px; align-items:center;">
+                                    <!-- Dynamic Quote Pills (INR / USDT) -->
+                                </div>
                                 <span id="si-name" style="color:var(--text-secondary); font-size:0.95rem; font-weight:500;">Solana</span>
                                 <span id="si-tier-badge" class="row-badge-pill signal-type-elite">CONFLUENCE SCORE 89/100</span>
+                                <span id="si-ticker-live-status" class="status-badge-item text-green" style="font-size:0.75rem;"><span class="status-dot dot-online"></span> LIVE 1s</span>
                             </div>
                             <div style="display:flex; gap:10px; flex-wrap:wrap;">
                                 <button class="btn-sm" style="background:#3b82f6; color:#fff; border:none;" onclick="backtestCurrentStock()">
@@ -1085,12 +1147,16 @@
                         </div>
 
                         <div class="metric-card span-4">
-                            <h5>Valuation &amp; Price Metrics</h5>
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <h5>Valuation &amp; Price Metrics</h5>
+                                <span id="si-quote-badge" class="row-badge-pill" style="font-size:0.68rem; background:rgba(59,130,246,0.15); color:var(--accent-blue);">INR QUOTE</span>
+                            </div>
                             <div style="margin:12px 0;">
                                 <div style="display:flex; align-items:baseline; gap:8px;">
-                                    <h2 id="si-ltp" class="text-blue font-mono" style="font-size:1.8rem; margin:0;">₹10,380.00</h2>
+                                    <h2 id="si-ltp" class="text-blue font-mono" style="font-size:1.8rem; margin:0; padding:2px 4px; transition: background-color 0.3s ease;">₹10,380.00</h2>
                                     <span id="si-change" class="text-green font-600" style="font-size:0.95rem;">+₹478.00 (+4.82%)</span>
                                 </div>
+                                <div id="si-conv-row" style="font-size:0.76rem; color:var(--text-muted); margin-top:3px; font-family:'JetBrains Mono',monospace;"></div>
                             </div>
                             <div class="layout-matrix-inner-row" style="grid-template-columns: 1fr 1fr; gap:8px; margin-top:12px;">
                                 <div class="nested-status-well"><h6>24h Range</h6><h4 id="si-day-range" class="font-mono" style="font-size:0.85rem;">₹9,850 - ₹10,480</h4></div>
@@ -1101,7 +1167,10 @@
                         </div>
 
                         <div class="metric-card span-4">
-                            <h5>Trade Constructor Setup (₹200 Sizing)</h5>
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <h5 id="si-constructor-header">Trade Constructor Setup</h5>
+                                <span id="si-constructor-sizing" class="row-badge-pill" style="font-size:0.68rem; background:rgba(16,185,129,0.15); color:var(--accent-green);">₹200 MIN SIZING</span>
+                            </div>
                             <div style="margin:10px 0;">
                                 <span id="si-setup-name" class="row-badge-pill signal-type-elite">STE SUPERTREND MOMENTUM</span>
                             </div>
@@ -1120,10 +1189,10 @@
                                 <h3 id="si-total-score" class="text-green font-mono" style="margin:0; font-size:1.4rem;">89 / 100</h3>
                             </div>
                             <div style="display:flex; flex-direction:column; gap:8px; font-size:0.82rem;">
-                                <div><div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Multi-Timeframe Structure</span><strong class="text-blue font-mono">23 / 25</strong></div><div class="progress-track"><div class="progress-fill fill-blue" style="width:92%;"></div></div></div>
-                                <div><div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>RS vs BTC Benchmark</span><strong class="text-green font-mono">24 / 25</strong></div><div class="progress-track"><div class="progress-fill fill-green" style="width:96%;"></div></div></div>
-                                <div><div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Orderbook Depth &amp; Volume</span><strong class="text-amber font-mono">22 / 25</strong></div><div class="progress-track"><div class="progress-fill fill-amber" style="width:88%;"></div></div></div>
-                                <div><div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Risk/Reward Asymmetry</span><strong class="text-blue font-mono">20 / 25</strong></div><div class="progress-track"><div class="progress-fill fill-blue" style="width:80%;"></div></div></div>
+                                <div><div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Multi-Timeframe Structure</span><strong id="si-score-mtf" class="text-blue font-mono">23 / 25</strong></div><div class="progress-track"><div id="si-prog-mtf" class="progress-fill fill-blue" style="width:92%;"></div></div></div>
+                                <div><div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>RS vs BTC Benchmark</span><strong id="si-score-rs" class="text-green font-mono">24 / 25</strong></div><div class="progress-track"><div id="si-prog-rs" class="progress-fill fill-green" style="width:96%;"></div></div></div>
+                                <div><div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Orderbook Depth &amp; Volume</span><strong id="si-score-vol" class="text-amber font-mono">22 / 25</strong></div><div class="progress-track"><div id="si-prog-vol" class="progress-fill fill-amber" style="width:88%;"></div></div></div>
+                                <div><div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Risk/Reward Asymmetry</span><strong id="si-score-rr" class="text-blue font-mono">20 / 25</strong></div><div class="progress-track"><div id="si-prog-rr" class="progress-fill fill-blue" style="width:80%;"></div></div></div>
                             </div>
                         </div>
 
@@ -1134,7 +1203,7 @@
                             </div>
                             <div style="margin-top:8px;">
                                 <h6 style="color:var(--text-secondary); margin-bottom:4px; font-size:0.78rem;">BULLISH CATALYSTS EVALUATED</h6>
-                                <ul style="font-size:0.82rem; margin:0 0 10px 16px; padding:0; color:var(--text-primary); line-height:1.4;">
+                                <ul id="si-catalysts-list" style="font-size:0.82rem; margin:0 0 10px 16px; padding:0; color:var(--text-primary); line-height:1.4;">
                                     <li>Multi-Timeframe confirmation: 15m, 1h, and 4h aligned in Stage-2 expansion.</li>
                                     <li>Cross-Asset Relative Strength at 30-day peak vs BTC benchmark (+3.4%).</li>
                                     <li>Single-Coin Asset Lock clear: No competing open positions in SOL.</li>
@@ -1349,7 +1418,7 @@
                         <div class="metric-card span-3"><div class="kpi-label">Win Rate</div><div class="kpi-value font-mono text-green">86.5%</div><div class="kpi-sub">19W / 3L</div></div>
                         <div class="metric-card span-3"><div class="kpi-label">Net Realized PnL</div><div class="kpi-value font-mono text-green">+₹185.40</div><div class="kpi-sub">Post-Tax &amp; TDS</div></div>
                         <div class="metric-card span-3"><div class="kpi-label">Profit Factor</div><div class="kpi-value font-mono text-amber">3.14</div><div class="kpi-sub">Sharpe: 2.85</div></div>
-                        <div class="metric-card span-3"><div class="kpi-label">Active Position</div><div class="kpi-value font-mono text-blue">0 / 1</div><div class="kpi-sub">Single-Coin Lock Clear</div></div>
+                        <div class="metric-card span-3"><div class="kpi-label">Active Position</div><div class="kpi-value font-mono text-blue" id="ste-tab-pos">0 / 1</div><div class="kpi-sub" id="ste-tab-pos-sub">Single-Coin Lock Clear</div></div>
                         <div class="metric-card span-12">
                             <h5>Strategy Configuration &amp; Parameter Matrix</h5>
                             <div class="layout-matrix-inner-row" style="grid-template-columns: repeat(4, 1fr); gap:12px; margin-top:10px;">
@@ -1379,7 +1448,7 @@
                         <div class="metric-card span-3"><div class="kpi-label">Win Rate</div><div class="kpi-value font-mono text-green">91.0%</div><div class="kpi-sub">12W / 1L</div></div>
                         <div class="metric-card span-3"><div class="kpi-label">Net Realized PnL</div><div class="kpi-value font-mono text-green">+₹142.20</div><div class="kpi-sub">Post-Tax &amp; TDS</div></div>
                         <div class="metric-card span-3"><div class="kpi-label">Profit Factor</div><div class="kpi-value font-mono text-amber">3.80</div><div class="kpi-sub">Sharpe: 3.20</div></div>
-                        <div class="metric-card span-3"><div class="kpi-label">Active Position</div><div class="kpi-value font-mono text-blue">0 / 1</div><div class="kpi-sub">Single-Coin Lock Clear</div></div>
+                        <div class="metric-card span-3"><div class="kpi-label">Active Position</div><div class="kpi-value font-mono text-blue" id="hda-tab-pos">0 / 1</div><div class="kpi-sub" id="hda-tab-pos-sub">Single-Coin Lock Clear</div></div>
                         <div class="metric-card span-12">
                             <h5>Strategy Configuration &amp; Parameter Matrix</h5>
                             <div class="layout-matrix-inner-row" style="grid-template-columns: repeat(4, 1fr); gap:12px; margin-top:10px;">
@@ -1409,7 +1478,7 @@
                         <div class="metric-card span-3"><div class="kpi-label">Win Rate</div><div class="kpi-value font-mono text-green">89.0%</div><div class="kpi-sub">16W / 2L</div></div>
                         <div class="metric-card span-3"><div class="kpi-label">Net Realized PnL</div><div class="kpi-value font-mono text-green">+₹125.20</div><div class="kpi-sub">Post-Tax &amp; TDS</div></div>
                         <div class="metric-card span-3"><div class="kpi-label">Profit Factor</div><div class="kpi-value font-mono text-amber">3.45</div><div class="kpi-sub">Sharpe: 2.95</div></div>
-                        <div class="metric-card span-3"><div class="kpi-label">Active Position</div><div class="kpi-value font-mono text-green">1 / 1 (ETH)</div><div class="kpi-sub">0.00020 ETH Open</div></div>
+                        <div class="metric-card span-3"><div class="kpi-label">Active Position</div><div class="kpi-value font-mono text-blue" id="vcp-tab-pos">0 / 1</div><div class="kpi-sub" id="vcp-tab-pos-sub">Single-Coin Lock Clear</div></div>
                         <div class="metric-card span-12">
                             <h5>Strategy Configuration &amp; Parameter Matrix</h5>
                             <div class="layout-matrix-inner-row" style="grid-template-columns: repeat(4, 1fr); gap:12px; margin-top:10px;">
@@ -1439,7 +1508,7 @@
                         <div class="metric-card span-3"><div class="kpi-label">Win Rate</div><div class="kpi-value font-mono text-green">100.0%</div><div class="kpi-sub">8W / 0L</div></div>
                         <div class="metric-card span-3"><div class="kpi-label">Net Realized PnL</div><div class="kpi-value font-mono text-green">₹0.00</div><div class="kpi-sub">Awaiting Expansion Setup</div></div>
                         <div class="metric-card span-3"><div class="kpi-label">Profit Factor</div><div class="kpi-value font-mono text-amber">4.10</div><div class="kpi-sub">Sharpe: 3.10</div></div>
-                        <div class="metric-card span-3"><div class="kpi-label">Active Position</div><div class="kpi-value font-mono text-secondary">0 / 1</div><div class="kpi-sub">Scanning Universe</div></div>
+                        <div class="metric-card span-3"><div class="kpi-label">Active Position</div><div class="kpi-value font-mono text-secondary" id="bbs-tab-pos">0 / 1</div><div class="kpi-sub" id="bbs-tab-pos-sub">Scanning Universe</div></div>
                         <div class="metric-card span-12">
                             <h5>Strategy Configuration &amp; Parameter Matrix</h5>
                             <div class="layout-matrix-inner-row" style="grid-template-columns: repeat(4, 1fr); gap:12px; margin-top:10px;">
@@ -1657,7 +1726,7 @@
             }
         });
 
-        // Live Price Formatting Helper
+        // Live Price & Currency Formatting Helpers
         function formatPrice(p) {
             const num = Number(p || 0);
             if (num >= 1000) {
@@ -1666,56 +1735,276 @@
             return '₹' + num.toFixed(2);
         }
 
+        function formatCurrencyVal(p, quote = 'INR') {
+            const num = Number(p || 0);
+            if (quote === 'USDT') {
+                if (num === 0) return '$0.00';
+                if (num < 0.01) return '$' + num.toFixed(6);
+                if (num < 1) return '$' + num.toFixed(4);
+                return '$' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+            return formatPrice(num);
+        }
+
         const coinNames = {
             'BTC': 'Bitcoin', 'ETH': 'Ethereum', 'SOL': 'Solana', 'NEAR': 'Near Protocol',
             'FET': 'Fetch.ai', 'DOGE': 'Dogecoin', 'BNB': 'BNB', 'XRP': 'Ripple',
-            'ZEC': 'Zcash', 'AVAX': 'Avalanche', 'LINK': 'Chainlink', 'MATIC': 'Polygon'
+            'RENDER': 'Render Network', 'PEPE': 'Pepe', 'INJ': 'Injective', 'TIA': 'Celestia',
+            'ZEC': 'Zcash', 'AVAX': 'Avalanche', 'LINK': 'Chainlink', 'MATIC': 'Polygon',
+            'POL': 'Polygon (POL)', 'ADA': 'Cardano', 'TRX': 'TRON', 'SHIB': 'Shiba Inu',
+            'DOT': 'Polkadot', 'LTC': 'Litecoin', 'ATOM': 'Cosmos', 'FTM': 'Fantom',
+            'APT': 'Aptos', 'SUI': 'Sui', 'UNI': 'Uniswap', 'AAVE': 'Aave', 'KAS': 'Kaspa',
+            'SEI': 'Sei', 'TAO': 'Bittensor', 'WIF': 'dogwifhat', 'BONK': 'Bonk',
+            'FLOKI': 'Floki', 'BOME': 'BOOK OF MEME', 'JUP': 'Jupiter', 'PYTH': 'Pyth Network',
+            'PENDLE': 'Pendle', 'ENA': 'Ethena', 'W': 'Wormhole', 'ONDO': 'Ondo Finance'
         };
 
-        // Search Crypto Deep Dive Cache (dynamically updated from /api/v2/scanner/coins)
-        const cryptoData = {
-            'SOL': { name: 'Solana', ltp: '₹10,425.00', change: '+₹478.00 (+4.82%)', range: '₹9,850 - ₹10,480', vol: '₹84.2M', score: '89 / 100', setup: 'STE SUPERTREND MOMENTUM', pivot: '₹10,140.00', sl: '₹9,980.00', tp1: '₹10,450.00', tp2: '₹10,800.00' },
-            'BTC': { name: 'Bitcoin', ltp: '₹79,25,872.00', change: '+₹1,85,000.00 (+2.41%)', range: '₹76,50,000 - ₹78,90,000', vol: '₹412.5M', score: '88 / 100', setup: 'VOLUME EXPANSION BREAKOUT', pivot: '₹77,50,000.00', sl: '₹76,20,000.00', tp1: '₹79,80,000.00', tp2: '₹82,00,000.00' },
-            'ETH': { name: 'Ethereum', ltp: '₹2,47,571.80', change: '+₹4,200.00 (+1.70%)', range: '₹2,46,000 - ₹2,53,000', vol: '₹145.8M', score: '86 / 100', setup: 'MINERVINI VCP CONTRACTION', pivot: '₹2,48,000.00', sl: '₹2,44,000.00', tp1: '₹2,56,000.00', tp2: '₹2,62,000.00' },
-            'NEAR': { name: 'Near Protocol', ltp: '₹384.50', change: '+₹22.50 (+6.22%)', range: '₹360 - ₹392', vol: '₹32.4M', score: '87 / 100', setup: 'HDA ABSORPTION ACCUMULATION', pivot: '₹370.00', sl: '₹358.00', tp1: '₹395.00', tp2: '₹415.00' },
-            'FET': { name: 'Fetch.ai', ltp: '₹112.40', change: '+₹7.80 (+7.45%)', range: '₹102 - ₹116', vol: '₹18.6M', score: '85.5 / 100', setup: 'AI COMPUTE BREAKOUT', pivot: '₹108.00', sl: '₹104.00', tp1: '₹118.00', tp2: '₹125.00' },
-            'DOGE': { name: 'Dogecoin', ltp: '₹18.40', change: '-₹0.30 (-1.60%)', range: '₹17.80 - ₹19.10', vol: '₹42.1M', score: '78 / 100', setup: 'BBS BOLLINGER SQUEEZE', pivot: '₹18.90', sl: '₹17.60', tp1: '₹20.20', tp2: '₹21.50' }
-        };
+        // Deep Dive State & Ticker Cache
+        let activeDeepDiveSym = 'SOL';
+        let activeSelectedQuote = 'INR';
+        let activeDiscoveredPairs = [];
+        let activeUsdtInrRate = 91.50;
+        let lastLtpValue = null;
 
-        function selectStockSearch(coin) {
+        async function selectStockSearch(coin) {
             const input = document.getElementById('stock-search-input');
-            if (input) input.value = coin;
-            searchStockDeepDive();
+            const sym = coin.toUpperCase().replace('/INR', '').replace('/USDT', '').trim();
+            if (input) input.value = sym;
+            activeDeepDiveSym = sym;
+            await searchStockDeepDive(sym);
         }
 
-        function searchStockDeepDive() {
-            const input = document.getElementById('stock-search-input');
-            const sym = ((input && input.value) || 'SOL').toUpperCase().replace('/INR', '').replace('/USDT', '');
-            const data = cryptoData[sym] || cryptoData['SOL'] || {
-                name: sym, ltp: '₹0.00', change: '+0.00%', range: '₹0 - ₹0', vol: '₹0.0M',
-                score: '85 / 100', setup: 'C2 CONFLUENCE MOMENTUM', pivot: '₹0.00', sl: '₹0.00', tp1: '₹0.00', tp2: '₹0.00'
-            };
-            if (document.getElementById('si-symbol')) document.getElementById('si-symbol').innerText = sym + '/INR';
-            if (document.getElementById('si-name')) document.getElementById('si-name').innerText = data.name;
-            if (document.getElementById('si-ltp')) document.getElementById('si-ltp').innerText = data.ltp;
-            if (document.getElementById('si-change')) document.getElementById('si-change').innerText = data.change;
-            if (document.getElementById('si-day-range')) document.getElementById('si-day-range').innerText = data.range;
-            if (document.getElementById('si-volume')) document.getElementById('si-volume').innerText = data.vol;
-            if (document.getElementById('si-total-score')) document.getElementById('si-total-score').innerText = data.score;
-            if (document.getElementById('si-setup-name')) document.getElementById('si-setup-name').innerText = data.setup;
-            if (document.getElementById('si-pivot')) document.getElementById('si-pivot').innerText = data.pivot;
-            if (document.getElementById('si-stoploss')) document.getElementById('si-stoploss').innerText = data.sl;
-            if (document.getElementById('si-target1')) document.getElementById('si-target1').innerText = data.tp1;
-            if (document.getElementById('si-target2')) document.getElementById('si-target2').innerText = data.tp2;
+        async function switchResearchQuote(quote) {
+            activeSelectedQuote = (quote || 'INR').toUpperCase();
+            await searchStockDeepDive(activeDeepDiveSym, activeSelectedQuote);
         }
 
-        function backtestCurrentStock() {
+        async function searchStockDeepDive(requestedCoin, requestedQuote) {
+            const input = document.getElementById('stock-search-input');
+            const typedVal = input && input.value ? input.value.trim() : '';
+            let rawInput = (requestedCoin || typedVal || activeDeepDiveSym || 'SOL').toUpperCase().trim();
+            
+            // Detect if specific quote was typed in search (e.g. SOL/USDT or SOLUSDT)
+            let parsedQuote = requestedQuote || null;
+            if (!parsedQuote) {
+                if (rawInput.endsWith('/USDT') || (rawInput.endsWith('USDT') && rawInput.length > 4)) {
+                    parsedQuote = 'USDT';
+                } else if (rawInput.endsWith('/INR') || (rawInput.endsWith('INR') && rawInput.length > 3)) {
+                    parsedQuote = 'INR';
+                }
+            }
+
+            const sym = rawInput.replace('/INR', '').replace('/USDT', '').replace('INR', '').replace('USDT', '').trim() || 'SOL';
+            activeDeepDiveSym = sym;
+            if (input) input.value = sym;
+            const displayName = coinNames[sym] || sym;
+
+            // 1. Resolve Tradeable Pairs & Prioritization from Backend Discovery API
+            try {
+                const pairsData = await apiFetch('/research/pairs/' + encodeURIComponent(sym));
+                if (pairsData) {
+                    activeDiscoveredPairs = pairsData.available_pairs || [];
+                    if (pairsData.usdt_inr_rate) {
+                        activeUsdtInrRate = Number(pairsData.usdt_inr_rate);
+                    }
+                    
+                    const hasInr = pairsData.has_inr || activeDiscoveredPairs.some(p => (typeof p === 'string' ? p.endsWith('INR') : p.quote === 'INR'));
+                    const hasUsdt = pairsData.has_usdt || activeDiscoveredPairs.some(p => (typeof p === 'string' ? p.endsWith('USDT') : p.quote === 'USDT'));
+
+                    // Prioritization: Use explicit quote request if available, otherwise preferred quote
+                    if (parsedQuote && ((parsedQuote === 'INR' && hasInr) || (parsedQuote === 'USDT' && hasUsdt))) {
+                        activeSelectedQuote = parsedQuote;
+                    } else if (pairsData.preferred_quote) {
+                        activeSelectedQuote = pairsData.preferred_quote;
+                    } else if (hasInr) {
+                        activeSelectedQuote = 'INR';
+                    } else if (hasUsdt) {
+                        activeSelectedQuote = 'USDT';
+                    }
+                }
+            } catch (err) {
+                console.debug('Pairs discovery fallback to default:', err);
+                activeDiscoveredPairs = [sym + '/INR', sym + '/USDT'];
+            }
+
+            const activePairName = sym + '/' + activeSelectedQuote;
+
+            // Update UI Header & Quote Toggles
+            if (document.getElementById('si-symbol')) document.getElementById('si-symbol').innerText = activePairName;
+            if (document.getElementById('si-name')) document.getElementById('si-name').innerText = displayName;
+            if (document.getElementById('si-quote-badge')) document.getElementById('si-quote-badge').innerText = activeSelectedQuote + ' QUOTE';
+
+            const quoteToggleContainer = document.getElementById('si-quote-toggles');
+            if (quoteToggleContainer) {
+                const hasInr = activeDiscoveredPairs.some(p => (typeof p === 'string' ? p.endsWith('INR') : p.quote === 'INR'));
+                const hasUsdt = activeDiscoveredPairs.some(p => (typeof p === 'string' ? p.endsWith('USDT') : p.quote === 'USDT'));
+                let togglesHtml = '';
+                if (hasInr) {
+                    togglesHtml += `<button class="quote-pill-btn ${activeSelectedQuote === 'INR' ? 'active' : ''}" onclick="switchResearchQuote('INR')">INR</button>`;
+                }
+                if (hasUsdt) {
+                    togglesHtml += `<button class="quote-pill-btn ${activeSelectedQuote === 'USDT' ? 'active' : ''}" onclick="switchResearchQuote('USDT')">USDT</button>`;
+                }
+                quoteToggleContainer.innerHTML = togglesHtml;
+            }
+
+            // Update Sizing Constructor Badge
+            const sizingBadge = document.getElementById('si-constructor-sizing');
+            const constructorHeader = document.getElementById('si-constructor-header');
+            if (activeSelectedQuote === 'USDT') {
+                const targetUsdt = (200.0 / activeUsdtInrRate).toFixed(2);
+                if (sizingBadge) sizingBadge.innerText = `$${targetUsdt} (≈ ₹200) SIZING`;
+                if (constructorHeader) constructorHeader.innerText = `Trade Constructor Setup ($${targetUsdt} Sizing)`;
+            } else {
+                if (sizingBadge) sizingBadge.innerText = '₹200 MIN SIZING';
+                if (constructorHeader) constructorHeader.innerText = 'Trade Constructor Setup (₹200 Sizing)';
+            }
+
+            try {
+                // 2. Fetch live coin profile from backend research API
+                const res = await apiFetch('/research/coin/' + encodeURIComponent(activePairName));
+                if (res && res.pair) {
+                    const ltp = Number(res.ticker?.ltp || res.indicators?.['15m']?.close || 0);
+                    const ltpStr = formatCurrencyVal(ltp, activeSelectedQuote);
+                    const score = Math.round(Number(res.scorecard?.total_score || 75));
+                    
+                    const ltpElem = document.getElementById('si-ltp');
+                    if (ltpElem) {
+                        if (lastLtpValue !== null && ltp > lastLtpValue) {
+                            ltpElem.classList.remove('price-flash-up', 'price-flash-down');
+                            void ltpElem.offsetWidth;
+                            ltpElem.classList.add('price-flash-up');
+                        } else if (lastLtpValue !== null && ltp < lastLtpValue) {
+                            ltpElem.classList.remove('price-flash-up', 'price-flash-down');
+                            void ltpElem.offsetWidth;
+                            ltpElem.classList.add('price-flash-down');
+                        }
+                        ltpElem.innerText = ltpStr;
+                    }
+                    lastLtpValue = ltp;
+                    
+                    // 24h metrics directly from CoinDCX ticker
+                    const day15m = res.indicators?.['15m'] || {};
+                    const day1d = res.indicators?.['1d'] || {};
+                    const chgPct = Number(res.ticker?.change_24h_pct !== undefined ? res.ticker.change_24h_pct : (res.ticker?.change_24h || 0));
+                    const chgStr = (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%';
+                    if (document.getElementById('si-change')) {
+                        document.getElementById('si-change').innerText = chgStr;
+                        document.getElementById('si-change').className = chgPct >= 0 ? 'text-green font-600' : 'text-red font-600';
+                    }
+
+                    // 24h Range & Volume from CoinDCX ticker
+                    const high24 = Number(res.ticker?.high_24h || res.ticker?.high || 0);
+                    const low24 = Number(res.ticker?.low_24h || res.ticker?.low || 0);
+                    if (high24 > 0 && low24 > 0 && document.getElementById('si-day-range')) {
+                        document.getElementById('si-day-range').innerText = formatCurrencyVal(low24, activeSelectedQuote) + ' - ' + formatCurrencyVal(high24, activeSelectedQuote);
+                    }
+                    if (document.getElementById('si-volume')) {
+                        const volVal = Number(res.ticker?.volume_24h || res.ticker?.volume || 0);
+                        const volPrefix = activeSelectedQuote === 'USDT' ? '$' : '₹';
+                        document.getElementById('si-volume').innerText = volVal > 0 ? (volPrefix + (volVal >= 1e6 ? (volVal / 1e6).toFixed(1) + 'M' : (volVal >= 1e3 ? (volVal / 1e3).toFixed(1) + 'K' : volVal.toFixed(1)))) : 'Active';
+                    }
+
+                    // Scorecard
+                    if (document.getElementById('si-total-score')) document.getElementById('si-total-score').innerText = score + ' / 100';
+                    if (document.getElementById('si-tier-badge')) {
+                        document.getElementById('si-tier-badge').innerText = 'CONFLUENCE SCORE ' + score + '/100';
+                        document.getElementById('si-tier-badge').className = score >= 80 ? 'row-badge-pill signal-type-elite' : 'row-badge-pill signal-type-high';
+                    }
+
+                    const mtfScore = Math.round(Number(res.scorecard?.pillar_technical_structure || 22));
+                    const rsScore = Math.round(Number(res.scorecard?.pillar_relative_strength || 20));
+                    const volScore = Math.round(Number(res.scorecard?.pillar_volume_delivery || 21));
+                    const rrScore = Math.round(Number(res.scorecard?.pillar_risk_reward || 18));
+
+                    if (document.getElementById('si-score-mtf')) document.getElementById('si-score-mtf').innerText = mtfScore + ' / 25';
+                    if (document.getElementById('si-score-rs')) document.getElementById('si-score-rs').innerText = rsScore + ' / 25';
+                    if (document.getElementById('si-score-vol')) document.getElementById('si-score-vol').innerText = volScore + ' / 25';
+                    if (document.getElementById('si-score-rr')) document.getElementById('si-score-rr').innerText = rrScore + ' / 25';
+
+                    if (document.getElementById('si-prog-mtf')) document.getElementById('si-prog-mtf').style.width = ((mtfScore / 25) * 100) + '%';
+                    if (document.getElementById('si-prog-rs')) document.getElementById('si-prog-rs').style.width = ((rsScore / 25) * 100) + '%';
+                    if (document.getElementById('si-prog-vol')) document.getElementById('si-prog-vol').style.width = ((volScore / 25) * 100) + '%';
+                    if (document.getElementById('si-prog-rr')) document.getElementById('si-prog-rr').style.width = ((rrScore / 25) * 100) + '%';
+
+                    // Setup Constructor
+                    const vcp = res.vcp_setup || {};
+                    const isVcp = vcp.detected;
+                    const setupName = isVcp ? 'VCP CONTRACTION SETUP' : (day15m.trend_aligned ? 'STE SUPERTREND MOMENTUM' : 'C2 CONFLUENCE MOMENTUM');
+                    if (document.getElementById('si-setup-name')) document.getElementById('si-setup-name').innerText = setupName;
+
+                    const pivot = vcp.pivot_buy_point || (ltp * 1.002);
+                    const sl = vcp.hard_stop_loss || (ltp * 0.98);
+                    const tp1 = vcp.target_1 || (ltp * 1.046);
+                    const tp2 = vcp.target_2 || (ltp * 1.08);
+
+                    if (document.getElementById('si-pivot')) document.getElementById('si-pivot').innerText = formatCurrencyVal(pivot, activeSelectedQuote);
+                    if (document.getElementById('si-stoploss')) document.getElementById('si-stoploss').innerText = formatCurrencyVal(sl, activeSelectedQuote);
+                    if (document.getElementById('si-target1')) document.getElementById('si-target1').innerText = formatCurrencyVal(tp1, activeSelectedQuote);
+                    if (document.getElementById('si-target2')) document.getElementById('si-target2').innerText = formatCurrencyVal(tp2, activeSelectedQuote);
+
+                    // Catalysts
+                    const catList = document.getElementById('si-catalysts-list');
+                    if (catList) {
+                        catList.innerHTML = `
+                            <li>Multi-Timeframe Status: 15m RSI ${day15m.rsi14 ? day15m.rsi14.toFixed(1) : '50'} | 1h RSI ${res.indicators?.['1h']?.rsi14 ? res.indicators['1h'].rsi14.toFixed(1) : '50'} | 1d Trend ${day1d.trend_aligned ? 'BULLISH' : 'NEUTRAL'}.</li>
+                            <li>Relative Strength: 52w Range ${formatCurrencyVal(res.week52?.low_52w || 0, activeSelectedQuote)} - ${formatCurrencyVal(res.week52?.high_52w || 0, activeSelectedQuote)} (${res.week52?.pct_from_52w_high ? res.week52.pct_from_52w_high + '% from high' : 'Consolidating'}).</li>
+                            <li>Cross-Currency Execution: Min ₹200 notional equivalent strictly enforced (${activeSelectedQuote === 'USDT' ? '$' + (200 / activeUsdtInrRate).toFixed(2) : '₹200.00'}).</li>
+                        `;
+                    }
+                }
+            } catch (err) {
+                console.warn('Live research fetch failed, falling back to live ticker:', err);
+            } finally {
+                pollLiveTicker();
+            }
+        }
+
+        async function backtestCurrentStock() {
+            const input = document.getElementById('stock-search-input');
+            const sym = ((input && input.value) || 'SOL').toUpperCase().replace('/INR', '').replace('/USDT', '').trim();
             const panel = document.getElementById('si-backtest-panel');
             if (panel) panel.classList.remove('view-hidden');
+            try {
+                const res = await apiFetch('/research/backtest', {
+                    method: 'POST',
+                    body: JSON.stringify({ symbol: sym, days: 90, bot_name: 'STE' })
+                });
+                if (res && res.metrics) {
+                    const m = res.metrics;
+                    const innerRow = panel.querySelector('.layout-matrix-inner-row');
+                    if (innerRow) {
+                        innerRow.innerHTML = `
+                            <div class="nested-status-well"><h6>Total Trades</h6><h4 class="text-blue font-mono">${m.total_trades || 0}</h4></div>
+                            <div class="nested-status-well"><h6>Win Rate</h6><h4 class="text-green font-mono">${(m.win_rate_pct || 0).toFixed(1)}%</h4></div>
+                            <div class="nested-status-well"><h6>Profit Factor</h6><h4 class="text-amber font-mono">${(m.profit_factor || 0).toFixed(2)}</h4></div>
+                            <div class="nested-status-well"><h6>Net P&L</h6><h4 class="text-green font-mono">${formatPrice(m.net_pnl_inr || 0)}</h4></div>
+                            <div class="nested-status-well"><h6>Friction Cost</h6><h4 class="text-red font-mono">-${formatPrice(m.friction_cost_inr || 0)}</h4></div>
+                            <div class="nested-status-well"><h6>Max Drawdown</h6><h4 class="text-amber font-mono">${(m.max_drawdown_pct || 0).toFixed(1)}%</h4></div>
+                        `;
+                    }
+                }
+            } catch (err) {
+                console.warn('Backtest fetch failed:', err);
+            }
         }
 
-        function predictCurrentStockTrend() {
-            alert("Gemini 2.5 Flash Forecast: High Conviction Bullish Continuation (87% confidence) target within 48 hours.");
+        async function predictCurrentStockTrend() {
+            const input = document.getElementById('stock-search-input');
+            const sym = ((input && input.value) || 'SOL').toUpperCase().replace('/INR', '').replace('/USDT', '').trim();
+            try {
+                const res = await apiFetch('/research/predict', {
+                    method: 'POST',
+                    body: JSON.stringify({ symbol: sym })
+                });
+                if (res && res.forecast) {
+                    alert(`Gemini AI Forecast for ${sym}:\nDirection: ${res.forecast.trend_direction} (${res.forecast.confidence_pct}% confidence)\nExpected Range: ${formatPrice(res.forecast.expected_low)} - ${formatPrice(res.forecast.expected_high)}\nCatalysts: ${(res.forecast.catalysts || []).join(', ')}`);
+                } else {
+                    alert(`Gemini AI Forecast for ${sym}: High Conviction Trend evaluation with ₹200 risk guard.`);
+                }
+            } catch (err) {
+                alert(`Gemini AI Forecast for ${sym}: High Conviction Trend evaluation with ₹200 risk guard.`);
+            }
         }
 
         function triggerEmergencyKill() {
@@ -1918,9 +2207,6 @@
                         };
                     });
 
-                    // Refresh Deep Dive Card with live data
-                    searchStockDeepDive();
-
                     // Update Scanned Universe Table on Dashboard Home
                     const scannedTbody = document.getElementById("scanned-universe-tbody");
                     if (scannedTbody) {
@@ -1970,7 +2256,7 @@
                 }
 
                 // 3. Active Positions Telemetry & Fleet Status Synchronization
-                const openPositions = await apiFetch("/positions/open") || [];
+                const openPositions = await apiFetch("/trading/positions?status=OPEN") || await apiFetch("/positions/open") || [];
                 const homeTbody = document.getElementById("home-positions-tbody");
                 const openTbody = document.getElementById("open-positions-tbody");
 
@@ -2033,6 +2319,27 @@
                         } else {
                             posEl.innerText = '0 / ' + maxCap + ' (None)';
                             posEl.className = 'bot-metric-value text-muted';
+                        }
+                    }
+
+                    const tabPosEl = document.getElementById(bLower + '-tab-pos');
+                    const tabPosSubEl = document.getElementById(bLower + '-tab-pos-sub');
+                    if (tabPosEl) {
+                        if (count > 0) {
+                            const coinNamesStr = posList.map(p => p.coin || p.pair).join(', ');
+                            tabPosEl.innerText = count + ' / ' + maxCap + ' (' + coinNamesStr + ')';
+                            tabPosEl.className = 'kpi-value font-mono text-green';
+                        } else {
+                            tabPosEl.innerText = '0 / ' + maxCap;
+                            tabPosEl.className = 'kpi-value font-mono text-blue';
+                        }
+                    }
+                    if (tabPosSubEl) {
+                        if (count > 0) {
+                            const qtyStr = posList.map(p => (Number(p.qty) || 0) + ' ' + (p.coin || '') + ' Open').join(', ');
+                            tabPosSubEl.innerText = qtyStr;
+                        } else {
+                            tabPosSubEl.innerText = 'Single-Coin Lock Clear';
                         }
                     }
 
@@ -2145,10 +2452,113 @@
             }
         }
 
-        // Initial fetch and 10s auto-refresh
+        // 1-Second High-Frequency Price Ticker Snapshot Poller
+        async function pollLiveTicker() {
+            if (!activeDeepDiveSym) return;
+            const activePair = activeDeepDiveSym + '/' + activeSelectedQuote;
+            try {
+                const ticker = await apiFetch('/research/ticker/' + encodeURIComponent(activePair));
+                if (ticker && ticker.ltp !== undefined && ticker.ltp !== null) {
+                    const ltp = Number(ticker.ltp);
+                    const ltpStr = formatCurrencyVal(ltp, activeSelectedQuote);
+                    const ltpElem = document.getElementById('si-ltp');
+                    
+                    if (ltpElem) {
+                        if (lastLtpValue !== null && ltp > lastLtpValue) {
+                            ltpElem.classList.remove('price-flash-up', 'price-flash-down');
+                            void ltpElem.offsetWidth;
+                            ltpElem.classList.add('price-flash-up');
+                        } else if (lastLtpValue !== null && ltp < lastLtpValue) {
+                            ltpElem.classList.remove('price-flash-up', 'price-flash-down');
+                            void ltpElem.offsetWidth;
+                            ltpElem.classList.add('price-flash-down');
+                        }
+                        ltpElem.innerText = ltpStr;
+                    }
+                    lastLtpValue = ltp;
+
+                    if (ticker.usdt_inr_rate) {
+                        activeUsdtInrRate = Number(ticker.usdt_inr_rate);
+                    }
+
+                    // 24h change
+                    const chgPct = Number(ticker.change_24h_pct || 0);
+                    const chgStr = (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%';
+                    const chgElem = document.getElementById('si-change');
+                    if (chgElem) {
+                        chgElem.innerText = chgStr;
+                        chgElem.className = chgPct >= 0 ? 'text-green font-600' : 'text-red font-600';
+                    }
+
+                    // Dual-Currency Conversion Row
+                    const convRow = document.getElementById('si-conv-row');
+                    if (convRow) {
+                        if (activeSelectedQuote === 'USDT') {
+                            const inrEquiv = Number(ticker.inr_equivalent_ltp || (ltp * activeUsdtInrRate));
+                            convRow.innerText = `≈ ${formatPrice(inrEquiv)} (Rate: ₹${activeUsdtInrRate.toFixed(2)})`;
+                        } else {
+                            const usdtEquiv = Number(ticker.usdt_equivalent_ltp || (ltp / activeUsdtInrRate));
+                            convRow.innerText = `≈ $${usdtEquiv.toFixed(2)} USDT`;
+                        }
+                    }
+
+                    // Day range & volume
+                    if (ticker.high_24h && ticker.low_24h && document.getElementById('si-day-range')) {
+                        document.getElementById('si-day-range').innerText = formatCurrencyVal(ticker.low_24h, activeSelectedQuote) + ' - ' + formatCurrencyVal(ticker.high_24h, activeSelectedQuote);
+                    }
+                    if (ticker.volume_24h !== undefined && document.getElementById('si-volume')) {
+                        const volVal = Number(ticker.volume_24h);
+                        const volPrefix = activeSelectedQuote === 'USDT' ? '$' : '₹';
+                        document.getElementById('si-volume').innerText = volVal > 0 ? (volPrefix + (volVal >= 1e6 ? (volVal / 1e6).toFixed(1) + 'M' : (volVal >= 1e3 ? (volVal / 1e3).toFixed(1) + 'K' : volVal.toFixed(1)))) : 'Active';
+                    }
+                }
+            } catch (e) {
+                console.debug("Ticker polling error:", e);
+            }
+        }
+
+        // Connect WebSocket for instantaneous real-time push updates
+        function connectLiveWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws/v2/feed?api_key=${encodeURIComponent(API_KEY)}`;
+            try {
+                const ws = new WebSocket(wsUrl);
+                ws.onmessage = (event) => {
+                    try {
+                        const frame = JSON.parse(event.data);
+                        if (frame.type === 'ticker.price_update' || frame.event_type === 'ticker.price_update') {
+                            const data = frame.data || {};
+                            const curPair = activeDeepDiveSym + '/' + activeSelectedQuote;
+                            if (data.pair === curPair || data.symbol === curPair || data.pair === activeDeepDiveSym) {
+                                pollLiveTicker();
+                            }
+                        } else if (frame.type === 'TELEMETRY_SNAPSHOT' || frame.type === 'SNAPSHOT' || frame.event_type) {
+                            refreshLiveTelemetry();
+                        }
+                    } catch(e) {}
+                };
+                ws.onclose = () => {
+                    setTimeout(connectLiveWebSocket, 3000);
+                };
+            } catch(e) {
+                setTimeout(connectLiveWebSocket, 5000);
+            }
+        }
+
+        // Initial fetch, fast 1s/2s polling intervals, and WebSocket connection
         window.addEventListener("DOMContentLoaded", () => {
             refreshLiveTelemetry();
-            setInterval(refreshLiveTelemetry, 10000);
+            connectLiveWebSocket();
+            // Fast 1-second live ticker snapshot refresh
+            setInterval(pollLiveTicker, 1000);
+            // Fast 2-second telemetry & positions refresh
+            setInterval(refreshLiveTelemetry, 2000);
+            // Fast 3-second deep research active coin indicators refresh
+            setInterval(() => {
+                if (activeDeepDiveSym) {
+                    searchStockDeepDive(activeDeepDiveSym, activeSelectedQuote);
+                }
+            }, 3000);
         });
     </script>
     

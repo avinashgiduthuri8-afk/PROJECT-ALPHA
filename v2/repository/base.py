@@ -29,7 +29,7 @@ class BaseRepository(ABC):
     do not open or close connections.
     """
 
-    def __init__(self, conn: aiosqlite.Connection) -> None:
+    def __init__(self, conn: Optional[aiosqlite.Connection] = None) -> None:
         self._conn = conn
 
     # ── Low-level helpers ─────────────────────────────────────────────────────

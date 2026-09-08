@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import Any, Dict, Optional
 
 from v2.core.types import BotName, ExitReason
-from v2.trading.precision_rules import round_price, round_qty
+from v2.trading.precision_rules import round_price, round_qty, round_qty_up
 from .base import BaseBotAdapter
 
 
@@ -45,6 +45,8 @@ class STEAdapter(BaseBotAdapter):
 
         raw_qty = approved_amount / rounded_entry if rounded_entry > 0 else 0.0
         rounded_qty = round_qty(pair, raw_qty)
+        if rounded_entry * rounded_qty < 200.0 and raw_qty > 0:
+            rounded_qty = round_qty_up(pair, raw_qty)
 
         return {
             "bot": self.bot_name,

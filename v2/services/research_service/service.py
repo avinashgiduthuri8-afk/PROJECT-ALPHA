@@ -14,7 +14,7 @@ from typing import Any, Optional
 
 import numpy as np
 
-from v2.core.config import V2Config
+from v2.core.config import V2Config, get_config
 from v2.core.logging import get_logger
 from v2.market.public_client import CoinDCXPublicClient
 from v2.repository.candle_repo import CandleRepository
@@ -25,7 +25,7 @@ from v2.backtest.strategies import (
     PPAStrategy, MTBStrategy, MRBStrategy, ALL_CANDIDATE_STRATEGIES,
 )
 
-from .symbol_normalizer import normalize_symbol, is_supported_pair
+from .symbol_normalizer import normalize_symbol, is_supported_pair, resolve_tradeable_pairs
 from .indicators import (
     compute_ema, compute_rsi, compute_macd, compute_bollinger,
     compute_atr, compute_rvol, compute_sma, last_valid,
@@ -45,8 +45,7 @@ _STRATEGY_MAP = {
     "MRB": MRBStrategy,
 }
 
-# Timeframe labels used for fetching
-_FETCH_TIMEFRAMES = [
+TIMEFRAMES = [
     ("1m",  "1m",   60),
     ("15m", "15m",  900),
     ("1h",  "1h",   3600),
@@ -59,6 +58,8 @@ class CoinResearchService:
     On-demand analytics engine for the Research Hub.
 
     Capabilities:
+    - resolve_coin_pairs(): discovers tradeable pairs for base asset (INR priority, USDT fallback)
+    - get_ticker_snapshot(): sub-50ms live ticker snapshot for fast polling
     - fetch_full_coin_profile(): live multi-TF indicators + VCP + scorecard
     - run_on_demand_backtest(): historical backtest with statutory friction
     - predict_trend_and_catalysts(): rule-based multi-horizon forecast
@@ -68,14 +69,100 @@ class CoinResearchService:
 
     def __init__(
         self,
-        candle_repo: CandleRepository,
-        config: V2Config,
+        candle_repo: Optional[CandleRepository] = None,
+        config: Optional[V2Config] = None,
     ) -> None:
-        self._candle_repo = candle_repo
-        self._config = config
+        self._candle_repo = candle_repo or CandleRepository()
+        self._config = config or get_config()
         self._public_client = CoinDCXPublicClient(timeout=10.0, rate_limit_per_sec=6.0)
 
     # ── Public Interface ──────────────────────────────────────────────────────
+
+    async def resolve_coin_pairs(self, base_asset: str) -> dict[str, Any]:
+        """
+        Discovers all tradeable pairs for a given base asset.
+        Prioritizes active INR pairs with seamless fallback to USDT.
+        """
+        resolved = resolve_tradeable_pairs(base_asset)
+        base = resolved["base_asset"]
+        
+        # Query live USDT/INR rate from ticker
+        usdt_inr_rate = 91.50
+        try:
+            usdt_ticker = await self._fetch_ticker("USDT/INR")
+            if usdt_ticker.get("ltp") and usdt_ticker["ltp"] > 0:
+                usdt_inr_rate = float(usdt_ticker["ltp"])
+        except Exception:
+            pass
+
+        # Check if INR pair actually exists on live CoinDCX exchange
+        try:
+            inr_ticker = await self._fetch_ticker(f"{base}/INR")
+            inr_available = bool(inr_ticker.get("ltp") and inr_ticker["ltp"] > 0)
+        except Exception:
+            inr_available = False
+
+        if not inr_available and resolved["has_usdt"]:
+            primary_pair = f"{base}/USDT"
+            preferred_quote = "USDT"
+        else:
+            primary_pair = resolved["primary_pair"]
+            preferred_quote = resolved["preferred_quote"]
+
+        return {
+            "base_asset": base,
+            "primary_pair": primary_pair,
+            "available_pairs": resolved["available_pairs"],
+            "preferred_quote": preferred_quote,
+            "usdt_inr_rate": usdt_inr_rate,
+            "has_inr": resolved["has_inr"],
+            "has_usdt": resolved["has_usdt"],
+        }
+
+    async def get_ticker_snapshot(self, symbol: str) -> dict[str, Any]:
+        """
+        Sub-50ms lightweight ticker snapshot for high-frequency 1-second UI updates.
+        """
+        pair = normalize_symbol(symbol)
+        quote = pair.split("/")[1] if "/" in pair else "INR"
+        base = pair.split("/")[0] if "/" in pair else pair
+        
+        t = await self._fetch_ticker(pair)
+        
+        # Calculate INR equivalent if quote is USDT
+        usdt_rate = 91.50
+        if quote == "USDT":
+            try:
+                u_t = await self._fetch_ticker("USDT/INR")
+                if u_t.get("ltp") and u_t["ltp"] > 0:
+                    usdt_rate = float(u_t["ltp"])
+            except Exception:
+                pass
+
+        ltp = float(t.get("ltp") or 0.0)
+        price_inr_equiv = (ltp * usdt_rate) if quote == "USDT" else ltp
+        usdt_equiv = ltp if quote == "USDT" else (ltp / usdt_rate if usdt_rate > 0 else ltp)
+
+        return {
+            "symbol": base,
+            "pair": pair,
+            "quote": quote,
+            "quote_currency": quote,
+            "price": ltp,
+            "ltp": ltp,
+            "price_inr_equiv": round(price_inr_equiv, 2),
+            "inr_equivalent_ltp": round(price_inr_equiv, 2),
+            "usdt_equivalent_ltp": round(usdt_equiv, 4),
+            "usdt_inr_rate": round(usdt_rate, 2),
+            "change_24h": float(t.get("change_24h_pct") or 0.0),
+            "change_24h_pct": float(t.get("change_24h_pct") or 0.0),
+            "high_24h": float(t.get("high_24h") or 0.0),
+            "low_24h": float(t.get("low_24h") or 0.0),
+            "volume_24h": float(t.get("volume_24h") or 0.0),
+            "bid": float(t.get("bid") or 0.0),
+            "ask": float(t.get("ask") or 0.0),
+            "timestamp": int(time.time()),
+        }
 
     async def fetch_full_coin_profile(self, symbol: str) -> dict[str, Any]:
         """
@@ -245,23 +332,35 @@ class CoinResearchService:
     async def _fetch_ticker(self, pair: str) -> dict[str, Any]:
         """Fetch live ticker for the pair from CoinDCX."""
         try:
-            async with self._public_client as client:
-                tickers = await client.get_tickers()
+            tickers = await self._public_client.get_tickers()
 
-            # Map pair to wire market name: "BTC/INR" → "BTCINR"
+            # Map pair to wire market name variants: "BTC/INR" → "BTCINR", "B-BTC_INR", "BTC_INR"
             base, quote = pair.split("/")
-            target = f"{base}{quote}"
+            base_u = base.upper()
+            quote_u = quote.upper()
+            target_direct = f"{base_u}{quote_u}"
+            target_coindcx = f"B-{base_u}_{quote_u}"
+            target_usdt = f"{base_u}USDT"
+
             for t in tickers:
-                mkt = str(t.get("market", "")).upper().replace("-", "").replace("_", "")
-                if mkt == target:
+                mkt = str(t.get("market", "")).upper()
+                mkt_clean = mkt.replace("-", "").replace("_", "")
+                if (
+                    mkt == target_direct
+                    or mkt == target_coindcx
+                    or mkt_clean == target_direct
+                    or mkt_clean == f"B{target_direct}"
+                    or mkt_clean == f"I{target_direct}"
+                    or (quote_u == "USDT" and mkt_clean == target_usdt)
+                ):
                     return {
-                        "ltp": t.get("last_price", 0.0),
-                        "change_24h_pct": t.get("change_24_hour", 0.0),
-                        "high_24h": t.get("high", 0.0),
-                        "low_24h": t.get("low", 0.0),
-                        "volume_24h": t.get("volume", 0.0),
-                        "bid": t.get("bid", 0.0),
-                        "ask": t.get("ask", 0.0),
+                        "ltp": float(t.get("last_price") or 0.0),
+                        "change_24h_pct": float(t.get("change_24_hour") or 0.0),
+                        "high_24h": float(t.get("high") or 0.0),
+                        "low_24h": float(t.get("low") or 0.0),
+                        "volume_24h": float(t.get("volume") or 0.0),
+                        "bid": float(t.get("bid") or 0.0),
+                        "ask": float(t.get("ask") or 0.0),
                     }
         except Exception as exc:
             logger.warning("Ticker fetch failed", extra={"pair": pair, "error": str(exc)})
@@ -284,8 +383,7 @@ class CoinResearchService:
 
         # Fetch from CoinDCX public API
         try:
-            async with self._public_client as client:
-                raw = await client.get_candles(pair, interval=timeframe, limit=limit)
+            raw = await self._public_client.get_candles(pair, interval=timeframe, limit=limit)
             return raw
         except Exception as exc:
             logger.warning(

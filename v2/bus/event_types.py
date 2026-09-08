@@ -75,6 +75,7 @@ class EventType(str, Enum):
     # ── Public Market Data Stream ────────────────────────────────────────────
     MARKET_DATA_UPDATED   = "market_data.updated"
     ORDERBOOK_UPDATED     = "orderbook.updated"
+    TICKER_PRICE_UPDATE   = "ticker.price_update"
 
     # ── AI Intelligence Circuit Breaker ──────────────────────────────────────
     AI_CIRCUIT_OPENED     = "ai.circuit_opened"

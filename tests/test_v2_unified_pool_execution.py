@@ -67,8 +67,8 @@ def test_order_sizing_and_precision_rounding():
         assert order["coin"] == "SOL"
         assert order["pair"] == "SOL/INR"
         assert order["entry_price"] == 12500.0
-        assert order["qty"] == 0.01  # 200 / 12500 = 0.016 -> floored to 0.01 step
-        assert order["amount"] == 125.0  # 0.01 * 12500 = 125.0 (>= ₹100 minimum)
+        assert order["qty"] == 0.02  # 200 / 12500 = 0.016 -> rounded up to 0.02 step to satisfy ₹200 min invariant
+        assert order["amount"] == 250.0  # 0.02 * 12500 = 250.0 (>= ₹200 minimum invariant)
         assert validate_order_notional("SOL/INR", order["entry_price"], order["qty"]) is True
 
 
