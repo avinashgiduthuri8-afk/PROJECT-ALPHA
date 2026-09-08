@@ -1254,40 +1254,9 @@
                                     </thead>
                                     <tbody id="open-positions-tbody">
                                         <tr>
-                                            <td><span class="tier-elite">STE</span> POS-SOL-001</td>
-                                            <td><strong>SOL/INR</strong></td>
-                                            <td class="font-mono">0.0197</td>
-                                            <td class="font-mono">₹10,140.00</td>
-                                            <td class="font-mono">₹10,380.00</td>
-                                            <td class="text-green font-mono">+₹4.73</td>
-                                            <td class="text-amber font-mono">-₹1.55</td>
-                                            <td class="text-green font-mono font-bold">+₹3.18</td>
-                                            <td><span class="bot-status-pill paper">PAPER</span></td>
-                                            <td style="text-align:right;"><button class="btn-sm" onclick="closeCryptoPosition('SOL/INR')">Close</button></td>
-                                        </tr>
-                                        <tr>
-                                            <td><span class="tier-elite" style="background:rgba(16,185,129,0.2);color:#6ee7b7;border-color:rgba(16,185,129,0.4);">HDA</span> POS-NEAR-002</td>
-                                            <td><strong>NEAR/INR</strong></td>
-                                            <td class="font-mono">0.5400</td>
-                                            <td class="font-mono">₹370.00</td>
-                                            <td class="font-mono">₹384.50</td>
-                                            <td class="text-green font-mono">+₹7.83</td>
-                                            <td class="text-amber font-mono">-₹3.12</td>
-                                            <td class="text-green font-mono font-bold">+₹4.71</td>
-                                            <td><span class="bot-status-pill paper">PAPER</span></td>
-                                            <td style="text-align:right;"><button class="btn-sm" onclick="closeCryptoPosition('NEAR/INR')">Close</button></td>
-                                        </tr>
-                                        <tr>
-                                            <td><span class="tier-elite" style="background:rgba(59,130,246,0.2);color:#93c5fd;border-color:rgba(59,130,246,0.4);">VCP</span> POS-ETH-003</td>
-                                            <td><strong>ETH/INR</strong></td>
-                                            <td class="font-mono">0.0008</td>
-                                            <td class="font-mono">₹2,48,000.00</td>
-                                            <td class="font-mono">₹2,51,200.00</td>
-                                            <td class="text-green font-mono">+₹2.56</td>
-                                            <td class="text-amber font-mono">-₹1.58</td>
-                                            <td class="text-green font-mono font-bold">+₹0.98</td>
-                                            <td><span class="bot-status-pill paper">PAPER</span></td>
-                                            <td style="text-align:right;"><button class="btn-sm" onclick="closeCryptoPosition('ETH/INR')">Close</button></td>
+                                            <td colspan="10" style="text-align:center; padding:20px; color:var(--text-muted);">
+                                                <span style="display:inline-block; animation:spin 1s infinite linear; margin-right:8px;">⏳</span> Loading live positions from SQLite...
+                                            </td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -1739,11 +1708,16 @@
             const num = Number(p || 0);
             if (quote === 'USDT') {
                 if (num === 0) return '$0.00';
-                if (num < 0.01) return '$' + num.toFixed(6);
+                if (num < 0.0001) return '$' + num.toFixed(6);
                 if (num < 1) return '$' + num.toFixed(4);
                 return '$' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             }
             return formatPrice(num);
+        }
+
+        function formatPriceForPair(p, pair) {
+            const isUsdt = pair && (pair.endsWith('/USDT') || pair.endsWith('USDT') || pair.includes('USDT'));
+            return formatCurrencyVal(p, isUsdt ? 'USDT' : 'INR');
         }
 
         const coinNames = {
@@ -2221,7 +2195,7 @@
                                 <td><strong>${pair}</strong></td>
                                 <td><span class="${tierClass}">${tier}</span></td>
                                 <td class="font-mono ${score >= 85 ? 'text-green' : 'text-amber'} font-bold">${score.toFixed(1)}</td>
-                                <td class="font-mono">${formatPrice(ltp)}</td>
+                                <td class="font-mono">${formatPriceForPair(ltp, pair)}</td>
                                 <td class="text-secondary text-xs">${setup}</td>
                             </tr>`;
                         }).join('');
@@ -2247,7 +2221,7 @@
                                 <td><span class="text-green">${mtf}</span></td>
                                 <td><span class="text-green">BULLISH</span></td>
                                 <td><span class="text-green">BULLISH</span></td>
-                                <td class="font-mono">${formatPrice(ltp)}</td>
+                                <td class="font-mono">${formatPriceForPair(ltp, pair)}</td>
                                 <td><span class="row-badge-pill signal-type-elite">${aiConv}% APPROVE</span></td>
                                 <td><span class="bot-status-pill ${statusClass}">${status}</span></td>
                             </tr>`;
@@ -2378,17 +2352,18 @@
                 if (Array.isArray(openPositions) && openPositions.length > 0) {
                     if (homeTbody) {
                         homeTbody.innerHTML = openPositions.map(p => {
+                            const pair = p.pair || (p.coin ? p.coin + '/INR' : 'CRYPTO/INR');
+                            const quote = (p.quote || (pair.includes('USDT') ? 'USDT' : 'INR')).toUpperCase();
                             const entry = Number(p.entry_price || 0);
                             const ltp = Number(p.current_price || p.entry_price || 0);
                             const pnl = Number(p.unrealised_pnl || 0);
                             const pnlClass = pnl >= 0 ? 'text-green' : 'text-red';
                             const pnlSign = pnl >= 0 ? '+' : '';
-                            const tpStr = p.take_profit ? formatPrice(p.take_profit) : 'N/A';
-                            const slStr = p.stop_loss ? formatPrice(p.stop_loss) : 'N/A';
+                            const tpStr = p.take_profit ? formatCurrencyVal(p.take_profit, quote) : 'N/A';
+                            const slStr = p.stop_loss ? formatCurrencyVal(p.stop_loss, quote) : 'N/A';
                             const trailBadge = p.trailing_stop_pct 
                                 ? `<span class="row-badge-pill" style="background:rgba(16,185,129,0.15);color:#10b981;">TRAILING ${p.trailing_stop_pct}%</span>`
                                 : `<span class="row-badge-pill" style="background:rgba(255,255,255,0.05);color:var(--text-muted);">STATIC</span>`;
-                            const pair = p.pair || (p.coin ? p.coin + '/INR' : 'CRYPTO/INR');
                             const posId = p.id || '';
                             const shortId = posId ? posId.substring(0, 8) : 'POS';
 
@@ -2396,11 +2371,11 @@
                                 <td><span class="tier-elite" style="background:rgba(59,130,246,0.2);color:#93c5fd;">${p.bot || 'BOT'}</span> ${shortId}</td>
                                 <td><strong>${pair}</strong></td>
                                 <td class="font-mono">${p.qty || 0}</td>
-                                <td class="font-mono">${formatPrice(entry)}</td>
-                                <td class="font-mono ${pnlClass}">${formatPrice(ltp)}</td>
+                                <td class="font-mono">${formatCurrencyVal(entry, quote)}</td>
+                                <td class="font-mono ${pnlClass}">${formatCurrencyVal(ltp, quote)}</td>
                                 <td class="font-mono text-xs">TP: ${tpStr} | SL: ${slStr}</td>
                                 <td>${trailBadge}</td>
-                                <td class="${pnlClass} font-mono font-bold">${pnlSign}${formatPrice(pnl)}</td>
+                                <td class="${pnlClass} font-mono font-bold">${pnlSign}${formatCurrencyVal(pnl, quote)}</td>
                                 <td><span class="bot-status-pill ${p.mode === 'LIVE' ? 'live' : 'paper'}">${p.mode || 'PAPER'}</span></td>
                                 <td style="text-align:right; white-space:nowrap;">
                                     <button class="btn-action-trail" onclick="quickToggleTrailing('${posId}', '${pair}', 2.0)">📈 Trail</button>
@@ -2413,12 +2388,14 @@
 
                     if (openTbody) {
                         openTbody.innerHTML = openPositions.map(p => {
+                            const pair = p.pair || (p.coin ? p.coin + '/INR' : 'CRYPTO/INR');
+                            const quote = (p.quote || (pair.includes('USDT') ? 'USDT' : 'INR')).toUpperCase();
                             const entry = Number(p.entry_price || 0);
                             const ltp = Number(p.current_price || p.entry_price || 0);
                             const pnl = Number(p.unrealised_pnl || 0);
+                            const pnlPct = entry > 0 ? (((ltp - entry) / entry) * 100).toFixed(2) : '0.00';
                             const pnlClass = pnl >= 0 ? 'text-green' : 'text-red';
                             const pnlSign = pnl >= 0 ? '+' : '';
-                            const pair = p.pair || (p.coin ? p.coin + '/INR' : 'CRYPTO/INR');
                             const posId = p.id || '';
                             const shortId = posId ? posId.substring(0, 8) : 'POS';
 
@@ -2426,11 +2403,11 @@
                                 <td><span class="tier-elite">${p.bot || 'BOT'}</span> ${shortId}</td>
                                 <td><strong>${pair}</strong></td>
                                 <td class="font-mono">${p.qty || 0}</td>
-                                <td class="font-mono">${formatPrice(entry)}</td>
-                                <td class="font-mono ${pnlClass}">${formatPrice(ltp)}</td>
-                                <td class="${pnlClass} font-mono">${pnlSign}${formatPrice(pnl)}</td>
-                                <td class="text-amber font-mono">-1.572%</td>
-                                <td class="${pnlClass} font-mono font-bold">${pnlSign}${formatPrice(pnl)}</td>
+                                <td class="font-mono">${formatCurrencyVal(entry, quote)}</td>
+                                <td class="font-mono ${pnlClass}">${formatCurrencyVal(ltp, quote)}</td>
+                                <td class="${pnlClass} font-mono">${pnlSign}${formatCurrencyVal(pnl, quote)}</td>
+                                <td class="${pnlClass} font-mono">${pnlSign}${pnlPct}%</td>
+                                <td class="${pnlClass} font-mono font-bold">${pnlSign}${formatCurrencyVal(pnl, quote)}</td>
                                 <td><span class="bot-status-pill ${p.mode === 'LIVE' ? 'live' : 'paper'}">${p.mode || 'PAPER'}</span></td>
                                 <td style="text-align:right;">
                                     <button class="btn-sm" style="background:#ef4444;color:#fff;border:none;" onclick="manualClosePosition('${posId}', '${pair}')">Close</button>

@@ -282,14 +282,19 @@ class ScannerService:
             coins = await self._fetch_watchlist_coins()
             canonical_inr_coins = {
                 "BTC", "ETH", "BNB", "SOL", "AVAX", "LINK", 
-                "XRP", "ADA", "MATIC", "DOGE", "TRX", "SHIB", "POL"
+                "XRP", "ADA", "MATIC", "DOGE", "TRX", "SHIB", "POL",
+                "NEAR", "FET", "ZEC", "LTC", "DASH"
             }
             
             pairs = []
             for coin in coins:
-                coin_upper = coin.upper()
-                quote = "INR" if coin_upper in canonical_inr_coins else "USDT"
-                pairs.append(f"{coin_upper}/{quote}")
+                if "/" in coin:
+                    base, quote = coin.upper().split("/", 1)
+                    pairs.append(f"{base}/{quote}")
+                else:
+                    coin_upper = coin.upper()
+                    quote = "INR" if coin_upper in canonical_inr_coins else "USDT"
+                    pairs.append(f"{coin_upper}/{quote}")
 
             for pair in pairs:
                 for timeframe in ["15m", "1d"]:
@@ -397,14 +402,19 @@ class ScannerService:
                 coins = await self._fetch_watchlist_coins()
                 canonical_inr_coins = {
                     "BTC", "ETH", "BNB", "SOL", "AVAX", "LINK", 
-                    "XRP", "ADA", "MATIC", "DOGE", "TRX", "SHIB", "POL"
+                    "XRP", "ADA", "MATIC", "DOGE", "TRX", "SHIB", "POL",
+                    "NEAR", "FET", "ZEC", "LTC", "DASH"
                 }
                 
                 pairs = []
                 for coin in coins:
-                    coin_upper = coin.upper()
-                    quote = "INR" if coin_upper in canonical_inr_coins else "USDT"
-                    pairs.append(f"{coin_upper}/{quote}")
+                    if "/" in coin:
+                        base, quote = coin.upper().split("/", 1)
+                        pairs.append(f"{base}/{quote}")
+                    else:
+                        coin_upper = coin.upper()
+                        quote = "INR" if coin_upper in canonical_inr_coins else "USDT"
+                        pairs.append(f"{coin_upper}/{quote}")
 
                 for pair in pairs:
                     for timeframe in ["15m", "1d"]:
@@ -804,7 +814,10 @@ class ScannerService:
           - B1: Top 50 Composite Ranking (Volume 0.40, Liquidity 0.35, Volatility 0.25)
         """
         coins = await self._fetch_watchlist_coins()
-        canonical_inr_coins = {"BTC", "ETH", "SOL", "BNB", "XRP", "ZEC", "AVAX", "LINK", "DOGE", "SHIB", "MATIC"}
+        canonical_inr_coins = {
+            "BTC", "ETH", "SOL", "BNB", "XRP", "ZEC", "AVAX", "LINK", 
+            "DOGE", "SHIB", "MATIC", "POL", "ADA", "TRX", "NEAR", "FET", "LTC", "DASH"
+        }
         
         funnel_counters = {
             "raw_universe": 0,
@@ -830,9 +843,14 @@ class ScannerService:
 
         for coin in coins:
             funnel_counters["raw_universe"] += 1
-            coin_upper = coin.upper()
-            quote = "INR" if coin_upper in canonical_inr_coins else "USDT"
-            pair = f"{coin_upper}/{quote}"
+            if "/" in coin:
+                base, quote = coin.upper().split("/", 1)
+                coin_upper = base
+                pair = f"{coin_upper}/{quote}"
+            else:
+                coin_upper = coin.upper()
+                quote = "INR" if coin_upper in canonical_inr_coins else "USDT"
+                pair = f"{coin_upper}/{quote}"
 
             candles: list[dict] = []
             if self._candle_repo:
