@@ -457,7 +457,7 @@ class TelegramInteractiveInterface:
                 if bal.get("success"):
                     avail_cap = bal.get("inr_balance")
         else:
-            avail_cap = self._config.total_capital_limit
+            avail_cap = self._config.total_capital_limit or 10000.0
 
         # Scanner status
         poll_count = 0
@@ -875,6 +875,8 @@ class TelegramInteractiveInterface:
             return [
                 {
                     "coin": p.coin,
+                    "pair": getattr(p, "pair", None) or f"{p.coin}/INR",
+                    "quote": getattr(p, "quote", None) or ("USDT" if (getattr(p, "pair", "") or "").endswith("USDT") else "INR"),
                     "bot": p.bot.value if hasattr(p.bot, "value") else str(p.bot),
                     "qty": p.qty,
                     "entry_price": p.entry_price,
@@ -882,6 +884,7 @@ class TelegramInteractiveInterface:
                     "unrealised_pnl": p.unrealised_pnl,
                     "stop_loss": p.stop_loss,
                     "take_profit": p.take_profit,
+                    "amount": float(getattr(p, "deployed_capital", 0.0) or (float(p.entry_price or 0.0) * float(p.qty or 0.0))),
                 }
                 for p in open_pos
             ]
@@ -1048,14 +1051,36 @@ class TelegramInteractiveInterface:
                 avail_cap = None
                 source = "UNAVAILABLE"
         else:
-            avail_cap = self._config.total_capital_limit
+            avail_cap = self._config.total_capital_limit or 10000.0
             source = "SIMULATION"
+
+        deployed_cap = 0.0
+        open_pos_count = 0
+        per_bot_alloc: dict[str, float] = {}
+
+        if self._position_repo:
+            try:
+                open_pos = await self._position_repo.get_open()
+                open_pos_count = len(open_pos)
+                for p in open_pos:
+                    entry = float(getattr(p, "entry_price", 0.0) or 0.0)
+                    qty = float(getattr(p, "qty", 0.0) or 0.0)
+                    p_dep = float(getattr(p, "deployed_capital", 0.0) or (entry * qty))
+                    deployed_cap += p_dep
+                    b_key = p.bot.value if hasattr(p.bot, "value") else str(p.bot or "BOT")
+                    per_bot_alloc[b_key] = per_bot_alloc.get(b_key, 0.0) + p_dep
+            except Exception as e:
+                logger.debug("Capital data position fetch error: %s", e)
 
         return {
             "mode": mode,
             "available_capital": avail_cap,
-            "order_amount_inr": self._config.order_size_inr,
-            "capital_limit": self._config.total_capital_limit,
+            "deployed_capital": deployed_cap,
+            "open_positions_count": open_pos_count,
+            "per_bot_allocation": per_bot_alloc,
+            "order_amount_inr": max(200.0, float(getattr(self._config, "order_size_inr", 200.0))),
+            "min_order_size": 200.0,
+            "capital_limit": self._config.total_capital_limit or 10000.0,
             "risk_available": avail_cap,
             "source": source,
         }

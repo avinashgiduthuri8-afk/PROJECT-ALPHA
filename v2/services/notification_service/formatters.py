@@ -290,6 +290,7 @@ def format_telegram_positions(positions: list[dict[str, Any]]) -> str:
     ]
     for p in positions:
         coin = p.get("coin", "UNKNOWN")
+        pair = p.get("pair") or f"{coin}/INR"
         bot = p.get("bot", "STE")
         qty = float(p.get("qty", 0.0) or 0.0)
         entry = float(p.get("entry_price", 0.0) or 0.0)
@@ -298,6 +299,9 @@ def format_telegram_positions(positions: list[dict[str, Any]]) -> str:
         status = p.get("status", "OPEN")
         sl = p.get("stop_loss")
         tp = p.get("take_profit")
+        
+        is_usdt = "USDT" in pair or p.get("quote") == "USDT"
+        sym = "$" if is_usdt else "₹"
         
         deployed = float(p.get("amount", 0.0) or (qty * entry))
         
@@ -312,13 +316,13 @@ def format_telegram_positions(positions: list[dict[str, Any]]) -> str:
         pct_sign = "+" if unrealized_pct >= 0 else ""
         emoji = "🟢" if unrealized >= 0 else "🔴"
 
-        sl_str = f"₹{sl:.2f}" if sl is not None else "None"
-        tp_str = f"₹{tp:.2f}" if tp is not None else "None"
+        sl_str = f"{sym}{sl:.2f}" if sl is not None else "None"
+        tp_str = f"{sym}{tp:.2f}" if tp is not None else "None"
 
         lines.append(
-            f"{emoji} <b>{coin}/INR</b> (<code>{bot}</code>)\n"
-            f"   • Entry: ₹{entry:.2f} | Capital: ₹{deployed:.2f}\n"
-            f"   • Unrealized P&L: <code>{sign}₹{unrealized:.2f} ({pct_sign}{unrealized_pct:.2f}%)</code>\n"
+            f"{emoji} <b>{pair}</b> (<code>{bot}</code>)\n"
+            f"   • Entry: {sym}{entry:.2f} | Capital: {sym}{deployed:.2f}\n"
+            f"   • Unrealized P&L: <code>{sign}{sym}{unrealized:.2f} ({pct_sign}{unrealized_pct:.2f}%)</code>\n"
             f"   • TP: {tp_str} | SL: {sl_str} | Status: <code>{status}</code>\n"
         )
 
@@ -704,7 +708,7 @@ def format_telegram_capital(c: dict[str, Any]) -> str:
     avail = c.get("available_capital")
     deployed = float(c.get("deployed_capital", 0.0))
     min_order = float(c.get("min_order_size", 200.0))
-    order_amt = float(c.get("order_amount_inr", 200.0))
+    order_amt = max(min_order, float(c.get("order_amount_inr", 200.0)))
     
     if avail is not None:
         avail_str = f"₹{avail:,.2f}"
@@ -729,7 +733,7 @@ def format_telegram_capital(c: dict[str, Any]) -> str:
         "━━━━━━━━━━━━━━━━━━━━━━━━━",
         "<b>Per-Bot Allocation:</b>",
     ]
-    if per_bot:
+    if per_bot and any(v > 0 for v in per_bot.values()):
         for bot, alloc in per_bot.items():
             lines.append(f"  • <b>{bot}:</b> ₹{float(alloc):,.2f}")
     else:
