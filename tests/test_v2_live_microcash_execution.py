@@ -33,6 +33,7 @@ def setup_test_env(tmp_path, monkeypatch):
     test_db = str(tmp_path / f"test_exec_{uuid.uuid4().hex[:6]}.db")
     monkeypatch.setenv("V2_DB_PATH", test_db)
     monkeypatch.setenv("DASHBOARD_API_KEY", "test-exec-key")
+    monkeypatch.setenv("DASHBOARD_SECURITY_PASSWORD", "110299")
     monkeypatch.setenv("V2_DEPLOYMENT_MODE", "SHADOW")
     monkeypatch.setenv("V2_TRADING_ENABLED", "false")
     monkeypatch.setenv("TOTAL_CAPITAL_LIMIT", "10000.0")

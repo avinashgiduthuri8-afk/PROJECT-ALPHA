@@ -100,7 +100,7 @@ async def test_scanner_service_bootstrap_insufficient(sqlite_conn):
     # Verify they were saved to DB (insufficient was < 120, we had 0)
     db_candles = await candle_repo.get_recent_candles("BTC/INR", "15m", limit=150)
     assert len(db_candles) == 120
-    assert service._fetch_coindcx_candles.call_count == 2 # 15m and 1d
+    assert service._fetch_coindcx_candles.call_count == 3 # 5m, 15m and 1h
 
 
 @pytest.mark.anyio
@@ -119,13 +119,21 @@ async def test_scanner_service_bootstrap_sufficient(sqlite_conn):
     ]
     await candle_repo.upsert_candles(candles)
     
-    # Same for 1d
-    candles_1d = [
-        {"pair": "BTC/INR", "timeframe": "1d", "timestamp": 1700000000000 + i * 86400000, 
+    # Same for 5m
+    candles_5m = [
+        {"pair": "BTC/INR", "timeframe": "5m", "timestamp": 1700000000000 + i * 300000, 
          "open": 80000.0, "high": 81000.0, "low": 79000.0, "close": 80500.0, "volume": 1.2}
         for i in range(120)
     ]
-    await candle_repo.upsert_candles(candles_1d)
+    await candle_repo.upsert_candles(candles_5m)
+    
+    # Same for 1h
+    candles_1h = [
+        {"pair": "BTC/INR", "timeframe": "1h", "timestamp": 1700000000000 + i * 3600000, 
+         "open": 80000.0, "high": 81000.0, "low": 79000.0, "close": 80500.0, "volume": 1.2}
+        for i in range(120)
+    ]
+    await candle_repo.upsert_candles(candles_1h)
     
     service = ScannerService(bus, signal_repo, event_log, config, candle_repo)
     service._fetch_watchlist_coins = AsyncMock(return_value=["BTC"])
