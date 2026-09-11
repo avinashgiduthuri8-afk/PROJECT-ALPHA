@@ -499,7 +499,7 @@ def validate_order_notional(
     if is_usdt and min_val >= 50.0:
         min_val = min_val / usdt_inr_rate
 
-    return (qty >= spec.min_lot_qty * 0.999) and (notional >= min_val * 0.999)
+    return (qty >= spec.min_lot_qty - 1e-9) and (round(notional, 2) >= round(min_val, 2))
 
 
 def validate_trade_parameters(
