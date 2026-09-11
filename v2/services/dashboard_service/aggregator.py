@@ -93,14 +93,22 @@ class DashboardAggregator:
 
         # 3. Active Positions
         active_positions: List[Dict[str, Any]] = []
-        if self.trading_service and hasattr(self.trading_service, "position_manager"):
+        pos_repo = None
+        if self.trading_service:
+            pos_repo = getattr(self.trading_service, "_position_repo", None)
+            if pos_repo is None and hasattr(self.trading_service, "position_manager"):
+                pos_repo = getattr(self.trading_service.position_manager, "_position_repo", None)
+        if pos_repo is None and self.portfolio_service:
+            pos_repo = getattr(self.portfolio_service, "_position_repo", None)
+
+        if pos_repo is not None:
             try:
-                pm = self.trading_service.position_manager
-                positions = []
-                if hasattr(pm, "_position_repo") and hasattr(pm._position_repo, "get_active_positions"):
-                    positions = await pm._position_repo.get_active_positions()
-                elif hasattr(pm, "get_active_positions"):
-                    positions = await pm.get_active_positions()
+                if hasattr(pos_repo, "get_active_positions"):
+                    positions = await pos_repo.get_active_positions()
+                elif hasattr(pos_repo, "get_open"):
+                    positions = await pos_repo.get_open()
+                else:
+                    positions = []
 
                 for p in positions:
                     if isinstance(p, dict):
@@ -120,14 +128,13 @@ class DashboardAggregator:
                         if bot_k in fleet_data:
                             fleet_data[bot_k]["active_positions_count"] += 1
                     else:
-                        bot_k = str(getattr(p, "bot", "STE")).upper()
-                        if hasattr(getattr(p, "bot", None), "value"):
-                            bot_k = p.bot.value.upper()
+                        bot_raw = getattr(p, "bot", "STE")
+                        bot_k = bot_raw.value.upper() if hasattr(bot_raw, "value") else str(bot_raw).upper()
                         if bot_k in fleet_data:
                             fleet_data[bot_k]["active_positions_count"] += 1
                         active_positions.append({
                             "position_id": str(getattr(p, "id", "")),
-                            "bot_name": str(getattr(p, "bot", "STE")),
+                            "bot_name": bot_k,
                             "pair": str(getattr(p, "pair", "BTC/INR")),
                             "side": "BUY",
                             "entry_price": float(getattr(p, "entry_price", 0.0)),

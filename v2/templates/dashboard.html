@@ -2292,7 +2292,7 @@
     </script>
 
     <script>
-        const API_KEY = "{{ api_key or '' }}";
+        const API_KEY = "{{ api_key if api_key else 'alpha-prod-key' }}";
         const API_BASE = window.location.origin + "/api/v2";
         let apiAuthWarningShown = false;
 

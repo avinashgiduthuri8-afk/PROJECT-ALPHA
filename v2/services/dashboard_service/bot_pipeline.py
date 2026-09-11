@@ -450,9 +450,44 @@ class BotPipelineTracker:
                 if s.stage_status == "IDLE":
                     s.current_stage = "analytics"
 
+    async def sync_from_repository(self, position_repo: Any) -> None:
+        """Hydrate active positions and deployed capital from SQLite repository."""
+        if not position_repo:
+            return
+        try:
+            if hasattr(position_repo, "get_active_positions"):
+                active_positions = await position_repo.get_active_positions()
+            elif hasattr(position_repo, "get_open"):
+                active_positions = await position_repo.get_open()
+            else:
+                active_positions = []
+
+            # Reset position counters first
+            for bot in self._bots.values():
+                bot.open_positions = 0
+                bot.capital_deployed = 0.0
+
+            for pos in active_positions:
+                bot_name = pos.bot.value if hasattr(getattr(pos, "bot", None), "value") else str(getattr(pos, "bot", "STE"))
+                bot_key = bot_name.upper()
+                if bot_key in self._bots:
+                    bot_state = self._bots[bot_key]
+                    bot_state.open_positions += 1
+                    entry_price = float(getattr(pos, "entry_price", 0.0) or 0.0)
+                    qty = float(getattr(pos, "qty", 0.0) or 0.0)
+                    bot_state.capital_deployed += (entry_price * qty)
+                    bot_state.current_stage = "position_manager"
+                    bot_state.stage_status = "IN_POSITION"
+                    bot_state.last_action = f"Position active: {getattr(pos, 'coin', '') or getattr(pos, 'pair', '')}"
+                    bot_state.last_coin = getattr(pos, "coin", "") or getattr(pos, "pair", "")
+            logger.info("BotPipelineTracker hydrated %d active positions from SQLite", len(active_positions))
+        except Exception as exc:
+            logger.warning("Failed to sync BotPipelineTracker from repository: %s", exc)
+
     def get_health(self) -> Dict[str, Any]:
         return {
             "healthy": True,
             "bots_tracked": len(self._bots),
             "bot_names": list(self._bots.keys()),
         }
+

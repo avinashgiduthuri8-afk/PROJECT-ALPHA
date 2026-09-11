@@ -218,7 +218,7 @@ class V2Config(BaseSettings):
 
     # ── Auth (shared with V1) ─────────────────────────────────────────────────
     dashboard_api_key: Optional[str] = Field(
-        default=None,
+        default="alpha-prod-key",
         validation_alias=AliasChoices("DASHBOARD_API_KEY", "dashboard_api_key"),
     )
     dashboard_security_password: Optional[str] = Field(
