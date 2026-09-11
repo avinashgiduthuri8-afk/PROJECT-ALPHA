@@ -57,3 +57,7 @@ Existing automated test suites and diagnostic endpoints:
 - [ ] Watchlist widget displays scanned candidate coins with prices, volume, and confluence scores.
 - [ ] Trade chart panel renders candlesticks and TP/SL levels for active pairs without console errors.
 
+## 2026-09-11T12:30:03Z
+
+The server restarted. Please resume work on the teamwork specification in prompt_draft.md and complete all remaining tasks (#6 Dashboard Sync, #7 SQLite Positions Hydration, #8 Portfolio Telemetry, #9 Capital Inconsistency, #10 Equity Calculation, #11 Position Count Inconsistency, #13 Analytics Telemetry, #15 Watchlist Widget, #16 Trade Chart Plotting). Proceed with implementation and verification.
+

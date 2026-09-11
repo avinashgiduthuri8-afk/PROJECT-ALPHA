@@ -1,4 +1,4 @@
-# BRIEFING — 2026-09-11T08:50:39Z
+# BRIEFING — 2026-09-11T12:30:03Z
 
 ## Mission
 Monitor orchestration and verification for resolving PROJECT-ALPHA V2 platform, dashboard, telemetry, and UI issues (#6, #7, #8, #9, #10, #11, #13, #15, #16).
@@ -17,14 +17,14 @@ Monitor orchestration and verification for resolving PROJECT-ALPHA V2 platform, 
 - Capital Rule: Enforce unified shared capital pool and ₹200 minimum notional per order across all bots.
 
 ## User Context
-- **Last user request**: Resolve remaining platform, dashboard, telemetry, and UI issues (#6, #7, #8, #9, #10, #11, #13, #15, #16).
+- **Last user request**: Server restart recovery — resume work and complete all remaining tasks (#6, #7, #8, #9, #10, #11, #13, #15, #16).
 - **Pending clarifications**: none
 - **Delivered results**: none
 
 ## Project Status
 - **Phase**: in progress
-- **Cron 1 (Reporting)**: 607664c0-5201-4ba4-af37-d482efc17180/task-18
-- **Cron 2 (Liveness)**: 607664c0-5201-4ba4-af37-d482efc17180/task-20
+- **Cron 1 (Reporting)**: 607664c0-5201-4ba4-af37-d482efc17180/task-126
+- **Cron 2 (Liveness)**: 607664c0-5201-4ba4-af37-d482efc17180/task-128
 
 ## Victory Audit Status
 - **Triggered**: no

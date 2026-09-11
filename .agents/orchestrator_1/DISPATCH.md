@@ -16,3 +16,7 @@ Key Constraints:
 - Follow the agent working directory convention under .agents/ and maintain your plan.md, progress.md, and context.md in your working directory.
 - When all requirements and acceptance criteria are completely satisfied and verified by automated tests, report your completion to Sentinel.
 
+## 2026-09-11T12:30:53Z
+
+The server has restarted. Resume your orchestration work immediately. Check on subagent states, re-evaluate pending milestones (M1 verification gate, M2 Frontend Script & DOM sync, M3 Trade Chart Plotting, M4 Final Verification), spawn fresh replacement agents for any stopped workers/reviewers as needed per the succession/retry protocol, and proceed until all requirements in ORIGINAL_REQUEST.md and acceptance criteria are completely satisfied and verified by automated tests.
+
