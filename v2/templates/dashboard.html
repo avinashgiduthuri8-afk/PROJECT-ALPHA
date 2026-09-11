@@ -26,7 +26,8 @@
             --accent-red: #ef4444;
         }
         body { font-family: 'Inter', system-ui, sans-serif; background-color: var(--bg-base); color: var(--text-primary); margin: 0; padding: 0; }
-        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+        h1, h2, h3, h4, h5, h6 { text-wrap: balance; }
         .ultimate-shell { display: flex; min-height: 100vh; }
         .side-navigation-dock { width: 260px; background: #080c14; border-right: 1px solid var(--border-color); flex-shrink: 0; display: flex; flex-direction: column; }
         .brand-header { padding: 18px 20px; border-bottom: 1px solid var(--border-color); }
@@ -925,27 +926,27 @@
                     <div class="kpi-row">
                         <div class="kpi-card accent-blue">
                             <div class="kpi-label">Total Crypto Equity</div>
-                            <div class="kpi-value font-mono" id="kpi-aum">Unavailable</div>
+                            <div class="kpi-value font-mono" id="kpi-aum" aria-live="polite">Unavailable</div>
                             <div class="kpi-sub">Authenticated telemetry required</div>
                         </div>
                         <div class="kpi-card accent-green">
                             <div class="kpi-label">Net Daily Realized P&amp;L</div>
-                            <div class="kpi-value font-mono text-green" id="kpi-pnl">Unavailable</div>
+                            <div class="kpi-value font-mono text-green" id="kpi-pnl" aria-live="polite">Unavailable</div>
                             <div class="kpi-sub">Authenticated telemetry required</div>
                         </div>
                         <div class="kpi-card accent-indigo">
                             <div class="kpi-label">Signal Win Rate</div>
-                            <div class="kpi-value font-mono" id="kpi-winrate">Unavailable</div>
+                            <div class="kpi-value font-mono" id="kpi-winrate" aria-live="polite">Unavailable</div>
                             <div class="kpi-sub">Awaiting execution history</div>
                         </div>
                                                 <div class="kpi-card accent-blue">
                             <div class="kpi-label">Open Positions</div>
-                            <div class="kpi-value font-mono" id="kpi-openpos">0</div>
-                            <div class="kpi-sub" id="kpi-openpos-sub">0 active positions</div>
+                            <div class="kpi-value font-mono" id="kpi-openpos" aria-live="polite">0</div>
+                            <div class="kpi-sub" id="kpi-openpos-sub" aria-live="polite">0 active positions</div>
                         </div>
                         <div class="kpi-card accent-green">
                             <div class="kpi-label">Capital Deployed</div>
-                            <div class="kpi-value font-mono" id="kpi-capital">Unavailable</div>
+                            <div class="kpi-value font-mono" id="kpi-capital" aria-live="polite">Unavailable</div>
                             <div class="kpi-sub">Authenticated telemetry required</div>
                         </div>
                         <div class="kpi-card accent-amber">
