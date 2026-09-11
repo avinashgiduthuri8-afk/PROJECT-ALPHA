@@ -418,6 +418,7 @@ class ScannedCoinSchema(BaseModel):
     coin:             str
     pair:             str
     price:            float
+    price_change_pct: float = Field(default=0.0)
     volume_24h:       float = 0.0
     volume_ratio:     float = 1.0
     ema_trend:        str = "SIDEWAYS"

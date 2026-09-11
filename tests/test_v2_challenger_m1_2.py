@@ -780,12 +780,15 @@ class TestStartupHydrationIdempotency:
         from v2.api.router import router as main_router, init_router
         from v2.api.dashboard_routes import router as dashboard_router, init_dashboard_routes
         from v2.api.production_routes import router as production_router, init_production_routes
+        from v2.services.dashboard_service.aggregator import DashboardAggregator
 
         env = sqlite_env
         pos_repo = env["pos_repo"]
         now = datetime.now(timezone.utc)
 
         monkeypatch.setenv("DASHBOARD_API_KEY", "test-challenger-key")
+        from v2.core.config import invalidate_config
+        invalidate_config()
 
         # Insert 3 active positions across STE and HDA
         p1 = Position(
@@ -844,13 +847,11 @@ class TestStartupHydrationIdempotency:
         bot_tracker = BotPipelineTracker()
         dash_agg = DashboardAggregator()
         init_dashboard_routes(aggregator=dash_agg, bot_tracker=bot_tracker)
-        init_production_routes(position_repo=pos_repo)
+        init_production_routes(controller=None, watchdog=None, config=None, position_repo=pos_repo)
         init_router(position_repo=pos_repo)
 
         test_app = FastAPI()
         test_app.include_router(main_router, prefix="/api/v2")
-        test_app.include_router(dashboard_router, prefix="/api/v2/dashboard")
-        test_app.include_router(production_router, prefix="/api/v2/production")
 
         # 1st Startup Hydration
         await bot_tracker.sync_from_repository(pos_repo)
@@ -867,7 +868,7 @@ class TestStartupHydrationIdempotency:
             assert "e2e-pos-closed" not in ids
 
             # Check 2: /production/status reflects 3 active positions and 10,000 INR deployed
-            res_prod = client.get("/api/v2/production/status")
+            res_prod = client.get("/api/v2/production/status", headers=headers)
             assert res_prod.status_code == 200
             prod_status = res_prod.json()
             assert prod_status["open_positions_count"] == 3
@@ -880,6 +881,6 @@ class TestStartupHydrationIdempotency:
             res_open2 = client.get("/api/v2/positions/open", headers=headers)
             assert len(res_open2.json()) == 3
 
-            res_prod2 = client.get("/api/v2/production/status")
+            res_prod2 = client.get("/api/v2/production/status", headers=headers)
             assert res_prod2.json()["open_positions_count"] == 3
             assert res_prod2.json()["capital_pool_deployed"] == 10000.0

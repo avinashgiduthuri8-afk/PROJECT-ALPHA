@@ -175,6 +175,28 @@ class TestBotPipelineTrackerSyncStress:
         assert tracker.get_bot_detail("HDA")["open_positions"] == 1
         assert tracker.get_bot_detail("HDA")["capital_deployed"] == 500.0
 
+    def test_sync_none_attribute_values(self):
+        """Verify behavior when position attributes are None."""
+        tracker = BotPipelineTracker()
+        positions = [
+            DummyPosition(bot="STE", coin="BTC", qty=None, entry_price=None, deployed_capital=None, entry_time=None),
+        ]
+        asyncio.run(tracker.sync_from_repository(positions))
+        ste = tracker.get_bot_detail("STE")
+        assert ste["open_positions"] == 1
+        assert ste["capital_deployed"] == 0.0
+        assert ste["current_stage"] == "position_manager"
+        assert ste["stage_status"] == "IN_POSITION"
+
+    def test_sync_malformed_string_qty_raises_value_error(self):
+        """Adversarial test: If qty is a non-numeric string, float() conversion raises ValueError."""
+        tracker = BotPipelineTracker()
+        positions = [
+            DummyPosition(bot="STE", coin="BTC", qty="corrupted", entry_price=100.0),
+        ]
+        with pytest.raises(ValueError, match="could not convert string to float"):
+            asyncio.run(tracker.sync_from_repository(positions))
+
 
 # ── SECTION 2: PositionRepository SQLite Status Edge Cases ───────────────────
 
@@ -247,6 +269,32 @@ class TestSQLitePositionRepositoryEdgeCases:
 
             repo = PositionRepository(db.connection)
             with pytest.raises(ValueError, match="PENDING_ENTRY"):
+                await repo.get_active_positions()
+        finally:
+            await db.close()
+
+    @pytest.mark.asyncio
+    async def test_pending_exit_in_sqlite_causes_value_error(self, test_db_file):
+        """
+        Adversarial edge-case: If SQLite has status='PENDING_EXIT', what happens?
+        Since PositionStatus enum only defines OPEN, CLOSING, CLOSED,
+        _row_to_position raises ValueError('PENDING_EXIT' is not a valid PositionStatus).
+        """
+        db = Database(test_db_file)
+        await db.open()
+        try:
+            now = datetime.now(timezone.utc).isoformat()
+            await db.connection.execute(
+                """
+                INSERT INTO positions (id, bot, coin, pair, qty, entry_price, entry_time, mode, status)
+                VALUES ('pos-pending-exit-1', 'HDA', 'ETH', 'ETH/INR', 0.1, 250000.0, ?, 'PAPER', 'PENDING_EXIT')
+                """,
+                (now,)
+            )
+            await db.connection.commit()
+
+            repo = PositionRepository(db.connection)
+            with pytest.raises(ValueError, match="PENDING_EXIT"):
                 await repo.get_active_positions()
         finally:
             await db.close()

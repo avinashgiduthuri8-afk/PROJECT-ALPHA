@@ -89,9 +89,11 @@ class ExitReason(str, Enum):
 
 
 class PositionStatus(str, Enum):
-    OPEN    = "OPEN"
-    CLOSING = "CLOSING"
-    CLOSED  = "CLOSED"
+    PENDING_ENTRY = "PENDING_ENTRY"
+    OPEN          = "OPEN"
+    PENDING_EXIT  = "PENDING_EXIT"
+    CLOSING       = "CLOSING"
+    CLOSED        = "CLOSED"
 
 
 class AIRecommendation(str, Enum):
