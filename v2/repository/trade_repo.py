@@ -187,3 +187,44 @@ class TradeRepository(BaseRepository):
             if dt:
                 result.append((dt, float(r["pnl"])))
         return result
+
+    async def audit_historical_trades(self) -> list[dict]:
+        """
+        Diagnostic audit function: scans closed trade history and identifies suspicious or
+        corrupted trade records (e.g. entry/exit <= 0, impossible 100x price jumps, extreme PnL)
+        without deleting data. Marks them as CORRUPTED/INVALID.
+        """
+        rows = await self._fetchall("SELECT * FROM trades ORDER BY exit_time DESC")
+        suspicious = []
+        for r in rows:
+            t = _row_to_trade(r)
+            issues = []
+            if t.entry_price <= 0:
+                issues.append(f"Non-positive entry_price: {t.entry_price}")
+            if t.exit_price <= 0:
+                issues.append(f"Non-positive exit_price: {t.exit_price}")
+            if t.qty <= 0:
+                issues.append(f"Non-positive qty: {t.qty}")
+            if t.entry_price > 0 and t.exit_price > 0:
+                ratio = t.exit_price / t.entry_price
+                if ratio > 5.0 or ratio < 0.2:
+                    issues.append(f"Abnormal price-ratio jump: {ratio:.2f}x (entry: {t.entry_price}, exit: {t.exit_price})")
+            if abs(t.pnl_pct) > 500.0:
+                issues.append(f"Extreme PnL percentage: {t.pnl_pct:.2f}%")
+
+            if issues:
+                suspicious.append({
+                    "trade_id": t.id,
+                    "position_id": t.position_id,
+                    "bot": t.bot.value if hasattr(t.bot, "value") else str(t.bot),
+                    "coin": t.coin,
+                    "pair": t.pair,
+                    "entry_price": t.entry_price,
+                    "exit_price": t.exit_price,
+                    "qty": t.qty,
+                    "pnl": t.pnl,
+                    "pnl_pct": t.pnl_pct,
+                    "status": "CORRUPTED_SUSPICIOUS",
+                    "issues": issues,
+                })
+        return suspicious

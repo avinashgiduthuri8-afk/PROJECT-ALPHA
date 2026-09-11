@@ -15,8 +15,17 @@ from typing import Any, Dict, Optional, Set
 from v2.bus.event_bus import EventBus
 from v2.bus.event_types import EventType
 from v2.core.logging import get_logger
-from v2.core.types import BotName, OppType, Signal
-from v2.trading.precision_rules import extract_base_coin, round_price, round_qty, round_qty_up, validate_order_notional
+from v2.core.types import BotName, Signal
+from v2.trading.precision_rules import (
+    extract_base_coin,
+    normalize_price,
+    normalize_qty,
+    round_price,
+    round_qty,
+    round_qty_up,
+    validate_order_notional,
+    validate_trade_parameters,
+)
 from v2.trading.subaccount_manager import CoinDCXSubAccountClient, CoinDCXSubAccountManager
 
 logger = get_logger("v2.services.trading_service.auto_trader")
@@ -105,7 +114,7 @@ class AutoTradeRouter:
                 "opportunity_type": signal.opportunity_type.value if hasattr(signal.opportunity_type, "value") else str(signal.opportunity_type),
                 "score": signal.score,
                 "target_bot": signal.raw_payload.get("target_bot") if signal.raw_payload else None,
-                "price": signal.raw_payload.get("price", 100.0) if signal.raw_payload else 100.0,
+                "price": signal.raw_payload.get("price") if signal.raw_payload else None,
                 "trade_amount": signal.raw_payload.get("trade_amount", 500.0) if signal.raw_payload else 500.0,
             }
         elif isinstance(signal, dict):
@@ -160,7 +169,21 @@ class AutoTradeRouter:
 
         client = self._subaccount_manager.get_client(target_bot)
 
-        price = float(signal_data.get("price") or signal_data.get("current_price") or 100.0)
+        raw_price = signal_data.get("price") or signal_data.get("current_price")
+        try:
+            price = normalize_price(raw_price)
+        except ValueError as exc:
+            logger.warning(
+                "AutoTradeRouter rejected signal for %s: invalid price '%s': %s",
+                pair, raw_price, exc,
+            )
+            return {
+                "success": False,
+                "error": "INVALID_PRICE",
+                "idempotency_key": idempotency_key,
+                "message": f"Signal has invalid price: {exc}",
+            }
+
         trade_amount_inr = float(signal_data.get("trade_amount") or signal_data.get("amount") or client.config.default_trade_amount_inr)
         
         is_usdt_pair = pair.upper().endswith("/USDT") or pair.upper().endswith("USDT")

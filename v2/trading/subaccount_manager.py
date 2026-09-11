@@ -21,11 +21,18 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 import httpx
 
-import httpx
-
 from v2.core.logging import get_logger
 from v2.core.types import BotName
-from .precision_rules import get_pair_spec, round_price, round_qty, validate_order_notional
+
+from .precision_rules import (
+    get_pair_spec,
+    normalize_price,
+    normalize_qty,
+    round_price,
+    round_qty,
+    validate_order_notional,
+    validate_trade_parameters,
+)
 
 logger = get_logger("v2.trading.execution_manager")
 
@@ -171,12 +178,23 @@ class CoinDCXSubAccountClient:
         otherwise records a compliant simulated fill.
         """
         with self._lock:
-            rounded_price = round_price(pair, price)
-            rounded_qty = round_qty(pair, qty)
+            try:
+                norm_price = normalize_price(price)
+                norm_qty = normalize_qty(qty)
+            except ValueError as e:
+                logger.warning("Order rejected: invalid price/qty for %s: %s", pair, e)
+                return {
+                    "success": False,
+                    "error": "INVALID_PRICE_OR_QUANTITY",
+                    "message": f"Order rejected: {e}",
+                }
+
+            rounded_price = round_price(pair, norm_price)
+            rounded_qty = round_qty(pair, norm_qty)
             notional = rounded_price * rounded_qty
 
             if not validate_order_notional(pair, rounded_price, rounded_qty):
-                spec = get_pair_spec(pair)
+                spec = get_pair_spec(pair, reference_price=rounded_price)
                 return {
                     "success": False,
                     "error": "ORDER_NOTIONAL_BELOW_MINIMUM",
@@ -234,7 +252,7 @@ class CoinDCXSubAccountClient:
             self._open_orders[order_id] = order_record
 
         logger.info(
-            "[%s] Order dispatched successfully (live=%s): %s %s @ INR %.2f (Qty: %s, Notional: INR %.2f)",
+            "[%s] Order dispatched successfully (live=%s): %s %s @ INR %.8f (Qty: %s, Notional: INR %.2f)",
             self.subaccount_id, self.is_live_mode, side.upper(), pair, rounded_price, rounded_qty, notional,
         )
         return {"success": True, "order": order_record}
@@ -254,14 +272,25 @@ class CoinDCXSubAccountClient:
         Place an order through the unified execution client with discrete rounding.
         """
         with self._lock:
+            try:
+                norm_price = normalize_price(price)
+                norm_qty = normalize_qty(qty)
+            except ValueError as e:
+                logger.warning("Order rejected: invalid price/qty for %s: %s", pair, e)
+                return {
+                    "success": False,
+                    "error": "INVALID_PRICE_OR_QUANTITY",
+                    "message": f"Order rejected: {e}",
+                }
+
             # 1. Discrete tick & lot precision rounding
-            rounded_price = round_price(pair, price)
-            rounded_qty = round_qty(pair, qty)
+            rounded_price = round_price(pair, norm_price)
+            rounded_qty = round_qty(pair, norm_qty)
             notional = rounded_price * rounded_qty
 
             # 2. Hard validation: Minimum order value and min lot via CoinDCX precision rules
             if not validate_order_notional(pair, rounded_price, rounded_qty):
-                spec = get_pair_spec(pair)
+                spec = get_pair_spec(pair, reference_price=rounded_price)
                 logger.warning(
                     "Order rejected by precision gate: notional INR %.2f below INR %.2f or invalid qty %.6f for %s",
                     notional, spec.min_notional_inr, rounded_qty, pair,

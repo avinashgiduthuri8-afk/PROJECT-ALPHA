@@ -81,6 +81,7 @@ def test_websocket_connection_and_auth():
 
 
 def test_dashboard_security_elements_rendered():
+    """Verify Dashboard HTML contains security PIN overlay, live mode confirmation modal, and mode buttons."""
     """Verify Dashboard HTML contains security PIN overlay, live mode confirmation modal, and mode buttons.
     
     NOTE: After Phase 2 auth hardening, the PIN must NOT appear in HTML source.
@@ -91,6 +92,7 @@ def test_dashboard_security_elements_rendered():
         assert resp.status_code == 200
         assert "dashboardSecurityOverlay" in resp.text
         assert "securityPasswordInput" in resp.text
+        assert "110299" in resp.text
         # Phase 2: PIN must NOT be in HTML (server-side validation only)
         assert "110299" not in resp.text
         assert "btn-mode-paper" in resp.text
@@ -105,6 +107,7 @@ def test_auth_verify_password_endpoint():
         headers = {"X-API-Key": "test-ui-key"}
 
         # 1. Correct PIN
+        resp = client.post("/api/v2/auth/verify-password", json={"password": "110299"})
         resp = client.post("/api/v2/auth/verify-password", json={"password": "110299"}, headers=headers)
         assert resp.status_code == 200
         data = resp.json()
@@ -112,6 +115,7 @@ def test_auth_verify_password_endpoint():
         assert data["authorized"] is True
 
         # 2. Incorrect PIN
+        resp_wrong = client.post("/api/v2/auth/verify-password", json={"password": "wrong"})
         resp_wrong = client.post("/api/v2/auth/verify-password", json={"password": "wrong"}, headers=headers)
         assert resp_wrong.status_code == 401
         data_wrong = resp_wrong.json()
@@ -132,6 +136,7 @@ def test_set_mode_security_password_protection():
         # 2. Switching to LIVE without password fails
         resp_live_fail = client.post("/api/v2/production/set-mode", json={"mode": "LIVE_MICROCASH"}, headers=headers)
         assert resp_live_fail.status_code == 403
+        assert "Security password required" in resp_live_fail.json()["detail"]
         assert "password required" in resp_live_fail.json()["detail"].lower()
 
         # 3. Switching to LIVE with wrong password fails

@@ -28,7 +28,17 @@ from v2.repository.event_log_repo import EventLogRepository
 from v2.repository.position_repo import PositionRepository
 from v2.repository.trade_repo import TradeRepository
 from v2.trading.subaccount_manager import CoinDCXSubAccountManager
-from v2.trading.precision_rules import extract_base_coin, round_qty_up, validate_order_notional, get_pair_spec
+from v2.trading.precision_rules import (
+    extract_base_coin,
+    get_pair_spec,
+    normalize_price,
+    normalize_qty,
+    round_price,
+    round_qty,
+    round_qty_up,
+    validate_order_notional,
+    validate_trade_parameters,
+)
 from .adapters import BaseBotAdapter, StrategyAdapterFactory
 from .auto_trader import AutoTradeRouter
 from .position_manager import PositionManager
@@ -145,7 +155,16 @@ class TradingService:
                 )
                 return
             ai_adjustments = payload.get("ai_adjustments") or {}
-            price = float(payload.get("price") or payload.get("current_price") or 100.0)
+
+            raw_price = payload.get("price") or payload.get("current_price")
+            try:
+                price = normalize_price(raw_price)
+            except ValueError as exc:
+                logger.warning(
+                    "Final execution validation rejected order: pair=%s raw_price=%s reason=%s",
+                    pair, raw_price, exc,
+                )
+                return
 
             try:
                 bot = BotName(bot_str)
@@ -166,23 +185,29 @@ class TradingService:
             if order_data.get("amount", 0.0) < 200.0 and entry_px > 0:
                 order_data["qty"] = round_qty_up(pair, 200.0 / entry_px)
                 order_data["amount"] = round(entry_px * order_data["qty"], 2)
-            if (
-                entry_px <= 0
-                or order_data.get("qty", 0.0) <= 0
-                or order_data.get("amount", 0.0) < 200.0
-                or not validate_order_notional(
-                    pair,
-                    entry_px,
-                    order_data["qty"],
-                    min_notional=200.0,
-                )
-            ):
+
+            valid, err_reason = validate_trade_parameters(
+                pair=pair,
+                price=entry_px,
+                qty=float(order_data.get("qty", 0.0) or 0.0),
+                stop_loss=order_data.get("stop_loss"),
+                take_profit=order_data.get("take_profit"),
+                is_long=True,
+                min_notional=200.0,
+            )
+
+            if not valid:
                 logger.warning(
-                    "Final execution validation rejected order for %s: amount=%.2f qty=%s price=%.8f",
+                    "Final execution validation rejected order: pair=%s raw_price=%s normalized_price=%.8f qty=%s notional=%.2f entry=%.8f TP=%s SL=%s reason=%s",
                     pair,
-                    float(order_data.get("amount", 0.0) or 0.0),
-                    order_data.get("qty"),
+                    raw_price,
                     entry_px,
+                    order_data.get("qty"),
+                    float(order_data.get("amount", 0.0) or 0.0),
+                    entry_px,
+                    order_data.get("take_profit"),
+                    order_data.get("stop_loss"),
+                    err_reason,
                 )
                 return
 
@@ -394,20 +419,47 @@ class TradingService:
                 continue
 
             clean_coin = extract_base_coin(pos.coin) or extract_base_coin(pos.pair)
-            price = (
-                current_prices.get(pos.pair)
-                or current_prices.get(pos.coin)
-                or (current_prices.get(clean_coin) if clean_coin else None)
-                or (current_prices.get(f"{clean_coin}/INR") if clean_coin else None)
-                or (current_prices.get(f"{clean_coin}INR") if clean_coin else None)
-            )
+            pair_upper = pos.pair.upper()
+            is_usdt = pair_upper.endswith("/USDT") or pair_upper.endswith("USDT")
 
-            if price is None or price <= 0.0:
+            raw_px = None
+            if is_usdt:
+                raw_px = (
+                    current_prices.get(pos.pair)
+                    or current_prices.get(f"{clean_coin}/USDT")
+                    or current_prices.get(f"{clean_coin}USDT")
+                    or current_prices.get(f"B-{clean_coin}_USDT")
+                )
+            else:
+                raw_px = (
+                    current_prices.get(pos.pair)
+                    or current_prices.get(f"{clean_coin}/INR")
+                    or current_prices.get(f"{clean_coin}INR")
+                    or current_prices.get(f"B-{clean_coin}_INR")
+                )
+
+            if raw_px is None:
                 logger.debug(
-                    "No fresh ticker price for open position %s (%s). Preserving last mark.",
-                    pos.id, pos.coin,
+                    "No fresh ticker price matching quote currency for open position %s (%s, pair: %s). Preserving last mark.",
+                    pos.id, pos.coin, pos.pair,
                 )
                 continue
+
+            try:
+                price = normalize_price(raw_px)
+            except ValueError as e:
+                logger.warning("Corrupted current market price '%s' for position %s (%s): %s", raw_px, pos.id, pos.coin, e)
+                continue
+
+            # Price magnitude sanity check against entry price (e.g. Reject 100x jumps from malformed ticker data)
+            if pos.entry_price > 0:
+                ratio = price / pos.entry_price
+                if ratio > 10.0 or ratio < 0.1:
+                    logger.error(
+                        "Suspicious price jump detected for %s (entry: %.8f, market: %.8f, ratio: %.2fx). Rejecting exit check to protect P&L.",
+                        pos.pair, pos.entry_price, price, ratio,
+                    )
+                    continue
 
             # 1. Update mark price, peak, trailing stop, and unrealised PnL in SQLite
             await self.position_manager.update_mark_price(pos, price)
@@ -604,19 +656,27 @@ class TradingService:
                     resp = await client.get("https://api.coindcx.com/exchange/ticker")
                     if resp.status_code == 200:
                         for item in resp.json():
-                            m = item.get("market", "")
-                            last_p = float(item.get("last_price", 0.0) or 0.0)
+                            m = str(item.get("market", "")).upper()
+                            try:
+                                last_p = normalize_price(item.get("last_price"))
+                            except ValueError:
+                                continue
                             if last_p > 0:
                                 current_prices[m] = last_p
-                                base = extract_base_coin(m)
-                                if base:
-                                    current_prices[base] = last_p
-                                    current_prices[f"{base}/INR"] = last_p
-                                    current_prices[f"{base}INR"] = last_p
-                                elif m.endswith("INR"):
+                                if m.startswith("B-") and "_" in m:
+                                    base, quote = m[2:].split("_", 1)
+                                    current_prices[f"{base}/{quote}"] = last_p
+                                    current_prices[f"{base}{quote}"] = last_p
+                                elif m.endswith("INR") and len(m) > 3:
                                     coin = m[:-3]
-                                    current_prices[coin] = last_p
                                     current_prices[f"{coin}/INR"] = last_p
+                                    current_prices[f"{coin}INR"] = last_p
+                                    current_prices[f"B-{coin}_INR"] = last_p
+                                elif m.endswith("USDT") and len(m) > 4:
+                                    coin = m[:-4]
+                                    current_prices[f"{coin}/USDT"] = last_p
+                                    current_prices[f"{coin}USDT"] = last_p
+                                    current_prices[f"B-{coin}_USDT"] = last_p
             except Exception as e:
                 logger.debug("Failed to fetch fresh ticker prices for exit check: %s", e)
 
