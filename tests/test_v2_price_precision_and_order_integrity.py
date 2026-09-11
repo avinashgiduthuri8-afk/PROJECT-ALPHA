@@ -513,13 +513,30 @@ async def test_historical_contamination_diagnostic_read_only():
     """Verify audit_historical_trades identifies corrupt records without modifying the DB."""
     db = Database(":memory:")
     await db.open()
+    pos_repo = PositionRepository(db.connection)
     trade_repo = TradeRepository(db.connection)
     now = datetime.now(timezone.utc)
 
-    # 1. Clean trade
+    # 1. Clean position & trade
+    pos_id_clean = str(uuid.uuid4())
+    pos_clean = Position(
+        id=pos_id_clean,
+        bot=BotName.STE,
+        coin="BTC",
+        pair="BTC/INR",
+        qty=0.0001,
+        entry_price=8200000.0,
+        entry_time=now,
+        mode=BotMode.PAPER,
+        status=PositionStatus.CLOSED,
+        current_price=8500000.0,
+        unrealised_pnl=0.0,
+    )
+    await pos_repo.insert(pos_clean)
+
     t_clean = Trade(
         id=str(uuid.uuid4()),
-        position_id=str(uuid.uuid4()),
+        position_id=pos_id_clean,
         bot=BotName.STE,
         coin="BTC",
         pair="BTC/INR",
@@ -535,10 +552,26 @@ async def test_historical_contamination_diagnostic_read_only():
     )
     await trade_repo.insert(t_clean)
 
-    # 2. Corrupted 100x jump trade (ENA ₹0.16 -> ₹16.05)
+    # 2. Corrupted 100x jump position & trade (ENA ₹0.16 -> ₹16.05)
+    pos_id_corrupt = str(uuid.uuid4())
+    pos_corrupt = Position(
+        id=pos_id_corrupt,
+        bot=BotName.STE,
+        coin="ENA",
+        pair="ENA/INR",
+        qty=1250.0,
+        entry_price=0.16,
+        entry_time=now,
+        mode=BotMode.PAPER,
+        status=PositionStatus.CLOSED,
+        current_price=16.05,
+        unrealised_pnl=0.0,
+    )
+    await pos_repo.insert(pos_corrupt)
+
     t_corrupt = Trade(
         id=str(uuid.uuid4()),
-        position_id=str(uuid.uuid4()),
+        position_id=pos_id_corrupt,
         bot=BotName.STE,
         coin="ENA",
         pair="ENA/INR",
