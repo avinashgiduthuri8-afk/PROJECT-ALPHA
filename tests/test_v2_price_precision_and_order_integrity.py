@@ -517,6 +517,7 @@ async def test_historical_contamination_diagnostic_read_only():
     trade_repo = TradeRepository(db.connection)
     now = datetime.now(timezone.utc)
 
+    # 1. Clean trade
     # 1. Clean position & trade
     pos_id_clean = str(uuid.uuid4())
     pos_clean = Position(
@@ -536,6 +537,7 @@ async def test_historical_contamination_diagnostic_read_only():
 
     t_clean = Trade(
         id=str(uuid.uuid4()),
+        position_id=str(uuid.uuid4()),
         position_id=pos_id_clean,
         bot=BotName.STE,
         coin="BTC",
@@ -552,6 +554,7 @@ async def test_historical_contamination_diagnostic_read_only():
     )
     await trade_repo.insert(t_clean)
 
+    # 2. Corrupted 100x jump trade (ENA ₹0.16 -> ₹16.05)
     # 2. Corrupted 100x jump position & trade (ENA ₹0.16 -> ₹16.05)
     pos_id_corrupt = str(uuid.uuid4())
     pos_corrupt = Position(
@@ -571,6 +574,7 @@ async def test_historical_contamination_diagnostic_read_only():
 
     t_corrupt = Trade(
         id=str(uuid.uuid4()),
+        position_id=str(uuid.uuid4()),
         position_id=pos_id_corrupt,
         bot=BotName.STE,
         coin="ENA",
