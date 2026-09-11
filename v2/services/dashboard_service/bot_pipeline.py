@@ -263,6 +263,62 @@ class BotPipelineTracker:
         state = self._bots.get(bot_name.upper())
         return state.to_detail() if state else None
 
+    # ── Startup Hydration ─────────────────────────────────────────────────────
+
+    async def sync_from_repository(self, repository_or_positions: Any) -> None:
+        """
+        Hydrate active positions and deployed capital from SQLite on startup.
+        Queries all non-CLOSED positions via PositionRepository.get_active_positions().
+        """
+        if hasattr(repository_or_positions, "get_active_positions"):
+            active_positions = await repository_or_positions.get_active_positions()
+        elif hasattr(repository_or_positions, "get_open"):
+            active_positions = await repository_or_positions.get_open()
+        elif isinstance(repository_or_positions, list):
+            active_positions = repository_or_positions
+        else:
+            logger.warning("sync_from_repository received unsupported source: %s", type(repository_or_positions))
+            return
+
+        # Reset in-memory counters prior to hydration
+        for state in self._bots.values():
+            state.open_positions = 0
+            state.capital_deployed = 0.0
+            if state.stage_status == "IN_POSITION":
+                state.current_stage = "scanner"
+                state.stage_status = "IDLE"
+
+        for pos in active_positions:
+            bot_raw = getattr(pos, "bot", "")
+            bot_key = bot_raw.value if hasattr(bot_raw, "value") else str(bot_raw).upper()
+
+            if bot_key in self._bots:
+                s = self._bots[bot_key]
+                s.open_positions += 1
+
+                qty = float(getattr(pos, "qty", 0.0) or 0.0)
+                entry_price = float(getattr(pos, "entry_price", 0.0) or 0.0)
+                deployed = getattr(pos, "deployed_capital", None)
+                if deployed is not None:
+                    s.capital_deployed += float(deployed)
+                else:
+                    s.capital_deployed += (qty * entry_price)
+
+                # Advance pipeline stage to reflect active position
+                s.current_stage = "position_manager"
+                s.stage_status = "IN_POSITION"
+                coin = getattr(pos, "coin", "")
+                s.last_coin = coin
+                s.last_action = f"Tracking active position: {coin}"
+                entry_time = getattr(pos, "entry_time", None)
+                if entry_time:
+                    s.last_action_time = entry_time.strftime("%H:%M:%S UTC") if hasattr(entry_time, "strftime") else str(entry_time)
+
+        logger.info(
+            "BotPipelineTracker hydrated from repository: %s",
+            {b: f"{s.open_positions} pos, ₹{s.capital_deployed:.2f}" for b, s in self._bots.items()}
+        )
+
     # ── EventBus Handler ──────────────────────────────────────────────────────
 
     def handle_bus_event(self, event_type: str | EventType, payload: dict) -> None:

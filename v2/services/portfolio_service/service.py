@@ -79,7 +79,10 @@ class PortfolioService:
         """Fetch current positions and completed trades from database, then aggregate."""
         open_positions = []
         if self._position_repo is not None:
-            open_positions = await self._position_repo.get_open()
+            if hasattr(self._position_repo, "get_active_positions"):
+                open_positions = await self._position_repo.get_active_positions()
+            else:
+                open_positions = await self._position_repo.get_open()
 
         recent_trades = []
         if self._trade_repo is not None:

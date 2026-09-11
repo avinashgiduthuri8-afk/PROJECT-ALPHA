@@ -336,17 +336,27 @@ class BotDetailSchema(BotStatusSchema):
 
 
 class DashboardOverviewSchema(BaseModel):
-    status:             str = "ok"
-    active_ws_clients:  int = 0
-    portfolio:          Optional[dict[str, Any]] = None
-    risk:               Optional[dict[str, Any]] = None
-    shadow:             Optional[dict[str, Any]] = None
-    subsystems:         dict[str, Any] = Field(default_factory=dict)
-    pipeline_stages:    Optional[list[dict[str, Any]]] = None
-    bots:               Optional[list[dict[str, Any]]] = None
-    scanned_coins:      Optional[list[dict[str, Any]]] = Field(default_factory=list)
-    watchlist_summary:  Optional[dict[str, Any]] = Field(default_factory=dict)
-    telemetry:          Optional[dict[str, Any]] = None
+    status:               str = "ok"
+    system_status:        Optional[str] = "OPERATIONAL"
+    active_ws_clients:    int = 0
+    portfolio:            Optional[dict[str, Any]] = None
+    risk:                 Optional[dict[str, Any]] = None
+    shadow:               Optional[dict[str, Any]] = None
+    subsystems:           dict[str, Any] = Field(default_factory=dict)
+    pipeline_stages:      Optional[list[dict[str, Any]]] = None
+    bots:                 Optional[list[dict[str, Any]]] = None
+    execution_fleet:      Optional[dict[str, Any]] = None
+    open_positions:       Optional[list[dict[str, Any]]] = Field(default_factory=list)
+    open_positions_count: int = 0
+    active_positions:     Optional[list[dict[str, Any]]] = Field(default_factory=list)
+    scanned_coins:        Optional[list[dict[str, Any]]] = Field(default_factory=list)
+    watchlist_summary:    Optional[dict[str, Any]] = Field(default_factory=dict)
+    scanner_funnel:       Optional[dict[str, Any]] = None
+    performance_summary:  Optional[dict[str, Any]] = None
+    feedback_state:       Optional[dict[str, Any]] = None
+    telemetry:            Optional[dict[str, Any]] = None
+
+    model_config = {"extra": "allow"}
 
 
 class MonitoringMetricsSchema(BaseModel):

@@ -116,7 +116,15 @@ class DashboardAggregator:
                             "stop_loss": float(p.get("stop_loss", 0.0)),
                             "take_profit": float(p.get("take_profit", 0.0)),
                         })
+                        bot_k = str(p.get("bot_name", p.get("bot", "STE"))).upper()
+                        if bot_k in fleet_data:
+                            fleet_data[bot_k]["active_positions_count"] += 1
                     else:
+                        bot_k = str(getattr(p, "bot", "STE")).upper()
+                        if hasattr(getattr(p, "bot", None), "value"):
+                            bot_k = p.bot.value.upper()
+                        if bot_k in fleet_data:
+                            fleet_data[bot_k]["active_positions_count"] += 1
                         active_positions.append({
                             "position_id": str(getattr(p, "id", "")),
                             "bot_name": str(getattr(p, "bot", "STE")),
@@ -171,6 +179,8 @@ class DashboardAggregator:
             "system_status": "OPERATIONAL" if not self._emergency_stop_tripped else "EMERGENCY_STOP",
             "scanner_funnel": scanner_data,
             "execution_fleet": fleet_data,
+            "open_positions": active_positions,
+            "open_positions_count": len(active_positions),
             "active_positions": active_positions,
             "performance_summary": perf_data,
             "feedback_state": feedback_data,

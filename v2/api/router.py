@@ -44,6 +44,7 @@ from .production_routes import production_router, init_production_router
 router = APIRouter()
 router.include_router(research_router, prefix="/research", tags=["research"])
 router.include_router(production_router, prefix="/production", tags=["production"])
+router.include_router(dashboard_router)
 
 # ── Injected service references (set by app_v2.py at startup) ────────────────
 _scanner_service = None
@@ -150,6 +151,24 @@ def init_router(
         config=config,
         position_repo=position_repo,
         risk_service=risk_service,
+    )
+    dash_agg = getattr(dashboard_service, "aggregator", None)
+    if dash_agg is None:
+        from v2.services.dashboard_service.aggregator import DashboardAggregator
+        dash_agg = DashboardAggregator(
+            scanner_service   = scanner_service,
+            trading_service   = trading_service,
+            portfolio_service = portfolio_service,
+            risk_service      = risk_service,
+            journal_service   = journal_service or kwargs.get("journal_service"),
+            analytics_service = analytics_service or kwargs.get("analytics_service"),
+            feedback_service  = feedback_service or kwargs.get("feedback_service"),
+        )
+    dash_bot_tracker = getattr(dashboard_service, "bot_tracker", None)
+    init_dashboard_routes(
+        aggregator=dash_agg,
+        dashboard_service=dashboard_service,
+        bot_tracker=dash_bot_tracker,
     )
 
 
@@ -643,15 +662,24 @@ async def get_portfolio_snapshot() -> PortfolioSnapshotSchema:
     tags=["trading"],
 )
 async def get_positions(
-    status: Optional[str] = Query(default=None, description="Filter by OPEN | CLOSED"),
+    status: Optional[str] = Query(default=None, description="Filter by OPEN | CLOSED | ACTIVE"),
     limit: int = Query(default=50, ge=1, le=500),
 ) -> list[PositionSchema]:
-    """List open and closed positions from repository."""
+    """List open, active, or closed positions from repository."""
     if _position_repo is None:
         raise HTTPException(status_code=503, detail="Position repository not initialized.")
 
-    if status and status.upper() == "OPEN":
-        positions = await _position_repo.get_open()
+    if status and status.upper() in ("OPEN", "ACTIVE"):
+        if hasattr(_position_repo, "get_active_positions"):
+            positions = await _position_repo.get_active_positions()
+        else:
+            positions = await _position_repo.get_open()
+    elif status and status.upper() == "CLOSED":
+        all_positions = await _position_repo.get_all(limit=max(limit * 2, 100))
+        positions = [
+            p for p in all_positions
+            if (p.status.value if hasattr(p.status, "value") else str(p.status)).upper() == "CLOSED"
+        ][:limit]
     else:
         positions = await _position_repo.get_all(limit=limit)
 
@@ -686,7 +714,7 @@ async def get_positions(
     tags=["trading"],
 )
 async def get_open_positions_alias() -> list[PositionSchema]:
-    """Convenience alias for /trading/positions?status=OPEN."""
+    """Convenience alias for /trading/positions?status=OPEN returning all active non-closed positions."""
     return await get_positions(status="OPEN")
 
 

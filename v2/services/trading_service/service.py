@@ -436,6 +436,8 @@ class TradingService:
                     or current_prices.get(f"{clean_coin}/INR")
                     or current_prices.get(f"{clean_coin}INR")
                     or current_prices.get(f"B-{clean_coin}_INR")
+                    or current_prices.get(clean_coin)
+                    or current_prices.get(pos.coin)
                 )
 
             if raw_px is None:

@@ -254,6 +254,7 @@ async def lifespan(app: FastAPI):
     _dashboard_service = DashboardService(
         bus               = bus,
         config            = cfg,
+        position_repo     = position_repo,
         scanner_service   = _scanner_service,
         ai_service        = _ai_service,
         risk_service      = _risk_service,
@@ -381,15 +382,15 @@ async def lifespan(app: FastAPI):
         feedback_service     = _feedback_service,
     )
 
-    init_dashboard_routes(DashboardAggregator(
-        scanner_service   = _scanner_service,
-        trading_service   = _trading_service,
-        portfolio_service = _portfolio_service,
-        risk_service      = _risk_service,
-        journal_service   = _journal_service,
-        analytics_service = _analytics_service,
-        feedback_service  = _feedback_service,
-    ))
+    init_dashboard_routes(
+        aggregator=_dashboard_service.aggregator,
+        dashboard_service=_dashboard_service,
+        bot_tracker=_dashboard_service.bot_tracker,
+    )
+
+    # Hydrate active positions from SQLite into BotPipelineTracker
+    if position_repo and hasattr(_dashboard_service.bot_tracker, "sync_from_repository"):
+        await _dashboard_service.bot_tracker.sync_from_repository(position_repo)
 
     # Trigger initial warm-up scanner poll in background
     asyncio.create_task(_scanner_service.poll())

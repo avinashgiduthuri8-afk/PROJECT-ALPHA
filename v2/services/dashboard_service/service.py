@@ -180,6 +180,7 @@ class DashboardService:
         trading_service: Optional[Any] = None,
         shadow_service: Optional[Any] = None,
         scheduler: Optional[Any] = None,
+        position_repo: Optional[Any] = None,
     ) -> None:
         self._bus = bus
         self._config = config
@@ -195,6 +196,7 @@ class DashboardService:
         self._trading_service = trading_service
         self._shadow_service = shadow_service
         self._scheduler = scheduler
+        self._position_repo = position_repo
 
         self._aggregator = DashboardAggregator(
             scanner_service=scanner_service,
@@ -267,6 +269,20 @@ class DashboardService:
             self._bus.subscribe(et, self._on_event_broadcast)
 
         await self._bus.publish(EventType.SYSTEM_STARTUP, {"service": "dashboard_service"})
+
+        # Hydrate bot pipeline tracker from position repository on startup
+        pos_repo = self._position_repo
+        if pos_repo is None and self._trading_service and hasattr(self._trading_service, "_position_repo"):
+            pos_repo = self._trading_service._position_repo
+        if pos_repo is None and self._portfolio_service and hasattr(self._portfolio_service, "_position_repo"):
+            pos_repo = self._portfolio_service._position_repo
+
+        if pos_repo is not None and hasattr(self._bot_tracker, "sync_from_repository"):
+            try:
+                await self._bot_tracker.sync_from_repository(pos_repo)
+            except Exception as exc:
+                logger.warning("Failed to sync bot tracker from repository on startup: %s", exc)
+
         logger.info("DashboardService started with real-time push and pipeline telemetry enabled")
 
     async def stop(self) -> None:
@@ -396,8 +412,56 @@ class DashboardService:
         shadow_summary = await self._shadow_service.get_summary() if self._shadow_service else {}
         scanned_coins = self._scanner_service.get_scanned_coins() if self._scanner_service else []
 
+        # Fetch active positions directly from PositionRepository
+        active_positions_list: List[Dict[str, Any]] = []
+        pos_repo = getattr(self, "_position_repo", None)
+        if pos_repo is None and self._trading_service and hasattr(self._trading_service, "_position_repo"):
+            pos_repo = self._trading_service._position_repo
+        if pos_repo is None and self._portfolio_service and hasattr(self._portfolio_service, "_position_repo"):
+            pos_repo = self._portfolio_service._position_repo
+
+        if pos_repo is not None:
+            try:
+                if hasattr(pos_repo, "get_active_positions"):
+                    raw_positions = await pos_repo.get_active_positions()
+                else:
+                    raw_positions = await pos_repo.get_open()
+
+                for p in raw_positions:
+                    active_positions_list.append({
+                        "id": getattr(p, "id", ""),
+                        "position_id": getattr(p, "id", ""),
+                        "bot": p.bot.value if hasattr(getattr(p, "bot", None), "value") else str(getattr(p, "bot", "STE")),
+                        "bot_name": p.bot.value if hasattr(getattr(p, "bot", None), "value") else str(getattr(p, "bot", "STE")),
+                        "coin": getattr(p, "coin", ""),
+                        "pair": getattr(p, "pair", ""),
+                        "qty": float(getattr(p, "qty", 0.0) or 0.0),
+                        "quantity": float(getattr(p, "qty", 0.0) or 0.0),
+                        "entry_price": float(getattr(p, "entry_price", 0.0) or 0.0),
+                        "entry_time": p.entry_time.isoformat() if hasattr(getattr(p, "entry_time", None), "isoformat") else str(getattr(p, "entry_time", "")),
+                        "current_price": float(getattr(p, "current_price", 0.0) or getattr(p, "entry_price", 0.0) or 0.0),
+                        "current_mark_price": float(getattr(p, "current_price", 0.0) or getattr(p, "entry_price", 0.0) or 0.0),
+                        "unrealised_pnl": float(getattr(p, "unrealised_pnl", 0.0) or 0.0),
+                        "unrealized_pnl": float(getattr(p, "unrealised_pnl", 0.0) or 0.0),
+                        "stop_loss": float(getattr(p, "stop_loss", 0.0) or 0.0),
+                        "take_profit": float(getattr(p, "take_profit", 0.0) or 0.0),
+                        "mode": p.mode.value if hasattr(getattr(p, "mode", None), "value") else str(getattr(p, "mode", "PAPER")),
+                        "status": p.status.value if hasattr(getattr(p, "status", None), "value") else str(getattr(p, "status", "OPEN")),
+                        "signal_id": getattr(p, "signal_id", None),
+                    })
+            except Exception as exc:
+                logger.warning("Error fetching active positions in get_overview: %s", exc)
+
+        bot_statuses = self.get_bot_statuses()
+        fleet_data = {b["bot_name"]: b for b in bot_statuses}
+
+        is_emergency = bool(risk_state and (risk_state.circuit_breaker_open or risk_state.emergency_stop))
+
+        telemetry_snap = self.get_telemetry_snapshot()
+
         return {
             "status": "ok",
+            "system_status": "OPERATIONAL" if not is_emergency else "EMERGENCY_STOP",
             "active_ws_clients": self._ws_manager.active_count,
             "portfolio": {
                 "total_aum": portfolio.total_aum if portfolio else 0.0,
@@ -419,7 +483,11 @@ class DashboardService:
                 "trading": self._trading_service.get_health() if self._trading_service else {"healthy": False},
             },
             "pipeline_stages": self.get_pipeline_stages(),
-            "bots": self.get_bot_statuses(),
+            "bots": bot_statuses,
+            "execution_fleet": fleet_data,
+            "open_positions": active_positions_list,
+            "open_positions_count": len(active_positions_list),
+            "active_positions": active_positions_list,
             "scanned_coins": scanned_coins,
             "watchlist_summary": {
                 "total_evaluated": len(scanned_coins),
@@ -427,7 +495,7 @@ class DashboardService:
                 "top_candidates": scanned_coins[:5],
                 "last_scan_at": scanned_coins[0]["evaluated_at"] if scanned_coins else None,
             },
-            "telemetry": self.get_telemetry_snapshot(),
+            "telemetry": telemetry_snap,
         }
 
     def get_health(self) -> dict:

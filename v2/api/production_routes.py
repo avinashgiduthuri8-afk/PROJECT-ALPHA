@@ -74,11 +74,14 @@ async def get_production_status() -> ProductionStatusSchema:
     open_count = 0
     if _position_repo:
         try:
-            open_pos = await _position_repo.get_open()
-            deployed = sum(p.deployed_capital for p in open_pos)
-            open_count = len(open_pos)
+            if hasattr(_position_repo, "get_active_positions"):
+                active_pos = await _position_repo.get_active_positions()
+            else:
+                active_pos = await _position_repo.get_open()
+            deployed = sum(p.deployed_capital for p in active_pos)
+            open_count = len(active_pos)
         except Exception as exc:
-            logger.debug("Failed fetching open positions for status: %s", exc)
+            logger.debug("Failed fetching active positions for status: %s", exc)
 
     breaker_status = "NORMAL"
     if _risk_service and hasattr(_risk_service, "circuit_breaker"):

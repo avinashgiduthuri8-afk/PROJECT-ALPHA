@@ -28,6 +28,7 @@ class PortfolioAggregator:
         }
 
         total_deployed = 0.0
+        total_mtm = 0.0
         total_unrealised = 0.0
 
         for pos in positions:
@@ -38,11 +39,18 @@ class PortfolioAggregator:
 
             deployed = pos.deployed_capital
             total_deployed += deployed
+
+            mark_price = pos.current_price if (pos.current_price is not None and pos.current_price > 0) else pos.entry_price
+            mtm_val = pos.qty * mark_price
+            total_mtm += mtm_val
+
             if pos.unrealised_pnl is not None:
                 total_unrealised += pos.unrealised_pnl
+            else:
+                total_unrealised += (mark_price - pos.entry_price) * pos.qty
 
         total_realised = sum(t.pnl for t in closed_trades)
-        
+
         # Cash = Initial Cash + Realised PnL - Currently Deployed Capital
         total_cash = max(0.0, base_cash + total_realised - total_deployed)
         total_aum = total_cash + total_deployed + total_unrealised
@@ -53,7 +61,7 @@ class PortfolioAggregator:
         today_utc = datetime.now(timezone.utc).date()
         daily_pnl = sum(
             t.pnl for t in closed_trades
-            if t.exit_time.date() == today_utc
+            if hasattr(t, "exit_time") and t.exit_time and hasattr(t.exit_time, "date") and t.exit_time.date() == today_utc
         ) + total_unrealised
 
         return PortfolioSnapshot(
