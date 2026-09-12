@@ -50,6 +50,7 @@ from v2.repository.signal_repo import SignalRepository
 from v2.repository.ai_repo import AIAnalysisRepository
 from v2.repository.position_repo import PositionRepository
 from v2.repository.trade_repo import TradeRepository
+from v2.repository.order_repo import OrderRepository
 from v2.repository.shadow_repo import ShadowRepository
 from v2.repository.metrics_repo import MetricsRepository
 from v2.repository.event_log_repo import EventLogRepository
@@ -137,6 +138,7 @@ async def lifespan(app: FastAPI):
     ai_repo        = AIAnalysisRepository(conn)
     position_repo  = PositionRepository(conn)
     trade_repo     = TradeRepository(conn)
+    order_repo     = OrderRepository(conn)
     shadow_repo    = ShadowRepository(conn)
     metrics_repo   = MetricsRepository(conn)
     event_log_repo = EventLogRepository(conn)
@@ -203,6 +205,7 @@ async def lifespan(app: FastAPI):
         event_log_repo = event_log_repo,
         config         = cfg,
         shadow_engine  = _shadow_service.engine,
+        order_repo     = order_repo,
     )
     await _trading_service.start()
 

@@ -19,6 +19,9 @@ from v2.core.types import (
     BotMode,
     BotName,
     ExitReason,
+    Order,
+    OrderState,
+    OrderStateTransition,
     Position,
     PositionStatus,
     Trade,
@@ -27,6 +30,8 @@ from v2.core.logging import get_logger
 from v2.repository.event_log_repo import EventLogRepository
 from v2.repository.position_repo import PositionRepository
 from v2.repository.trade_repo import TradeRepository
+from v2.repository.order_repo import OrderRepository
+from v2.trading.order_state_machine import OrderStateMachine
 from v2.trading.subaccount_manager import CoinDCXSubAccountManager
 from v2.trading.precision_rules import (
     extract_base_coin,
@@ -60,6 +65,7 @@ class TradingService:
         config: V2Config,
         shadow_engine: Optional[object] = None,
         subaccount_manager: Optional[CoinDCXSubAccountManager] = None,
+        order_repo: Optional[OrderRepository] = None,
     ) -> None:
         self._bus = bus
         self._position_repo = position_repo
@@ -68,6 +74,7 @@ class TradingService:
         self._config = config
         self._shadow_engine = shadow_engine
         self._subaccount_manager = subaccount_manager or CoinDCXSubAccountManager()
+        self._order_repo = order_repo
 
         # Phase 2 Execution Components
         self.auto_trader = AutoTradeRouter(
@@ -84,6 +91,7 @@ class TradingService:
         self.recovery_service = RestartRecoveryService(
             position_repo=self._position_repo,
             subaccount_manager=self._subaccount_manager,
+            order_repo=self._order_repo,
         )
         self.reconciliation_service = ReconciliationService(
             position_repo=self._position_repo,
@@ -117,8 +125,9 @@ class TradingService:
             return
         self._started = True
 
-        # Rehydrate positions from SQLite on startup
+        # Rehydrate positions and active live orders from SQLite on startup
         await self.recovery_service.rehydrate_state()
+        await self.recovery_service.rehydrate_orders()
 
         # Subscribe handlers
         self._bus.subscribe(EventType.TRADE_APPROVED, self.on_trade_approved)
@@ -228,6 +237,33 @@ class TradingService:
             deployment_mode = getattr(self._config, "v2_deployment_mode", "SHADOW").upper()
             is_live = (deployment_mode == "LIVE_MICROCASH" and self._config.v2_trading_enabled)
 
+            # Construct and persist Order entity in CREATED -> SUBMITTED states
+            client_order_id = f"ORD-{uuid.uuid4().hex[:12]}"
+            order = Order(
+                id=str(uuid.uuid4()),
+                client_order_id=client_order_id,
+                bot=bot,
+                coin=coin,
+                pair=pair,
+                side="BUY",
+                order_type="LIMIT",
+                req_qty=order_data["qty"],
+                price=order_data["entry_price"],
+                state=OrderState.CREATED,
+                signal_id=signal_id,
+                mode=BotMode.LIVE if is_live else BotMode.PAPER,
+            )
+
+            if self._order_repo:
+                await self._order_repo.insert(order)
+                order, tr_sub = OrderStateMachine.transition(
+                    order=order,
+                    to_state=OrderState.SUBMITTED,
+                    reason="Order submitted for execution",
+                )
+                await self._order_repo.update(order)
+                await self._order_repo.record_transition(tr_sub)
+
             # 1. Shadow / Paper Simulation Routing
             if not is_live:
                 if self._shadow_engine is not None:
@@ -265,9 +301,24 @@ class TradingService:
                     stop_loss=order_data["stop_loss"],
                     take_profit=order_data["take_profit"],
                     signal_id=signal_id,
+                    client_order_id=client_order_id,
+                    filled_qty=order_data["qty"],
                 )
                 await self._position_repo.insert(pos)
                 self._total_executed += 1
+
+                # Update order to FILLED for paper execution
+                if self._order_repo:
+                    order, tr_filled = OrderStateMachine.transition(
+                        order=order,
+                        to_state=OrderState.FILLED,
+                        filled_qty=order_data["qty"],
+                        avg_price=order_data["entry_price"],
+                        reason="Paper order filled immediately",
+                    )
+                    order.position_id = pos.id
+                    await self._order_repo.update(order)
+                    await self._order_repo.record_transition(tr_filled)
 
                 # Update subaccount manager headroom
                 sub_client = self._subaccount_manager.get_client(bot)
@@ -309,12 +360,13 @@ class TradingService:
                     side="BUY",
                     price=order_data["entry_price"],
                     qty=order_data["qty"],
+                    client_order_id=client_order_id,
                 )
 
                 if not order_result.get("success"):
                     # Timeout / Network Ambiguity Handling: verify via client_order_id before giving up
                     if order_result.get("error") == "TIMEOUT" or order_result.get("requires_reconciliation"):
-                        cl_id = order_result.get("client_order_id")
+                        cl_id = order_result.get("client_order_id") or client_order_id
                         if cl_id:
                             try:
                                 check_res = await sub_client.get_order_by_client_id(cl_id)
@@ -328,6 +380,15 @@ class TradingService:
                             "Live CoinDCX BUY order placement failed for %s (%s): %s",
                             coin, bot.value, order_result.get("message") or order_result.get("error"),
                         )
+                        if self._order_repo:
+                            err_st = OrderState.UNKNOWN if order_result.get("error") == "TIMEOUT" else OrderState.REJECTED
+                            order, tr_err = OrderStateMachine.transition(
+                                order=order,
+                                to_state=err_st,
+                                reason=str(order_result.get("message") or order_result.get("error") or "Order placement failed"),
+                            )
+                            await self._order_repo.update(order)
+                            await self._order_repo.record_transition(tr_err)
                         return
 
                 # Fill Confirmation Gate: Only create local OPEN position if confirmed FILLED on exchange
@@ -335,6 +396,19 @@ class TradingService:
                 order_status = str(order_result.get("status", "OPEN")).upper()
                 is_filled = order_result.get("is_filled", False) or (order_status == "FILLED")
                 actual_filled_qty = float(order_result.get("filled_qty") or order_result.get("qty") or 0.0)
+
+                if self._order_repo:
+                    succ_st = OrderState.FILLED if is_filled else (OrderState.PARTIALLY_FILLED if actual_filled_qty > 0 else OrderState.OPEN)
+                    order, tr_succ = OrderStateMachine.transition(
+                        order=order,
+                        to_state=succ_st,
+                        filled_qty=actual_filled_qty,
+                        avg_price=float(order_result.get("price", order_data["entry_price"])),
+                        exchange_order_id=exchange_order_id,
+                        reason=f"Exchange order response: {order_status}",
+                    )
+                    await self._order_repo.update(order)
+                    await self._order_repo.record_transition(tr_succ)
 
                 if not is_filled or actual_filled_qty <= 0.0 or not exchange_order_id:
                     logger.warning(

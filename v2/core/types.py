@@ -96,6 +96,18 @@ class PositionStatus(str, Enum):
     CLOSED        = "CLOSED"
 
 
+class OrderState(str, Enum):
+    CREATED          = "CREATED"
+    SUBMITTED        = "SUBMITTED"
+    OPEN             = "OPEN"
+    PARTIALLY_FILLED = "PARTIALLY_FILLED"
+    FILLED           = "FILLED"
+    CANCELLED        = "CANCELLED"
+    REJECTED         = "REJECTED"
+    FAILED           = "FAILED"
+    UNKNOWN          = "UNKNOWN"
+
+
 class AIRecommendation(str, Enum):
     APPROVE    = "APPROVE"
     REJECT     = "REJECT"
@@ -195,6 +207,45 @@ class Trade:
     signal_id:         Optional[str] = None
     exchange_order_id: Optional[str] = None
     client_order_id:   Optional[str] = None
+
+
+@dataclass
+class Order:
+    id:                 str
+    client_order_id:    str
+    bot:                BotName
+    coin:               str
+    pair:               str
+    side:               str             # "BUY" or "SELL"
+    order_type:         str             # "LIMIT" or "MARKET"
+    req_qty:            float
+    price:              float
+    filled_qty:         float = 0.0
+    remaining_qty:      float = 0.0
+    avg_price:          float = 0.0
+    state:              OrderState = OrderState.CREATED
+    exchange_order_id:  Optional[str] = None
+    position_id:        Optional[str] = None
+    signal_id:          Optional[str] = None
+    mode:               BotMode = BotMode.LIVE
+    created_at:         datetime = field(default_factory=lambda: datetime.now())
+    updated_at:         datetime = field(default_factory=lambda: datetime.now())
+    error_message:      Optional[str] = None
+
+    def __post_init__(self):
+        if self.remaining_qty == 0.0 and self.req_qty > 0.0 and self.filled_qty == 0.0:
+            self.remaining_qty = self.req_qty
+
+
+@dataclass
+class OrderStateTransition:
+    id:          str
+    order_id:    str
+    from_state:  OrderState
+    to_state:    OrderState
+    timestamp:   datetime
+    reason:      Optional[str] = None
+    metadata:    dict = field(default_factory=dict)
 
 
 @dataclass
