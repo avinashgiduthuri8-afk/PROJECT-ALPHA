@@ -18,6 +18,10 @@ class ConfigError(V2Error):
     """Missing or invalid configuration value."""
 
 
+class SecurityConfigError(ConfigError):
+    """Missing or insecure production live security configuration."""
+
+
 # ── Storage / persistence ─────────────────────────────────────────────────────
 
 class StorageError(V2Error):

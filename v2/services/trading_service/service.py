@@ -125,6 +125,7 @@ class TradingService:
             return
         self._started = True
 
+        # Rehydrate positions from SQLite on startup
         # Rehydrate positions and active live orders from SQLite on startup
         await self.recovery_service.rehydrate_state()
         await self.recovery_service.rehydrate_orders()
@@ -366,6 +367,7 @@ class TradingService:
                 if not order_result.get("success"):
                     # Timeout / Network Ambiguity Handling: verify via client_order_id before giving up
                     if order_result.get("error") == "TIMEOUT" or order_result.get("requires_reconciliation"):
+                        cl_id = order_result.get("client_order_id")
                         cl_id = order_result.get("client_order_id") or client_order_id
                         if cl_id:
                             try:
@@ -826,6 +828,9 @@ class TradingService:
 
         # 1. If live position, dispatch real CoinDCX sell order
         deployment_mode = getattr(self._config, "v2_deployment_mode", "").upper()
+        sell_filled_qty = pos.qty
+        is_partial_sell = False
+
         if pos.mode == BotMode.LIVE and self._config.v2_trading_enabled and deployment_mode == "LIVE_MICROCASH":
             sub_client = self._subaccount_manager.get_client(pos.bot)
             sell_result = await sub_client.place_live_order(
@@ -841,11 +846,15 @@ class TradingService:
                     "message": sell_result.get("message") or sell_result.get("error"),
                 }
 
-        # 2. Compute 1.572% statutory friction
+            sell_filled_qty = sell_result.get("filled_qty", pos.qty)
+            if sell_result.get("status") == "PARTIALLY_FILLED" or (0.0 < sell_filled_qty < pos.qty):
+                is_partial_sell = True
+
+        # 2. Compute 1.572% statutory friction based on filled quantity
         pnl_data = friction_model.calculate_trade_net_pnl(
             entry_price=pos.entry_price,
             exit_price=price,
-            position_size_qty=pos.qty,
+            position_size_qty=sell_filled_qty,
         )
         now = datetime.now(timezone.utc)
         trade = Trade(
@@ -856,7 +865,7 @@ class TradingService:
             pair=pos.pair,
             entry_price=pos.entry_price,
             exit_price=price,
-            qty=pos.qty,
+            qty=sell_filled_qty,
             pnl=round(pnl_data["net_pnl"], 2),
             pnl_pct=round(pnl_data["net_pnl_pct"], 2),
             entry_time=pos.entry_time,
@@ -867,45 +876,67 @@ class TradingService:
         )
 
         await self._trade_repo.insert(trade)
-        await self._position_repo.close(position_id=pos.id, exit_price=price, exit_reason=ExitReason.MANUAL)
-        self._pending_exits.discard(pos.id)
 
-        # Restore subaccount headroom
-        try:
-            sub_client = self._subaccount_manager.get_client(pos.bot)
-            sub_client.close_position_fill(
-                notional_returned=pos.entry_price * pos.qty,
-                realized_pnl=pnl_data["net_pnl"],
-            )
-        except Exception:
-            pass
+        if is_partial_sell:
+            remaining_qty = round(pos.qty - sell_filled_qty, 8)
+            await self._position_repo.update_qty(pos.id, remaining_qty)
+            self._pending_exits.discard(pos.id)
+            logger.info("Manual partial SELL filled for %s: Filled %.6f / Remaining %.6f", pos.coin, sell_filled_qty, remaining_qty)
+            return {
+                "success": True,
+                "status": "PARTIALLY_FILLED",
+                "filled_qty": sell_filled_qty,
+                "remaining_qty": remaining_qty,
+                "net_pnl": pnl_data["net_pnl"],
+                "pnl": trade.pnl,
+                "pnl_pct": trade.pnl_pct,
+                "message": f"Manual partial sell filled for {sell_filled_qty} {pos.coin}. Remaining {remaining_qty} stays OPEN.",
+            }
+        else:
+            await self._position_repo.close(position_id=pos.id, exit_price=price, exit_reason=ExitReason.MANUAL)
+            self.position_manager._peak_prices.pop(pos.id, None)
+            self.position_manager._trailing_stops.pop(pos.id, None)
+            self._pending_exits.discard(pos.id)
 
-        trade_payload = {
-            "trade_id": trade.id,
-            "position_id": pos.id,
-            "bot": pos.bot.value,
-            "coin": pos.coin,
-            "pair": pos.pair,
-            "qty": trade.qty,
-            "pnl": trade.pnl,
-            "pnl_pct": trade.pnl_pct,
-            "exit_reason": "MANUAL",
-            "exit_price": price,
-            "closed_at": now.isoformat(),
-        }
-        await self._bus.publish(EventType.POSITION_CLOSED, trade_payload)
-        logger.info("Manual exit executed for position %s on %s (Net PnL: ₹%.2f)", pos.id, pos.coin, trade.pnl)
+            # Restore subaccount headroom
+            try:
+                sub_client = self._subaccount_manager.get_client(pos.bot)
+                sub_client.close_position_fill(
+                    notional_returned=pos.entry_price * sell_filled_qty,
+                    realized_pnl=pnl_data["net_pnl"],
+                )
+            except Exception:
+                pass
 
-        return {
-            "success": True,
-            "trade_id": trade.id,
-            "position_id": pos.id,
-            "coin": pos.coin,
-            "exit_price": price,
-            "pnl": trade.pnl,
-            "pnl_pct": trade.pnl_pct,
-            "message": f"Position {pos.coin} closed manually at ₹{price:.2f} (Net PnL: ₹{trade.pnl:.2f})",
-        }
+            trade_payload = {
+                "trade_id": trade.id,
+                "position_id": pos.id,
+                "bot": pos.bot.value,
+                "coin": pos.coin,
+                "pair": pos.pair,
+                "qty": trade.qty,
+                "pnl": trade.pnl,
+                "pnl_pct": trade.pnl_pct,
+                "exit_reason": "MANUAL",
+                "exit_price": price,
+                "closed_at": now.isoformat(),
+            }
+            await self._bus.publish(EventType.POSITION_CLOSED, trade_payload)
+
+            logger.info("Manual SELL fully confirmed for position %s (%s). Position CLOSED.", pos.id, pos.pair)
+            return {
+                "success": True,
+                "status": "CLOSED",
+                "trade_id": trade.id,
+                "position_id": pos.id,
+                "coin": pos.coin,
+                "exit_price": price,
+                "filled_qty": sell_filled_qty,
+                "net_pnl": pnl_data["net_pnl"],
+                "pnl": trade.pnl,
+                "pnl_pct": trade.pnl_pct,
+                "message": f"Position {pos.coin} closed manually at ₹{price:.2f} (Net PnL: ₹{trade.pnl:.2f})",
+            }
 
     async def modify_position_targets(
         self,

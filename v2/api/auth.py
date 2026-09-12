@@ -30,11 +30,12 @@ async def require_api_key(
     """
     cfg = get_config()
     expected = cfg.dashboard_api_key
+    deployment_mode = getattr(cfg, "v2_deployment_mode", "").upper()
 
-    if not expected:  # None or empty string — both are misconfiguration
+    if not expected or (deployment_mode == "LIVE_MICROCASH" and cfg.v2_trading_enabled and expected in ("alpha-prod-key", "DUMMY_KEY", "12345")):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="DASHBOARD_API_KEY is not configured on this server.",
+            detail="DASHBOARD_API_KEY is not securely configured on this server for LIVE mode.",
         )
 
     provided = x_api_key or api_key

@@ -46,3 +46,4 @@ CREATE INDEX IF NOT EXISTS idx_order_transitions_order_id ON order_state_transit
 
 INSERT OR IGNORE INTO schema_version (version, applied_at, description)
 VALUES (14, datetime('now'), 'Add orders and order_state_transitions tables for live order lifecycle management');
+

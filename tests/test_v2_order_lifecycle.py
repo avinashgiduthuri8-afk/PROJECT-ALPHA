@@ -301,3 +301,4 @@ async def test_trading_service_order_lifecycle_integration(db_env):
     assert len(transitions) >= 2  # CREATED -> SUBMITTED -> FILLED
 
     await service.stop()
+

@@ -71,9 +71,13 @@ class V2Config(BaseSettings):
         description="Enforce single-position asset lock across all strategies.",
     )
 
-    # Master CoinDCX API Credentials
-    coindcx_api_key:    Optional[str] = Field(default=None, validation_alias=AliasChoices("COINDCX_API_KEY", "coindcx_api_key"))
-    coindcx_api_secret: Optional[str] = Field(default=None, validation_alias=AliasChoices("COINDCX_API_SECRET", "coindcx_api_secret"))
+    # Master & Separated CoinDCX API Credentials (P0-05 Security Separation)
+    coindcx_api_key:          Optional[str] = Field(default=None, validation_alias=AliasChoices("COINDCX_API_KEY", "coindcx_api_key"))
+    coindcx_api_secret:       Optional[str] = Field(default=None, validation_alias=AliasChoices("COINDCX_API_SECRET", "coindcx_api_secret"))
+    coindcx_live_api_key:     Optional[str] = Field(default=None, validation_alias=AliasChoices("COINDCX_LIVE_API_KEY", "coindcx_live_api_key"))
+    coindcx_live_api_secret:  Optional[str] = Field(default=None, validation_alias=AliasChoices("COINDCX_LIVE_API_SECRET", "coindcx_live_api_secret"))
+    coindcx_paper_api_key:    Optional[str] = Field(default="paper_key_demo", validation_alias=AliasChoices("COINDCX_PAPER_API_KEY", "coindcx_paper_api_key"))
+    coindcx_paper_api_secret: Optional[str] = Field(default="paper_secret_demo", validation_alias=AliasChoices("COINDCX_PAPER_API_SECRET", "coindcx_paper_api_secret"))
 
     # Strategy bot capital limits. 0 means no separate bot ceiling; the shared
     # pool (when configured) remains the only capital limit.
@@ -284,6 +288,46 @@ class V2Config(BaseSettings):
         if v not in valid:
             raise ValueError(f"Priority must be one of {valid}")
         return v
+
+    def validate_live_security(self) -> None:
+        """
+        Validate security requirements for LIVE trading mode.
+        Raises SecurityConfigError if LIVE mode is active without non-dummy API keys or operator password.
+        """
+        from v2.core.exceptions import SecurityConfigError
+
+        deployment_mode = (self.v2_deployment_mode or "").upper()
+        if deployment_mode == "LIVE_MICROCASH" and self.v2_trading_enabled:
+            DUMMY_VALUES = {
+                "DUMMY_KEY", "SAMPLE_KEY", "ALPHA-PROD-KEY", "TEST", "SECRET",
+                "12345", "CHANGE_ME", "DUMMY_SECRET", "DEMO", "SAMPLE", ""
+            }
+
+            key = (self.coindcx_live_api_key or self.coindcx_api_key or "").strip()
+            secret = (self.coindcx_live_api_secret or self.coindcx_api_secret or "").strip()
+            pwd = (self.dashboard_security_password or "").strip()
+
+            if not key or key.upper() in DUMMY_VALUES:
+                raise SecurityConfigError("LIVE trading mode blocked: valid non-dummy CoinDCX Live API key is required.")
+
+            if not secret or secret.upper() in DUMMY_VALUES:
+                raise SecurityConfigError("LIVE trading mode blocked: valid non-dummy CoinDCX Live API secret is required.")
+
+            if not pwd or pwd.upper() in DUMMY_VALUES:
+                raise SecurityConfigError("LIVE trading mode blocked: valid non-empty DASHBOARD_SECURITY_PASSWORD is required.")
+
+    def get_sanitized_config_dict(self) -> dict:
+        """Return dict of config values with secret keys safely redacted."""
+        data = self.model_dump()
+        SECRET_KEYS = {
+            "coindcx_api_secret", "coindcx_live_api_secret", "coindcx_paper_api_secret",
+            "coindcx_api_key", "coindcx_live_api_key", "alert_bot_token", "gemini_api_key",
+            "dashboard_security_password", "dashboard_api_key"
+        }
+        for k, v in data.items():
+            if k in SECRET_KEYS and v:
+                data[k] = "***REDACTED***"
+        return data
 
     def apply_override(self, override_path: str | None = None) -> "V2Config":
         """

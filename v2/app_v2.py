@@ -126,6 +126,7 @@ async def lifespan(app: FastAPI):
     global _research_service, _production_controller, _production_watchdog
 
     cfg = get_config()
+    cfg.validate_live_security()
     logger.info("V2 starting", extra={"port": cfg.v2_port, "db": cfg.v2_db_path})
 
     # 1. Database
