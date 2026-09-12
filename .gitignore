@@ -46,6 +46,7 @@ tests_tmp*
 *.temp
 *.bak
 local_overrides.json
+/file
 
 # Platform artifacts (Replit / Emergent)
 .replit

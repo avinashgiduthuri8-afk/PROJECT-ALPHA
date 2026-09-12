@@ -688,113 +688,33 @@ class TradingService:
         """
         Periodically reconciles local open positions against CoinDCX exchange state.
         Detects pending, filled, rejected, cancelled, partial fills, missing exchange orders,
-        and local/exchange quantity mismatches.
+        orphan orders, balance mismatches, and asset position mismatches.
         Runs approximately every 60 seconds.
         """
+        if self.reconciliation_service:
+            report = await self.reconciliation_service.reconcile_positions()
+            self._last_reconciliation_report = report
+            return report
         open_positions = await self._position_repo.get_open()
-        reconciliation_report: dict[str, Any] = {
+        return {
             "timestamp": datetime.now(timezone.utc).isoformat(),
+            "status": "IN_SYNC",
+            "is_clean": True,
             "open_positions_count": len(open_positions),
-            "orders_checked": 0,
             "positions_checked": len(open_positions),
+            "orders_checked": 0,
             "reconciled": 0,
             "mismatches": 0,
             "unknown_orders": 0,
-            "balance_diff": 0.0,
             "discrepancies": [],
-            "status": "IN_SYNC",
+            "orphan_orders": [],
+            "missing_orders": [],
+            "partial_fills": [],
+            "filled_orders": [],
+            "cancelled_rejected_orders": [],
+            "balance_mismatches": [],
+            "position_mismatches": [],
         }
-
-        for pos in open_positions:
-            if pos.mode != BotMode.LIVE:
-                continue
-
-            reconciliation_report["orders_checked"] += 1
-
-            # 1. Detect missing exchange_order_id on a LIVE position
-            if not pos.exchange_order_id:
-                disc = {
-                    "position_id": pos.id,
-                    "coin": pos.coin,
-                    "exchange_order_id": None,
-                    "local_status": "OPEN",
-                    "exchange_status": "MISSING_EXCHANGE_ORDER_ID",
-                    "state": "RECONCILIATION_REQUIRED",
-                    "action": "FLAGGED_FOR_AUDIT",
-                }
-                reconciliation_report["unknown_orders"] += 1
-                reconciliation_report["mismatches"] += 1
-                reconciliation_report["discrepancies"].append(disc)
-                reconciliation_report["status"] = "DISCREPANCIES_DETECTED"
-                logger.warning("Order Reconciliation: Live position %s has no exchange_order_id", pos.id)
-                continue
-
-            sub_client = self._subaccount_manager.get_client(pos.bot)
-            try:
-                status_res = await sub_client.get_order_status(pos.exchange_order_id)
-                if not status_res.get("success"):
-                    # Ambiguous state: network or API failure — do NOT falsely mark closed
-                    disc = {
-                        "position_id": pos.id,
-                        "coin": pos.coin,
-                        "exchange_order_id": pos.exchange_order_id,
-                        "local_status": "OPEN",
-                        "exchange_status": "STATUS_QUERY_FAILED",
-                        "state": "UNKNOWN",
-                        "action": "AWAIT_NEXT_RECONCILIATION",
-                    }
-                    reconciliation_report["unknown_orders"] += 1
-                    reconciliation_report["discrepancies"].append(disc)
-                    reconciliation_report["status"] = "DISCREPANCIES_DETECTED"
-                    continue
-
-                ex_status = str(status_res.get("status", "")).upper()
-                ex_filled_qty = float(status_res.get("filled_qty", 0.0))
-                reconciliation_report["reconciled"] += 1
-
-                # 2. Cancelled or Rejected on exchange
-                if ex_status in ("CANCELLED", "REJECTED"):
-                    disc = {
-                        "position_id": pos.id,
-                        "coin": pos.coin,
-                        "exchange_order_id": pos.exchange_order_id,
-                        "local_status": "OPEN",
-                        "exchange_status": ex_status,
-                        "action": "AUTO_REPAIRED_TO_CLOSED",
-                    }
-                    reconciliation_report["mismatches"] += 1
-                    reconciliation_report["discrepancies"].append(disc)
-                    reconciliation_report["status"] = "DISCREPANCIES_DETECTED"
-                    logger.warning("Order Reconciliation discrepancy detected: %s", disc)
-                    await self._position_repo.close(pos.id, exit_price=pos.entry_price, exit_reason=ExitReason.MANUAL)
-                    if pos.id in self._pending_exits:
-                        self._pending_exits.discard(pos.id)
-
-                # 3. Partial fill quantity mismatch
-                elif ex_status in ("PARTIALLY_FILLED", "FILLED"):
-                    if ex_filled_qty > 0 and abs(ex_filled_qty - pos.qty) > 1e-6:
-                        disc = {
-                            "position_id": pos.id,
-                            "coin": pos.coin,
-                            "exchange_order_id": pos.exchange_order_id,
-                            "local_qty": pos.qty,
-                            "exchange_filled_qty": ex_filled_qty,
-                            "exchange_status": ex_status,
-                            "action": "QUANTITY_ALIGNED",
-                        }
-                        reconciliation_report["mismatches"] += 1
-                        reconciliation_report["discrepancies"].append(disc)
-                        reconciliation_report["status"] = "DISCREPANCIES_DETECTED"
-                        logger.warning("Order Reconciliation quantity mismatch: %s", disc)
-                        await self._position_repo.update_qty(pos.id, ex_filled_qty)
-                        pos.qty = ex_filled_qty
-
-            except Exception as e:
-                logger.error("Error reconciling position %s: %s", pos.id, e)
-                reconciliation_report["status"] = "ERROR"
-
-        self._last_reconciliation_report = reconciliation_report
-        return reconciliation_report
 
     def get_health(self) -> dict:
         return {

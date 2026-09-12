@@ -4,6 +4,8 @@ Unit and Integration Tests for V2 Mission Control Dashboard UI and Static Assets
 
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
 import uuid
 import pytest
 import httpx
@@ -14,8 +16,8 @@ from v2.core.config import get_config, invalidate_config
 
 
 @pytest.fixture(autouse=True)
-def setup_test_env(tmp_path, monkeypatch):
-    test_db = str(tmp_path / f"test_ui_{uuid.uuid4().hex[:6]}.db")
+def setup_test_env(monkeypatch):
+    test_db = str(Path(tempfile.gettempdir()) / f"test_ui_{uuid.uuid4().hex[:6]}.db")
     monkeypatch.setenv("V2_DB_PATH", test_db)
     monkeypatch.setenv("DASHBOARD_API_KEY", "test-ui-key")
     monkeypatch.setenv("DASHBOARD_SECURITY_PASSWORD", "110299")

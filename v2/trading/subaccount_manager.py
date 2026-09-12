@@ -414,17 +414,24 @@ class CoinDCXSubAccountClient:
                 balances_raw = resp.json()
                 inr_balance = 0.0
                 inr_locked = 0.0
-                for b in balances_raw:
-                    if b.get("currency") == "INR":
-                        inr_balance = float(b.get("balance", 0.0))
-                        inr_locked = float(b.get("locked_balance", 0.0))
-                        break
+                asset_balances: Dict[str, float] = {}
+                if isinstance(balances_raw, list):
+                    for b in balances_raw:
+                        curr = str(b.get("currency", "")).upper()
+                        bal = float(b.get("balance", 0.0))
+                        locked = float(b.get("locked_balance", 0.0))
+                        if curr == "INR":
+                            inr_balance = bal
+                            inr_locked = locked
+                        elif curr:
+                            asset_balances[curr] = bal + locked
 
                 return {
                     "success": True,
                     "status_code": 200,
                     "inr_balance": inr_balance,
                     "inr_locked": inr_locked,
+                    "asset_balances": asset_balances,
                     "balances": balances_raw,
                 }
             elif resp.status_code == 401:
@@ -801,6 +808,51 @@ class CoinDCXSubAccountClient:
             return {"success": False, "status_code": resp.status_code, "error": "CANCEL_FAILED", "details": resp.text}
         except Exception as e:
             return {"success": False, "status_code": 0, "error": "NETWORK_ERROR", "message": str(e)}
+        finally:
+            if owns_client:
+                await http.aclose()
+
+    async def get_active_orders(
+        self,
+        market: Optional[str] = None,
+        side: Optional[str] = None,
+        client: Optional[httpx.AsyncClient] = None,
+    ) -> Dict[str, Any]:
+        """
+        Fetch active open orders from CoinDCX:
+        POST https://api.coindcx.com/exchange/v1/orders/active_orders
+        """
+        payload: Dict[str, Any] = {"timestamp": int(time.time() * 1000)}
+        if market:
+            payload["market"] = market.replace("/", "").upper()
+        if side:
+            payload["side"] = side.lower()
+
+        if not self.is_live_mode:
+            with self._lock:
+                orders_list = [
+                    rec for rec in self._open_orders.values()
+                    if rec.get("status") in ("OPEN", "PARTIALLY_FILLED", "open", "partially_filled")
+                ]
+                return {"success": True, "orders": orders_list, "count": len(orders_list)}
+
+        headers = self.generate_auth_headers(payload)
+        url = f"{self.base_url}/exchange/v1/orders/active_orders"
+
+        owns_client = client is None
+        http = client or httpx.AsyncClient(timeout=self.timeout)
+        try:
+            resp = await http.post(url, json=payload, headers=headers)
+            if resp.status_code == 200:
+                raw_data = resp.json()
+                orders = raw_data.get("orders", raw_data) if isinstance(raw_data, dict) else raw_data
+                if not isinstance(orders, list):
+                    orders = []
+                return {"success": True, "status_code": 200, "orders": orders, "count": len(orders)}
+            return {"success": False, "status_code": resp.status_code, "orders": [], "count": 0, "error": "FETCH_FAILED", "details": resp.text}
+        except Exception as e:
+            logger.error("[%s] Error fetching active orders from CoinDCX: %s", self.subaccount_id, e)
+            return {"success": False, "status_code": 0, "orders": [], "count": 0, "error": "NETWORK_ERROR", "message": str(e)}
         finally:
             if owns_client:
                 await http.aclose()
