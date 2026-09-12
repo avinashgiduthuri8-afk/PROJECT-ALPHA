@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS positions (
     exit_price     REAL,
     exit_reason    TEXT,
     closed_at      TEXT,
+    realized_pnl   REAL DEFAULT 0.0,
     FOREIGN KEY (signal_id) REFERENCES signals (id)
 );
 

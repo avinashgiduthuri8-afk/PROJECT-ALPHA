@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from v2.core.logging import get_logger
-from v2.core.types import BotName, PositionStatus
+from v2.core.types import BotName, ExitReason, PositionStatus
 from v2.repository.position_repo import PositionRepository
 from v2.trading.subaccount_manager import CoinDCXSubAccountManager
 
@@ -31,10 +31,12 @@ class ReconciliationService:
         position_repo: PositionRepository,
         subaccount_manager: Optional[CoinDCXSubAccountManager] = None,
         interval_seconds: int = 60,
+        event_bus: Optional[Any] = None,
     ) -> None:
         self._position_repo = position_repo
         self._subaccount_manager = subaccount_manager or CoinDCXSubAccountManager()
         self.interval_seconds = interval_seconds
+        self._event_bus = event_bus
         self._running = False
         self._task: Optional[asyncio.Task] = None
         self._last_reconciliation_result: Dict[str, Any] = {}
@@ -131,6 +133,18 @@ class ReconciliationService:
 
                     matched_pos = pos_by_ex_id.get(ex_ord_id) or pos_by_client_id.get(cl_ord_id)
                     if not matched_pos:
+                        action_msg = "FLAGGED_ORPHAN_ORDER"
+                        if ex_ord_id:
+                            try:
+                                cancel_res = await master_client.cancel_order(ex_ord_id)
+                                if isinstance(cancel_res, dict) and cancel_res.get("success") is True:
+                                    action_msg = "CANCELLED_ORPHAN_ORDER"
+                                    logger.info("Successfully cancelled orphan order %s on CoinDCX", ex_ord_id)
+                                else:
+                                    logger.warning("Attempted to cancel orphan order %s but got: %s", ex_ord_id, cancel_res)
+                            except Exception as cancel_exc:
+                                logger.error("Failed to cancel orphan order %s: %s", ex_ord_id, cancel_exc)
+
                         orphan_item = {
                             "exchange_order_id": ex_ord_id or None,
                             "client_order_id": cl_ord_id or None,
@@ -139,8 +153,8 @@ class ReconciliationService:
                             "side": str(ex_ord.get("side", "")).upper(),
                             "price": float(ex_ord.get("price_per_unit") or ex_ord.get("price") or 0.0),
                             "qty": float(ex_ord.get("total_quantity") or ex_ord.get("quantity") or 0.0),
-                            "action": "FLAGGED_ORPHAN_ORDER",
-                            "message": f"Active order {ex_ord_id} on exchange has no corresponding active position in SQLite.",
+                            "action": action_msg,
+                            "message": f"Active order {ex_ord_id} on exchange has no corresponding active position in SQLite. Action: {action_msg}.",
                         }
                         orphan_orders.append(orphan_item)
                         discrepancies.append(orphan_item)
@@ -214,8 +228,27 @@ class ReconciliationService:
                     cancelled_rejected_orders.append(canc_item)
                     discrepancies.append(canc_item)
                     mismatches_count += 1
-                    from v2.core.types import ExitReason
-                    await self._position_repo.close(pos.id, exit_price=pos.entry_price, exit_reason=ExitReason.MANUAL)
+                    await self._position_repo.update_status(pos.id, PositionStatus.CLOSED, exit_price=pos.entry_price, exit_reason=ExitReason.MANUAL)
+                    pos.status = PositionStatus.CLOSED
+
+                # External Manual Exit on exchange
+                elif ex_status in ("CLOSED", "MANUALLY_CLOSED", "EXITED"):
+                    exit_price = float(status_res.get("avg_price") or status_res.get("price") or pos.entry_price)
+                    pnl = round((exit_price - pos.entry_price) * pos.qty, 2)
+                    await self._position_repo.update_status(pos.id, PositionStatus.CLOSED, exit_price=exit_price, exit_reason=ExitReason.MANUAL, realized_pnl=pnl)
+                    pos.status = PositionStatus.CLOSED
+                    manual_item = {
+                        "position_id": pos.id,
+                        "coin": pos.coin,
+                        "exchange_order_id": ex_id,
+                        "status": ex_status,
+                        "action": "EXTERNAL_MANUAL_EXIT_CLOSED",
+                        "realized_pnl": pnl,
+                        "message": f"Position {pos.id} closed via external manual exit on exchange at {exit_price}. Realized PnL: {pnl}.",
+                    }
+                    filled_orders.append(manual_item)
+                    discrepancies.append(manual_item)
+                    mismatches_count += 1
 
                 # Filled order
                 elif ex_status == "FILLED":
@@ -229,8 +262,8 @@ class ReconciliationService:
                     }
                     filled_orders.append(filled_item)
                     if str(getattr(pos.status, "value", pos.status)).upper() == "PENDING_ENTRY":
-                        from v2.core.types import PositionStatus
                         await self._position_repo.update_status(pos.id, PositionStatus.OPEN)
+                        pos.status = PositionStatus.OPEN
 
                     if ex_filled_qty > 0 and abs(ex_filled_qty - pos.qty) > 1e-6:
                         partial_item = {
@@ -295,7 +328,7 @@ class ReconciliationService:
                     with master_client._lock:
                         master_client._shared_state["wallet_balance_inr"] = ex_inr_bal
 
-                # 4. Check Asset Position Quantity Mismatches vs Real CoinDCX Crypto Holdings
+                # 4. Check Asset Position Quantity Mismatches & DESYNCED_MISSING_BALANCE
                 asset_balances = bal_res.get("asset_balances", {})
                 all_coins = set(pos_qty_by_coin.keys()).union(asset_balances.keys())
                 for coin in all_coins:
@@ -317,6 +350,42 @@ class ReconciliationService:
                         position_mismatches.append(pos_mismatch_item)
                         discrepancies.append(pos_mismatch_item)
                         mismatches_count += 1
+
+                # Check specifically for OPEN positions with 0.0 exchange balance (DESYNCED_MISSING_BALANCE)
+                for pos in active_positions:
+                    pos_status_str = str(getattr(pos.status, "value", pos.status)).upper()
+                    if pos_status_str == "OPEN":
+                        coin = (getattr(pos, "coin", "") or "").upper()
+                        exchange_asset_qty = float(asset_balances.get(coin, 0.0))
+                        if exchange_asset_qty == 0.0:
+                            await self._position_repo.update_status(pos.id, PositionStatus.DESYNCED_MISSING_BALANCE)
+                            pos.status = PositionStatus.DESYNCED_MISSING_BALANCE
+                            logger.critical(
+                                "CRITICAL: Position %s (%s) is OPEN in SQLite but CoinDCX balance is 0.0! Transitioned to DESYNCED_MISSING_BALANCE.",
+                                pos.id, coin
+                            )
+                            desync_item = {
+                                "position_id": pos.id,
+                                "coin": coin,
+                                "local_status": "OPEN",
+                                "exchange_status": "DESYNCED_MISSING_BALANCE",
+                                "action": "TRANSITIONED_TO_DESYNCED_MISSING_BALANCE",
+                                "message": f"Position {pos.id} ({coin}) is OPEN locally but exchange asset balance is 0.0.",
+                            }
+                            desynced_positions.append(desync_item)
+                            discrepancies.append(desync_item)
+                            mismatches_count += 1
+
+                            if self._event_bus:
+                                try:
+                                    from v2.bus.event_types import EventType
+                                    await self._event_bus.publish(EventType.ALERT_GENERATED, {
+                                        "level": "CRITICAL",
+                                        "title": "DESYNCED_MISSING_BALANCE",
+                                        "message": f"Critical desync: Position {pos.id} ({coin}) has 0.0 balance on CoinDCX.",
+                                    })
+                                except Exception as bus_err:
+                                    logger.error("Failed to publish DESYNCED_MISSING_BALANCE alert event: %s", bus_err)
         except Exception as exc:
             logger.warning("Error performing balance & asset position reconciliation: %s", exc)
 

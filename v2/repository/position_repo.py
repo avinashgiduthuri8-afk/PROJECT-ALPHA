@@ -54,6 +54,7 @@ def _row_to_position(row: aiosqlite.Row) -> Position:
         exchange_order_id = d.get("exchange_order_id"),
         client_order_id   = d.get("client_order_id"),
         filled_qty        = d.get("filled_qty"),
+        realized_pnl      = d.get("realized_pnl"),
     )
 
 

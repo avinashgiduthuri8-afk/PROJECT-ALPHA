@@ -89,7 +89,7 @@ async def test_reconciliation_detects_orphan_orders(test_env):
     assert res["status"] == "DISCREPANCIES_DETECTED"
     assert len(res["orphan_orders"]) == 1
     assert res["orphan_orders"][0]["exchange_order_id"] == "ex-orphan-999"
-    assert res["orphan_orders"][0]["action"] == "FLAGGED_ORPHAN_ORDER"
+    assert res["orphan_orders"][0]["action"] in ("CANCELLED_ORPHAN_ORDER", "FLAGGED_ORPHAN_ORDER")
 
 
 @pytest.mark.anyio
@@ -281,3 +281,125 @@ async def test_reconciliation_detects_position_asset_mismatch(test_env):
     assert res["position_mismatches"][0]["coin"] == "BTC"
     assert res["position_mismatches"][0]["local_qty"] == 0.005
     assert res["position_mismatches"][0]["exchange_qty"] == 0.002
+
+
+@pytest.mark.anyio
+async def test_reconciliation_cancels_orphan_orders(test_env):
+    """Verifies that resting orphan orders on exchange are automatically cancelled via cancel_order()."""
+    rec_service = test_env["rec_service"]
+    mgr = test_env["mgr"]
+    client = mgr.get_client(BotName.STE)
+
+    client.get_active_orders = AsyncMock(return_value={
+        "success": True,
+        "orders": [{
+            "id": "ex-orphan-auto-cancel-123",
+            "client_order_id": "cl-orphan-123",
+            "market": "ETHINR",
+            "side": "buy",
+            "status": "open",
+            "price_per_unit": 250000.0,
+            "total_quantity": 0.01,
+        }]
+    })
+    client.cancel_order = AsyncMock(return_value={"success": True, "result": {"status": "cancelled"}})
+    client.get_balances = AsyncMock(return_value={"success": True, "inr_balance": 10000.0, "inr_locked": 0.0, "asset_balances": {}})
+
+    res = await rec_service.reconcile_positions()
+    assert res["status"] == "DISCREPANCIES_DETECTED"
+    assert len(res["orphan_orders"]) == 1
+    assert res["orphan_orders"][0]["action"] == "CANCELLED_ORPHAN_ORDER"
+    client.cancel_order.assert_called_once_with("ex-orphan-auto-cancel-123")
+
+
+@pytest.mark.anyio
+async def test_reconciliation_desynced_missing_balance(test_env):
+    """Verifies OPEN position transitions to DESYNCED_MISSING_BALANCE when exchange balance is 0.0."""
+    pos_repo = test_env["pos_repo"]
+    rec_service = test_env["rec_service"]
+    mgr = test_env["mgr"]
+    client = mgr.get_client(BotName.STE)
+
+    pos = Position(
+        id="pos-desync-505",
+        bot=BotName.STE,
+        coin="SOL",
+        pair="SOL/INR",
+        qty=1.0,
+        entry_price=12000.0,
+        entry_time=datetime.now(timezone.utc),
+        mode=BotMode.LIVE,
+        status=PositionStatus.OPEN,
+        exchange_order_id="ex-sol-505",
+    )
+    await pos_repo.insert(pos)
+
+    client.get_active_orders = AsyncMock(return_value={"success": True, "orders": []})
+    client.get_order_status = AsyncMock(return_value={
+        "success": True,
+        "status": "FILLED",
+        "filled_qty": 1.0,
+        "exchange_order_id": "ex-sol-505",
+    })
+    # Asset balance on CoinDCX is 0.0!
+    client.get_balances = AsyncMock(return_value={
+        "success": True,
+        "inr_balance": 10000.0,
+        "inr_locked": 0.0,
+        "asset_balances": {"SOL": 0.0},
+    })
+
+    res = await rec_service.reconcile_positions()
+    assert res["status"] == "DISCREPANCIES_DETECTED"
+    assert len(res["desynced_positions"]) == 1
+    assert res["desynced_positions"][0]["position_id"] == "pos-desync-505"
+    assert res["desynced_positions"][0]["action"] == "TRANSITIONED_TO_DESYNCED_MISSING_BALANCE"
+
+    # Verify status in SQLite repo
+    updated = await pos_repo.get_by_id("pos-desync-505")
+    assert getattr(updated.status, "value", updated.status) == "DESYNCED_MISSING_BALANCE"
+
+
+@pytest.mark.anyio
+async def test_reconciliation_handles_external_manual_exit(test_env):
+    """Verifies position transitions to CLOSED with realized PnL on external manual exit."""
+    pos_repo = test_env["pos_repo"]
+    rec_service = test_env["rec_service"]
+    mgr = test_env["mgr"]
+    client = mgr.get_client(BotName.STE)
+
+    pos = Position(
+        id="pos-manual-exit-606",
+        bot=BotName.STE,
+        coin="XRP",
+        pair="XRP/INR",
+        qty=100.0,
+        entry_price=50.0,
+        entry_time=datetime.now(timezone.utc),
+        mode=BotMode.LIVE,
+        status=PositionStatus.OPEN,
+        exchange_order_id="ex-xrp-606",
+    )
+    await pos_repo.insert(pos)
+
+    client.get_active_orders = AsyncMock(return_value={"success": True, "orders": []})
+    client.get_order_status = AsyncMock(return_value={
+        "success": True,
+        "status": "MANUALLY_CLOSED",
+        "avg_price": 60.0,
+        "exchange_order_id": "ex-xrp-606",
+    })
+    client.get_balances = AsyncMock(return_value={
+        "success": True,
+        "inr_balance": 10000.0,
+        "inr_locked": 0.0,
+        "asset_balances": {"XRP": 0.0},
+    })
+
+    res = await rec_service.reconcile_positions()
+    assert res["status"] == "DISCREPANCIES_DETECTED"
+
+    # Verify position is closed in SQLite with calculated PnL ((60-50)*100 = 1000.0)
+    updated = await pos_repo.get_by_id("pos-manual-exit-606")
+    assert getattr(updated.status, "value", updated.status) == "CLOSED"
+    assert updated.realized_pnl == 1000.0

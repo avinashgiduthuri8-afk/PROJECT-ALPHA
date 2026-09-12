@@ -89,11 +89,12 @@ class ExitReason(str, Enum):
 
 
 class PositionStatus(str, Enum):
-    PENDING_ENTRY = "PENDING_ENTRY"
-    OPEN          = "OPEN"
-    PENDING_EXIT  = "PENDING_EXIT"
-    CLOSING       = "CLOSING"
-    CLOSED        = "CLOSED"
+    PENDING_ENTRY            = "PENDING_ENTRY"
+    OPEN                     = "OPEN"
+    PENDING_EXIT             = "PENDING_EXIT"
+    CLOSING                  = "CLOSING"
+    CLOSED                   = "CLOSED"
+    DESYNCED_MISSING_BALANCE = "DESYNCED_MISSING_BALANCE"
 
 
 class OrderState(str, Enum):
@@ -182,6 +183,7 @@ class Position:
     exchange_order_id: Optional[str] = None
     client_order_id:   Optional[str] = None
     filled_qty:        Optional[float] = None
+    realized_pnl:      Optional[float] = None
 
     @property
     def deployed_capital(self) -> float:

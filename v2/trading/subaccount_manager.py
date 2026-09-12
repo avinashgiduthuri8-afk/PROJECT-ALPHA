@@ -795,6 +795,12 @@ class CoinDCXSubAccountClient:
         Cancel an open limit order:
         POST https://api.coindcx.com/exchange/v1/orders/cancel
         """
+        if not self.is_live_mode:
+            with self._lock:
+                if order_id in self._open_orders:
+                    self._open_orders[order_id]["status"] = "CANCELLED"
+            return {"success": True, "status_code": 200, "result": {"status": "cancelled", "id": order_id}}
+
         payload = {"id": order_id, "timestamp": int(time.time() * 1000)}
         headers = self.generate_auth_headers(payload)
         url = f"{self.base_url}/exchange/v1/orders/cancel"

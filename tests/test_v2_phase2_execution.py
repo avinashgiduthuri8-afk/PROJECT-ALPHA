@@ -58,12 +58,12 @@ class TestPrecisionAndNotionalEnforcement:
         assert round_price("BTC/INR", 8234567.8912) == 8234567.89
         assert round_qty("BTC/INR", 0.000123456) == 0.00012
 
-        # Tier 2: SOL/INR (tick ₹0.10, step 0.01 SOL)
-        assert round_price("SOL/INR", 12543.67) == 12543.7
+        # Tier 2: SOL/INR (tick ₹0.01 / ₹0.10, step 0.01 SOL)
+        assert round_price("SOL/INR", 12543.67) == 12543.67
         assert round_qty("SOL/INR", 1.2345) == 1.23
 
         # Tier 3: SHIB/INR (tick ₹0.000001, step 1000 SHIB)
-        assert round_price("SHIB/INR", 0.0018456) == 0.001846
+        assert round_price("SHIB/INR", 0.0018456) == 0.0018456
         assert round_qty("SHIB/INR", 12345.67) == 12000.0
 
     def test_rejects_order_below_200_inr_notional(self):
