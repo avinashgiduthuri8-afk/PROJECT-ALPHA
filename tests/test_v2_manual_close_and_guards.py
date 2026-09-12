@@ -290,3 +290,105 @@ def test_config_secret_redaction():
     assert sanitized["coindcx_api_secret"] == "***REDACTED***"
     assert sanitized["alert_bot_token"] == "***REDACTED***"
     assert sanitized["dashboard_security_password"] == "***REDACTED***"
+
+
+@pytest.mark.anyio
+async def test_manual_close_zero_fill_keeps_position_open(db_env):
+    """P0-03: Zero fill on manual SELL order keeps position OPEN and returns ORDER_UNFILLED error."""
+    pos_repo = db_env["pos_repo"]
+    trade_repo = db_env["trade_repo"]
+    order_repo = db_env["order_repo"]
+    event_log_repo = db_env["event_log_repo"]
+
+    pos = Position(
+        id="POS-MC-4",
+        bot=BotName.STE,
+        coin="AVAX",
+        pair="AVAX/INR",
+        qty=5.0,
+        entry_price=2000.0,
+        entry_time=datetime.now(timezone.utc),
+        mode=BotMode.LIVE,
+        status=PositionStatus.OPEN,
+    )
+    await pos_repo.insert(pos)
+
+    bus = EventBus()
+    cfg = V2Config(v2_trading_enabled=True, v2_deployment_mode="LIVE_MICROCASH")
+
+    mgr = CoinDCXSubAccountManager()
+    client = mgr.get_client(BotName.STE)
+    client.place_live_order = AsyncMock(return_value={
+        "success": True,
+        "exchange_order_id": "EX-SELL-4",
+        "status": "OPEN",
+        "is_filled": False,
+        "filled_qty": 0.0,
+        "price": 2100.0,
+    })
+
+    service = TradingService(
+        bus=bus,
+        position_repo=pos_repo,
+        trade_repo=trade_repo,
+        event_log_repo=event_log_repo,
+        config=cfg,
+        subaccount_manager=mgr,
+        order_repo=order_repo,
+    )
+
+    res = await service.manual_close_position("POS-MC-4", exit_price=2100.0)
+    assert res["success"] is False
+    assert res["error"] == "ORDER_UNFILLED"
+
+    db_pos = await pos_repo.get_by_id("POS-MC-4")
+    assert db_pos.status == PositionStatus.OPEN
+    assert db_pos.qty == 5.0
+
+
+@pytest.mark.anyio
+async def test_trading_service_enforces_execution_guards(db_env):
+    """P0-04: TradingService blocks live order placement when ExecutionSafetyGuards fail."""
+    pos_repo = db_env["pos_repo"]
+    trade_repo = db_env["trade_repo"]
+    order_repo = db_env["order_repo"]
+    event_log_repo = db_env["event_log_repo"]
+
+    bus = EventBus()
+    cfg = V2Config(v2_trading_enabled=True, v2_deployment_mode="LIVE_MICROCASH", scanner_min_24h_volume=50000.0)
+
+    mgr = CoinDCXSubAccountManager()
+    client = mgr.get_client(BotName.STE)
+    client.place_live_order = AsyncMock()
+
+    service = TradingService(
+        bus=bus,
+        position_repo=pos_repo,
+        trade_repo=trade_repo,
+        event_log_repo=event_log_repo,
+        config=cfg,
+        subaccount_manager=mgr,
+        order_repo=order_repo,
+    )
+
+    # Signal payload with 10s old timestamp (exceeds max_stale_seconds 60s) but low volume
+    stale_ts = datetime.now(timezone.utc).timestamp() - 120.0
+    payload = {
+        "bot": "STE",
+        "coin": "ILLIQUID",
+        "pair": "ILLIQUID/INR",
+        "price": 100.0,
+        "entry_price": 100.0,
+        "amount": 200.0,
+        "qty": 2.0,
+        "stop_loss": 95.0,
+        "take_profit": 110.0,
+        "timestamp": stale_ts,
+        "volume_24h": 1000.0,  # Below min 50,000 threshold
+        "signal_id": "SIG-GUARD-1",
+    }
+
+    from v2.bus.event_types import EventType
+    await service.on_trade_approved(EventType.TRADE_APPROVED, payload)
+    client.place_live_order.assert_not_called()
+

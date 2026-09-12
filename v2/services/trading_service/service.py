@@ -33,6 +33,7 @@ from v2.repository.trade_repo import TradeRepository
 from v2.repository.order_repo import OrderRepository
 from v2.trading.order_state_machine import OrderStateMachine
 from v2.trading.subaccount_manager import CoinDCXSubAccountManager
+from v2.trading.execution_guards import ExecutionSafetyGuards
 from v2.trading.precision_rules import (
     extract_base_coin,
     get_pair_spec,
@@ -97,6 +98,13 @@ class TradingService:
             position_repo=self._position_repo,
             subaccount_manager=self._subaccount_manager,
         )
+
+        self._execution_guards = ExecutionSafetyGuards(
+            max_stale_seconds=60.0,
+            max_slippage_pct=3.0,
+            min_24h_volume=getattr(self._config, "scanner_min_24h_volume", 50000.0),
+        )
+        self._consecutive_order_failures = 0
 
         self._total_executed = 0
         self._started = False
@@ -238,6 +246,33 @@ class TradingService:
             deployment_mode = getattr(self._config, "v2_deployment_mode", "SHADOW").upper()
             is_live = (deployment_mode == "LIVE_MICROCASH" and self._config.v2_trading_enabled)
 
+            # Evaluate Live Execution Safety Guards before NEW live orders
+            if is_live:
+                ticker_price = float(payload.get("price") or order_data["entry_price"])
+                data_time = payload.get("timestamp") or datetime.now(timezone.utc)
+                volume_24h = float(payload.get("volume_24h") or 100000.0)
+                open_positions = await self._position_repo.get_open()
+                active_coins = [p.coin for p in open_positions]
+
+                all_passed, guard_results = self._execution_guards.evaluate_all_guards(
+                    order_price=order_data["entry_price"],
+                    ticker_price=ticker_price,
+                    data_time=data_time,
+                    volume_24h=volume_24h,
+                    coin=coin,
+                    active_coins=active_coins,
+                    consecutive_failures=self._consecutive_order_failures,
+                    bot_key=bot.value if hasattr(bot, "value") else str(bot),
+                    is_emergency_exit=False,
+                )
+                if not all_passed:
+                    rejections = [g.message for g in guard_results if not g.passed]
+                    logger.warning(
+                        "Live order execution BLOCKED by Execution Safety Guards for %s: %s",
+                        coin, "; ".join(rejections),
+                    )
+                    return
+
             # Construct and persist Order entity in CREATED -> SUBMITTED states
             client_order_id = f"ORD-{uuid.uuid4().hex[:12]}"
             order = Order(
@@ -378,6 +413,7 @@ class TradingService:
                                 logger.warning("Failed to verify ambiguous order %s: %s", cl_id, e)
 
                     if not order_result.get("success"):
+                        self._consecutive_order_failures += 1
                         logger.warning(
                             "Live CoinDCX BUY order placement failed for %s (%s): %s",
                             coin, bot.value, order_result.get("message") or order_result.get("error"),
@@ -392,6 +428,8 @@ class TradingService:
                             await self._order_repo.update(order)
                             await self._order_repo.record_transition(tr_err)
                         return
+
+                self._consecutive_order_failures = 0
 
                 # Fill Confirmation Gate: Only create local OPEN position if confirmed FILLED on exchange
                 exchange_order_id = order_result.get("exchange_order_id")
@@ -840,13 +878,26 @@ class TradingService:
                 qty=pos.qty,
             )
             if not sell_result.get("success"):
+                self._consecutive_order_failures += 1
                 return {
                     "success": False,
                     "error": "EXCHANGE_ORDER_FAILED",
                     "message": sell_result.get("message") or sell_result.get("error"),
                 }
 
-            sell_filled_qty = sell_result.get("filled_qty", pos.qty)
+            self._consecutive_order_failures = 0
+            sell_filled_qty = float(sell_result.get("filled_qty") or 0.0)
+            if sell_filled_qty <= 0.0:
+                logger.warning(
+                    "Manual SELL order placed for %s but exchange reported 0 fill (status=%s). Position remains OPEN.",
+                    pos.coin, sell_result.get("status")
+                )
+                return {
+                    "success": False,
+                    "error": "ORDER_UNFILLED",
+                    "message": f"Manual sell order placed on exchange but 0 fill confirmed (status={sell_result.get('status')}). Position remains OPEN.",
+                }
+
             if sell_result.get("status") == "PARTIALLY_FILLED" or (0.0 < sell_filled_qty < pos.qty):
                 is_partial_sell = True
 

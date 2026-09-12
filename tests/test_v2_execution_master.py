@@ -69,6 +69,9 @@ def setup_test_db(monkeypatch):
     test_db = os.path.join(TEST_DB_DIR, f"test_exec_{uuid.uuid4().hex[:6]}.db")
     monkeypatch.setenv("V2_DB_PATH", test_db)
     monkeypatch.setenv("DASHBOARD_API_KEY", "test-master-key")
+    monkeypatch.setenv("COINDCX_LIVE_API_KEY", "real_test_live_key_98765")
+    monkeypatch.setenv("COINDCX_LIVE_API_SECRET", "real_test_live_secret_98765")
+    monkeypatch.setenv("DASHBOARD_SECURITY_PASSWORD", "real_test_password_98765")
     invalidate_config()
     yield
     invalidate_config()

@@ -171,6 +171,10 @@ class ProductionController:
         if mode == "LIVE_MICROCASH":
             if self._risk_service and hasattr(self._risk_service, "circuit_breaker") and self._risk_service.circuit_breaker.is_open:
                 raise ValueError(f"Cannot transition to LIVE_MICROCASH: Circuit breaker is OPEN ({self._risk_service.circuit_breaker.reason})")
+            
+            # P0-05 Security: Validate credentials before setting LIVE_MICROCASH mode
+            self._config.validate_live_security()
+
             if self._trading_service and hasattr(self._trading_service, "subaccount_manager"):
                 sub_mgr = self._trading_service.subaccount_manager
                 if (
