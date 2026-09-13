@@ -122,13 +122,13 @@ class CoinDCXSubAccountClient:
             "X-AUTH-SIGNATURE": signature,
         }
 
-    async def _post_exchange(self, endpoint: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def _post_exchange(self, endpoint: str, payload: Dict[str, Any], client: Optional[httpx.AsyncClient] = None) -> Dict[str, Any]:
         """Execute authenticated async HTTP POST request to CoinDCX endpoint."""
         url = f"{self.base_url.rstrip('/')}/{endpoint.lstrip('/')}"
         headers = self.generate_auth_headers(payload)
 
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
+            if client is not None:
                 response = await client.post(url, headers=headers, json=payload)
                 if response.status_code == 429:
                     logger.warning("CoinDCX rate-limit (429) on %s", endpoint)
@@ -141,6 +141,20 @@ class CoinDCXSubAccountClient:
                 response.raise_for_status()
                 data = response.json()
                 return {"success": True, "data": data}
+            else:
+                async with httpx.AsyncClient(timeout=self.timeout) as http_client:
+                    response = await http_client.post(url, headers=headers, json=payload)
+                    if response.status_code == 429:
+                        logger.warning("CoinDCX rate-limit (429) on %s", endpoint)
+                        return {
+                            "success": False,
+                            "error": "RATE_LIMITED",
+                            "status_code": 429,
+                            "message": "CoinDCX API rate limit reached.",
+                        }
+                    response.raise_for_status()
+                    data = response.json()
+                    return {"success": True, "data": data}
         except httpx.TimeoutException:
             logger.error("CoinDCX API timeout (%.1fs) on %s", self.timeout, endpoint)
             return {
@@ -164,23 +178,40 @@ class CoinDCXSubAccountClient:
                 "message": str(e),
             }
 
+    async def cancel_order(self, order_id: str, client: Optional[httpx.AsyncClient] = None) -> Dict[str, Any]:
+        """Cancel an order via /exchange/v1/orders/cancel."""
+        payload = {"id": order_id}
+        res = await self._post_exchange("/exchange/v1/orders/cancel", payload, client=client)
+        if res.get("success"):
+            return {
+                "success": True,
+                "result": res.get("data"),
+            }
+        return res
+
     async def place_order_async(
         self,
         pair: str,
         side: str,
         price: float,
-        qty: float,
+        qty: float = 0.0,
         order_type: str = "limit_order",
         client_order_id: Optional[str] = None,
+        stop_price: Optional[float] = None,
+        total_quantity: Optional[float] = None,
     ) -> Dict[str, Any]:
         """
         Asynchronously place an order. Dispatches real HTTP request if in LIVE_MICROCASH mode,
         otherwise records a compliant simulated fill.
         """
+        if total_quantity is not None:
+            qty = total_quantity
+
         with self._lock:
             try:
                 norm_price = normalize_price(price)
                 norm_qty = normalize_qty(qty)
+                norm_stop_px = normalize_price(stop_price) if stop_price is not None else None
             except ValueError as e:
                 logger.warning("Order rejected: invalid price/qty for %s: %s", pair, e)
                 return {
@@ -191,6 +222,7 @@ class CoinDCXSubAccountClient:
 
             rounded_price = round_price(pair, norm_price)
             rounded_qty = round_qty(pair, norm_qty)
+            rounded_stop_px = round_price(pair, norm_stop_px) if norm_stop_px is not None else None
             notional = rounded_price * rounded_qty
 
             if not validate_order_notional(pair, rounded_price, rounded_qty):
@@ -209,6 +241,7 @@ class CoinDCXSubAccountClient:
                 }
 
             order_id = client_order_id or f"ORD_{self.subaccount_id}_{int(time.time()*1000)}"
+            ex_id = f"CDX_{self.subaccount_id}_{int(time.time()*1000)}"
             payload = {
                 "side": side.lower(),
                 "order_type": order_type,
@@ -218,6 +251,9 @@ class CoinDCXSubAccountClient:
                 "timestamp": int(time.time() * 1000),
                 "client_order_id": order_id,
             }
+            if rounded_stop_px is not None:
+                payload["stop_price"] = rounded_stop_px
+
             headers = self.generate_auth_headers(payload)
 
             if side.upper() == "BUY":
@@ -225,6 +261,7 @@ class CoinDCXSubAccountClient:
 
             order_record = {
                 "order_id": order_id,
+                "exchange_order_id": ex_id,
                 "subaccount_id": self.subaccount_id,
                 "bot_name": self.bot_name.value,
                 "pair": pair,
@@ -233,9 +270,12 @@ class CoinDCXSubAccountClient:
                 "qty": rounded_qty,
                 "notional_inr": notional,
                 "status": "FILLED",
+                "status": "OPEN" if order_type.lower() == "stop_limit" else "FILLED",
                 "auth_headers_verified": bool(headers.get("X-AUTH-SIGNATURE")),
                 "timestamp": payload["timestamp"],
             }
+            if rounded_stop_px is not None:
+                order_record["stop_price"] = rounded_stop_px
 
         # If live mode, execute outbound HTTP request
         if self.is_live_mode:
@@ -247,6 +287,9 @@ class CoinDCXSubAccountClient:
                 return http_res
             order_record["exchange_response"] = http_res.get("data")
             order_record["live_dispatched"] = True
+            live_ex_id = http_res.get("data", {}).get("id") or http_res.get("data", {}).get("order_id")
+            if live_ex_id:
+                order_record["exchange_order_id"] = str(live_ex_id)
 
         with self._lock:
             self._open_orders[order_id] = order_record
@@ -256,6 +299,11 @@ class CoinDCXSubAccountClient:
             self.subaccount_id, self.is_live_mode, side.upper(), pair, rounded_price, rounded_qty, notional,
         )
         return {"success": True, "order": order_record}
+        return {
+            "success": True,
+            "exchange_order_id": order_record["exchange_order_id"],
+            "order": order_record,
+        }
 
     # ── Synchronous / Simulated Order Placement ───────────────────────────────
 
@@ -264,17 +312,23 @@ class CoinDCXSubAccountClient:
         pair: str,
         side: str,
         price: float,
-        qty: float,
+        qty: float = 0.0,
         order_type: str = "limit_order",
         client_order_id: Optional[str] = None,
+        stop_price: Optional[float] = None,
+        total_quantity: Optional[float] = None,
     ) -> Dict[str, Any]:
         """
         Place an order through the unified execution client with discrete rounding.
         """
+        if total_quantity is not None:
+            qty = total_quantity
+
         with self._lock:
             try:
                 norm_price = normalize_price(price)
                 norm_qty = normalize_qty(qty)
+                norm_stop_px = normalize_price(stop_price) if stop_price is not None else None
             except ValueError as e:
                 logger.warning("Order rejected: invalid price/qty for %s: %s", pair, e)
                 return {
@@ -286,6 +340,7 @@ class CoinDCXSubAccountClient:
             # 1. Discrete tick & lot precision rounding
             rounded_price = round_price(pair, norm_price)
             rounded_qty = round_qty(pair, norm_qty)
+            rounded_stop_px = round_price(pair, norm_stop_px) if norm_stop_px is not None else None
             notional = rounded_price * rounded_qty
 
             # 2. Hard validation: Minimum order value and min lot via CoinDCX precision rules
@@ -315,6 +370,7 @@ class CoinDCXSubAccountClient:
 
             # 4. Generate payload and client order ID
             order_id = client_order_id or f"ORD_{self.subaccount_id}_{int(time.time()*1000)}"
+            ex_id = f"CDX_SL_{int(time.time()*1000)}" if order_type.lower() == "stop_limit" else f"CDX_{int(time.time()*1000)}"
             payload = {
                 "side": side.lower(),
                 "order_type": order_type,
@@ -324,6 +380,8 @@ class CoinDCXSubAccountClient:
                 "timestamp": int(time.time() * 1000),
                 "client_order_id": order_id,
             }
+            if rounded_stop_px is not None:
+                payload["stop_price"] = rounded_stop_px
 
             headers = self.generate_auth_headers(payload)
 
@@ -333,6 +391,7 @@ class CoinDCXSubAccountClient:
 
             order_record = {
                 "order_id": order_id,
+                "exchange_order_id": ex_id,
                 "subaccount_id": self.subaccount_id,
                 "bot_name": self.bot_name.value,
                 "pair": pair,
@@ -341,9 +400,12 @@ class CoinDCXSubAccountClient:
                 "qty": rounded_qty,
                 "notional_inr": notional,
                 "status": "FILLED",
+                "status": "OPEN" if order_type.lower() == "stop_limit" else "FILLED",
                 "auth_headers_verified": bool(headers.get("X-AUTH-SIGNATURE")),
                 "timestamp": payload["timestamp"],
             }
+            if rounded_stop_px is not None:
+                order_record["stop_price"] = rounded_stop_px
             self._open_orders[order_id] = order_record
 
             logger.info(
@@ -351,6 +413,11 @@ class CoinDCXSubAccountClient:
                 self.subaccount_id, self.is_live_mode, side.upper(), pair, rounded_price, rounded_qty, notional,
             )
             return {"success": True, "order": order_record}
+            return {
+                "success": True,
+                "exchange_order_id": order_record["exchange_order_id"],
+                "order": order_record,
+            }
 
     async def cancel_order(self, order_id: str) -> Dict[str, Any]:
         """Cancel an open order on CoinDCX."""
@@ -637,6 +704,48 @@ class CoinDCXSubAccountClient:
         POST https://api.coindcx.com/exchange/v1/orders/status
         Normalizes response across CoinDCX order payload shapes.
         """
+        if not self.is_live_mode and client is None:
+            with self._lock:
+                ord_rec = self._open_orders.get(order_id)
+                if not ord_rec:
+                    for k, v in self._open_orders.items():
+                        if str(v.get("exchange_order_id")) == str(order_id):
+                            ord_rec = v
+                            break
+                if ord_rec:
+                    st = str(ord_rec.get("status", "OPEN")).upper()
+                    is_filled = (st == "FILLED")
+                    q = float(ord_rec.get("qty", 0.0))
+                    p = float(ord_rec.get("price", 0.0))
+                    filled_q = float(ord_rec.get("filled_qty", q if is_filled else 0.0))
+                    return {
+                        "success": True,
+                        "status_code": 200,
+                        "exchange_order_id": str(ord_rec.get("exchange_order_id", order_id)),
+                        "client_order_id": ord_rec.get("order_id"),
+                        "status": st,
+                        "is_filled": is_filled,
+                        "filled_qty": filled_q,
+                        "price": p,
+                        "qty": q,
+                        "order": ord_rec,
+                        "error": None,
+                        "message": None,
+                    }
+            return {
+                "success": False,
+                "status_code": 404,
+                "exchange_order_id": order_id,
+                "status": "ORDER_NOT_FOUND",
+                "is_filled": False,
+                "filled_qty": 0.0,
+                "price": 0.0,
+                "qty": 0.0,
+                "order": {},
+                "error": "ORDER_NOT_FOUND",
+                "message": "Order not found in simulated open orders",
+            }
+
         payload = {"id": order_id, "timestamp": int(time.time() * 1000)}
         headers = self.generate_auth_headers(payload)
         url = f"{self.base_url}/exchange/v1/orders/status"
@@ -799,6 +908,11 @@ class CoinDCXSubAccountClient:
             with self._lock:
                 if order_id in self._open_orders:
                     self._open_orders[order_id]["status"] = "CANCELLED"
+                else:
+                    for k, v in self._open_orders.items():
+                        if str(v.get("exchange_order_id")) == str(order_id):
+                            v["status"] = "CANCELLED"
+                            break
             return {"success": True, "status_code": 200, "result": {"status": "cancelled", "id": order_id}}
 
         payload = {"id": order_id, "timestamp": int(time.time() * 1000)}

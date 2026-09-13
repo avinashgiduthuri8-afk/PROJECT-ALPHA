@@ -54,10 +54,12 @@ class PositionManager:
         position_repo: PositionRepository,
         trade_repo: Optional[TradeRepository] = None,
         bus: Optional[EventBus] = None,
+        subaccount_manager: Optional[Any] = None,
     ) -> None:
         self._position_repo = position_repo
         self._trade_repo = trade_repo
         self._bus = bus
+        self._subaccount_manager = subaccount_manager
         self._peak_prices: Dict[str, float] = {}
         self._trailing_stops: Dict[str, float] = {}
 
@@ -262,6 +264,26 @@ class PositionManager:
 
         return unrealised
 
+    async def cancel_resting_stop_loss(self, pos: Position) -> None:
+        """Cancel resting exchange stop-loss order if present and clear order ID."""
+        if getattr(pos, "stop_loss_order_id", None):
+            sl_id = pos.stop_loss_order_id
+            if self._subaccount_manager:
+                try:
+                    sub_client = self._subaccount_manager.get_client(pos.bot)
+                    await sub_client.cancel_order(sl_id)
+                    logger.info(
+                        "Cancelled resting stop-loss order %s for position %s (%s)",
+                        sl_id, pos.id, pos.coin,
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "Failed to cancel resting stop loss order %s for position %s: %s",
+                        sl_id, pos.id, e,
+                    )
+            await self._position_repo.update_stop_loss_order_id(pos.id, None)
+            pos.stop_loss_order_id = None
+
     async def evaluate_brackets(
         self, pair: str, current_price: float
     ) -> List[Tuple[Position, ExitReason, float]]:
@@ -289,6 +311,7 @@ class PositionManager:
 
             # 1. Take Profit trigger check
             if pos.take_profit and norm_price >= pos.take_profit:
+                await self.cancel_resting_stop_loss(pos)
                 triggers.append((pos, ExitReason.TAKE_PROFIT, norm_price))
                 continue
 
@@ -300,6 +323,7 @@ class PositionManager:
             # 3. Trailing Stop trigger check
             trailing_stop = self._trailing_stops.get(pos.id)
             if trailing_stop and norm_price <= trailing_stop:
+                await self.cancel_resting_stop_loss(pos)
                 triggers.append((pos, ExitReason.STOP_LOSS, norm_price))
                 continue
 
@@ -318,6 +342,9 @@ class PositionManager:
         if not pos or pos.status == PositionStatus.CLOSED:
             logger.warning("Attempted to close non-existent or already CLOSED position %s", position_id)
             return None, None
+
+        # Cancel resting stop-loss order if present before finalizing close
+        await self.cancel_resting_stop_loss(pos)
 
         try:
             norm_exit = normalize_price(exit_price)

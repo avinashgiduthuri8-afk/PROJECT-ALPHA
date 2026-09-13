@@ -8,8 +8,11 @@ family with a single except clause when needed.
 from __future__ import annotations
 
 
-class V2Error(Exception):
-    """Base for all V2 exceptions."""
+class AlphaError(Exception):
+    """Base for all PROJECT-ALPHA exceptions."""
+
+
+V2Error = AlphaError
 
 
 # ── Configuration ─────────────────────────────────────────────────────────────

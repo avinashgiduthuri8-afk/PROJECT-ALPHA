@@ -1,34 +1,53 @@
 """
-V2 Configuration System.
+PROJECT-ALPHA — Configuration System.
 
-Single Pydantic BaseSettings model for all V2 configuration.
+Canonical Pydantic BaseSettings model for application configuration.
 Rules:
   - No service ever calls os.getenv() directly.
-  - V1 environment variables are read once at startup and stored here.
+  - Environment variables are read once at startup and stored here.
   - A subset of keys is hot-reloadable via config_override.json.
   - Capital limits require a restart to change.
 
+Canonical configuration class: AppConfig (aliased as V2Config for backward compatibility)
+Canonical environment variables:
+  - TRADING_ENABLED (fallback: V2_TRADING_ENABLED)
+  - DEPLOYMENT_MODE (fallback: V2_DEPLOYMENT_MODE)
+  - SHADOW_MODE (fallback: V2_SHADOW_MODE)
+  - EXECUTION_TIMEOUT (fallback: V2_EXECUTION_TIMEOUT)
+  - DB_PATH (fallback: V2_DB_PATH)
+
+Canonical database path: data/project_alpha.db (fallback: v2/data/alpha_v2.db)
+
 Usage:
-    from v2.core.config import get_config
+    from v2.core.config import AppConfig, V2Config, get_config
     cfg = get_config()
-    print(cfg.v2_scanner_poll_interval)
+    print(cfg.trading_enabled)
 """
 
 from __future__ import annotations
 
 import json
 import os
+import shutil
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DEFAULT_ORDER_AMOUNT_INR: float = 200.0
 
+LEGACY_FIELD_MAP = {
+    "v2_trading_enabled": "trading_enabled",
+    "v2_deployment_mode": "deployment_mode",
+    "v2_shadow_mode": "shadow_mode",
+    "v2_execution_timeout": "execution_timeout",
+    "v2_db_path": "db_path",
+}
 
-class V2Config(BaseSettings):
+
+class AppConfig(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -38,10 +57,10 @@ class V2Config(BaseSettings):
     )
 
     # ── Database ──────────────────────────────────────────────────────────────
-    v2_db_path: str = Field(
-        default="v2/data/alpha_v2.db",
-        validation_alias=AliasChoices("V2_DB_PATH", "DB_PATH", "v2_db_path"),
-        description="Path to the V2 SQLite database file.",
+    db_path: str = Field(
+        default="data/project_alpha.db",
+        validation_alias=AliasChoices("DB_PATH", "V2_DB_PATH", "db_path", "v2_db_path"),
+        description="Path to the canonical SQLite database file.",
     )
 
     # ── Unified Capital Pool & Sizing ─────────────────────────────────────────
@@ -238,23 +257,84 @@ class V2Config(BaseSettings):
     v2_port: int = Field(
         default=5001,
         validation_alias=AliasChoices("V2_PORT", "PORT", "v2_port"),
-        description="Port for the V2 FastAPI app.",
+        description="Port for the FastAPI app.",
     )
     v2_host: str = Field(
         default="0.0.0.0",
         validation_alias=AliasChoices("V2_HOST", "HOST", "v2_host"),
-        description="Host address for the V2 FastAPI app.",
+        description="Host address for the FastAPI app.",
     )
 
-    # ── Feature flags & Deployment Mode ──────────────────────────────────────
-    v2_deployment_mode:   str  = Field(default="PAPER", validation_alias=AliasChoices("V2_DEPLOYMENT_MODE", "DEPLOYMENT_MODE", "v2_deployment_mode"))
-    v2_websocket_enabled: bool = Field(default=False)
-    v2_shadow_mode:       bool = Field(default=False)
-    v2_trading_enabled:   bool = Field(
+    # ── Canonical Fields ──────────────────────────────────────────────────────
+    deployment_mode: str = Field(
+        default="PAPER",
+        validation_alias=AliasChoices("DEPLOYMENT_MODE", "V2_DEPLOYMENT_MODE", "deployment_mode", "v2_deployment_mode"),
+        description="Execution mode: PAPER, LIVE_MICROCASH, SHADOW, etc.",
+    )
+    websocket_enabled: bool = Field(
         default=False,
-        validation_alias=AliasChoices("V2_TRADING_ENABLED", "TRADING_ENABLED", "v2_trading_enabled"),
+        validation_alias=AliasChoices("WEBSOCKET_ENABLED", "V2_WEBSOCKET_ENABLED", "websocket_enabled", "v2_websocket_enabled"),
+    )
+    shadow_mode: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("SHADOW_MODE", "V2_SHADOW_MODE", "shadow_mode", "v2_shadow_mode"),
+        description="Run shadow execution alongside live/paper.",
+    )
+    trading_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("TRADING_ENABLED", "V2_TRADING_ENABLED", "trading_enabled", "v2_trading_enabled"),
+        description="Master switch enabling live and automated trade dispatch.",
+    )
+    execution_timeout: float = Field(
+        default=30.0,
+        validation_alias=AliasChoices("EXECUTION_TIMEOUT", "V2_EXECUTION_TIMEOUT", "execution_timeout", "v2_execution_timeout"),
+        description="Timeout in seconds for order execution and verification operations.",
     )
 
+    # ── Backward Compatibility Properties for v2_* fields ────────────────────
+    @property
+    def v2_trading_enabled(self) -> bool:
+        return self.trading_enabled
+
+    @property
+    def v2_deployment_mode(self) -> str:
+        return self.deployment_mode
+
+    @property
+    def v2_shadow_mode(self) -> bool:
+        return self.shadow_mode
+
+    @property
+    def v2_execution_timeout(self) -> float:
+        return self.execution_timeout
+
+    @property
+    def v2_db_path(self) -> str:
+        return self.db_path
+
+    @property
+    def v2_websocket_enabled(self) -> bool:
+        return self.websocket_enabled
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name in LEGACY_FIELD_MAP:
+            super().__setattr__(LEGACY_FIELD_MAP[name], value)
+            return
+        if name == "v2_websocket_enabled":
+            super().__setattr__("websocket_enabled", value)
+            return
+        super().__setattr__(name, value)
+
+    def model_copy(self, *, update: dict[str, Any] | None = None, deep: bool = False) -> AppConfig:
+        if update:
+            normalized_update = {}
+            for k, v in update.items():
+                target_key = LEGACY_FIELD_MAP.get(k, k)
+                if target_key == "v2_websocket_enabled":
+                    target_key = "websocket_enabled"
+                normalized_update[target_key] = v
+            update = normalized_update
+        return super().model_copy(update=update, deep=deep)
 
     @property
     def host(self) -> str:
@@ -294,10 +374,13 @@ class V2Config(BaseSettings):
         Validate security requirements for LIVE trading mode.
         Raises SecurityConfigError if LIVE mode is active without non-dummy API keys or operator password.
         """
-        from v2.core.exceptions import SecurityConfigError
+        try:
+            from core.exceptions import SecurityConfigError
+        except ImportError:
+            from v2.core.exceptions import SecurityConfigError
 
-        deployment_mode = (self.v2_deployment_mode or "").upper()
-        if deployment_mode == "LIVE_MICROCASH" and self.v2_trading_enabled:
+        dep_mode = (self.deployment_mode or "").upper()
+        if dep_mode == "LIVE_MICROCASH" and self.trading_enabled:
             DUMMY_VALUES = {
                 "DUMMY_KEY", "SAMPLE_KEY", "ALPHA-PROD-KEY", "TEST", "SECRET",
                 "12345", "CHANGE_ME", "DUMMY_SECRET", "DEMO", "SAMPLE", ""
@@ -317,8 +400,15 @@ class V2Config(BaseSettings):
                 raise SecurityConfigError("LIVE trading mode blocked: valid non-empty DASHBOARD_SECURITY_PASSWORD is required.")
 
     def get_sanitized_config_dict(self) -> dict:
-        """Return dict of config values with secret keys safely redacted."""
+        """Return dict of config values with secret keys safely redacted and legacy aliases supported."""
         data = self.model_dump()
+        # Include legacy aliases for dashboard/API backward compatibility
+        for legacy_key, canonical_key in LEGACY_FIELD_MAP.items():
+            if canonical_key in data:
+                data[legacy_key] = data[canonical_key]
+        if "websocket_enabled" in data:
+            data["v2_websocket_enabled"] = data["websocket_enabled"]
+
         SECRET_KEYS = {
             "coindcx_api_secret", "coindcx_live_api_secret", "coindcx_paper_api_secret",
             "coindcx_api_key", "coindcx_live_api_key", "alert_bot_token", "gemini_api_key",
@@ -329,19 +419,24 @@ class V2Config(BaseSettings):
                 data[k] = "***REDACTED***"
         return data
 
-    def apply_override(self, override_path: str | None = None) -> "V2Config":
+    def apply_override(self, override_path: str | None = None) -> "AppConfig":
         """
         Return a copy of this config with hot-reloadable keys overridden
-        from *override_path* (defaults to v2/data/config_override.json).
-
-        Only the keys listed in HOT_RELOAD_KEYS are applied; all others
-        are ignored so capital limits cannot be changed at runtime.
+        from *override_path* (defaults to data/config_override.json or v2/data/config_override.json).
         """
         HOT_RELOAD_KEYS = {
+            "deployment_mode",
             "v2_deployment_mode",
+            "websocket_enabled",
             "v2_websocket_enabled",
+            "shadow_mode",
             "v2_shadow_mode",
+            "trading_enabled",
             "v2_trading_enabled",
+            "execution_timeout",
+            "v2_execution_timeout",
+            "db_path",
+            "v2_db_path",
             "v2_scanner_poll_interval",
             "v2_scanner_signal_ttl",
             "v2_metrics_snapshot_interval",
@@ -358,15 +453,30 @@ class V2Config(BaseSettings):
             "total_capital_limit",
             "trading_capital_pool",
         }
-        path = Path(override_path or "v2/data/config_override.json")
-        if not path.exists():
+        candidates = [
+            Path(override_path) if override_path else None,
+            Path("data/config_override.json"),
+            Path("v2/data/config_override.json"),
+        ]
+        target_path: Optional[Path] = None
+        for p in candidates:
+            if p and p.exists():
+                target_path = p
+                break
+
+        if not target_path or not target_path.exists():
             return self
         try:
-            overrides = json.loads(path.read_text(encoding="utf-8"))
+            overrides = json.loads(target_path.read_text(encoding="utf-8"))
         except Exception:
             return self
 
-        updates = {k: v for k, v in overrides.items() if k in HOT_RELOAD_KEYS}
+        raw_updates = {k: v for k, v in overrides.items() if k in HOT_RELOAD_KEYS}
+        updates: dict[str, Any] = {}
+        for k, v in raw_updates.items():
+            target_key = LEGACY_FIELD_MAP.get(k, k)
+            updates[target_key] = v
+
         if "order_size_inr" in updates:
             updates["order_size_inr"] = max(200.0, float(updates["order_size_inr"]))
         if not updates:
@@ -374,9 +484,9 @@ class V2Config(BaseSettings):
         return self.model_copy(update=updates)
 
     @classmethod
-    def save_runtime_overrides(cls, overrides: dict[str, Any], override_path: Optional[str] = None) -> V2Config:
+    def save_runtime_overrides(cls, overrides: dict[str, Any], override_path: Optional[str] = None) -> AppConfig:
         """Persist runtime overrides to config_override.json and reload cache."""
-        path = Path(override_path or "v2/data/config_override.json")
+        path = Path(override_path or "data/config_override.json")
         path.parent.mkdir(parents=True, exist_ok=True)
         existing = {}
         if path.exists():
@@ -384,6 +494,12 @@ class V2Config(BaseSettings):
                 existing = json.loads(path.read_text(encoding="utf-8"))
             except Exception:
                 existing = {}
+        elif Path("v2/data/config_override.json").exists():
+            try:
+                existing = json.loads(Path("v2/data/config_override.json").read_text(encoding="utf-8"))
+            except Exception:
+                existing = {}
+
         if "order_size_inr" in overrides:
             overrides["order_size_inr"] = max(200.0, float(overrides["order_size_inr"]))
         existing.update(overrides)
@@ -394,14 +510,18 @@ class V2Config(BaseSettings):
         return cls().apply_override(override_path=str(path))
 
 
+# Canonical alias for backward compatibility
+V2Config = AppConfig
+
+
 @lru_cache(maxsize=1)
-def get_config() -> V2Config:
+def get_config() -> AppConfig:
     """
-    Return the singleton V2Config instance with runtime overrides applied.
+    Return the singleton AppConfig instance with runtime overrides applied.
 
     Call invalidate_config() to force a reload (e.g. in tests).
     """
-    cfg = V2Config()
+    cfg = AppConfig()
     return cfg.apply_override()
 
 

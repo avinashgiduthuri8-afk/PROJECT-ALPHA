@@ -19,6 +19,7 @@ def setup_test_env(tmp_path, monkeypatch):
     test_db = str(tmp_path / f"test_pipe_{uuid.uuid4().hex[:6]}.db")
     monkeypatch.setenv("V2_DB_PATH", test_db)
     monkeypatch.setenv("DASHBOARD_API_KEY", "test-pipe-key")
+    monkeypatch.setenv("DASHBOARD_SECURITY_PASSWORD", "110299")
     invalidate_config()
     yield
     invalidate_config()

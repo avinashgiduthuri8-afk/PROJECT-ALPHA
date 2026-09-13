@@ -55,6 +55,7 @@ def _row_to_position(row: aiosqlite.Row) -> Position:
         client_order_id   = d.get("client_order_id"),
         filled_qty        = d.get("filled_qty"),
         realized_pnl      = d.get("realized_pnl"),
+        stop_loss_order_id = d.get("stop_loss_order_id"),
     )
 
 
@@ -80,8 +81,8 @@ class PositionRepository(BaseRepository):
             INSERT INTO positions
             (id, bot, coin, pair, qty, entry_price, entry_time,
              current_price, unrealised_pnl, stop_loss, take_profit,
-             mode, signal_id, status, exchange_order_id, client_order_id, filled_qty)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+             mode, signal_id, status, exchange_order_id, client_order_id, filled_qty, stop_loss_order_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """,
             (
                 position.id,
@@ -101,6 +102,7 @@ class PositionRepository(BaseRepository):
                 position.exchange_order_id,
                 position.client_order_id,
                 position.filled_qty,
+                position.stop_loss_order_id,
             ),
         )
         return position.id
@@ -224,6 +226,15 @@ class PositionRepository(BaseRepository):
             (bot.value,),
         )
         return float(row["total"]) if row else 0.0
+
+    async def update_stop_loss_order_id(
+        self, position_id: str, stop_loss_order_id: Optional[str]
+    ) -> None:
+        """Update exchange stop loss order ID for an open position."""
+        await self._execute(
+            "UPDATE positions SET stop_loss_order_id = ? WHERE id = ?",
+            (stop_loss_order_id, position_id),
+        )
 
     async def update_brackets(
         self,

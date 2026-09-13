@@ -7,6 +7,7 @@ or active execution via isolated CoinDCX Sub-Account clients, and manages positi
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 import uuid
 from datetime import datetime, timezone
@@ -88,6 +89,7 @@ class TradingService:
             position_repo=self._position_repo,
             trade_repo=self._trade_repo,
             bus=self._bus,
+            subaccount_manager=self._subaccount_manager,
         )
         self.recovery_service = RestartRecoveryService(
             position_repo=self._position_repo,
@@ -174,7 +176,7 @@ class TradingService:
                 return
             ai_adjustments = payload.get("ai_adjustments") or {}
 
-            raw_price = payload.get("price") or payload.get("current_price")
+            raw_price = payload.get("price") or payload.get("current_price") or payload.get("entry_price")
             try:
                 price = normalize_price(raw_price)
             except ValueError as exc:
@@ -484,11 +486,68 @@ class TradingService:
                 await self._position_repo.insert(pos)
                 self._total_executed += 1
 
+                # Dual-Layer Disaster Stop-Loss: Place resting stop-limit order on CoinDCX
+                if pos.stop_loss and pos.stop_loss > 0:
+                    sl_stop_px = round_price(pos.pair, float(pos.stop_loss))
+                    sl_limit_px = round_price(pos.pair, sl_stop_px * 0.995)
+                    try:
+                        sl_res = sub_client.place_order(
+                            pair=pos.pair,
+                            side="sell",
+                            price=sl_limit_px,
+                            stop_price=sl_stop_px,
+                            total_quantity=fill_qty,
+                            order_type="stop_limit",
+                        )
+                        if inspect.isawaitable(sl_res):
+                            sl_res = await sl_res
+
+                        if sl_res.get("success") and sl_res.get("exchange_order_id"):
+                            sl_order_id = str(sl_res["exchange_order_id"])
+                            pos.stop_loss_order_id = sl_order_id
+                            await self._position_repo.update_stop_loss_order_id(pos.id, sl_order_id)
+                            logger.info(
+                                "[%s] Disaster stop-loss order placed (%s) for %s @ stop=%.8f limit=%.8f",
+                                sub_client.subaccount_id, sl_order_id, pos.coin, sl_stop_px, sl_limit_px,
+                            )
+                        else:
+                            sl_err = sl_res.get("message") or sl_res.get("error") or "Failed to place disaster stop-loss"
+                            logger.critical(
+                                "[%s] CRITICAL: Failed to place resting disaster stop-loss for %s (pos_id=%s): %s",
+                                sub_client.subaccount_id, pos.coin, pos.id, sl_err,
+                            )
+                            await self._bus.publish(
+                                EventType.ALERT_GENERATED,
+                                {
+                                    "level": "CRITICAL",
+                                    "title": "Disaster Stop-Loss Placement Failed",
+                                    "message": f"Disaster stop-loss placement failed for {pos.coin} (Position {pos.id}): {sl_err}",
+                                    "position_id": pos.id,
+                                    "bot": pos.bot.value,
+                                },
+                            )
+                    except Exception as sl_exc:
+                        logger.critical(
+                            "[%s] CRITICAL: Exception placing disaster stop-loss for %s (pos_id=%s): %s",
+                            sub_client.subaccount_id, pos.coin, pos.id, sl_exc, exc_info=True,
+                        )
+                        await self._bus.publish(
+                            EventType.ALERT_GENERATED,
+                            {
+                                "level": "CRITICAL",
+                                "title": "Disaster Stop-Loss Placement Exception",
+                                "message": f"Exception placing disaster stop-loss for {pos.coin} (Position {pos.id}): {sl_exc}",
+                                "position_id": pos.id,
+                                "bot": pos.bot.value,
+                            },
+                        )
+
                 pos_payload = {
                     "position_id": pos.id,
                     "subaccount_id": sub_client.subaccount_id,
                     "exchange_order_id": exchange_order_id,
                     "client_order_id": pos.client_order_id,
+                    "stop_loss_order_id": pos.stop_loss_order_id,
                     "bot": bot.value,
                     "coin": coin,
                     "pair": pair,
@@ -865,12 +924,28 @@ class TradingService:
             price = pos.entry_price
 
         # 1. If live position, dispatch real CoinDCX sell order
+        # 1. Transition to PENDING_EXIT and cancel resting disaster stop-loss if present
+        await self._position_repo.update_status(pos.id, PositionStatus.PENDING_EXIT)
+        self._pending_exits.add(pos.id)
+
+        sub_client = self._subaccount_manager.get_client(pos.bot)
+        if pos.stop_loss_order_id:
+            try:
+                await sub_client.cancel_order(pos.stop_loss_order_id)
+                await self._position_repo.update_stop_loss_order_id(pos.id, None)
+                pos.stop_loss_order_id = None
+            except Exception as e:
+                logger.warning("Failed to cancel resting stop loss order %s on manual close: %s", pos.stop_loss_order_id, e)
+
+        # 2. If live position, dispatch real CoinDCX sell order with 5-poll Verification Gate
         deployment_mode = getattr(self._config, "v2_deployment_mode", "").upper()
         sell_filled_qty = pos.qty
         is_partial_sell = False
+        is_live = (pos.mode == BotMode.LIVE) or (self._config.v2_trading_enabled and deployment_mode == "LIVE_MICROCASH")
 
         if pos.mode == BotMode.LIVE and self._config.v2_trading_enabled and deployment_mode == "LIVE_MICROCASH":
             sub_client = self._subaccount_manager.get_client(pos.bot)
+        if is_live:
             sell_result = await sub_client.place_live_order(
                 pair=pos.pair,
                 side="SELL",
@@ -879,25 +954,77 @@ class TradingService:
             )
             if not sell_result.get("success"):
                 self._consecutive_order_failures += 1
+                await self._position_repo.update_status(pos.id, PositionStatus.OPEN)
+                self._pending_exits.discard(pos.id)
+                err_msg = sell_result.get("message") or sell_result.get("error") or "Order placement failed"
+                await self._bus.publish(
+                    EventType.ALERT_GENERATED,
+                    {
+                        "level": "CRITICAL",
+                        "title": "Manual Close Dispatch Failed",
+                        "message": f"Manual SELL order dispatch failed for {pos.coin} (Position {pos.id}): {err_msg}",
+                        "position_id": pos.id,
+                        "bot": pos.bot.value,
+                    },
+                )
                 return {
                     "success": False,
                     "error": "EXCHANGE_ORDER_FAILED",
-                    "message": sell_result.get("message") or sell_result.get("error"),
+                    "message": err_msg,
                 }
 
             self._consecutive_order_failures = 0
+            exit_order_id = str(sell_result.get("exchange_order_id") or sell_result.get("client_order_id") or "")
+            raw_status = str(sell_result.get("status", "")).upper()
+            is_filled = bool(sell_result.get("is_filled")) or (raw_status == "FILLED")
             sell_filled_qty = float(sell_result.get("filled_qty") or 0.0)
-            if sell_filled_qty <= 0.0:
+
+            # Verification Gate: Poll get_order_status up to 5 times (1.0s interval) if unconfirmed and 0 fill
+            if not is_filled and exit_order_id and sell_filled_qty <= 0.0:
+                for poll_attempt in range(5):
+                    await asyncio.sleep(1.0)
+                    try:
+                        st_res = await sub_client.get_order_status(exit_order_id)
+                        if st_res.get("success"):
+                            st_order = st_res.get("order") if isinstance(st_res.get("order"), dict) else st_res
+                            st_val = str(st_res.get("status") or st_order.get("status") or "").upper()
+                            if st_val == "FILLED" or st_res.get("is_filled"):
+                                is_filled = True
+                                sell_filled_qty = float(st_res.get("filled_qty") or st_order.get("filled_quantity") or pos.qty)
+                                break
+                            elif st_val == "PARTIALLY_FILLED" or (float(st_res.get("filled_qty") or st_order.get("filled_quantity") or 0.0) > 0):
+                                sell_filled_qty = float(st_res.get("filled_qty") or st_order.get("filled_quantity") or 0.0)
+                                break
+                            elif st_val in ("CANCELLED", "REJECTED"):
+                                break
+                    except Exception as poll_exc:
+                        logger.warning("Error polling manual exit status (%d/5) for %s: %s", poll_attempt + 1, exit_order_id, poll_exc)
+
+            if not is_filled and sell_filled_qty <= 0.0:
+                self._consecutive_order_failures += 1
+                await self._position_repo.update_status(pos.id, PositionStatus.OPEN)
+                self._pending_exits.discard(pos.id)
                 logger.warning(
-                    "Manual SELL order placed for %s but exchange reported 0 fill (status=%s). Position remains OPEN.",
-                    pos.coin, sell_result.get("status")
+                    "Manual SELL order for %s (order %s) unconfirmed or 0 fill (status=%s). Reverting position to OPEN.",
+                    pos.coin, exit_order_id, sell_result.get("status")
+                )
+                await self._bus.publish(
+                    EventType.ALERT_GENERATED,
+                    {
+                        "level": "CRITICAL",
+                        "title": "Manual Close Fill Unconfirmed",
+                        "message": f"Manual SELL order for {pos.coin} (order {exit_order_id}) unconfirmed or timed out. Position {pos.id} reverted to OPEN.",
+                        "position_id": pos.id,
+                        "bot": pos.bot.value,
+                    },
                 )
                 return {
                     "success": False,
                     "error": "ORDER_UNFILLED",
-                    "message": f"Manual sell order placed on exchange but 0 fill confirmed (status={sell_result.get('status')}). Position remains OPEN.",
+                    "message": f"Manual sell order placed on exchange but fill unconfirmed (status={sell_result.get('status')}). Position remains OPEN.",
                 }
 
+            self._consecutive_order_failures = 0
             if sell_result.get("status") == "PARTIALLY_FILLED" or (0.0 < sell_filled_qty < pos.qty):
                 is_partial_sell = True
 
@@ -931,6 +1058,7 @@ class TradingService:
         if is_partial_sell:
             remaining_qty = round(pos.qty - sell_filled_qty, 8)
             await self._position_repo.update_qty(pos.id, remaining_qty)
+            await self._position_repo.update_status(pos.id, PositionStatus.OPEN)
             self._pending_exits.discard(pos.id)
             logger.info("Manual partial SELL filled for %s: Filled %.6f / Remaining %.6f", pos.coin, sell_filled_qty, remaining_qty)
             return {

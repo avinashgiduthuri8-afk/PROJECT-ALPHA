@@ -39,6 +39,10 @@ logs/*.log
 .test_dbs/
 .test_tmp*
 tests_tmp*
+temp_*
+data/*.db
+data/*.db-shm
+data/*.db-wal
 *.db-journal
 *.sqlite
 *.sqlite3

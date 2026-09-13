@@ -8,6 +8,7 @@ enforces order book precision & min ₹100 notional rules, and dispatches HMAC-s
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import inspect
 import threading
 from typing import Any, Dict, Optional, Set
@@ -115,6 +116,13 @@ class AutoTradeRouter:
                 "score": signal.score,
                 "target_bot": signal.raw_payload.get("target_bot") if signal.raw_payload else None,
                 "price": signal.raw_payload.get("price") if signal.raw_payload else None,
+                "price": getattr(signal, "price", None) or (signal.raw_payload.get("price") if signal.raw_payload else None),
+                "signal_price": getattr(signal, "signal_price", None) or (signal.raw_payload.get("signal_price") if signal.raw_payload else None),
+                "current_price": getattr(signal, "current_price", None) or (signal.raw_payload.get("current_price") if signal.raw_payload else None),
+                "stop_loss": getattr(signal, "stop_loss", None) or (signal.raw_payload.get("stop_loss") if signal.raw_payload else None),
+                "take_profit": getattr(signal, "take_profit", None) or (signal.raw_payload.get("take_profit") if signal.raw_payload else None),
+                "ticker_timestamp": getattr(signal, "ticker_timestamp", None) or (signal.raw_payload.get("ticker_timestamp") if signal.raw_payload else None),
+                "timestamp": getattr(signal, "timestamp", None) or (signal.raw_payload.get("timestamp") if signal.raw_payload else None) or signal.generated_at,
                 "trade_amount": signal.raw_payload.get("trade_amount", 500.0) if signal.raw_payload else 500.0,
             }
         elif isinstance(signal, dict):
@@ -136,6 +144,76 @@ class AutoTradeRouter:
                 "idempotency_key": idempotency_key,
                 "message": f"Signal {idempotency_key} has already been processed.",
             }
+
+        # 1. Ticker Age Guard: Reject if ticker age > 5.0s (STALE_MARKET_DATA)
+        raw_ts = (
+            signal_data.get("ticker_timestamp")
+            or signal_data.get("data_time")
+            or signal_data.get("timestamp")
+        )
+        if raw_ts is not None:
+            now_ts = datetime.now(timezone.utc).timestamp()
+            try:
+                if isinstance(raw_ts, (int, float)):
+                    ts_val = float(raw_ts)
+                    if ts_val > 1e11:  # Epoch milliseconds
+                        ts_val = ts_val / 1000.0
+                    age = now_ts - ts_val
+                elif isinstance(raw_ts, datetime):
+                    ts_val = raw_ts.timestamp() if raw_ts.tzinfo else raw_ts.replace(tzinfo=timezone.utc).timestamp()
+                    age = now_ts - ts_val
+                elif isinstance(raw_ts, str):
+                    dt = datetime.fromisoformat(raw_ts.replace("Z", "+00:00"))
+                    age = now_ts - dt.timestamp()
+                else:
+                    age = 0.0
+
+                if age > 5.0:
+                    logger.warning(
+                        "AutoTradeRouter rejected signal for %s: ticker age %.2fs > 5.0s (STALE_MARKET_DATA)",
+                        pair, age,
+                    )
+                    return {
+                        "success": False,
+                        "error": "STALE_MARKET_DATA",
+                        "idempotency_key": idempotency_key,
+                        "message": f"Ticker age {age:.2f}s exceeds maximum allowable 5.0s limit.",
+                        "age": age,
+                    }
+            except Exception as e:
+                logger.debug("Error computing ticker age: %s", e)
+
+        # 2. Pre-Trade Slippage Guard: Reject if abs(current_price - signal.price) / signal.price > 0.005 (0.5%)
+        sig_px_val = signal_data.get("signal_price")
+        curr_px_val = signal_data.get("current_price") or signal_data.get("ticker_price")
+
+        if sig_px_val is None and curr_px_val is not None and signal_data.get("price") is not None:
+            sig_px_val = signal_data.get("price")
+        elif sig_px_val is not None and curr_px_val is None and signal_data.get("price") is not None:
+            curr_px_val = signal_data.get("price")
+        elif hasattr(signal, "price") and curr_px_val is not None and sig_px_val is None:
+            sig_px_val = getattr(signal, "price")
+
+        if sig_px_val is not None and curr_px_val is not None:
+            try:
+                sig_px_float = float(sig_px_val)
+                curr_px_float = float(curr_px_val)
+                if sig_px_float > 0.0:
+                    slippage_pct = abs(curr_px_float - sig_px_float) / sig_px_float
+                    if slippage_pct > 0.005:
+                        logger.warning(
+                            "AutoTradeRouter rejected signal for %s: slippage %.4f (%.2f%%) > 0.50%% (SLIPPAGE_EXCEEDED)",
+                            pair, slippage_pct, slippage_pct * 100,
+                        )
+                        return {
+                            "success": False,
+                            "error": "SLIPPAGE_EXCEEDED",
+                            "idempotency_key": idempotency_key,
+                            "message": f"Pre-trade slippage {slippage_pct * 100:.2f}% exceeds maximum allowable 0.50% (signal: {sig_px_float}, current: {curr_px_float})",
+                            "slippage_pct": slippage_pct,
+                        }
+            except Exception as e:
+                logger.debug("Error computing pre-trade slippage: %s", e)
 
         target_bot = self.map_signal_to_bot(signal_data)
 
@@ -170,6 +248,7 @@ class AutoTradeRouter:
         client = self._subaccount_manager.get_client(target_bot)
 
         raw_price = signal_data.get("price") or signal_data.get("current_price")
+        raw_price = curr_px_val or signal_data.get("price") or sig_px_val or signal_data.get("current_price")
         try:
             price = normalize_price(raw_price)
         except ValueError as exc:
@@ -253,6 +332,28 @@ class AutoTradeRouter:
         if order_result.get("success"):
             order_record = order_result.get("order", {})
             order_record["idempotency_key"] = idempotency_key
+
+            # Dual-layer protective stop-loss dispatch if stop_loss provided
+            sl_val = signal_data.get("stop_loss")
+            if sl_val and float(sl_val) > 0 and not is_dry_run:
+                try:
+                    sl_stop_px = round_price(pair, float(sl_val))
+                    sl_limit_px = round_price(pair, sl_stop_px * 0.995)
+                    sl_res = client.place_order(
+                        pair=pair,
+                        side="sell",
+                        price=sl_limit_px,
+                        stop_price=sl_stop_px,
+                        total_quantity=rounded_qty,
+                        order_type="stop_limit",
+                    )
+                    if inspect.isawaitable(sl_res):
+                        sl_res = await sl_res
+                    if sl_res.get("success"):
+                        order_record["stop_loss_order_id"] = sl_res.get("exchange_order_id")
+                except Exception as sl_err:
+                    logger.warning("AutoTradeRouter failed to place disaster stop-loss for %s: %s", pair, sl_err)
+
             logger.info("Order successfully dispatched via AutoTradeRouter for signal %s", signal_id)
             return {
                 "success": True,

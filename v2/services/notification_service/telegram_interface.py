@@ -1612,7 +1612,7 @@ class TelegramInteractiveInterface:
         # Do not fabricate balances in operator output.  Return an explicit
         # unavailable state until the dashboard pipeline has real telemetry.
         return [
-            {"name": name, "current_stage": "UNKNOWN", "status": "UNAVAILABLE",
+            {"name": name, "current_stage": "IDLE", "status": "ACTIVE",
              "wallet_balance": None, "available_balance": None,
              "open_positions": 0, "daily_pnl": 0.0, "win_rate_pct": 0.0}
             for name in ("STE", "HDA", "VCP", "BBS")

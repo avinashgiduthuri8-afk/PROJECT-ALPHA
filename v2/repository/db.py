@@ -1,13 +1,16 @@
 """
-V2 Database — connection management and schema migrations.
+PROJECT-ALPHA Database — connection management and schema migrations.
 
 Opens a single aiosqlite connection with WAL mode and runs all
-pending migrations from v2/repository/migrations/*.sql in version order.
+pending migrations from migrations/*.sql in version order.
+
+Canonical path: data/project_alpha.db
+Legacy fallback: v2/data/alpha_v2.db
 
 Usage:
     from v2.repository.db import Database
 
-    db = Database("v2/data/alpha_v2.db")
+    db = Database("data/project_alpha.db")
     await db.open()          # run at app startup
     conn = db.connection     # pass to repositories
     await db.close()         # run at app shutdown
@@ -16,6 +19,7 @@ Usage:
 from __future__ import annotations
 
 import re
+import shutil
 from pathlib import Path
 from typing import Optional
 
@@ -24,17 +28,77 @@ import aiosqlite
 from v2.core.exceptions import MigrationError
 from v2.core.logging import get_logger
 
-logger = get_logger("v2.repository.db")
+logger = get_logger("repository.db")
 
-_MIGRATIONS_DIR = Path(__file__).parent / "migrations"
+_LOCAL_MIGRATIONS = Path(__file__).parent / "migrations"
+_FALLBACK_MIGRATIONS = Path("v2/repository/migrations")
+_MIGRATIONS_DIR = _LOCAL_MIGRATIONS if _LOCAL_MIGRATIONS.exists() else _FALLBACK_MIGRATIONS
+
+CANONICAL_DB_PATH = "data/project_alpha.db"
+LEGACY_DB_PATH = "v2/data/alpha_v2.db"
+
+
+def migrate_database_if_needed(
+    canonical_path: str = CANONICAL_DB_PATH,
+    legacy_path: str = LEGACY_DB_PATH,
+) -> str:
+    """
+    Safely migrate an existing SQLite database from legacy path to canonical path.
+    Preserves existing files (.db, .db-wal, .db-shm) at legacy location without deletion.
+    """
+    target = Path(canonical_path)
+    legacy = Path(legacy_path)
+
+    # 1. If canonical database already exists, use it
+    if target.exists():
+        return str(target)
+
+    # 2. If legacy database exists, safely copy to canonical location
+    if legacy.exists():
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(legacy, target)
+            logger.info("Migrated SQLite database from %s to %s", legacy, target)
+
+            # Copy WAL file if present
+            legacy_wal = legacy.with_name(legacy.name + "-wal")
+            if legacy_wal.exists():
+                target_wal = target.with_name(target.name + "-wal")
+                shutil.copy2(legacy_wal, target_wal)
+                logger.info("Migrated SQLite WAL file from %s to %s", legacy_wal, target_wal)
+
+            # Copy SHM file if present
+            legacy_shm = legacy.with_name(legacy.name + "-shm")
+            if legacy_shm.exists():
+                target_shm = target.with_name(target.name + "-shm")
+                shutil.copy2(legacy_shm, target_shm)
+                logger.info("Migrated SQLite SHM file from %s to %s", legacy_shm, target_shm)
+
+            return str(target)
+        except Exception as exc:
+            logger.warning(
+                "Failed to copy legacy database from %s to %s: %s. Falling back to legacy path.",
+                legacy, target, exc,
+            )
+            return str(legacy)
+
+    # 3. Neither exists; ensure directory and use canonical target
+    target.parent.mkdir(parents=True, exist_ok=True)
+    return str(target)
 
 
 class Database:
-    """Manages the lifecycle of the V2 SQLite connection."""
+    """Manages the lifecycle of the SQLite connection."""
 
-    def __init__(self, path: str = "v2/data/alpha_v2.db") -> None:
+    def __init__(self, path: Optional[str] = None) -> None:
+        if path is None:
+            path = CANONICAL_DB_PATH
         self._path = path
         self._conn: Optional[aiosqlite.Connection] = None
+
+    @property
+    def path(self) -> str:
+        return self._path
 
     @property
     def is_open(self) -> bool:
@@ -48,8 +112,17 @@ class Database:
 
     async def open(self) -> None:
         """Open the connection and apply any pending migrations."""
+        # Handle migration / fallback if pointing to canonical or legacy path
+        if self._path == CANONICAL_DB_PATH:
+            self._path = migrate_database_if_needed(self._path, LEGACY_DB_PATH)
+        elif self._path == LEGACY_DB_PATH:
+            if not Path(self._path).exists() and Path(CANONICAL_DB_PATH).exists():
+                self._path = CANONICAL_DB_PATH
+
         # Ensure the data directory exists
-        Path(self._path).parent.mkdir(parents=True, exist_ok=True)
+        db_p = Path(self._path)
+        if db_p.parent and str(db_p.parent) not in ("", "."):
+            db_p.parent.mkdir(parents=True, exist_ok=True)
 
         self._conn = await aiosqlite.connect(self._path)
         self._conn.row_factory = aiosqlite.Row
