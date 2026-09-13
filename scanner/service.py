@@ -299,7 +299,7 @@ class ScannerService:
                     pairs.append(f"{coin_upper}/{quote}")
 
             for pair in pairs:
-                for timeframe in ["5m", "15m", "1h"]:
+                for timeframe in ["1h", "4h", "1d"]:
                     try:
                         db_candles = await self._candle_repo.get_recent_candles(pair, timeframe, limit=120)
                         if len(db_candles) < 120:
@@ -527,7 +527,7 @@ class ScannerService:
                         pairs.append(f"{coin_upper}/{quote}")
 
                 for pair in pairs:
-                    for timeframe in ["5m", "15m", "1h"]:
+                    for timeframe in ["1h", "4h", "1d"]:
                         coindcx_pair = canonical_to_coindcx_pair(pair)
                         interval = timeframe
                         # Limit to last 5 candles to catch the latest closed ones
@@ -568,7 +568,7 @@ class ScannerService:
         """
         Fetch true discrete 5m, 15m, and 1h candle feeds with 8 req/s rate-limiting gate.
         """
-        timeframes = ["5m", "15m", "1h"]
+        timeframes = ["1h", "4h", "1d"]
         results: dict[str, list[dict]] = {}
         for tf in timeframes:
             await self._rate_limiter.acquire()
@@ -613,7 +613,7 @@ class ScannerService:
                 tf_aligned[tf] = True
 
         # True MTF alignment requires at least 15m and 1h alignment
-        is_aligned = tf_aligned.get("15m", True) and tf_aligned.get("1h", True)
+        is_aligned = tf_aligned.get("4h", True) and tf_aligned.get("1d", True)
         return is_aligned, details
 
     # ── Polling (called by scheduler) ─────────────────────────────────────────
@@ -752,7 +752,7 @@ class ScannerService:
                     "dynamic_threshold": res.dynamic_threshold,
                     "confluence_accepted": res.accepted,
                     "confluence_rejection_reasons": list(res.rejection_reasons),
-                    "mtf_timeframes": ["5m", "15m", "1h"],
+                    "mtf_timeframes": ["1h", "4h", "1d"],
                 })
                 res.signal.raw_payload = payload
 
@@ -785,7 +785,7 @@ class ScannerService:
                     "volume_ratio": vol_ratio,
                     "ema_trend": ema_trend,
                     "rsi": rsi_val,
-                    "mtf_alignment": "5m_15m_1h" if res.signal.mtf_alignment else "none",
+                    "mtf_alignment": "1h_4h_1d" if res.signal.mtf_alignment else "none",
                     "is_mtf_aligned": bool(res.signal.mtf_alignment),
                     "confluence_score": res.confluence_score,
                     "status": "PASSED" if res.accepted else "REJECTED",
@@ -1022,7 +1022,7 @@ class ScannerService:
                 quote = "INR" if coin_upper in canonical_inr_coins else "USDT"
                 pair = f"{coin_upper}/{quote}"
 
-            candles = await self._get_candles_for_pair(pair, "15m", limit=120)
+            candles = await self._get_candles_for_pair(pair, "4h", limit=120)
 
             if not candles:
                 continue
@@ -1076,10 +1076,10 @@ class ScannerService:
                 continue
             funnel_counters["pump_dump_passed"] += 1
 
-            # Authoritative MTF set is 5m / 15m / 1h.  The 15m candles above
+            # Authoritative MTF set is 1h / 4h / 1d.  The 4h candles above
             # provide the middle timeframe; fetch the other two consistently.
-            candles_5m = await self._get_candles_for_pair(pair, "5m", limit=120)
-            candles_1h = await self._get_candles_for_pair(pair, "1h", limit=120)
+            candles_1h_aux = await self._get_candles_for_pair(pair, "1h", limit=120)
+            candles_1d_aux = await self._get_candles_for_pair(pair, "1d", limit=120)
 
             # Coin class determination
             if coin_upper in ("BTC", "ETH", "SOL", "BNB"):
@@ -1116,8 +1116,8 @@ class ScannerService:
                     avg_vol = sum(volumes[-20:]) / max(1, len(volumes[-20:]))
                     volume_ratio = round(volumes[-1] / avg_vol, 2) if avg_vol > 0 else 1.0
 
-                # Stage 4: 5m / 15m / 1h trend & MTF alignment
-                is_15m_bullish = (ema9 >= ema21 * 0.995)
+                # Stage 4: 1h / 4h / 1d trend & MTF alignment
+                is_4h_bullish = (ema9 >= ema21 * 0.995)
                 def _is_bullish(candle_set: list[dict]) -> bool:
                     values = [
                         float(c.get("close", c.get("c", 0.0)))
@@ -1134,9 +1134,9 @@ class ScannerService:
                     slow = calculate_ema(values, min(21, len(values)))[-1]
                     return values[-1] >= fast * 0.99 and fast >= slow * 0.995
 
-                is_5m_aligned = _is_bullish(candles_5m)
-                is_1h_aligned = _is_bullish(candles_1h)
-                mtf_aligned = bool(is_5m_aligned and is_15m_bullish and is_1h_aligned)
+                is_1h_aligned = _is_bullish(candles_1h_aux)
+                is_1d_aligned = _is_bullish(candles_1d_aux)
+                mtf_aligned = bool(is_1h_aligned and is_4h_bullish and is_1d_aligned)
 
                 if not mtf_aligned:
                     # Filter out coins with complete downtrend breakdown
@@ -1175,7 +1175,7 @@ class ScannerService:
                     bot = "HDA"
                     opp_type = "absorption"
                     strategy_name = "High Delivery Absorption"
-                elif is_vcp and is_15m_bullish:
+                elif is_vcp and is_4h_bullish:
                     bot = "VCP"
                     opp_type = "contraction"
                     strategy_name = "Volatility Contraction Pattern"
@@ -1230,8 +1230,8 @@ class ScannerService:
                 "price": latest_close,
                 "priority": "Elite" if score >= 90 else ("High" if score >= 80 else "Medium"),
                 "strategy": strategy_name,
-                "timeframe": "15m",
-                "mtf_timeframes": ["5m", "15m", "1h"],
+                "timeframe": "4h",
+                "mtf_timeframes": ["1h", "4h", "1d"],
                 "market_state": market_state,
                 "opportunity_type": opp_type,
                 "coin_class": coin_class,
@@ -1284,7 +1284,7 @@ class ScannerService:
             "confluence":       sig.confluence_breakdown or {},
             "confluence_score": (sig.raw_payload or {}).get("confluence_score"),
             "dynamic_threshold": (sig.raw_payload or {}).get("dynamic_threshold"),
-            "mtf_timeframes": (sig.raw_payload or {}).get("mtf_timeframes", ["5m", "15m", "1h"]),
+            "mtf_timeframes": (sig.raw_payload or {}).get("mtf_timeframes", ["1h", "4h", "1d"]),
             "ai_eligible": True,
         }
         await self._bus.publish(EventType.SIGNAL_GENERATED, payload)
