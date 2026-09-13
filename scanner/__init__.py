@@ -1,5 +1,5 @@
 """
-V2 Scanner Service — bridges V1 scanner API and V2 event bus.
+PROJECT-ALPHA Scanner Module — Multi-Timeframe Trend & Confluence Engine.
 """
 
 from .service import ScannerService

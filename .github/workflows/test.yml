@@ -28,11 +28,11 @@ jobs:
 
       - name: Validate Codebase Compilation
         run: |
-          python -m compileall v2/
+          python -m compileall core scanner execution telegram dashboard background app.py scripts
 
-      - name: Run V2 Test Suite
+      - name: Run Test Suite
         run: |
-          pytest tests/ v2/tests/ -q
+          pytest tests/ -q
 
   lint:
     name: Static Analysis & Import Integrity
@@ -53,4 +53,4 @@ jobs:
 
       - name: Run Ruff Syntax and Undefined Variable Check
         run: |
-          ruff check v2/ tests/ --select=E9,F63,F7,F82 --target-version=py312
+          ruff check core scanner execution telegram dashboard background tests --select=E9,F63,F7,F82 --target-version=py312

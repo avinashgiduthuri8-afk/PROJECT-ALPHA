@@ -1,18 +1,16 @@
 """
-V2 ScannerService.
+PROJECT-ALPHA ScannerService.
 
-Bridges the V1 scanner HTTP API and the V2 event bus.
+Multi-timeframe scanner engine and signal generation pipeline.
 
 Responsibilities:
-  - Poll GET /api/v1/scanner/signals on the scheduler interval
-  - Transform V1 response → V2 Signal domain objects via adapter
-  - Deduplicate: only publish SIGNAL_GENERATED for new signals
-  - Detect expiry: publish SIGNAL_EXPIRED when a live signal passes TTL
+  - Poll market candles natively from CoinDCX API / local cache
+  - Multi-Timeframe (MTF) trend alignment (1h, 4h, 1d)
+  - Pre-C2 5-stage filter cascade (Liquidity, Volume, Pump/Dump, Trend, Volatility)
+  - C2 Confluence Evaluation (Chart 30%, Indicator 35%, Sentiment 20%, News 15%)
+  - Deduplicate: publish SIGNAL_GENERATED for high-conviction signals
+  - Detect expiry: publish SIGNAL_EXPIRED when live signals exceed TTL
   - Persist all signals to SignalRepository
-  - Expose get_live_signals() for the API layer
-  - Report health status
-
-No V1 imports — coupling is via HTTP only.
 """
 
 from __future__ import annotations

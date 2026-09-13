@@ -97,7 +97,7 @@ class BackgroundScheduler:
         if self._running:
             return
         self._running = True
-        self._task = asyncio.create_task(self._loop(), name="v2_scheduler")
+        self._task = asyncio.create_task(self._loop(), name="alpha_scheduler")
         logger.info("Scheduler started", extra={"jobs": list(self._jobs.keys())})
 
     async def stop(self) -> None:

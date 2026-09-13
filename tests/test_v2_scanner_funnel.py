@@ -60,15 +60,15 @@ async def test_scanner_5_stage_filter_cascade_and_funnel_counters():
 
     now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
     sol_candles = [
-        {"pair": "SOL/INR", "timeframe": "15m", "timestamp": now_ms - (30 - i) * 900000, "open": 10000.0 + i * 50, "high": 10050.0 + i * 50, "low": 9980.0 + i * 50, "close": 10020.0 + i * 50, "volume": 100.0}
+        {"pair": "SOL/INR", "timeframe": "4h", "timestamp": now_ms - (30 - i) * 900000, "open": 10000.0 + i * 50, "high": 10050.0 + i * 50, "low": 9980.0 + i * 50, "close": 10020.0 + i * 50, "volume": 100.0}
         for i in range(30)
     ]
     eth_candles = [
-        {"pair": "ETH/INR", "timeframe": "15m", "timestamp": now_ms - (30 - i) * 900000, "open": 250000.0 + i * 200, "high": 252000.0 + i * 200, "low": 248000.0 + i * 200, "close": 250200.0 + i * 200, "volume": 50.0}
+        {"pair": "ETH/INR", "timeframe": "4h", "timestamp": now_ms - (30 - i) * 900000, "open": 250000.0 + i * 200, "high": 252000.0 + i * 200, "low": 248000.0 + i * 200, "close": 250200.0 + i * 200, "volume": 50.0}
         for i in range(30)
     ]
     pump_candles = [
-        {"pair": "DOGE/INR", "timeframe": "15m", "timestamp": now_ms - (30 - i) * 900000, "open": 10.0 if i == 0 else 15.0 + i * 0.1, "high": 16.0 + i * 0.1, "low": 9.9 if i == 0 else 14.8, "close": 10.0 if i == 0 else 15.5 + i * 0.1, "volume": 200.0}
+        {"pair": "DOGE/INR", "timeframe": "4h", "timestamp": now_ms - (30 - i) * 900000, "open": 10.0 if i == 0 else 15.0 + i * 0.1, "high": 16.0 + i * 0.1, "low": 9.9 if i == 0 else 14.8, "close": 10.0 if i == 0 else 15.5 + i * 0.1, "volume": 200.0}
         for i in range(30)
     ]
 
@@ -160,31 +160,31 @@ async def test_scanner_cascade_strict_execution_order_and_stage_isolation():
 
     # 1. Coin B (LOWVOL): Drops at Stage 2 (Volume < 50000)
     b_candles = [
-        {"pair": "BNB/INR", "timeframe": "15m", "timestamp": now_ms - (30 - i) * 900000, "open": 50000.0, "high": 50500.0, "low": 49500.0, "close": 50000.0, "volume": 0.001}
+        {"pair": "BNB/INR", "timeframe": "4h", "timestamp": now_ms - (30 - i) * 900000, "open": 50000.0, "high": 50500.0, "low": 49500.0, "close": 50000.0, "volume": 0.001}
         for i in range(30)
     ]
 
     # 2. Coin C (PUMP): Drops at Stage 3 (Price change +40% > 25%)
     c_candles = [
-        {"pair": "XRP/INR", "timeframe": "15m", "timestamp": now_ms - (30 - i) * 900000, "open": 50.0 if i == 0 else 70.0, "high": 72.0, "low": 49.0 if i == 0 else 68.0, "close": 50.0 if i == 0 else 70.0, "volume": 5000.0}
+        {"pair": "XRP/INR", "timeframe": "4h", "timestamp": now_ms - (30 - i) * 900000, "open": 50.0 if i == 0 else 70.0, "high": 72.0, "low": 49.0 if i == 0 else 68.0, "close": 50.0 if i == 0 else 70.0, "volume": 5000.0}
         for i in range(30)
     ]
 
     # 3. Coin D (DOWNTREND): Drops at Stage 4 (Severe downtrend breakdown with 24h change -18%)
     d_candles = [
-        {"pair": "DOGE/INR", "timeframe": "15m", "timestamp": now_ms - (30 - i) * 900000, "open": 20.0 if i < 20 else (20.0 - (i - 19) * 0.35), "high": 20.1 if i < 20 else (20.0 - (i - 19) * 0.35), "low": 19.9 if i < 20 else (19.8 - (i - 19) * 0.35), "close": 20.0 if i < 20 else (19.9 - (i - 19) * 0.35), "volume": 50000.0}
+        {"pair": "DOGE/INR", "timeframe": "4h", "timestamp": now_ms - (30 - i) * 900000, "open": 20.0 if i < 20 else (20.0 - (i - 19) * 0.35), "high": 20.1 if i < 20 else (20.0 - (i - 19) * 0.35), "low": 19.9 if i < 20 else (19.8 - (i - 19) * 0.35), "close": 20.0 if i < 20 else (19.9 - (i - 19) * 0.35), "volume": 50000.0}
         for i in range(30)
     ]
 
     # 4. Coin E (LOW_ATR): Drops at Stage 5 (ATR % = 0.1% < 0.5%)
     e_candles = [
-        {"pair": "ETH/INR", "timeframe": "15m", "timestamp": now_ms - (30 - i) * 900000, "open": 250000.0, "high": 250100.0, "low": 249950.0, "close": 250000.0, "volume": 10.0}
+        {"pair": "ETH/INR", "timeframe": "4h", "timestamp": now_ms - (30 - i) * 900000, "open": 250000.0, "high": 250100.0, "low": 249950.0, "close": 250000.0, "volume": 10.0}
         for i in range(30)
     ]
 
     # 5. Coin F (VALID): Passes all 5 stages
     f_candles = [
-        {"pair": "SOL/INR", "timeframe": "15m", "timestamp": now_ms - (30 - i) * 900000, "open": 10000.0 + i * 20, "high": 10150.0 + i * 20, "low": 9900.0 + i * 20, "close": 10050.0 + i * 20, "volume": 100.0}
+        {"pair": "SOL/INR", "timeframe": "4h", "timestamp": now_ms - (30 - i) * 900000, "open": 10000.0 + i * 20, "high": 10150.0 + i * 20, "low": 9900.0 + i * 20, "close": 10050.0 + i * 20, "volume": 100.0}
         for i in range(30)
     ]
 

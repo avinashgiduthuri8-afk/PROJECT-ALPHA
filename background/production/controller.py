@@ -73,7 +73,6 @@ class ProductionController:
             mode = state.get("deployment_mode", "PAPER")
             if mode == "SHADOW":
                 mode = "PAPER"
-            self._config.v2_deployment_mode = mode
             self._config.deployment_mode = mode
             self._kill_switch_tripped = bool(state.get("global_kill_switch", False))
         elif self._state_repo and hasattr(self._state_repo, "get_runtime_state"):
@@ -81,7 +80,6 @@ class ProductionController:
             mode = state.get("deployment_mode", "PAPER")
             if mode == "SHADOW":
                 mode = "PAPER"
-            self._config.v2_deployment_mode = mode
             self._config.deployment_mode = mode
             self._kill_switch_tripped = bool(state.get("global_kill_switch", False))
 
@@ -156,7 +154,6 @@ class ProductionController:
 
     def get_active_mode(self) -> str:
         """Return the currently configured deployment mode."""
-        return getattr(self._config, "v2_deployment_mode", "PAPER")
         return getattr(self._config, "deployment_mode", "PAPER")
 
     async def set_mode(self, target_mode: str, operator: str = "API") -> Dict[str, Any]:
@@ -190,17 +187,11 @@ class ProductionController:
                     bal_res = await sub_mgr.check_account_connectivity()
                     if not bal_res.get("success"):
                         raise ValueError(f"Cannot transition to LIVE_MICROCASH: CoinDCX connectivity check failed ({bal_res.get('error') or bal_res.get('message')})")
-            self._config.v2_deployment_mode = "LIVE_MICROCASH"
-            self._config.v2_trading_enabled = True
-            self._config.v2_shadow_mode = False
             self._config.deployment_mode = "LIVE_MICROCASH"
             self._config.trading_enabled = True
             self._config.shadow_mode = False
             msg = f"Mode transitioned to LIVE_MICROCASH. Real micro-orders (₹{self._config.order_size_inr:.2f}) dispatch to CoinDCX."
         else:
-            self._config.v2_deployment_mode = "PAPER"
-            self._config.v2_trading_enabled = True
-            self._config.v2_shadow_mode = False
             self._config.deployment_mode = "PAPER"
             self._config.trading_enabled = True
             self._config.shadow_mode = False
@@ -212,9 +203,6 @@ class ProductionController:
                 "deployment_mode": self._config.deployment_mode,
                 "trading_enabled": self._config.trading_enabled,
                 "shadow_mode": self._config.shadow_mode,
-                "v2_deployment_mode": self._config.deployment_mode,
-                "v2_trading_enabled": self._config.trading_enabled,
-                "v2_shadow_mode": self._config.shadow_mode,
             })
         except Exception as exc:
             logger.warning("Could not persist runtime override for set_mode: %s", exc)
@@ -310,9 +298,6 @@ class ProductionController:
             self._risk_service.circuit_breaker.set_emergency_stop(True, reason)
 
         # 2. Force configuration to fail-safe mode with trading halted
-        self._config.v2_trading_enabled = False
-        self._config.v2_deployment_mode = "PAPER"
-        self._config.v2_shadow_mode = False
         self._config.trading_enabled = False
         self._config.deployment_mode = "PAPER"
         self._config.shadow_mode = False
@@ -322,9 +307,6 @@ class ProductionController:
                 "deployment_mode": "PAPER",
                 "trading_enabled": False,
                 "shadow_mode": False,
-                "v2_deployment_mode": "PAPER",
-                "v2_trading_enabled": False,
-                "v2_shadow_mode": False,
             })
         except Exception as exc:
             logger.warning("Could not persist runtime overrides for kill-switch: %s", exc)
@@ -341,9 +323,6 @@ class ProductionController:
                     "deployment_mode": "PAPER",
                     "trading_enabled": "false",
                     "shadow_mode": "false",
-                    "v2_deployment_mode": "PAPER",
-                    "v2_trading_enabled": "false",
-                    "v2_shadow_mode": "false",
                     "last_kill_switch_at": now_str,
                     "kill_switch_operator": operator,
                 }, updated_by=operator)
