@@ -3,8 +3,8 @@
 
 Specification:
   - Bollinger Bands (20,2) squeeze inside Keltner Channels (20, 1.5 ATR)
-  - Base SL: 2.5% (Tightened: 1.5%), Base TP: 6.0%
-  - Minimum Net R:R >= 1.50 after statutory friction deductions
+  - Base SL: 8.0% (Tightened: 5.0%), Base TP: 25.0%
+  - Minimum Net R:R >= 2.00 after statutory friction deductions
 """
 
 from __future__ import annotations
@@ -21,9 +21,9 @@ class BBSAdapter(BaseBotAdapter):
 
     def __init__(self) -> None:
         super().__init__(BotName.BBS)
-        self.base_sl_pct = 2.5
-        self.tightened_sl_pct = 1.5
-        self.take_profit_pct = 6.0
+        self.base_sl_pct = 8.0
+        self.tightened_sl_pct = 5.0
+        self.take_profit_pct = 25.0
 
     def calculate_order(
         self,

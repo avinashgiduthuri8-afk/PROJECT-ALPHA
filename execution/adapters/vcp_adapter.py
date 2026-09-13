@@ -3,8 +3,8 @@
 
 Specification:
   - 3-wave volatility contraction (T1 >= T2 >= T3) + breakout above pivot resistance
-  - Base SL: 2.0% (Tightened: 1.2%), Base TP: 5.0%
-  - Minimum Net R:R >= 1.50 after statutory friction deductions
+  - Base SL: 6.0% (Tightened: 4.0%), Base TP: 22.0%
+  - Minimum Net R:R >= 2.00 after statutory friction deductions
 """
 
 from __future__ import annotations
@@ -21,9 +21,9 @@ class VCPAdapter(BaseBotAdapter):
 
     def __init__(self) -> None:
         super().__init__(BotName.VCP)
-        self.base_sl_pct = 2.0
-        self.tightened_sl_pct = 1.2
-        self.take_profit_pct = 5.0
+        self.base_sl_pct = 6.0
+        self.tightened_sl_pct = 4.0
+        self.take_profit_pct = 22.0
 
     def calculate_order(
         self,

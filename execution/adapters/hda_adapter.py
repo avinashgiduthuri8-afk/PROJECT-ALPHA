@@ -3,8 +3,8 @@
 
 Specification:
   - CVD absorption spike + breakout above local resistance
-  - Base SL: 2.2% (Tightened: 1.4%), Base TP: 5.28%
-  - Minimum Net R:R >= 1.50 after statutory friction deductions
+  - Base SL: 5.5% (Tightened: 3.5%), Base TP: 21.0%
+  - Minimum Net R:R >= 2.00 after statutory friction deductions
 """
 
 from __future__ import annotations
@@ -21,9 +21,9 @@ class HDAAdapter(BaseBotAdapter):
 
     def __init__(self) -> None:
         super().__init__(BotName.HDA)
-        self.base_sl_pct = 2.2
-        self.tightened_sl_pct = 1.4
-        self.take_profit_pct = 5.28
+        self.base_sl_pct = 5.5
+        self.tightened_sl_pct = 3.5
+        self.take_profit_pct = 21.0
 
     def calculate_order(
         self,
