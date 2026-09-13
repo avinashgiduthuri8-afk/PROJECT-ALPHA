@@ -11,12 +11,12 @@ from unittest.mock import AsyncMock, patch, MagicMock
 import pytest
 import httpx
 
-from v2.bus.event_bus import EventBus
-from v2.bus.event_types import EventType
-from v2.repository.db import Database
-from v2.repository.candle_repo import CandleRepository
-from v2.market.public_client import CoinDCXPublicClient, TokenBucketRateLimiter
-from v2.market.feeder import MarketFeeder
+from core.bus.event_bus import EventBus
+from core.bus.event_types import EventType
+from core.repository.db import Database
+from core.repository.candle_repo import CandleRepository
+from scanner.market.public_client import CoinDCXPublicClient, TokenBucketRateLimiter
+from scanner.market.feeder import MarketFeeder
 
 
 # ── 1. Pair Formatting Tests ──────────────────────────────────────────────────

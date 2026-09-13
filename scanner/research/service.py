@@ -14,13 +14,13 @@ from typing import Any, Optional
 
 import numpy as np
 
-from core.config import V2Config, get_config
+from core.config import AppConfig, get_config
 from core.logging import get_logger
 from scanner.market.public_client import CoinDCXPublicClient
 from core.repository.candle_repo import CandleRepository
-from v2.backtest.engine import BacktestEngine
-from v2.backtest.data_feeder import DataFeeder, COINDCX_INR_PAIRS, get_pair_spec
-from v2.backtest.strategies import (
+from background.backtest.engine import BacktestEngine
+from background.backtest.data_feeder import DataFeeder, COINDCX_INR_PAIRS, get_pair_spec
+from background.backtest.strategies import (
     VCPStrategy, STEStrategy, HDAStrategy, BBSStrategy, NR7Strategy,
     PPAStrategy, MTBStrategy, MRBStrategy, ALL_CANDIDATE_STRATEGIES,
 )
@@ -31,7 +31,7 @@ from .indicators import (
     compute_atr, compute_rvol, compute_sma, last_valid,
 )
 
-logger = get_logger("v2.services.research_service")
+logger = get_logger("scanner.research")
 
 # Strategy name → class map
 _STRATEGY_MAP = {
@@ -69,12 +69,13 @@ class CoinResearchService:
 
     def __init__(
         self,
+        public_client: Optional[CoinDCXPublicClient] = None,
         candle_repo: Optional[CandleRepository] = None,
-        config: Optional[V2Config] = None,
+        config: Optional[AppConfig] = None,
     ) -> None:
         self._candle_repo = candle_repo or CandleRepository()
         self._config = config or get_config()
-        self._public_client = CoinDCXPublicClient(timeout=10.0, rate_limit_per_sec=6.0)
+        self._public_client = public_client or CoinDCXPublicClient(timeout=10.0, rate_limit_per_sec=6.0)
 
     # ── Public Interface ──────────────────────────────────────────────────────
 
@@ -175,7 +176,7 @@ class CoinResearchService:
         """
         pair = normalize_symbol(symbol)
         if not is_supported_pair(pair):
-            raise ValueError(f"Unsupported pair: '{pair}'. Check /api/v2/research/coins for valid options.")
+            raise ValueError(f"Unsupported pair: '{pair}'. Check /api/research/coins for valid options.")
 
         logger.info("Fetching coin profile", extra={"pair": pair})
 
@@ -263,7 +264,7 @@ class CoinResearchService:
         engine = BacktestEngine(initial_capital=10_000.0)
 
         # Run backtest using real DB candles where available, then fallback
-        db_path = self._config.v2_db_path
+        db_path = self._config.db_path
 
         loop = asyncio.get_running_loop()
         metrics = await loop.run_in_executor(

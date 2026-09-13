@@ -1,8 +1,8 @@
 """
-V2 Event Bus — public API.
+PROJECT-ALPHA Event Bus — public API.
 
 Usage:
-    from v2.bus import bus, EventType
+    from core.bus import bus, EventType
 
     bus.subscribe(EventType.SIGNAL_GENERATED, my_handler)
     await bus.publish(EventType.SIGNAL_GENERATED, payload={"coin": "BTC"})

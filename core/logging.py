@@ -1,12 +1,12 @@
 """
-V2 Structured Logger Factory.
+PROJECT-ALPHA Structured Logger Factory.
 
 Returns a standard logging.Logger whose handlers emit JSON-formatted
 lines — forward-compatible with Loki, Datadog, and CloudWatch.
 
 Usage:
-    from v2.core.logging import get_logger
-    logger = get_logger("v2.scanner_service")
+    from core.logging import get_logger
+    logger = get_logger("scanner.service")
     logger.info("Signal generated", extra={"coin": "BTC", "score": 87})
 """
 

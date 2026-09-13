@@ -9,7 +9,7 @@ from typing import Optional
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
-from core.config import V2Config
+from core.config import AppConfig
 from core.types import PortfolioSnapshot
 from core.logging import get_logger
 from core.repository.metrics_repo import MetricsRepository
@@ -30,7 +30,7 @@ class PortfolioService:
         position_repo: Optional[PositionRepository] = None,
         trade_repo: Optional[TradeRepository] = None,
         metrics_repo: Optional[MetricsRepository] = None,
-        config: Optional[V2Config] = None,
+        config: Optional[AppConfig] = None,
     ) -> None:
         self._bus = bus
         self._position_repo = position_repo

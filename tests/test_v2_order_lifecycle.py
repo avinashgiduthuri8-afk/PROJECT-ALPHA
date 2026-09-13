@@ -17,22 +17,22 @@ from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
-from v2.bus.event_bus import EventBus
-from v2.bus.event_types import EventType
-from v2.core.config import get_config
-from v2.core.types import BotMode, BotName, Order, OrderState, OrderStateTransition
-from v2.repository.db import Database
-from v2.repository.event_log_repo import EventLogRepository
-from v2.repository.order_repo import OrderRepository
-from v2.repository.position_repo import PositionRepository
-from v2.repository.trade_repo import TradeRepository
-from v2.services.trading_service.recovery import RestartRecoveryService
-from v2.services.trading_service.service import TradingService
-from v2.trading.order_state_machine import (
+from core.bus.event_bus import EventBus
+from core.bus.event_types import EventType
+from core.config import get_config
+from core.types import BotMode, BotName, Order, OrderState, OrderStateTransition
+from core.repository.db import Database
+from core.repository.event_log_repo import EventLogRepository
+from core.repository.order_repo import OrderRepository
+from core.repository.position_repo import PositionRepository
+from core.repository.trade_repo import TradeRepository
+from execution.recovery import RestartRecoveryService
+from execution.service import TradingService
+from execution.trading.order_state_machine import (
     InvalidOrderStateTransitionError,
     OrderStateMachine,
 )
-from v2.trading.subaccount_manager import CoinDCXSubAccountManager
+from execution.trading.subaccount_manager import CoinDCXSubAccountManager
 
 
 @pytest.fixture

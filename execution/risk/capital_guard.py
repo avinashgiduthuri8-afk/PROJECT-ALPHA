@@ -7,18 +7,18 @@ from __future__ import annotations
 import time
 from typing import Optional
 
-from core.config import V2Config
+from core.config import AppConfig
 from core.types import BotName, RiskDecision
 from core.logging import get_logger
 from execution.trading.precision_rules import extract_base_coin
 
-logger = get_logger("v2.services.risk_service.capital_guard")
+logger = get_logger("execution.risk.capital_guard")
 
 
 class CapitalGuard:
     """Enforces per-bot and cross-bot capital limits and maximum open position caps."""
 
-    def __init__(self, config: V2Config) -> None:
+    def __init__(self, config: AppConfig) -> None:
         self._config = config
 
     def check_trade(
@@ -180,11 +180,11 @@ class CapitalGuard:
 
     def _get_max_positions(self, bot: BotName) -> int:
         if bot == BotName.STE:
-            return self._config.v2_max_positions_ste
+            return self._config.max_positions_ste
         if bot == BotName.HDA:
-            return self._config.v2_max_positions_hda
+            return self._config.max_positions_hda
         if bot == BotName.VCP:
-            return self._config.v2_max_positions_vcp
+            return self._config.max_positions_vcp
         if bot == BotName.BBS:
-            return self._config.v2_max_positions_bbs
+            return self._config.max_positions_bbs
         return 5

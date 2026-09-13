@@ -15,7 +15,7 @@ from typing import Optional
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
-from core.config import V2Config
+from core.config import AppConfig
 from core.types import (
     BotMode,
     BotName,
@@ -52,7 +52,7 @@ from .position_manager import PositionManager
 from .reconciliation import ReconciliationService
 from .recovery import RestartRecoveryService
 
-logger = get_logger("v2.services.trading_service")
+logger = get_logger("execution.service")
 
 
 class TradingService:
@@ -64,7 +64,7 @@ class TradingService:
         position_repo: PositionRepository,
         trade_repo: TradeRepository,
         event_log_repo: EventLogRepository,
-        config: V2Config,
+        config: AppConfig,
         shadow_engine: Optional[object] = None,
         subaccount_manager: Optional[CoinDCXSubAccountManager] = None,
         order_repo: Optional[OrderRepository] = None,
@@ -82,7 +82,7 @@ class TradingService:
         self.auto_trader = AutoTradeRouter(
             bus=self._bus,
             subaccount_manager=self._subaccount_manager,
-            dry_run=not self._config.v2_trading_enabled,
+            dry_run=not self._config.trading_enabled,
             position_repo=self._position_repo,
         )
         self.position_manager = PositionManager(
@@ -149,7 +149,7 @@ class TradingService:
         await self._bus.publish(EventType.SYSTEM_STARTUP, {"service": "trading_service"})
         logger.info(
             "TradingService started with AutoTradeRouter, PositionManager, Recovery & Reconciliation",
-            extra={"shadow_mode": self._config.v2_shadow_mode, "trading_enabled": self._config.v2_trading_enabled},
+            extra={"shadow_mode": self._config.shadow_mode, "trading_enabled": self._config.trading_enabled},
         )
 
     async def stop(self) -> None:
@@ -245,8 +245,8 @@ class TradingService:
                         )
                         return
 
-            deployment_mode = getattr(self._config, "v2_deployment_mode", "SHADOW").upper()
-            is_live = (deployment_mode == "LIVE_MICROCASH" and self._config.v2_trading_enabled)
+            deployment_mode = getattr(self._config, "deployment_mode", "SHADOW").upper()
+            is_live = (deployment_mode == "LIVE_MICROCASH" and self._config.trading_enabled)
 
             # Evaluate Live Execution Safety Guards before NEW live orders
             if is_live:
@@ -581,7 +581,7 @@ class TradingService:
 
     async def check_open_position_exits(self, current_prices: dict[str, float]) -> list[Trade]:
         """Check all live/shadow open positions against current market prices for SL/TP exit triggers with 1.572% statutory friction."""
-        from v2.backtest.friction import CoinDCXFrictionModel
+        from background.backtest.friction import CoinDCXFrictionModel
         friction_model = CoinDCXFrictionModel()
         closed_trades: list[Trade] = []
         open_positions = await self._position_repo.get_open()
@@ -661,8 +661,8 @@ class TradingService:
                 self._pending_exits.add(pos.id)
 
                 # 1. If live position, dispatch real CoinDCX sell order via place_live_order
-                deployment_mode = getattr(self._config, "v2_deployment_mode", "").upper()
-                if pos.mode == BotMode.LIVE and self._config.v2_trading_enabled and deployment_mode == "LIVE_MICROCASH":
+                deployment_mode = getattr(self._config, "deployment_mode", "").upper()
+                if pos.mode == BotMode.LIVE and self._config.trading_enabled and deployment_mode == "LIVE_MICROCASH":
                     sub_client = self._subaccount_manager.get_client(pos.bot)
                     try:
                         sell_result = await sub_client.place_live_order(
@@ -892,8 +892,8 @@ class TradingService:
     def get_health(self) -> dict:
         return {
             "healthy": self._started,
-            "shadow_mode": self._config.v2_shadow_mode,
-            "trading_enabled": self._config.v2_trading_enabled,
+            "shadow_mode": self._config.shadow_mode,
+            "trading_enabled": self._config.trading_enabled,
             "total_executed": self._total_executed,
             "pending_exits_count": len(self._pending_exits),
             "reconciliation": self._last_reconciliation_report,
@@ -912,7 +912,7 @@ class TradingService:
         Manually close an open position immediately at market price.
         Deducts statutory 1.572% friction, records trade, and restores capacity.
         """
-        from v2.backtest.friction import CoinDCXFrictionModel
+        from background.backtest.friction import CoinDCXFrictionModel
         friction_model = CoinDCXFrictionModel()
 
         pos = await self._position_repo.get_by_id(position_id)
@@ -938,12 +938,12 @@ class TradingService:
                 logger.warning("Failed to cancel resting stop loss order %s on manual close: %s", pos.stop_loss_order_id, e)
 
         # 2. If live position, dispatch real CoinDCX sell order with 5-poll Verification Gate
-        deployment_mode = getattr(self._config, "v2_deployment_mode", "").upper()
+        deployment_mode = getattr(self._config, "deployment_mode", "").upper()
         sell_filled_qty = pos.qty
         is_partial_sell = False
-        is_live = (pos.mode == BotMode.LIVE) or (self._config.v2_trading_enabled and deployment_mode == "LIVE_MICROCASH")
+        is_live = (pos.mode == BotMode.LIVE) or (self._config.trading_enabled and deployment_mode == "LIVE_MICROCASH")
 
-        if pos.mode == BotMode.LIVE and self._config.v2_trading_enabled and deployment_mode == "LIVE_MICROCASH":
+        if pos.mode == BotMode.LIVE and self._config.trading_enabled and deployment_mode == "LIVE_MICROCASH":
             sub_client = self._subaccount_manager.get_client(pos.bot)
         if is_live:
             sell_result = await sub_client.place_live_order(

@@ -15,7 +15,7 @@ from core.bus.event_types import EventType
 from core.logging import get_logger
 from core.repository.production_repo import ProductionRepository
 
-logger = get_logger("v2.services.shadow_service.tracker")
+logger = get_logger("execution.shadow.tracker")
 
 # Anomaly threshold: 0.25% slippage divergence
 DIVERGENCE_ANOMALY_THRESHOLD_PCT = 0.25

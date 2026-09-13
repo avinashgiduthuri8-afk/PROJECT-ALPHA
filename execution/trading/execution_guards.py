@@ -23,7 +23,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from core.logging import get_logger
 
-logger = get_logger("v2.trading.execution_guards")
+logger = get_logger("execution.trading.execution_guards")
 
 
 @dataclass

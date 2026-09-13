@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, patch, MagicMock
 from decimal import Decimal
 from fastapi.testclient import TestClient
 
-from v2.services.research_service.symbol_normalizer import (
+from scanner.research.symbol_normalizer import (
     resolve_tradeable_pairs,
     normalize_symbol,
     is_supported_symbol,
@@ -17,16 +17,16 @@ from v2.services.research_service.symbol_normalizer import (
     get_base_asset,
     get_quote_currency,
 )
-from v2.trading.precision_rules import (
+from execution.trading.precision_rules import (
     get_pair_spec,
     round_qty_up,
     round_qty_down,
     validate_order_notional,
 )
-from v2.services.trading_service.auto_trader import AutoTradeRouter
-from v2.bus.event_bus import EventBus
-from v2.core.config import invalidate_config
-from v2.app_v2 import app
+from execution.auto_trader import AutoTradeRouter
+from core.bus.event_bus import EventBus
+from core.config import invalidate_config
+from app import app
 
 
 

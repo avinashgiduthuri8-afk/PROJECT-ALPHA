@@ -2293,7 +2293,7 @@
 
     <script>
         const API_KEY = "{{ api_key if api_key else 'alpha-prod-key' }}";
-        const API_BASE = window.location.origin + "/api/v2";
+        const API_BASE = window.location.origin + "/api";
         let apiAuthWarningShown = false;
 
         async function apiFetch(endpoint, options = {}) {
@@ -2690,7 +2690,7 @@
         function connectLiveWebSocket() {
             if (!API_KEY) return;
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}/ws/v2/feed?api_key=${encodeURIComponent(API_KEY)}`;
+            const wsUrl = `${protocol}//${window.location.host}/ws/feed?api_key=${encodeURIComponent(API_KEY)}`;
             try {
                 const ws = new WebSocket(wsUrl);
                 ws.onmessage = (event) => {

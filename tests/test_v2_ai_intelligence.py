@@ -14,10 +14,10 @@ from unittest.mock import AsyncMock, patch, MagicMock
 import httpx
 from fastapi import FastAPI
 
-from v2.bus.event_bus import EventBus
-from v2.bus.event_types import EventType
-from v2.core.config import V2Config
-from v2.core.types import (
+from core.bus.event_bus import EventBus
+from core.bus.event_types import EventType
+from core.config import V2Config
+from core.types import (
     AIAnalysis,
     AIRecommendation,
     MarketState,
@@ -26,18 +26,18 @@ from v2.core.types import (
     RiskLevel,
     Signal,
 )
-from v2.repository.db import Database
-from v2.repository.signal_repo import SignalRepository
-from v2.repository.ai_repo import AIAnalysisRepository
-from v2.repository.event_log_repo import EventLogRepository
-from v2.services.ai_intelligence_service import (
+from core.repository.db import Database
+from core.repository.signal_repo import SignalRepository
+from core.repository.ai_repo import AIAnalysisRepository
+from core.repository.event_log_repo import EventLogRepository
+from background.ai import (
     AIIntelligenceService,
     FallbackEvaluator,
     GeminiClient,
     build_signal_prompt,
     AI_EVALUATION_SCHEMA,
 )
-from v2.api.router import router as api_router, init_router
+from dashboard.api.router import router as api_router, init_router
 
 
 def make_test_signal(
@@ -342,7 +342,7 @@ async def test_gemini_client_mock_success():
 @pytest.mark.anyio
 async def test_ai_api_endpoints(tmp_path, monkeypatch):
     monkeypatch.setenv("DASHBOARD_API_KEY", "test-secret-key")
-    from v2.core.config import invalidate_config, get_config
+    from core.config import invalidate_config, get_config
     invalidate_config()
 
     db_path = str(tmp_path / f"test_ai_api_{uuid.uuid4().hex[:6]}.db")
@@ -416,8 +416,8 @@ async def test_ai_api_endpoints(tmp_path, monkeypatch):
             assert eval_data["confidence_score"] > 0
 
             # 5. Synthetic signal simulation endpoint
-            from v2.services.dashboard_service.service import DashboardService
-            from v2.services.dashboard_service.websocket import WebSocketManager
+            from dashboard.service import DashboardService
+            from dashboard.websocket import WebSocketManager
             ws_mgr = WebSocketManager()
             dash_service = DashboardService(bus=bus, ws_manager=ws_mgr, config=cfg)
             init_router(

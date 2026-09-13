@@ -12,8 +12,8 @@ from __future__ import annotations
 from datetime import datetime, timezone, timedelta
 import pytest
 
-from v2.core.types import MarketState, Priority, RiskLevel, Signal
-from v2.services.scanner_service.confluence_engine import (
+from core.types import MarketState, Priority, RiskLevel, Signal
+from scanner.confluence_engine import (
     ChartStructureEvaluator,
     ConfluenceEngine,
     IndicatorEvaluator,
@@ -48,7 +48,7 @@ def _make_test_signal(
     )
 
 
-from v2.core.types import OppType
+from core.types import OppType
 
 
 class TestChartStructureEvaluator:
@@ -194,7 +194,7 @@ class TestConfluenceEngine:
 class TestDeduplicationAndPrecision:
 
     def test_dedup_key_and_filter(self):
-        from v2.services.scanner_service.signal_filter import _dedup_key, deduplicate
+        from scanner.signal_filter import _dedup_key, deduplicate
         sig1 = _make_test_signal("BTC", score=90)
         sig1.source_bot = "VCP"
         assert _dedup_key(sig1) == "BTC::VCP"
@@ -212,7 +212,7 @@ class TestDeduplicationAndPrecision:
         assert new_keys2 == ["ETH::VCP"]
 
     def test_precision_rules_and_round_qty(self):
-        from v2.trading.precision_rules import get_pair_spec, round_qty
+        from execution.trading.precision_rules import get_pair_spec, round_qty
         # BTC micro-lot
         btc_qty = round_qty("BTC/INR", 0.00002439)
         assert btc_qty == 0.00002
@@ -231,7 +231,7 @@ class TestDeduplicationAndPrecision:
         assert custom_qty > 0
 
     def test_format_qty_and_telegram_alerts(self):
-        from v2.services.notification_service.formatters import (
+        from telegram.formatters import (
             format_qty,
             format_signal_ai_alert,
             format_telegram_orders,
@@ -268,7 +268,7 @@ class TestDeduplicationAndPrecision:
         assert "BUY 0.0 @" not in orders_text
 
         # Trades formatting - test no +- sign collision
-        from v2.services.notification_service.formatters import format_telegram_trades
+        from telegram.formatters import format_telegram_trades
         trades = [
             {"coin": "BTC", "bot": "STE", "pnl": 0.0, "pnl_pct": -3.58, "exit_reason": "STOP_LOSS"},
             {"coin": "SOL", "bot": "STE", "pnl": 15.2, "pnl_pct": 5.20, "exit_reason": "TAKE_PROFIT"}
@@ -284,10 +284,10 @@ class TestPostExitCooldownAndSignalLifecycle:
     @pytest.mark.anyio
     async def test_position_close_triggers_cooldown_and_suppresses_reentry(self):
         """Verify position close sets cooldown and suppresses immediate same-coin re-entry."""
-        from v2.bus.event_bus import EventBus
-        from v2.bus.event_types import EventType
-        from v2.core.config import V2Config
-        from v2.services.scanner_service.service import ScannerService
+        from core.bus.event_bus import EventBus
+        from core.bus.event_types import EventType
+        from core.config import V2Config
+        from scanner.service import ScannerService
         from unittest.mock import AsyncMock
 
         bus = EventBus()
@@ -349,9 +349,9 @@ class TestPostExitCooldownAndSignalLifecycle:
 
     def test_capital_guard_rejects_trade_during_cooldown(self):
         """Verify CapitalGuard defense-in-depth rejects in-flight trades during post-exit cooldown."""
-        from v2.core.config import V2Config
-        from v2.core.types import BotName
-        from v2.services.risk_service.capital_guard import CapitalGuard
+        from core.config import V2Config
+        from core.types import BotName
+        from execution.risk.capital_guard import CapitalGuard
 
         config = V2Config(v2_post_exit_cooldown_seconds=900)
         guard = CapitalGuard(config)
@@ -390,9 +390,9 @@ class TestPostExitCooldownAndSignalLifecycle:
     @pytest.mark.anyio
     async def test_cooldown_expiry_allows_new_opportunity(self):
         """Verify that after cooldown window expires, a new scanner opportunity can generate a signal."""
-        from v2.bus.event_bus import EventBus
-        from v2.core.config import V2Config
-        from v2.services.scanner_service.service import ScannerService
+        from core.bus.event_bus import EventBus
+        from core.config import V2Config
+        from scanner.service import ScannerService
         from unittest.mock import AsyncMock
 
         bus = EventBus()

@@ -15,7 +15,7 @@ from typing import Any, Optional
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
-from core.config import DEFAULT_ORDER_AMOUNT_INR, AppConfig, V2Config, get_config
+from core.config import DEFAULT_ORDER_AMOUNT_INR, AppConfig, get_config
 from core.logging import get_logger
 from core.repository.event_log_repo import EventLogRepository
 from core.repository.position_repo import PositionRepository
@@ -123,7 +123,7 @@ class TelegramInteractiveInterface:
         self,
         telegram_client: TelegramClient,
         bus: EventBus,
-        config: V2Config,
+        config: AppConfig,
         signal_repo: Optional[SignalRepository] = None,
         position_repo: Optional[PositionRepository] = None,
         trade_repo: Optional[TradeRepository] = None,
@@ -391,7 +391,7 @@ class TelegramInteractiveInterface:
 
     def _get_active_mode(self) -> str:
         """Return standardized active trading deployment mode."""
-        return getattr(self._config, "v2_deployment_mode", "SHADOW")
+        return getattr(self._config, "deployment_mode", "SHADOW")
 
     # 1. System Handlers
 
@@ -489,7 +489,7 @@ class TelegramInteractiveInterface:
             "mode": mode,
             "system_status": "ONLINE",
             "scanner_status": "ACTIVE" if poll_count > 0 else "STARTING",
-            "execution_status": "ENABLED" if self._config.v2_trading_enabled else "PAUSED",
+            "execution_status": "ENABLED" if self._config.trading_enabled else "PAUSED",
             "risk_status": risk_status,
             "event_bus_status": "OPERATIONAL",
             "database_status": "CONNECTED",
@@ -596,9 +596,9 @@ class TelegramInteractiveInterface:
 
         target = args[0].strip().upper()
         if target in ("PAPER", "SHADOW"):
-            self._config.v2_deployment_mode = "PAPER"
-            self._config.v2_trading_enabled = True
-            self._config.v2_shadow_mode = False
+            self._config.deployment_mode = "PAPER"
+            self._config.trading_enabled = True
+            self._config.shadow_mode = False
             msg = "✅ <b>Mode Switched to PAPER</b>\nSimulated execution active with zero capital risk."
         elif target in ("LIVE", "LIVE_MICROCASH"):
             if len(args) < 2 or args[1].lower() != "confirm":
@@ -610,9 +610,9 @@ class TelegramInteractiveInterface:
                 )
                 await self._telegram.send_message(text=warn, target_chat_id=str(chat_id))
                 return
-            self._config.v2_deployment_mode = "LIVE_MICROCASH"
-            self._config.v2_trading_enabled = True
-            self._config.v2_shadow_mode = False
+            self._config.deployment_mode = "LIVE_MICROCASH"
+            self._config.trading_enabled = True
+            self._config.shadow_mode = False
             msg = f"🔴 <b>Mode Switched to LIVE</b>\nReal money micro-orders enabled (₹{self._config.order_size_inr:.2f} notional)."
         else:
             await self._telegram.send_message(
@@ -623,11 +623,14 @@ class TelegramInteractiveInterface:
 
 
         try:
-            from core.config import AppConfig, V2Config
-            V2Config.save_runtime_overrides({
-                "v2_deployment_mode": self._config.v2_deployment_mode,
-                "v2_trading_enabled": self._config.v2_trading_enabled,
-                "v2_shadow_mode": self._config.v2_shadow_mode,
+            from core.config import AppConfig
+            AppConfig.save_runtime_overrides({
+                "deployment_mode": self._config.deployment_mode,
+                "trading_enabled": self._config.trading_enabled,
+                "shadow_mode": self._config.shadow_mode,
+                "v2_deployment_mode": self._config.deployment_mode,
+                "v2_trading_enabled": self._config.trading_enabled,
+                "v2_shadow_mode": self._config.shadow_mode,
             })
         except Exception as e:
             logger.warning("Could not persist runtime override for /mode: %s", e)
@@ -638,8 +641,8 @@ class TelegramInteractiveInterface:
         mode = self._get_active_mode()
         data = {
             "mode": mode,
-            "trading_enabled": self._config.v2_trading_enabled,
-            "shadow_mode": self._config.v2_shadow_mode,
+            "trading_enabled": self._config.trading_enabled,
+            "shadow_mode": self._config.shadow_mode,
         }
         text = format_telegram_mode(data)
         await self._telegram.send_message(
@@ -1108,13 +1111,13 @@ class TelegramInteractiveInterface:
         mode = self._get_active_mode()
         data = {
             "mode": mode,
-            "trading_enabled": self._config.v2_trading_enabled,
+            "trading_enabled": self._config.trading_enabled,
             "order_amount_inr": self._config.order_size_inr,
             "total_capital_limit": self._config.total_capital_limit,
             "max_concurrent_positions": self._config.max_concurrent_positions,
             "enforce_single_coin_lock": self._config.enforce_single_coin_lock,
-            "ai_model": self._config.v2_ai_model,
-            "scanner_poll_interval": self._config.v2_scanner_poll_interval,
+            "ai_model": self._config.ai_model,
+            "scanner_poll_interval": self._config.scanner_poll_interval,
         }
         text = format_telegram_config(data)
         await self._telegram.send_message(
@@ -1175,9 +1178,9 @@ class TelegramInteractiveInterface:
             )
             return
 
-        # Persist through existing central V2 configuration mechanism
+        # Persist through existing central configuration mechanism
         try:
-            V2Config.save_runtime_overrides({"order_size_inr": val})
+            AppConfig.save_runtime_overrides({"order_size_inr": val})
             self._config = get_config()
             self._config.order_size_inr = val
 
@@ -1211,9 +1214,9 @@ class TelegramInteractiveInterface:
 
     async def _handle_pause(self, chat_id: str | int) -> None:
         mode = self._get_active_mode()
-        self._config.v2_trading_enabled = False
+        self._config.trading_enabled = False
         if self._trading_service and hasattr(self._trading_service, "_config"):
-            self._trading_service._config.v2_trading_enabled = False
+            self._trading_service._config.trading_enabled = False
 
         logger.warning("Trading paused via Telegram C2 by chat_id: %s", chat_id)
         text = (
@@ -1272,9 +1275,9 @@ class TelegramInteractiveInterface:
                 )
                 return
         else:
-            self._config.v2_trading_enabled = True
+            self._config.trading_enabled = True
             if self._trading_service and hasattr(self._trading_service, "_config"):
-                self._trading_service._config.v2_trading_enabled = True
+                self._trading_service._config.trading_enabled = True
             if self._risk_service and hasattr(self._risk_service, "circuit_breaker"):
                 self._risk_service.circuit_breaker.reset()
 
@@ -1328,9 +1331,9 @@ class TelegramInteractiveInterface:
         if hasattr(self, "_production_controller") and self._production_controller:
             await self._production_controller.resume(operator=f"TELEGRAM_{chat_id}", target_mode=mode)
         else:
-            self._config.v2_trading_enabled = True
+            self._config.trading_enabled = True
             if self._trading_service and hasattr(self._trading_service, "_config"):
-                self._trading_service._config.v2_trading_enabled = True
+                self._trading_service._config.trading_enabled = True
             if self._risk_service and hasattr(self._risk_service, "circuit_breaker"):
                 self._risk_service.circuit_breaker.reset()
 
@@ -1359,9 +1362,9 @@ class TelegramInteractiveInterface:
                     operator=f"TELEGRAM_{chat_id}",
                 )
             else:
-                self._config.v2_trading_enabled = False
+                self._config.trading_enabled = False
                 if self._trading_service and hasattr(self._trading_service, "_config"):
-                    self._trading_service._config.v2_trading_enabled = False
+                    self._trading_service._config.trading_enabled = False
 
                 if self._risk_service and hasattr(self._risk_service, "circuit_breaker"):
                     self._risk_service.circuit_breaker.set_emergency_stop(True, reason="EMERGENCY_STOP_VIA_TELEGRAM")
@@ -1429,9 +1432,9 @@ class TelegramInteractiveInterface:
 
     async def _handle_confirm_stop_edit(self, chat_id: str | int, message_id: int) -> None:
         mode = self._get_active_mode()
-        self._config.v2_trading_enabled = False
+        self._config.trading_enabled = False
         if self._trading_service and hasattr(self._trading_service, "_config"):
-            self._trading_service._config.v2_trading_enabled = False
+            self._trading_service._config.trading_enabled = False
 
         if self._risk_service and hasattr(self._risk_service, "circuit_breaker"):
             self._risk_service.circuit_breaker.set_emergency_stop(True, reason="EMERGENCY_STOP_VIA_TELEGRAM")
@@ -1526,8 +1529,8 @@ class TelegramInteractiveInterface:
     async def _send_limits(self, chat_id: str | int) -> None:
         mode = self._get_active_mode()
         limits_data = {
-            "max_drawdown_pct": self._config.v2_max_drawdown_pct,
-            "max_consecutive_losses": self._config.v2_max_consecutive_losses,
+            "max_drawdown_pct": self._config.max_drawdown_pct,
+            "max_consecutive_losses": self._config.max_consecutive_losses,
             "max_concurrent_positions": self._config.max_concurrent_positions,
         }
         text = format_telegram_limits(limits_data, mode)

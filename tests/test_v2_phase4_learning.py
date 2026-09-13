@@ -18,17 +18,17 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from v2.bus.event_bus import EventBus
-from v2.bus.event_types import EventType
-from v2.core.config import invalidate_config
-from v2.repository.db import Database
-from v2.repository.journal_repo import JournalRepository
-from v2.repository.learning_repo import LearningRepository
-from v2.services.analytics_service.engine import AnalyticsEngine
-from v2.services.learning_service.engine import LearningEngine
-from v2.services.learning_service.calibrator import StrategyCalibrator
-from v2.services.learning_service.service import LearningService
-from v2.app_v2 import app
+from core.bus.event_bus import EventBus
+from core.bus.event_types import EventType
+from core.config import invalidate_config
+from core.repository.db import Database
+from core.repository.journal_repo import JournalRepository
+from core.repository.learning_repo import LearningRepository
+from background.analytics.engine import AnalyticsEngine
+from background.learning.engine import LearningEngine
+from background.learning.calibrator import StrategyCalibrator
+from background.learning.service import LearningService
+from app import app
 
 
 async def _create_test_learning_db(tmp_path):

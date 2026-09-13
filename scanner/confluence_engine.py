@@ -21,7 +21,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from core.logging import get_logger
 from core.types import MarketState, Priority, RiskLevel, Signal
 
-logger = get_logger("v2.services.scanner_service.confluence_engine")
+logger = get_logger("scanner.confluence_engine")
 
 
 class SentimentProvider(ABC):

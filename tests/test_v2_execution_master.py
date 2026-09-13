@@ -46,19 +46,19 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from v2.app_v2 import app
-from v2.bus.event_bus import EventBus
-from v2.bus.event_types import EventType
-from v2.core.config import V2Config, get_config, invalidate_config
-from v2.core.types import BotMode, BotName, ExitReason, Position, PositionStatus
-from v2.repository.db import Database
-from v2.repository.event_log_repo import EventLogRepository
-from v2.repository.position_repo import PositionRepository
-from v2.repository.trade_repo import TradeRepository
-from v2.scheduler.jobs import register_all_jobs
-from v2.scheduler.scheduler import BackgroundScheduler
-from v2.services.trading_service import TradingService
-from v2.trading.subaccount_manager import CoinDCXSubAccountManager
+from app import app
+from core.bus.event_bus import EventBus
+from core.bus.event_types import EventType
+from core.config import V2Config, get_config, invalidate_config
+from core.types import BotMode, BotName, ExitReason, Position, PositionStatus
+from core.repository.db import Database
+from core.repository.event_log_repo import EventLogRepository
+from core.repository.position_repo import PositionRepository
+from core.repository.trade_repo import TradeRepository
+from background.scheduler.jobs import register_all_jobs
+from background.scheduler.scheduler import BackgroundScheduler
+from execution import TradingService
+from execution.trading.subaccount_manager import CoinDCXSubAccountManager
 
 TEST_DB_DIR = os.path.abspath(".test_dbs")
 os.makedirs(TEST_DB_DIR, exist_ok=True)

@@ -33,6 +33,8 @@ def init_websocket(
     _dashboard_service = dashboard_service
 
 
+@router.websocket("/ws")
+@router.websocket("/ws/feed")
 @router.websocket("/ws/v2/feed")
 async def websocket_feed(
     websocket: WebSocket,

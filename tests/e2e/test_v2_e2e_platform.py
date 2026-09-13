@@ -30,11 +30,11 @@ import pytest
 from fastapi import FastAPI, APIRouter
 from fastapi.testclient import TestClient
 
-from v2.app_v2 import app, templates
-from v2.bus.event_bus import EventBus
-from v2.bus.event_types import EventType
-from v2.core.config import V2Config, get_config, invalidate_config
-from v2.core.types import (
+from app import app, templates
+from core.bus.event_bus import EventBus
+from core.bus.event_types import EventType
+from core.config import V2Config, get_config, invalidate_config
+from core.types import (
     BotMode,
     BotName,
     ExitReason,
@@ -48,22 +48,22 @@ from v2.core.types import (
     RiskLevel,
     MarketState,
 )
-from v2.repository.db import Database
-from v2.repository.position_repo import PositionRepository
-from v2.repository.trade_repo import TradeRepository
-from v2.repository.candle_repo import CandleRepository
-from v2.repository.signal_repo import SignalRepository
-from v2.services.dashboard_service.bot_pipeline import BotPipelineTracker, BotState, STAGE_ORDER
-from v2.services.dashboard_service.aggregator import DashboardAggregator
-from v2.services.dashboard_service.service import DashboardService
-from v2.services.portfolio_service.aggregator import PortfolioAggregator
-from v2.services.portfolio_service.service import PortfolioService
-from v2.services.ai_intelligence_service import AIIntelligenceService
-from v2.services.ai_intelligence_service.circuit_breaker import CircuitBreaker, CircuitState
-from v2.api.router import init_router, router as api_router
-from v2.api.dashboard_routes import router as dashboard_router, init_dashboard_routes
-from v2.api.production_routes import init_production_router
-from v2.api.schemas import (
+from core.repository.db import Database
+from core.repository.position_repo import PositionRepository
+from core.repository.trade_repo import TradeRepository
+from core.repository.candle_repo import CandleRepository
+from core.repository.signal_repo import SignalRepository
+from dashboard.bot_pipeline import BotPipelineTracker, BotState, STAGE_ORDER
+from dashboard.aggregator import DashboardAggregator
+from dashboard.service import DashboardService
+from background.portfolio.aggregator import PortfolioAggregator
+from background.portfolio.service import PortfolioService
+from background.ai.service import AIIntelligenceService
+from background.ai.circuit_breaker import CircuitBreaker, CircuitState
+from dashboard.api.router import init_router, router as api_router
+from dashboard.api.dashboard_routes import router as dashboard_router, init_dashboard_routes
+from dashboard.api.production_routes import init_production_router
+from dashboard.api.schemas import (
     PositionSchema,
     DashboardOverviewSchema,
     ScannedCoinSchema,
@@ -285,7 +285,7 @@ class TestTier1Feature2DashboardMount:
     def test_t1_6_dashboard_router_initialization(self):
         aggregator = DashboardAggregator()
         init_dashboard_routes(aggregator)
-        from v2.api.dashboard_routes import get_aggregator
+        from dashboard.api.dashboard_routes import get_aggregator
         assert get_aggregator() is aggregator
 
     @pytest.mark.asyncio
@@ -802,12 +802,12 @@ class TestTier2BoundaryDashboardMount:
     def test_t2_6_pause_invalid_bot_name_validation(self):
         aggregator = DashboardAggregator()
         with pytest.raises(Exception):
-            from v2.api.dashboard_routes import pause_fleet_bot
+            from dashboard.api.dashboard_routes import pause_fleet_bot
             asyncio.run(pause_fleet_bot(bot_name="NON_EXISTENT"))
 
     def test_t2_7_dashboard_overview_when_uninitialized(self):
-        import v2.api.dashboard_routes as d_routes
-        from v2.api.dashboard_routes import get_aggregator
+        import dashboard.api.dashboard_routes as d_routes
+        from dashboard.api.dashboard_routes import get_aggregator
         original = d_routes._dashboard_aggregator
         d_routes._dashboard_aggregator = None
         try:

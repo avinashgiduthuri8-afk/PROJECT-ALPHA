@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
 
-from core.config import V2Config
+from core.config import AppConfig
 from core.logging import get_logger
 from scanner import ScannerService
 from .scheduler import BackgroundScheduler
@@ -26,7 +26,7 @@ logger = get_logger("background.scheduler.jobs")
 
 def register_all_jobs(
     scheduler: BackgroundScheduler,
-    config: V2Config,
+    config: AppConfig,
     scanner_service: ScannerService,
     trading_service: Optional[TradingService] = None,
 ) -> None:
@@ -35,6 +35,7 @@ def register_all_jobs(
 
     Additional jobs will be added in V2.2–V2.5 as services come online.
     Register all V2 scheduler jobs.
+    Register all scheduler jobs.
     """
 
     # ── scanner_poll ──────────────────────────────────────────────────────────
@@ -42,7 +43,7 @@ def register_all_jobs(
     scheduler.register(
         name     = "scanner_poll",
         fn       = scanner_service.poll,
-        interval = config.v2_scanner_poll_interval,
+        interval = config.scanner_poll_interval,
         enabled  = True,
     )
 
@@ -55,7 +56,7 @@ def register_all_jobs(
         enabled  = True,
     )
 
-    logger.info("All V2.1 jobs registered")
+    logger.info("All background scheduler jobs registered")
     # ── exit_monitor ──────────────────────────────────────────────────────────
     # Periodic sweep for open positions hitting SL / TP / Trailing exit triggers.
     if trading_service is not None:

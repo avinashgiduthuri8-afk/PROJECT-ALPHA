@@ -1,6 +1,6 @@
 """
-V2 API Router - all /api/v2/* endpoints.
-Mounted in v2/app_v2.py under the prefix /api/v2.
+PROJECT-ALPHA API Router - Canonical /api/* endpoints and backward-compatible /api/v2/* aliases.
+Mounted in app.py under the prefixes /api and /api/v2.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from .dashboard_routes import router as dashboard_router, init_dashboard_routes
 from .production_routes import router as production_router, init_production_routes
 from .schemas import (
     OkSchema, JobStatusSchema, ScannerHealthSchema,
-    SignalSchema, V2StatusSchema,
+    SignalSchema, StatusSchema, V2StatusSchema,
     AIAnalysisSchema, AIHealthSchema,
     RiskStateSchema, PositionSchema, TradeSchema,
     PortfolioSnapshotSchema, ShadowTradeSchema,
@@ -208,23 +208,23 @@ async def verify_dashboard_password(body: VerifyPasswordRequestSchema) -> dict:
 
 @router.get(
     "/status",
-    response_model=V2StatusSchema,
+    response_model=StatusSchema,
     dependencies=[Depends(require_api_key)],
     tags=["system"],
 )
-async def status_endpoint() -> V2StatusSchema:
-    """Full V2 system status snapshot."""
+async def status_endpoint() -> StatusSchema:
+    """Full system status snapshot."""
     scanner_h = _scanner_service.get_health() if _scanner_service else {}
     ai_h = _ai_service.get_health() if _ai_service else None
     jobs = _scheduler.get_status() if _scheduler else []
 
-    return V2StatusSchema(
+    return StatusSchema(
         scanner_health=ScannerHealthSchema(**scanner_h) if scanner_h else ScannerHealthSchema(
             healthy=False, poll_count=0, live_signals=0, last_poll_at=None, last_error="not started"
         ),
         ai_health=AIHealthSchema(**ai_h) if ai_h else None,
         scheduler_jobs=[JobStatusSchema(**j) for j in jobs],
-        db_path=_config.v2_db_path if _config else "unknown",
+        db_path=_config.db_path if _config else "unknown",
         uptime_polls=scanner_h.get("poll_count", 0),
         live_signals=scanner_h.get("live_signals", 0),
     )
@@ -1234,7 +1234,7 @@ async def simulate_signal_emission(body: SimulateSignalRequestSchema) -> Simulat
 
 
 # ── Production Mode Controller & Live Microcash Endpoints ─────────────────────
-# Note: Handled by production_router in v2/api/production_routes.py mounted at /production
+# Note: Handled by production_router in dashboard/api/production_routes.py mounted at /production
 
 
 @router.get(
@@ -1271,7 +1271,7 @@ async def get_active_positions() -> list[PositionSchema]:
     return out
 
 
-# Handled by production_router in v2/api/production_routes.py mounted at /production/status
+# Handled by production_router in dashboard/api/production_routes.py mounted at /production/status
 
 
 # ── Execution Center & Order Lifecycle Endpoints ──────────────────────────────

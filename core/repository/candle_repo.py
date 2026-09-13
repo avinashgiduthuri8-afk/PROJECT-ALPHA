@@ -11,7 +11,7 @@ from core.exceptions import StorageError
 from core.logging import get_logger
 from .base import BaseRepository
 
-logger = get_logger("v2.repository.candle_repo")
+logger = get_logger("core.repository.candle_repo")
 
 
 class CandleRepository(BaseRepository):

@@ -19,22 +19,22 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from v2.bus.event_bus import EventBus
-from v2.bus.event_types import EventType
-from v2.core.config import invalidate_config
-from v2.repository.db import Database
-from v2.repository.production_repo import ProductionRepository
-from v2.services.production_service.controller import (
+from core.bus.event_bus import EventBus
+from core.bus.event_types import EventType
+from core.config import invalidate_config
+from core.repository.db import Database
+from core.repository.production_repo import ProductionRepository
+from background.production.controller import (
     DeploymentMode,
     ProductionController,
     WALLET_LIMITS_INR,
     MICRO_ORDER_CAPS_INR,
     MINIMUM_NOTIONAL_INR,
 )
-from v2.services.production_service.service import ProductionService
-from v2.services.production_service.watchdog import ProductionWatchdog
-from v2.services.shadow_service.tracker import ShadowDivergenceTracker
-from v2.app_v2 import app
+from background.production.service import ProductionService
+from background.production.watchdog import ProductionWatchdog
+from execution.shadow.tracker import ShadowDivergenceTracker
+from app import app
 
 
 async def _create_test_production_db(tmp_path):

@@ -1,5 +1,6 @@
 """
 v2/services/production_service/watchdog.py — 24/7 Watchdog Supervisor & Health Recovery.
+background/production/watchdog.py — 24/7 Watchdog Supervisor & Health Recovery.
 
 Monitors all 14 pipeline stages and 9 critical subsystem probes:
 1. Scanner
@@ -13,6 +14,7 @@ Monitors all 14 pipeline stages and 9 critical subsystem probes:
 9. Scheduler
 
 Provides automatic self-healing and alert dispatching.
+Monitors subsystem probes, detects stalled worker loops, and performs autonomous self-healing.
 """
 
 from __future__ import annotations
@@ -24,7 +26,7 @@ from typing import Any, Dict, Optional
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
-from core.config import V2Config
+from core.config import AppConfig
 from core.logging import get_logger
 
 logger = get_logger("background.production.watchdog")
@@ -38,7 +40,7 @@ class ProductionWatchdog:
 
     def __init__(
         self,
-        config: Optional[V2Config] = None,
+        config: Optional[AppConfig] = None,
         bus: Optional[EventBus] = None,
         scanner_service: Optional[Any] = None,
         ai_service: Optional[Any] = None,
@@ -129,7 +131,7 @@ class ProductionWatchdog:
             return
         self._running = True
         self._start_time = datetime.now(timezone.utc)
-        self._task = asyncio.create_task(self._run_loop(), name="v2-production-watchdog")
+        self._task = asyncio.create_task(self._run_loop(), name="production-watchdog")
         logger.info("ProductionWatchdog started with %ss inspection cycle", self._interval)
 
     async def stop(self) -> None:
@@ -343,8 +345,8 @@ class ProductionWatchdog:
         if not self._trading_service:
             return {"status": "UNKNOWN", "message": "Trading service not wired"}
         try:
-            mode = getattr(self._config, "v2_deployment_mode", "SHADOW")
-            trading_enabled = getattr(self._config, "v2_trading_enabled", False)
+            mode = getattr(self._config, "deployment_mode", "SHADOW")
+            trading_enabled = getattr(self._config, "trading_enabled", False)
             return {
                 "status": "OK",
                 "mode": mode,

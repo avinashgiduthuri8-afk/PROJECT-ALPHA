@@ -9,14 +9,14 @@ import uuid
 from datetime import datetime, timezone
 import pytest
 
-from v2.bus.event_bus import EventBus
-from v2.core.config import V2Config
-from v2.core.types import BotMode, BotName, Position
-from v2.repository.db import Database
-from v2.repository.event_log_repo import EventLogRepository
-from v2.repository.position_repo import PositionRepository
-from v2.repository.signal_repo import SignalRepository
-from v2.services.scanner_service.service import ScannerService
+from core.bus.event_bus import EventBus
+from core.config import V2Config
+from core.types import BotMode, BotName, Position
+from core.repository.db import Database
+from core.repository.event_log_repo import EventLogRepository
+from core.repository.position_repo import PositionRepository
+from core.repository.signal_repo import SignalRepository
+from scanner.service import ScannerService
 
 TEST_DB_DIR = os.path.abspath(".test_dbs")
 os.makedirs(TEST_DB_DIR, exist_ok=True)

@@ -10,15 +10,15 @@ import time
 import pytest
 import httpx
 
-from v2.core.config import V2Config, invalidate_config
-from v2.core.types import BotName
-from v2.trading.subaccount_manager import (
+from core.config import V2Config, invalidate_config
+from core.types import BotName
+from execution.trading.subaccount_manager import (
     CoinDCXExecutionManager,
     CoinDCXExecutionClient,
     CoinDCXSubAccountManager,
     SubAccountConfig,
 )
-from v2.trading.precision_rules import validate_order_notional
+from execution.trading.precision_rules import validate_order_notional
 
 
 # ── 1. Master API Credentials & Config Loading ───────────────────────────────
@@ -138,9 +138,9 @@ async def test_get_balances_rate_limited_429():
 
 @pytest.mark.anyio
 async def test_place_live_order_success_mock(monkeypatch):
-    from v2.core.config import get_config
+    from core.config import get_config
     live_cfg = get_config().model_copy(update={"v2_deployment_mode": "LIVE_MICROCASH", "v2_trading_enabled": True})
-    monkeypatch.setattr("v2.core.config.get_config", lambda: live_cfg)
+    monkeypatch.setattr("core.config.get_config", lambda: live_cfg)
     mock_order_response = {
         "id": "ORD_COINDCX_9999",
         "market": "SOLINR",
@@ -188,9 +188,9 @@ async def test_place_live_order_success_mock(monkeypatch):
 
 @pytest.mark.anyio
 async def test_place_live_order_min_notional_rejection(monkeypatch):
-    from v2.core.config import get_config
+    from core.config import get_config
     live_cfg = get_config().model_copy(update={"v2_deployment_mode": "LIVE_MICROCASH", "v2_trading_enabled": True})
-    monkeypatch.setattr("v2.core.config.get_config", lambda: live_cfg)
+    monkeypatch.setattr("core.config.get_config", lambda: live_cfg)
     config = SubAccountConfig(
         bot_name=BotName.BBS,
         subaccount_id="ALPHA_BBS_01",

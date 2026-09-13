@@ -1,5 +1,5 @@
 """
-V2 Research Hub API Routes — /api/v2/research/*
+PROJECT-ALPHA Research Hub API Routes — /api/research/* and /api/v2/research/*
 
 Provides on-demand coin analytics: technical profile, instant backtest,
 and AI trend prediction.  All endpoints are read-only and isolated from

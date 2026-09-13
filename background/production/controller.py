@@ -1,5 +1,6 @@
 """
 v2/services/production_service/controller.py — Production Controller & Emergency Kill-Switch.
+background/production/controller.py — Production Controller & Emergency Kill-Switch.
 
 Manages:
 1. Dynamic mode switching between SHADOW, PAPER, and LIVE_MICROCASH with persistence.
@@ -18,7 +19,7 @@ from enum import Enum
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
-from core.config import V2Config, get_config
+from core.config import AppConfig, get_config
 from core.logging import get_logger
 
 logger = get_logger("background.production.controller")
@@ -46,7 +47,7 @@ class ProductionController:
 
     def __init__(
         self,
-        config: Optional[V2Config] = None,
+        config: Optional[AppConfig] = None,
         bus: Optional[EventBus] = None,
         state_repo: Optional[Any] = None,
         production_repo: Optional[Any] = None,
@@ -73,6 +74,7 @@ class ProductionController:
             if mode == "SHADOW":
                 mode = "PAPER"
             self._config.v2_deployment_mode = mode
+            self._config.deployment_mode = mode
             self._kill_switch_tripped = bool(state.get("global_kill_switch", False))
         elif self._state_repo and hasattr(self._state_repo, "get_runtime_state"):
             state = await self._state_repo.get_runtime_state()
@@ -80,6 +82,7 @@ class ProductionController:
             if mode == "SHADOW":
                 mode = "PAPER"
             self._config.v2_deployment_mode = mode
+            self._config.deployment_mode = mode
             self._kill_switch_tripped = bool(state.get("global_kill_switch", False))
 
 
@@ -154,6 +157,7 @@ class ProductionController:
     def get_active_mode(self) -> str:
         """Return the currently configured deployment mode."""
         return getattr(self._config, "v2_deployment_mode", "PAPER")
+        return getattr(self._config, "deployment_mode", "PAPER")
 
     async def set_mode(self, target_mode: str, operator: str = "API") -> Dict[str, Any]:
         """
@@ -189,19 +193,28 @@ class ProductionController:
             self._config.v2_deployment_mode = "LIVE_MICROCASH"
             self._config.v2_trading_enabled = True
             self._config.v2_shadow_mode = False
+            self._config.deployment_mode = "LIVE_MICROCASH"
+            self._config.trading_enabled = True
+            self._config.shadow_mode = False
             msg = f"Mode transitioned to LIVE_MICROCASH. Real micro-orders (₹{self._config.order_size_inr:.2f}) dispatch to CoinDCX."
         else:
             self._config.v2_deployment_mode = "PAPER"
             self._config.v2_trading_enabled = True
             self._config.v2_shadow_mode = False
+            self._config.deployment_mode = "PAPER"
+            self._config.trading_enabled = True
+            self._config.shadow_mode = False
             msg = "Mode transitioned to PAPER. Virtual positions execute with live prices, SL/TP exits, and 1.572% friction."
 
         # 1. Persist config overrides to filesystem
         try:
-            V2Config.save_runtime_overrides({
-                "v2_deployment_mode": self._config.v2_deployment_mode,
-                "v2_trading_enabled": self._config.v2_trading_enabled,
-                "v2_shadow_mode": self._config.v2_shadow_mode,
+            AppConfig.save_runtime_overrides({
+                "deployment_mode": self._config.deployment_mode,
+                "trading_enabled": self._config.trading_enabled,
+                "shadow_mode": self._config.shadow_mode,
+                "v2_deployment_mode": self._config.deployment_mode,
+                "v2_trading_enabled": self._config.trading_enabled,
+                "v2_shadow_mode": self._config.shadow_mode,
             })
         except Exception as exc:
             logger.warning("Could not persist runtime override for set_mode: %s", exc)
@@ -219,6 +232,12 @@ class ProductionController:
                     "v2_deployment_mode": self._config.v2_deployment_mode,
                     "v2_trading_enabled": str(self._config.v2_trading_enabled).lower(),
                     "v2_shadow_mode": str(self._config.v2_shadow_mode).lower(),
+                    "deployment_mode": self._config.deployment_mode,
+                    "trading_enabled": str(self._config.trading_enabled).lower(),
+                    "shadow_mode": str(self._config.shadow_mode).lower(),
+                    "v2_deployment_mode": self._config.deployment_mode,
+                    "v2_trading_enabled": str(self._config.trading_enabled).lower(),
+                    "v2_shadow_mode": str(self._config.shadow_mode).lower(),
                     "mode_updated_at": datetime.now(timezone.utc).isoformat(),
                     "mode_updated_by": operator,
                 }, updated_by=operator)
@@ -230,7 +249,7 @@ class ProductionController:
             try:
                 await self._event_log_repo.append(
                     event_type="PRODUCTION_MODE_CHANGED",
-                    payload={"new_mode": mode, "operator": operator, "trading_enabled": self._config.v2_trading_enabled},
+                    payload={"new_mode": mode, "operator": operator, "trading_enabled": self._config.trading_enabled},
                     source_service="production_controller",
                 )
             except Exception as exc:
@@ -239,9 +258,12 @@ class ProductionController:
         # 4. Notify EventBus
         try:
             await self._bus.publish(EventType.SYSTEM_CONFIG_UPDATED, {
-                "v2_deployment_mode": self._config.v2_deployment_mode,
-                "v2_trading_enabled": self._config.v2_trading_enabled,
-                "v2_shadow_mode": self._config.v2_shadow_mode,
+                "deployment_mode": self._config.deployment_mode,
+                "trading_enabled": self._config.trading_enabled,
+                "shadow_mode": self._config.shadow_mode,
+                "v2_deployment_mode": self._config.deployment_mode,
+                "v2_trading_enabled": self._config.trading_enabled,
+                "v2_shadow_mode": self._config.shadow_mode,
                 "operator": operator,
             })
         except Exception as exc:
@@ -254,7 +276,7 @@ class ProductionController:
                     f"⚙️ <b>DEPLOYMENT MODE CHANGED</b>\n\n"
                     f"• <b>New Mode:</b> <code>{mode}</code>\n"
                     f"• <b>Operator:</b> <code>{operator}</code>\n"
-                    f"• <b>Trading:</b> {'ENABLED' if self._config.v2_trading_enabled else 'HALTED'}\n"
+                    f"• <b>Trading:</b> {'ENABLED' if self._config.trading_enabled else 'HALTED'}\n"
                     f"• <b>Info:</b> {msg}"
                 )
             except Exception as exc:
@@ -266,8 +288,8 @@ class ProductionController:
             "ok": True,
             "mode": mode,
             "deployment_mode": mode,
-            "trading_enabled": self._config.v2_trading_enabled,
-            "shadow_mode": self._config.v2_shadow_mode,
+            "trading_enabled": self._config.trading_enabled,
+            "shadow_mode": self._config.shadow_mode,
             "message": msg,
         }
 
@@ -291,9 +313,15 @@ class ProductionController:
         self._config.v2_trading_enabled = False
         self._config.v2_deployment_mode = "PAPER"
         self._config.v2_shadow_mode = False
+        self._config.trading_enabled = False
+        self._config.deployment_mode = "PAPER"
+        self._config.shadow_mode = False
 
         try:
-            V2Config.save_runtime_overrides({
+            AppConfig.save_runtime_overrides({
+                "deployment_mode": "PAPER",
+                "trading_enabled": False,
+                "shadow_mode": False,
                 "v2_deployment_mode": "PAPER",
                 "v2_trading_enabled": False,
                 "v2_shadow_mode": False,
@@ -310,6 +338,9 @@ class ProductionController:
                     "circuit_breaker_status": "TRIPPED",
                     "circuit_breaker_reason": reason,
                     "emergency_stop": "true",
+                    "deployment_mode": "PAPER",
+                    "trading_enabled": "false",
+                    "shadow_mode": "false",
                     "v2_deployment_mode": "PAPER",
                     "v2_trading_enabled": "false",
                     "v2_shadow_mode": "false",
@@ -343,7 +374,7 @@ class ProductionController:
             "ok": True,
             "circuit_breaker": "TRIPPED",
             "circuit_breaker_tripped": True,
-            "mode": self._config.v2_deployment_mode,
+            "mode": self._config.deployment_mode,
             "trading_enabled": False,
             "status": "KILL_SWITCH_TRIPPED",
             "message": f"Global circuit breaker tripped: {reason}. All live order dispatch blocked immediately.",
@@ -449,7 +480,7 @@ class ProductionController:
             "circuit_breaker": "NORMAL",
             "circuit_breaker_tripped": False,
             "mode": resume_mode,
-            "trading_enabled": self._config.v2_trading_enabled,
+            "trading_enabled": self._config.trading_enabled,
             "database_integrity": True,
             "message": f"Trading successfully resumed in {resume_mode} mode. Circuit breaker re-armed.",
         }

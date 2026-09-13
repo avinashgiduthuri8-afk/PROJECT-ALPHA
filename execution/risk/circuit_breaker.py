@@ -8,17 +8,17 @@ import time
 from datetime import datetime, timezone
 from typing import Optional
 
-from core.config import V2Config
+from core.config import AppConfig
 from core.types import BotName, RiskDecision
 from core.logging import get_logger
 
-logger = get_logger("v2.services.risk_service.circuit_breaker")
+logger = get_logger("execution.risk.circuit_breaker")
 
 
 class CircuitBreaker:
     """Monitors strategy degradation, drawdown spikes, and loss streaks."""
 
-    def __init__(self, config: V2Config) -> None:
+    def __init__(self, config: AppConfig) -> None:
         self._config = config
         self._is_open = False
         self._emergency_stop = False
@@ -103,8 +103,8 @@ class CircuitBreaker:
             )
 
         losses = self._consecutive_losses.get(bot.value, 0)
-        if losses >= self._config.v2_max_consecutive_losses:
-            self.trip(f"{bot.value} exceeded max consecutive losses ({losses}/{self._config.v2_max_consecutive_losses})")
+        if losses >= self._config.max_consecutive_losses:
+            self.trip(f"{bot.value} exceeded max consecutive losses ({losses}/{self._config.max_consecutive_losses})")
             ms = (time.perf_counter() - t0) * 1000.0
             return RiskDecision(
                 allowed=False,
@@ -132,7 +132,7 @@ class CircuitBreaker:
         if pnl < 0:
             self._consecutive_losses[key] = self._consecutive_losses.get(key, 0) + 1
             losses = self._consecutive_losses[key]
-            if losses >= self._config.v2_max_consecutive_losses:
+            if losses >= self._config.max_consecutive_losses:
                 self.trip(f"{key} hit {losses} consecutive loss trades.")
         else:
             self._consecutive_losses[key] = 0

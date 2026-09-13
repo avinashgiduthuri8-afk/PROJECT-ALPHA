@@ -13,10 +13,10 @@ import os
 import pytest
 from fastapi.testclient import TestClient
 
-from v2.services.dashboard_service.bot_pipeline import BotPipelineTracker, BotState
-from v2.bus.event_types import EventType
-from v2.trading.subaccount_manager import CoinDCXSubAccountManager, SubAccountConfig
-from v2.core.types import BotName
+from dashboard.bot_pipeline import BotPipelineTracker, BotState
+from core.bus.event_types import EventType
+from execution.trading.subaccount_manager import CoinDCXSubAccountManager, SubAccountConfig
+from core.types import BotName
 
 
 # ── 1. BotPipelineTracker Unit Tests ──────────────────────────────────────────
@@ -266,18 +266,18 @@ async def test_bot_api_endpoints(monkeypatch):
     import uuid
     import httpx
     from fastapi import FastAPI
-    from v2.api.router import router as api_router, init_router
-    from v2.repository.db import Database
-    from v2.repository.signal_repo import SignalRepository
-    from v2.repository.ai_repo import AIAnalysisRepository
-    from v2.repository.position_repo import PositionRepository
-    from v2.repository.trade_repo import TradeRepository
-    from v2.repository.shadow_repo import ShadowRepository
-    from v2.repository.metrics_repo import MetricsRepository
-    from v2.repository.event_log_repo import EventLogRepository
-    from v2.services.dashboard_service import DashboardService
-    from v2.bus.event_bus import EventBus
-    from v2.core.config import get_config, invalidate_config
+    from dashboard.api.router import router as api_router, init_router
+    from core.repository.db import Database
+    from core.repository.signal_repo import SignalRepository
+    from core.repository.ai_repo import AIAnalysisRepository
+    from core.repository.position_repo import PositionRepository
+    from core.repository.trade_repo import TradeRepository
+    from core.repository.shadow_repo import ShadowRepository
+    from core.repository.metrics_repo import MetricsRepository
+    from core.repository.event_log_repo import EventLogRepository
+    from dashboard import DashboardService
+    from core.bus.event_bus import EventBus
+    from core.config import get_config, invalidate_config
 
     monkeypatch.setenv("DASHBOARD_API_KEY", "test-key-bots")
     invalidate_config()

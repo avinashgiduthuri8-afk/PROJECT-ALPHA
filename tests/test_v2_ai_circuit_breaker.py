@@ -21,10 +21,10 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
-from v2.bus.event_bus import EventBus
-from v2.bus.event_types import EventType
-from v2.core.config import V2Config
-from v2.core.types import (
+from core.bus.event_bus import EventBus
+from core.bus.event_types import EventType
+from core.config import V2Config
+from core.types import (
     AIAnalysis,
     AIRecommendation,
     Priority,
@@ -33,12 +33,12 @@ from v2.core.types import (
     OppType,
     RiskLevel,
 )
-from v2.repository.ai_repo import AIAnalysisRepository
-from v2.repository.event_log_repo import EventLogRepository
-from v2.repository.signal_repo import SignalRepository
-from v2.repository.db import Database
-from v2.services.ai_intelligence_service.circuit_breaker import CircuitBreaker, CircuitState
-from v2.services.ai_intelligence_service.service import AIIntelligenceService
+from core.repository.ai_repo import AIAnalysisRepository
+from core.repository.event_log_repo import EventLogRepository
+from core.repository.signal_repo import SignalRepository
+from core.repository.db import Database
+from background.ai.circuit_breaker import CircuitBreaker, CircuitState
+from background.ai.service import AIIntelligenceService
 
 
 # ── 1. Pure CircuitBreaker State Machine Tests ──────────────────────────────

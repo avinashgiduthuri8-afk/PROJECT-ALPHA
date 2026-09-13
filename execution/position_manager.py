@@ -28,7 +28,7 @@ from execution.trading.precision_rules import (
     validate_trade_parameters,
 )
 
-logger = get_logger("v2.services.trading_service.position_manager")
+logger = get_logger("execution.position_manager")
 
 # Statutory Round-Trip Drag Rate: 1.572% Total Friction
 # Breakdown: 0.20% Exchange Fee + 18% GST on Fee (0.036%) + 1.00% Sec 194S TDS + 0.10% Slippage

@@ -1,4 +1,4 @@
-﻿"""
+"""
 V2 AIAnalysisRepository — persistence for AI signal evaluations.
 """
 
@@ -15,7 +15,7 @@ from core.types import AIAnalysis, AIRecommendation
 from core.logging import get_logger
 from .base import BaseRepository
 
-logger = get_logger("v2.repository.ai_repo")
+logger = get_logger("core.repository.ai_repo")
 
 _ISO = "%Y-%m-%dT%H:%M:%S.%f+00:00"
 

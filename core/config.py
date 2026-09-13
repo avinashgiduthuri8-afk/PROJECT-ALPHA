@@ -16,7 +16,7 @@ Canonical environment variables:
   - EXECUTION_TIMEOUT (fallback: V2_EXECUTION_TIMEOUT)
   - DB_PATH (fallback: V2_DB_PATH)
 
-Canonical database path: data/project_alpha.db (fallback: v2/data/alpha_v2.db)
+Canonical database path: data/project_alpha.db
 
 Usage:
     from core.config import AppConfig, get_config
@@ -106,48 +106,56 @@ class AppConfig(BaseSettings):
     bbs_capital_limit:   float = Field(default=0.0,  alias="BBS_CAPITAL_LIMIT")
 
     # ── Trade sizing & bot limits (Phase 5 / Unified Fleet) ───────────────────
-    v2_default_trade_amount_ste: float = Field(default=200.0, alias="STE_TRADE_AMOUNT")
-    v2_default_trade_amount_hda: float = Field(default=200.0, alias="HDA_TRADE_AMOUNT")
-    v2_default_trade_amount_vcp: float = Field(default=200.0, alias="VCP_TRADE_AMOUNT")
-    v2_default_trade_amount_bbs: float = Field(default=200.0, alias="BBS_TRADE_AMOUNT")
-    v2_max_positions_ste:        int   = Field(default=10,    alias="STE_MAX_POSITIONS")
-    v2_max_positions_hda:        int   = Field(default=10,    alias="HDA_MAX_POSITIONS")
-    v2_max_positions_vcp:        int   = Field(default=10,    alias="VCP_MAX_POSITIONS")
-    v2_max_positions_bbs:        int   = Field(default=10,    alias="BBS_MAX_POSITIONS")
-    v2_max_consecutive_losses:   int   = Field(default=5,     description="Max consecutive losses before circuit breaker trips.")
-    v2_max_drawdown_pct:         float = Field(default=10.0,  description="Max daily drawdown pct before breaker trips.")
+    default_trade_amount_ste: float = Field(default=200.0, validation_alias=AliasChoices("STE_TRADE_AMOUNT", "V2_STE_TRADE_AMOUNT", "default_trade_amount_ste", "v2_default_trade_amount_ste"))
+    default_trade_amount_hda: float = Field(default=200.0, validation_alias=AliasChoices("HDA_TRADE_AMOUNT", "V2_HDA_TRADE_AMOUNT", "default_trade_amount_hda", "v2_default_trade_amount_hda"))
+    default_trade_amount_vcp: float = Field(default=200.0, validation_alias=AliasChoices("VCP_TRADE_AMOUNT", "V2_VCP_TRADE_AMOUNT", "default_trade_amount_vcp", "v2_default_trade_amount_vcp"))
+    default_trade_amount_bbs: float = Field(default=200.0, validation_alias=AliasChoices("BBS_TRADE_AMOUNT", "V2_BBS_TRADE_AMOUNT", "default_trade_amount_bbs", "v2_default_trade_amount_bbs"))
+    max_positions_ste:        int   = Field(default=10,    validation_alias=AliasChoices("STE_MAX_POSITIONS", "V2_STE_MAX_POSITIONS", "max_positions_ste", "v2_max_positions_ste"))
+    max_positions_hda:        int   = Field(default=10,    validation_alias=AliasChoices("HDA_MAX_POSITIONS", "V2_HDA_MAX_POSITIONS", "max_positions_hda", "v2_max_positions_hda"))
+    max_positions_vcp:        int   = Field(default=10,    validation_alias=AliasChoices("VCP_MAX_POSITIONS", "V2_VCP_MAX_POSITIONS", "max_positions_vcp", "v2_max_positions_vcp"))
+    max_positions_bbs:        int   = Field(default=10,    validation_alias=AliasChoices("BBS_MAX_POSITIONS", "V2_BBS_MAX_POSITIONS", "max_positions_bbs", "v2_max_positions_bbs"))
+    max_consecutive_losses:   int   = Field(default=5,     validation_alias=AliasChoices("MAX_CONSECUTIVE_LOSSES", "V2_MAX_CONSECUTIVE_LOSSES", "max_consecutive_losses", "v2_max_consecutive_losses"), description="Max consecutive losses before circuit breaker trips.")
+    max_drawdown_pct:         float = Field(default=10.0,  validation_alias=AliasChoices("MAX_DRAWDOWN_PCT", "V2_MAX_DRAWDOWN_PCT", "max_drawdown_pct", "v2_max_drawdown_pct"), description="Max daily drawdown pct before breaker trips.")
 
     # ── Scanner ───────────────────────────────────────────────────────────────
-    v2_scanner_poll_interval: int = Field(
+    scanner_poll_interval: int = Field(
         default=60,
+        validation_alias=AliasChoices("SCANNER_POLL_INTERVAL", "V2_SCANNER_POLL_INTERVAL", "scanner_poll_interval", "v2_scanner_poll_interval"),
         description="Seconds between scanner polls.",
     )
-    v2_scanner_signal_ttl: int = Field(
+    scanner_signal_ttl: int = Field(
         default=300,
+        validation_alias=AliasChoices("SCANNER_SIGNAL_TTL", "V2_SCANNER_SIGNAL_TTL", "scanner_signal_ttl", "v2_scanner_signal_ttl"),
         description="Seconds a signal remains live after generation.",
     )
-    v2_scanner_base_url: str = Field(
+    scanner_base_url: str = Field(
         default="http://localhost:5000/api/v1/scanner",
-        description="Base URL of the V1 scanner HTTP API.",
+        validation_alias=AliasChoices("SCANNER_BASE_URL", "V2_SCANNER_BASE_URL", "scanner_base_url", "v2_scanner_base_url"),
+        description="Base URL of the scanner HTTP API.",
     )
-    v2_scanner_min_priority: str = Field(
+    scanner_min_priority: str = Field(
         default="Medium",
+        validation_alias=AliasChoices("SCANNER_MIN_PRIORITY", "V2_SCANNER_MIN_PRIORITY", "scanner_min_priority", "v2_scanner_min_priority"),
         description="Minimum priority to persist (Elite|High|Medium|Watch|Ignore).",
     )
-    v2_scanner_max_signals: int = Field(
+    scanner_max_signals: int = Field(
         default=2,
+        validation_alias=AliasChoices("SCANNER_MAX_SIGNALS", "V2_SCANNER_MAX_SIGNALS", "scanner_max_signals", "v2_scanner_max_signals"),
         description="Maximum high-conviction signals allowed per scanner cycle (default 2).",
     )
-    v2_scanner_strict_confluence_threshold: int = Field(
+    scanner_strict_confluence_threshold: int = Field(
         default=85,
+        validation_alias=AliasChoices("SCANNER_STRICT_CONFLUENCE_THRESHOLD", "V2_SCANNER_STRICT_CONFLUENCE_THRESHOLD", "scanner_strict_confluence_threshold", "v2_scanner_strict_confluence_threshold"),
         description="Minimum confluence score (0-100) required to accept a signal.",
     )
-    v2_scanner_dynamic_threshold_min: int = Field(
+    scanner_dynamic_threshold_min: int = Field(
         default=80,
+        validation_alias=AliasChoices("SCANNER_DYNAMIC_THRESHOLD_MIN", "V2_SCANNER_DYNAMIC_THRESHOLD_MIN", "scanner_dynamic_threshold_min", "v2_scanner_dynamic_threshold_min"),
         description="Minimum dynamic C2 threshold bound.",
     )
-    v2_scanner_dynamic_threshold_max: int = Field(
+    scanner_dynamic_threshold_max: int = Field(
         default=92,
+        validation_alias=AliasChoices("SCANNER_DYNAMIC_THRESHOLD_MAX", "V2_SCANNER_DYNAMIC_THRESHOLD_MAX", "scanner_dynamic_threshold_max", "v2_scanner_dynamic_threshold_max"),
         description="Maximum dynamic C2 threshold bound.",
     )
     # B1 Composite Ranking Weights
@@ -188,27 +196,45 @@ class AppConfig(BaseSettings):
         default=12.0,
         description="Maximum ATR % of price (volatility sanity ceiling).",
     )
-    v2_scanner_market_sentiment_enabled: bool = Field(
+    scanner_market_sentiment_enabled: bool = Field(
         default=True,
+        validation_alias=AliasChoices("SCANNER_MARKET_SENTIMENT_ENABLED", "V2_SCANNER_MARKET_SENTIMENT_ENABLED", "scanner_market_sentiment_enabled", "v2_scanner_market_sentiment_enabled"),
         description="Enable BTC/ETH Market Sentiment Layer.",
     )
-    v2_scanner_news_filter_enabled: bool = Field(
+    scanner_news_filter_enabled: bool = Field(
         default=True,
+        validation_alias=AliasChoices("SCANNER_NEWS_FILTER_ENABLED", "V2_SCANNER_NEWS_FILTER_ENABLED", "scanner_news_filter_enabled", "v2_scanner_news_filter_enabled"),
         description="Enable News & Risk Event Filtering Layer.",
     )
-    v2_post_exit_cooldown_seconds: int = Field(
+    post_exit_cooldown_seconds: int = Field(
         default=900,
+        validation_alias=AliasChoices("POST_EXIT_COOLDOWN_SECONDS", "V2_POST_EXIT_COOLDOWN_SECONDS", "post_exit_cooldown_seconds", "v2_post_exit_cooldown_seconds"),
         description="Post-exit cooldown window in seconds (default 900s / 15m) preventing immediate re-entry on the same coin.",
     )
 
     # ── WebSocket ─────────────────────────────────────────────────────────────
-    v2_ws_heartbeat_interval: int = Field(default=15)
-    v2_ws_max_connections:    int = Field(default=50)
+    ws_heartbeat_interval: int = Field(
+        default=15,
+        validation_alias=AliasChoices("WS_HEARTBEAT_INTERVAL", "V2_WS_HEARTBEAT_INTERVAL", "ws_heartbeat_interval", "v2_ws_heartbeat_interval"),
+    )
+    ws_max_connections: int = Field(
+        default=50,
+        validation_alias=AliasChoices("WS_MAX_CONNECTIONS", "V2_WS_MAX_CONNECTIONS", "ws_max_connections", "v2_ws_max_connections"),
+    )
 
     # ── Scheduler ─────────────────────────────────────────────────────────────
-    v2_metrics_snapshot_interval: int = Field(default=60)
-    v2_health_check_interval:     int = Field(default=30)
-    v2_event_log_retention_days:  int = Field(default=30)
+    metrics_snapshot_interval: int = Field(
+        default=60,
+        validation_alias=AliasChoices("METRICS_SNAPSHOT_INTERVAL", "V2_METRICS_SNAPSHOT_INTERVAL", "metrics_snapshot_interval", "v2_metrics_snapshot_interval"),
+    )
+    health_check_interval: int = Field(
+        default=30,
+        validation_alias=AliasChoices("HEALTH_CHECK_INTERVAL", "V2_HEALTH_CHECK_INTERVAL", "health_check_interval", "v2_health_check_interval"),
+    )
+    event_log_retention_days: int = Field(
+        default=30,
+        validation_alias=AliasChoices("EVENT_LOG_RETENTION_DAYS", "V2_EVENT_LOG_RETENTION_DAYS", "event_log_retention_days", "v2_event_log_retention_days"),
+    )
 
     # ── Notification & Telegram Interactive C2 ───────────────────────────────
     alert_bot_token: Optional[str] = Field(
@@ -229,15 +255,47 @@ class AppConfig(BaseSettings):
     )
 
     # ── AI Intelligence (Phase 4) ─────────────────────────────────────────────
-    gemini_api_key:                         Optional[str] = Field(default=None, alias="GEMINI_API_KEY")
-    v2_ai_enabled:                          bool          = Field(default=True, description="Enable AI Intelligence Layer.")
-    v2_ai_model:                            str           = Field(default="gemini-2.5-flash", description="Gemini model identifier.")
-    v2_ai_min_priority:                     str           = Field(default="Medium", description="Min signal priority to trigger AI evaluation.")
-    v2_ai_confidence_threshold:             int           = Field(default=70, description="Confidence threshold (0-100) to confirm trade signals.")
-    v2_ai_timeout_seconds:                  float         = Field(default=10.0, description="Timeout in seconds for AI API calls.")
-    v2_ai_max_retries:                      int           = Field(default=2, description="Max retries on AI call failures.")
-    v2_ai_circuit_breaker_threshold:        int           = Field(default=3, description="Consecutive Gemini failures before circuit breaker trips to OPEN.")
-    v2_ai_circuit_breaker_cooldown_seconds: float         = Field(default=60.0, description="Cooldown seconds before circuit breaker probes HALF_OPEN.")
+    gemini_api_key: Optional[str] = Field(default=None, alias="GEMINI_API_KEY")
+    ai_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("AI_ENABLED", "V2_AI_ENABLED", "ai_enabled", "v2_ai_enabled"),
+        description="Enable AI Intelligence Layer.",
+    )
+    ai_model: str = Field(
+        default="gemini-2.5-flash",
+        validation_alias=AliasChoices("AI_MODEL", "V2_AI_MODEL", "ai_model", "v2_ai_model"),
+        description="Gemini model identifier.",
+    )
+    ai_min_priority: str = Field(
+        default="Medium",
+        validation_alias=AliasChoices("AI_MIN_PRIORITY", "V2_AI_MIN_PRIORITY", "ai_min_priority", "v2_ai_min_priority"),
+        description="Min signal priority to trigger AI evaluation.",
+    )
+    ai_confidence_threshold: int = Field(
+        default=70,
+        validation_alias=AliasChoices("AI_CONFIDENCE_THRESHOLD", "V2_AI_CONFIDENCE_THRESHOLD", "ai_confidence_threshold", "v2_ai_confidence_threshold"),
+        description="Confidence threshold (0-100) to confirm trade signals.",
+    )
+    ai_timeout_seconds: float = Field(
+        default=10.0,
+        validation_alias=AliasChoices("AI_TIMEOUT_SECONDS", "V2_AI_TIMEOUT_SECONDS", "ai_timeout_seconds", "v2_ai_timeout_seconds"),
+        description="Timeout in seconds for AI API calls.",
+    )
+    ai_max_retries: int = Field(
+        default=2,
+        validation_alias=AliasChoices("AI_MAX_RETRIES", "V2_AI_MAX_RETRIES", "ai_max_retries", "v2_ai_max_retries"),
+        description="Max retries on AI call failures.",
+    )
+    ai_circuit_breaker_threshold: int = Field(
+        default=3,
+        validation_alias=AliasChoices("AI_CIRCUIT_BREAKER_THRESHOLD", "V2_AI_CIRCUIT_BREAKER_THRESHOLD", "ai_circuit_breaker_threshold", "v2_ai_circuit_breaker_threshold"),
+        description="Consecutive Gemini failures before circuit breaker trips to OPEN.",
+    )
+    ai_circuit_breaker_cooldown_seconds: float = Field(
+        default=60.0,
+        validation_alias=AliasChoices("AI_CIRCUIT_BREAKER_COOLDOWN_SECONDS", "V2_AI_CIRCUIT_BREAKER_COOLDOWN_SECONDS", "ai_circuit_breaker_cooldown_seconds", "v2_ai_circuit_breaker_cooldown_seconds"),
+        description="Cooldown seconds before circuit breaker probes HALF_OPEN.",
+    )
 
     # ── Auth (shared with V1) ─────────────────────────────────────────────────
     dashboard_api_key: Optional[str] = Field(
@@ -254,14 +312,14 @@ class AppConfig(BaseSettings):
     )
 
     # ── Network & Server Bindings ─────────────────────────────────────────────
-    v2_port: int = Field(
+    port: int = Field(
         default=5001,
-        validation_alias=AliasChoices("V2_PORT", "PORT", "v2_port"),
+        validation_alias=AliasChoices("PORT", "V2_PORT", "port", "v2_port"),
         description="Port for the FastAPI app.",
     )
-    v2_host: str = Field(
+    host: str = Field(
         default="0.0.0.0",
-        validation_alias=AliasChoices("V2_HOST", "HOST", "v2_host"),
+        validation_alias=AliasChoices("HOST", "V2_HOST", "host", "v2_host"),
         description="Host address for the FastAPI app.",
     )
 
@@ -316,7 +374,27 @@ class AppConfig(BaseSettings):
     def v2_websocket_enabled(self) -> bool:
         return self.websocket_enabled
 
+    @property
+    def v2_host(self) -> str:
+        return self.host
+
+    @property
+    def v2_port(self) -> int:
+        return self.port
+
+    def __getattr__(self, name: str) -> Any:
+        if name.startswith("v2_"):
+            canonical = name[3:]
+            if canonical in self.__class__.model_fields:
+                return getattr(self, canonical)
+        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+
     def __setattr__(self, name: str, value: Any) -> None:
+        if name.startswith("v2_"):
+            canonical = name[3:]
+            if canonical in self.__class__.model_fields:
+                super().__setattr__(canonical, value)
+                return
         if name in LEGACY_FIELD_MAP:
             super().__setattr__(LEGACY_FIELD_MAP[name], value)
             return
@@ -332,17 +410,11 @@ class AppConfig(BaseSettings):
                 target_key = LEGACY_FIELD_MAP.get(k, k)
                 if target_key == "v2_websocket_enabled":
                     target_key = "websocket_enabled"
+                elif target_key.startswith("v2_") and target_key[3:] in self.__class__.model_fields:
+                    target_key = target_key[3:]
                 normalized_update[target_key] = v
             update = normalized_update
         return super().model_copy(update=update, deep=deep)
-
-    @property
-    def host(self) -> str:
-        return self.v2_host
-
-    @property
-    def port(self) -> int:
-        return self.v2_port
 
     @property
     def capital_pool(self) -> Optional[float]:
@@ -361,7 +433,7 @@ class AppConfig(BaseSettings):
     def validate_order_size(cls, v: float) -> float:
         return max(200.0, float(v))
 
-    @field_validator("v2_scanner_min_priority", "v2_ai_min_priority")
+    @field_validator("scanner_min_priority", "ai_min_priority")
     @classmethod
     def validate_priority(cls, v: str) -> str:
         valid = {"Elite", "High", "Medium", "Watch", "Ignore"}
@@ -374,10 +446,7 @@ class AppConfig(BaseSettings):
         Validate security requirements for LIVE trading mode.
         Raises SecurityConfigError if LIVE mode is active without non-dummy API keys or operator password.
         """
-        try:
-            from core.exceptions import SecurityConfigError
-        except ImportError:
-            from v2.core.exceptions import SecurityConfigError
+        from core.exceptions import SecurityConfigError
 
         dep_mode = (self.deployment_mode or "").upper()
         if dep_mode == "LIVE_MICROCASH" and self.trading_enabled:
@@ -408,6 +477,9 @@ class AppConfig(BaseSettings):
                 data[legacy_key] = data[canonical_key]
         if "websocket_enabled" in data:
             data["v2_websocket_enabled"] = data["websocket_enabled"]
+        for field in list(data.keys()):
+            if not field.startswith("v2_"):
+                data[f"v2_{field}"] = data[field]
 
         SECRET_KEYS = {
             "coindcx_api_secret", "coindcx_live_api_secret", "coindcx_paper_api_secret",
@@ -422,7 +494,7 @@ class AppConfig(BaseSettings):
     def apply_override(self, override_path: str | None = None) -> "AppConfig":
         """
         Return a copy of this config with hot-reloadable keys overridden
-        from *override_path* (defaults to data/config_override.json or v2/data/config_override.json).
+        from *override_path* (defaults to data/config_override.json).
         """
         HOT_RELOAD_KEYS = {
             "deployment_mode",
@@ -437,15 +509,25 @@ class AppConfig(BaseSettings):
             "v2_execution_timeout",
             "db_path",
             "v2_db_path",
+            "scanner_poll_interval",
             "v2_scanner_poll_interval",
+            "scanner_signal_ttl",
             "v2_scanner_signal_ttl",
+            "metrics_snapshot_interval",
             "v2_metrics_snapshot_interval",
+            "health_check_interval",
             "v2_health_check_interval",
+            "ai_enabled",
             "v2_ai_enabled",
+            "ai_model",
             "v2_ai_model",
+            "ai_min_priority",
             "v2_ai_min_priority",
+            "ai_confidence_threshold",
             "v2_ai_confidence_threshold",
+            "ai_timeout_seconds",
             "v2_ai_timeout_seconds",
+            "ai_max_retries",
             "v2_ai_max_retries",
             "alert_bot_token",
             "alert_chat_id",
@@ -456,7 +538,6 @@ class AppConfig(BaseSettings):
         candidates = [
             Path(override_path) if override_path else None,
             Path("data/config_override.json"),
-            Path("v2/data/config_override.json"),
         ]
         target_path: Optional[Path] = None
         for p in candidates:
@@ -475,6 +556,8 @@ class AppConfig(BaseSettings):
         updates: dict[str, Any] = {}
         for k, v in raw_updates.items():
             target_key = LEGACY_FIELD_MAP.get(k, k)
+            if target_key.startswith("v2_") and target_key[3:] in self.__class__.model_fields:
+                target_key = target_key[3:]
             updates[target_key] = v
 
         if "order_size_inr" in updates:
@@ -492,11 +575,6 @@ class AppConfig(BaseSettings):
         if path.exists():
             try:
                 existing = json.loads(path.read_text(encoding="utf-8"))
-            except Exception:
-                existing = {}
-        elif Path("v2/data/config_override.json").exists():
-            try:
-                existing = json.loads(Path("v2/data/config_override.json").read_text(encoding="utf-8"))
             except Exception:
                 existing = {}
 

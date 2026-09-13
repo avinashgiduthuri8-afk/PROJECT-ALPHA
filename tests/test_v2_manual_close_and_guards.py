@@ -7,18 +7,18 @@ from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
-from v2.bus.event_bus import EventBus
-from v2.core.config import V2Config, get_config
-from v2.core.exceptions import SecurityConfigError
-from v2.core.types import BotMode, BotName, OrderState, Position, PositionStatus
-from v2.repository.db import Database
-from v2.repository.event_log_repo import EventLogRepository
-from v2.repository.order_repo import OrderRepository
-from v2.repository.position_repo import PositionRepository
-from v2.repository.trade_repo import TradeRepository
-from v2.services.trading_service.service import TradingService
-from v2.trading.execution_guards import ExecutionSafetyGuards
-from v2.trading.subaccount_manager import CoinDCXSubAccountManager
+from core.bus.event_bus import EventBus
+from core.config import V2Config, get_config
+from core.exceptions import SecurityConfigError
+from core.types import BotMode, BotName, OrderState, Position, PositionStatus
+from core.repository.db import Database
+from core.repository.event_log_repo import EventLogRepository
+from core.repository.order_repo import OrderRepository
+from core.repository.position_repo import PositionRepository
+from core.repository.trade_repo import TradeRepository
+from execution.service import TradingService
+from execution.trading.execution_guards import ExecutionSafetyGuards
+from execution.trading.subaccount_manager import CoinDCXSubAccountManager
 
 
 @pytest.fixture
@@ -388,7 +388,7 @@ async def test_trading_service_enforces_execution_guards(db_env):
         "signal_id": "SIG-GUARD-1",
     }
 
-    from v2.bus.event_types import EventType
+    from core.bus.event_types import EventType
     await service.on_trade_approved(EventType.TRADE_APPROVED, payload)
     client.place_live_order.assert_not_called()
 

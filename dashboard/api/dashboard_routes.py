@@ -41,6 +41,7 @@ def init_dashboard_routes(
                 _bot_tracker = getattr(aggregator, "bot_tracker", None)
             else:
                 _dashboard_aggregator = aggregator
+                _dashboard_service = dashboard_service
 
         if dashboard_service is not None:
             _dashboard_service = dashboard_service

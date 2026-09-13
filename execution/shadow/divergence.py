@@ -1,4 +1,4 @@
-﻿"""
+"""
 V2 DivergenceTracker — cross-references V2 decisions with V1 bot activities.
 """
 
@@ -15,7 +15,7 @@ from core.logging import get_logger
 from core.repository.event_log_repo import EventLogRepository
 from core.repository.shadow_repo import ShadowRepository
 
-logger = get_logger("v2.services.shadow_service.divergence")
+logger = get_logger("execution.shadow.divergence")
 
 
 class DivergenceTracker:

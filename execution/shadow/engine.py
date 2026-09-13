@@ -1,4 +1,4 @@
-﻿"""
+"""
 V2 ShadowEngine — simulates order lifecycle, stop loss, take profit, and PnL metrics.
 """
 
@@ -10,13 +10,13 @@ from typing import Optional
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
-from core.config import V2Config
+from core.config import AppConfig
 from core.types import BotName, ShadowTrade
 from core.logging import get_logger
 from core.repository.event_log_repo import EventLogRepository
 from core.repository.shadow_repo import ShadowRepository
 
-logger = get_logger("v2.services.shadow_service.engine")
+logger = get_logger("execution.shadow.engine")
 
 
 class ShadowEngine:
@@ -27,7 +27,7 @@ class ShadowEngine:
         bus: EventBus,
         shadow_repo: ShadowRepository,
         event_log_repo: EventLogRepository,
-        config: V2Config,
+        config: AppConfig,
     ) -> None:
         self._bus = bus
         self._shadow_repo = shadow_repo

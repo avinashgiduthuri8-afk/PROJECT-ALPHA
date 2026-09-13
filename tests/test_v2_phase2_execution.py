@@ -20,20 +20,20 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from v2.bus.event_bus import EventBus
-from v2.bus.event_types import EventType
-from v2.core.types import BotMode, BotName, ExitReason, Position, PositionStatus, Signal
-from v2.repository.db import Database
-from v2.repository.position_repo import PositionRepository
-from v2.repository.trade_repo import TradeRepository
-from v2.services.trading_service.auto_trader import AutoTradeRouter
-from v2.services.trading_service.position_manager import (
+from core.bus.event_bus import EventBus
+from core.bus.event_types import EventType
+from core.types import BotMode, BotName, ExitReason, Position, PositionStatus, Signal
+from core.repository.db import Database
+from core.repository.position_repo import PositionRepository
+from core.repository.trade_repo import TradeRepository
+from execution.auto_trader import AutoTradeRouter
+from execution.position_manager import (
     STATUTORY_ROUND_TRIP_DRAG_RATE, PositionManager, PositionState
 )
-from v2.services.trading_service.reconciliation import ReconciliationService
-from v2.services.trading_service.recovery import RestartRecoveryService
-from v2.trading.precision_rules import get_pair_spec, round_price, round_qty, validate_order_notional
-from v2.trading.subaccount_manager import CoinDCXSubAccountClient, CoinDCXSubAccountManager, SubAccountConfig
+from execution.reconciliation import ReconciliationService
+from execution.recovery import RestartRecoveryService
+from execution.trading.precision_rules import get_pair_spec, round_price, round_qty, validate_order_notional
+from execution.trading.subaccount_manager import CoinDCXSubAccountClient, CoinDCXSubAccountManager, SubAccountConfig
 
 
 async def _create_test_db(tmp_path):

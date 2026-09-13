@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from core.types import Priority, Signal
 from core.logging import get_logger
 
-logger = get_logger("v2.services.scanner_service.signal_filter")
+logger = get_logger("scanner.signal_filter")
 
 
 def filter_by_priority(

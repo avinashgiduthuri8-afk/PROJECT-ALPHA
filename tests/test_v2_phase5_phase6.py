@@ -13,10 +13,10 @@ import pytest
 import httpx
 from fastapi import FastAPI
 
-from v2.bus.event_bus import EventBus
-from v2.bus.event_types import EventType
-from v2.core.config import V2Config, get_config, invalidate_config
-from v2.core.types import (
+from core.bus.event_bus import EventBus
+from core.bus.event_types import EventType
+from core.config import V2Config, get_config, invalidate_config
+from core.types import (
     AIRecommendation,
     BotMode,
     BotName,
@@ -31,18 +31,18 @@ from v2.core.types import (
     Signal,
     Trade,
 )
-from v2.repository.db import Database
-from v2.repository.signal_repo import SignalRepository
-from v2.repository.ai_repo import AIAnalysisRepository
-from v2.repository.position_repo import PositionRepository
-from v2.repository.trade_repo import TradeRepository
-from v2.repository.shadow_repo import ShadowRepository
-from v2.repository.metrics_repo import MetricsRepository
-from v2.repository.event_log_repo import EventLogRepository
+from core.repository.db import Database
+from core.repository.signal_repo import SignalRepository
+from core.repository.ai_repo import AIAnalysisRepository
+from core.repository.position_repo import PositionRepository
+from core.repository.trade_repo import TradeRepository
+from core.repository.shadow_repo import ShadowRepository
+from core.repository.metrics_repo import MetricsRepository
+from core.repository.event_log_repo import EventLogRepository
 
-from v2.services.risk_service import RiskService, CapitalGuard, CircuitBreaker
-from v2.services.portfolio_service import PortfolioService, PortfolioAggregator
-from v2.services.trading_service import (
+from execution.risk import RiskService, CapitalGuard, CircuitBreaker
+from background.portfolio import PortfolioService, PortfolioAggregator
+from execution import (
     TradingService,
     STEAdapter,
     HDAAdapter,
@@ -50,8 +50,8 @@ from v2.services.trading_service import (
     BBSAdapter,
     StrategyAdapterFactory,
 )
-from v2.services.shadow_service import ShadowService, ShadowEngine, DivergenceTracker
-from v2.api.router import router as api_router, init_router
+from execution.shadow import ShadowService, ShadowEngine, DivergenceTracker
+from dashboard.api.router import router as api_router, init_router
 
 
 def make_test_signal(

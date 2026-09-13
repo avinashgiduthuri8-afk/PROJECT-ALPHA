@@ -9,22 +9,22 @@ from datetime import datetime, timezone
 import uuid
 import pytest
 
-from v2.bus.event_bus import EventBus
-from v2.bus.event_types import EventType
-from v2.core.config import V2Config
-from v2.core.types import (
+from core.bus.event_bus import EventBus
+from core.bus.event_types import EventType
+from core.config import V2Config
+from core.types import (
     BotMode,
     BotName,
     ExitReason,
     Position,
     PositionStatus,
 )
-from v2.repository.db import Database
-from v2.repository.position_repo import PositionRepository
-from v2.repository.trade_repo import TradeRepository
-from v2.repository.event_log_repo import EventLogRepository
-from v2.trading.subaccount_manager import CoinDCXExecutionManager
-from v2.services.trading_service.service import TradingService
+from core.repository.db import Database
+from core.repository.position_repo import PositionRepository
+from core.repository.trade_repo import TradeRepository
+from core.repository.event_log_repo import EventLogRepository
+from execution.trading.subaccount_manager import CoinDCXExecutionManager
+from execution.service import TradingService
 
 
 # ── 1. Default Trade Amount Verification ────────────────────────────────────

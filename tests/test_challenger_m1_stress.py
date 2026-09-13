@@ -19,18 +19,18 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from v2.core.config import get_config
-from v2.core.types import (
+from core.config import get_config
+from core.types import (
     BotMode, BotName, ExitReason, Position, PositionStatus
 )
-from v2.repository.db import Database
-from v2.repository.position_repo import PositionRepository
-from v2.repository.trade_repo import TradeRepository
-from v2.services.dashboard_service.bot_pipeline import BotPipelineTracker, BotState
-from v2.services.dashboard_service.aggregator import DashboardAggregator
-from v2.services.dashboard_service.service import DashboardService
-from v2.api.router import router as api_router, init_router
-from v2.api.dashboard_routes import router as dashboard_router, init_dashboard_routes
+from core.repository.db import Database
+from core.repository.position_repo import PositionRepository
+from core.repository.trade_repo import TradeRepository
+from dashboard.bot_pipeline import BotPipelineTracker, BotState
+from dashboard.aggregator import DashboardAggregator
+from dashboard.service import DashboardService
+from dashboard.api.router import router as api_router, init_router
+from dashboard.api.dashboard_routes import router as dashboard_router, init_dashboard_routes
 
 
 class DummyPosition:
@@ -309,7 +309,7 @@ class TestAPIEndpointsStress:
         db_path = str(tmp_path / f"api_stress_{uuid.uuid4().hex[:8]}.db")
         test_api_key = "test-secret-key-v2"
         monkeypatch.setenv("DASHBOARD_API_KEY", test_api_key)
-        from v2.core.config import invalidate_config
+        from core.config import invalidate_config
         invalidate_config()
         cfg = get_config()
 
@@ -322,7 +322,7 @@ class TestAPIEndpointsStress:
         pos_repo = PositionRepository(db.connection)
         trade_repo = TradeRepository(db.connection)
 
-        from v2.bus.event_bus import EventBus
+        from core.bus.event_bus import EventBus
         bus = EventBus()
         dash_service = DashboardService(
             bus=bus,

@@ -1,9 +1,7 @@
 """
-V2 API Pydantic response schemas.
+PROJECT-ALPHA API Pydantic response schemas.
 
-These are the wire types returned by /api/v2/* endpoints.
-They are intentionally a superset of V1 /api/v1/* schemas so
-clients can migrate incrementally.
+These are the wire types returned by /api/* and backward-compatible /api/v2/* endpoints.
 """
 
 from __future__ import annotations
@@ -104,7 +102,7 @@ class AIHealthSchema(BaseModel):
 
 # ── System status ─────────────────────────────────────────────────────────────
 
-class V2StatusSchema(BaseModel):
+class StatusSchema(BaseModel):
     version:         str = "2.1.0"
     status:          str = "ok"
     scanner_health:  ScannerHealthSchema
@@ -113,6 +111,10 @@ class V2StatusSchema(BaseModel):
     db_path:         str
     uptime_polls:    int
     live_signals:    int
+
+
+# Backward-compatible schema alias
+V2StatusSchema = StatusSchema
 
 
 # ── Risk & Portfolio (Phase 5) ─────────────────────────────────────────────

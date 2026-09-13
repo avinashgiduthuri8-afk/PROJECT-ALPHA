@@ -26,7 +26,7 @@ import httpx
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
-from core.config import V2Config
+from core.config import AppConfig
 from core.types import MarketState, OppType, Priority, Signal
 from core.logging import get_logger
 from core.repository.signal_repo import SignalRepository
@@ -34,9 +34,9 @@ from core.repository.event_log_repo import EventLogRepository
 from core.repository.candle_repo import CandleRepository
 from core.repository.position_repo import PositionRepository
 from core.repository.trade_repo import TradeRepository
-from v2.trading.precision_rules import extract_base_coin
+from execution.trading.precision_rules import extract_base_coin
 
-from .adapter import v1_response_to_signals
+from .adapter import raw_response_to_signals, v1_response_to_signals
 from .confluence_engine import ConfluenceEngine
 from .calibration_worker import CalibrationWorker, get_data_file_path
 from .market_context import MarketContextService, calculate_ema
@@ -46,7 +46,7 @@ from .signal_filter import (
 )
 
 
-logger = get_logger("v2.services.scanner_service")
+logger = get_logger("scanner.service")
 
 
 class AsyncRateLimiter:
@@ -90,7 +90,7 @@ class ScannerService:
         bus: EventBus,
         signal_repo: SignalRepository,
         event_log_repo: EventLogRepository,
-        config: V2Config,
+        config: AppConfig,
         candle_repo: Optional[CandleRepository] = None,
         position_repo: Optional[PositionRepository] = None,
         trade_repo: Optional[TradeRepository] = None,
@@ -131,12 +131,12 @@ class ScannerService:
         self._last_error: Optional[str] = None
         self._started = False
 
-        self._min_priority = Priority(self._config.v2_scanner_min_priority)
+        self._min_priority = Priority(self._config.scanner_min_priority)
 
         # C2 High-Conviction Confluence Engine (5-layer evaluation, strict rejection gate, max 1–2 signals)
         self._confluence_engine = ConfluenceEngine(
-            strict_threshold=getattr(self._config, "v2_scanner_strict_confluence_threshold", 85),
-            max_signals=getattr(self._config, "v2_scanner_max_signals", 2),
+            strict_threshold=getattr(self._config, "scanner_strict_confluence_threshold", 85),
+            max_signals=getattr(self._config, "scanner_max_signals", 2),
         )
 
         # Dynamic Win-Rate Feedback Calibration Worker
@@ -181,7 +181,7 @@ class ScannerService:
             try:
                 recent_trades = await self._trade_repo.get_recent(limit=30)
                 now = datetime.now(timezone.utc)
-                cooldown_dur = getattr(self._config, "v2_post_exit_cooldown_seconds", 900)
+                cooldown_dur = getattr(self._config, "post_exit_cooldown_seconds", 900)
                 for tr in recent_trades:
                     c_time = getattr(tr, "closed_at", None) or getattr(tr, "executed_at", None)
                     if c_time:
@@ -239,7 +239,7 @@ class ScannerService:
         now = datetime.now(timezone.utc)
         exit_reason = payload.get("exit_reason", "CLOSED")
         exit_price = float(payload.get("exit_price") or payload.get("price") or 0.0)
-        cooldown_dur = getattr(self._config, "v2_post_exit_cooldown_seconds", 900)
+        cooldown_dur = getattr(self._config, "post_exit_cooldown_seconds", 900)
         self._cooldowns[coin] = {
             "exit_time": now,
             "exit_reason": exit_reason,
@@ -504,7 +504,7 @@ class ScannerService:
         while self._started:
             try:
                 # Wait for the configured scanner poll interval
-                await asyncio.sleep(self._config.v2_scanner_poll_interval)
+                await asyncio.sleep(self._config.scanner_poll_interval)
                 if not self._started:
                     break
                 
@@ -629,7 +629,7 @@ class ScannerService:
             "new_signals": 0,
             "expired": 0,
             "errors": 0,
-            "next_interval_s": self._config.v2_scanner_poll_interval,
+            "next_interval_s": self._config.scanner_poll_interval,
         }
 
         try:
@@ -664,7 +664,7 @@ class ScannerService:
 
             # Clean up expired cooldowns
             now_utc = datetime.now(timezone.utc)
-            cooldown_dur = getattr(self._config, "v2_post_exit_cooldown_seconds", 900)
+            cooldown_dur = getattr(self._config, "post_exit_cooldown_seconds", 900)
             expired_cooldowns = []
             for c_coin, c_info in list(self._cooldowns.items()):
                 c_exit = c_info["exit_time"]
@@ -677,26 +677,44 @@ class ScannerService:
                 del self._cooldowns[c_coin]
                 logger.info("Post-exit cooldown expired for %s. Re-entry allowed.", c_coin)
 
-            live_coins = {extract_base_coin(s.coin) or extract_base_coin(s.pair) for s in self._live.values()}
+            # 3. Fetch candidate signals (B1 composite ranking & B2 5-stage cascade)
+            raw = await self._fetch_candidate_signals()
+            summary["fetched"] = len(raw)
+
+            # B7: Early Lock Suppression — filter out coins with active positions or cooldowns BEFORE C2/AI compute
+            open_coins: set[str] = set()
+            if self._position_repo:
+                try:
+                    open_positions = await self._position_repo.get_open()
+                    for p in open_positions:
+                        p_clean = extract_base_coin(getattr(p, "coin", "")) or extract_base_coin(getattr(p, "pair", ""))
+                        if p_clean:
+                            open_coins.add(p_clean.upper())
+                except Exception as pos_err:
+                    logger.warning("Could not check open positions for lock suppression: %s", pos_err)
 
             actionable_raw = []
+            live_sigs = self.get_live_signals()
+            live_coins = {s.coin.upper() for s in live_sigs if not s.is_expired()}
             for c in raw:
-                c_coin = (c.get("coin") or "").upper().replace("/INR", "").replace("/USDT", "").replace("B-", "")
-                if c_coin in open_coins:
-                    logger.info("Early lock suppression: %s has active open position in fleet. Skipping C2/AI.", c_coin)
+                c_coin = (c.get("coin") or "").upper()
+                if not c_coin:
                     continue
-                if c_coin in self._cooldowns:
-                    logger.info("Early lock suppression: %s in post-exit cooldown. Skipping C2/AI.", c_coin)
+                if c_coin in open_coins:
+                    logger.debug("Early lock suppression: %s has active open position. Skipping C2/AI compute.", c_coin)
+                    continue
+                if self.is_in_cooldown(c_coin):
+                    logger.debug("Early lock suppression: %s is in post-exit cooldown. Skipping C2/AI compute.", c_coin)
                     continue
                 if c_coin in live_coins:
                     logger.debug("Early lock suppression: %s has live unexpired signal active. Skipping C2/AI.", c_coin)
                     continue
                 actionable_raw.append(c)
 
-            # 4. Adapt V1 → V2 Signal (Timeframe-aware TTL B8)
-            candidates = v1_response_to_signals(
+            # 4. Adapt candidate signals to domain (Timeframe-aware TTL B8)
+            candidates = raw_response_to_signals(
                 actionable_raw,
-                signal_ttl_seconds=self._config.v2_scanner_signal_ttl,
+                signal_ttl_seconds=self._config.scanner_signal_ttl,
             )
 
             # 5. Enrich raw candidate dicts with News Risk Evaluations
@@ -935,7 +953,7 @@ class ScannerService:
         risk-off conditions slow the public-data poll to reduce noise and
         request pressure. The configured interval remains the neutral baseline.
         """
-        base = max(15, int(self._config.v2_scanner_poll_interval))
+        base = max(15, int(self._config.scanner_poll_interval))
         sentiment = context or self._market_context_service.get_current_sentiment()
         regime = str(sentiment.get("market_regime", "RISK_ON")).upper()
         btc_trend = str(sentiment.get("btc_trend", "SIDEWAYS")).upper()
@@ -947,11 +965,13 @@ class ScannerService:
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 
-    async def _fetch_v1_signals(self) -> list[dict]:
+    async def _fetch_candidate_signals(self) -> list[dict]:
         """Generate candidate signals natively from cached/fetched CoinDCX candles."""
         return await self._generate_native_candidates()
 
-    fetch_candidate_signals = _fetch_v1_signals
+    # Backward-compatible aliases
+    _fetch_v1_signals = _fetch_candidate_signals
+    fetch_candidate_signals = _fetch_candidate_signals
 
     async def _generate_native_candidates(self) -> list[dict]:
         """

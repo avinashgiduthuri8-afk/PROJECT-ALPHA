@@ -18,15 +18,15 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from v2.bus.event_bus import EventBus
-from v2.core.config import invalidate_config
-from v2.repository.db import Database
-from v2.repository.backtest_repo import BacktestRepository
-from v2.repository.feedback_repo import FeedbackRepository
-from v2.services.backtest_service.service import BacktestService
-from v2.services.feedback_service.orchestrator import FeedbackOrchestrator
-from v2.services.feedback_service.service import FeedbackService
-from v2.app_v2 import app
+from core.bus.event_bus import EventBus
+from core.config import invalidate_config
+from core.repository.db import Database
+from core.repository.backtest_repo import BacktestRepository
+from core.repository.feedback_repo import FeedbackRepository
+from background.backtest.service.service import BacktestService
+from background.feedback.orchestrator import FeedbackOrchestrator
+from background.feedback.service import FeedbackService
+from app import app
 from tests.test_v2_phase5_backtest_improvement import generate_synthetic_candles
 
 

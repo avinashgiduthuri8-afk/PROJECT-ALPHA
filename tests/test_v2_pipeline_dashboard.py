@@ -8,10 +8,10 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
-from v2.app_v2 import app
-from v2.bus.event_types import EventType
-from v2.core.config import invalidate_config
-from v2.services.dashboard_service.pipeline import PipelineStageCollector
+from app import app
+from core.bus.event_types import EventType
+from core.config import invalidate_config
+from dashboard.pipeline import PipelineStageCollector
 
 
 @pytest.fixture(autouse=True)

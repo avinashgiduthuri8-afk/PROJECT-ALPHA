@@ -1,8 +1,7 @@
 """
-V2 API Authentication.
+API Authentication.
 
-Reuses the same X-API-Key mechanism as V1, validated against
-DASHBOARD_API_KEY from V2Config.  Auth is fail-closed: if the
+Validated against DASHBOARD_API_KEY from AppConfig. Auth is fail-closed: if the
 secret is unset the dependency raises 500, not 401, so the
 deployment gap is immediately visible.
 """
@@ -30,9 +29,10 @@ async def require_api_key(
     """
     cfg = get_config()
     expected = cfg.dashboard_api_key
-    deployment_mode = getattr(cfg, "v2_deployment_mode", "").upper()
+    deployment_mode = (getattr(cfg, "deployment_mode", None) or getattr(cfg, "v2_deployment_mode", "")).upper()
+    trading_enabled = getattr(cfg, "trading_enabled", getattr(cfg, "v2_trading_enabled", False))
 
-    if not expected or (deployment_mode == "LIVE_MICROCASH" and cfg.v2_trading_enabled and expected in ("alpha-prod-key", "DUMMY_KEY", "12345")):
+    if not expected or (deployment_mode == "LIVE_MICROCASH" and trading_enabled and expected in ("alpha-prod-key", "DUMMY_KEY", "12345")):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="DASHBOARD_API_KEY is not securely configured on this server for LIVE mode.",

@@ -43,10 +43,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from v2.bus.event_bus import EventBus
-from v2.bus.event_types import EventType
-from v2.core.config import DEFAULT_ORDER_AMOUNT_INR, V2Config, get_config, invalidate_config
-from v2.core.types import (
+from core.bus.event_bus import EventBus
+from core.bus.event_types import EventType
+from core.config import DEFAULT_ORDER_AMOUNT_INR, V2Config, get_config, invalidate_config
+from core.types import (
     BotMode,
     BotName,
     ExitReason,
@@ -57,24 +57,24 @@ from v2.core.types import (
     RiskLevel,
     Signal,
 )
-from v2.monitoring.health import HealthChecker
-from v2.repository.db import Database
-from v2.repository.event_log_repo import EventLogRepository
-from v2.repository.position_repo import PositionRepository
-from v2.repository.signal_repo import SignalRepository
-from v2.repository.trade_repo import TradeRepository
-from v2.services.notification_service.formatters import mask_sensitive_data
-from v2.services.notification_service.telegram import TelegramClient
-from v2.services.notification_service.telegram_interface import (
+from background.monitoring.health import HealthChecker
+from core.repository.db import Database
+from core.repository.event_log_repo import EventLogRepository
+from core.repository.position_repo import PositionRepository
+from core.repository.signal_repo import SignalRepository
+from core.repository.trade_repo import TradeRepository
+from telegram.formatters import mask_sensitive_data
+from telegram.telegram import TelegramClient
+from telegram.telegram_interface import (
     TelegramInteractiveInterface,
     build_back_keyboard,
     build_confirm_stop_keyboard,
     build_main_menu_keyboard,
 )
-from v2.services.risk_service.service import RiskService
-from v2.services.scanner_service.service import ScannerService
-from v2.services.trading_service.service import TradingService
-from v2.trading.subaccount_manager import CoinDCXSubAccountManager
+from execution.risk.service import RiskService
+from scanner.service import ScannerService
+from execution.service import TradingService
+from execution.trading.subaccount_manager import CoinDCXSubAccountManager
 
 TEST_DB_DIR = os.path.abspath(".test_dbs")
 os.makedirs(TEST_DB_DIR, exist_ok=True)
@@ -703,7 +703,7 @@ async def test_cmd_risk_limits_alerts_logs():
 @pytest.mark.anyio
 async def test_notification_alert_dedup_and_high_conviction_filter():
     """Verify alert dedup suppresses duplicate alerts and risk rejection only alerts on high conviction (C2 >= 85, AI approved)."""
-    from v2.services.notification_service.service import NotificationService
+    from telegram.service import NotificationService
 
     bus = EventBus()
     cfg = V2Config(

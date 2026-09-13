@@ -15,11 +15,11 @@ from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
-from v2.core.types import BotMode, BotName, Position, PositionStatus
-from v2.repository.db import Database
-from v2.repository.position_repo import PositionRepository
-from v2.services.trading_service.reconciliation import ReconciliationService
-from v2.trading.subaccount_manager import CoinDCXSubAccountManager, CoinDCXSubAccountClient, SubAccountConfig
+from core.types import BotMode, BotName, Position, PositionStatus
+from core.repository.db import Database
+from core.repository.position_repo import PositionRepository
+from execution.reconciliation import ReconciliationService
+from execution.trading.subaccount_manager import CoinDCXSubAccountManager, CoinDCXSubAccountClient, SubAccountConfig
 
 
 import uuid

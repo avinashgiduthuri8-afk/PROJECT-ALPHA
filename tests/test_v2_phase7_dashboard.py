@@ -17,12 +17,12 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from v2.bus.event_bus import EventBus
-from v2.bus.event_types import EventType
-from v2.core.config import invalidate_config
-from v2.services.dashboard_service.aggregator import DashboardAggregator
-from v2.services.dashboard_service.ws_gateway import WebSocketTelemetryGateway
-from v2.app_v2 import app
+from core.bus.event_bus import EventBus
+from core.bus.event_types import EventType
+from core.config import invalidate_config
+from dashboard.aggregator import DashboardAggregator
+from dashboard.ws_gateway import WebSocketTelemetryGateway
+from app import app
 
 
 # =============================================================================
@@ -82,7 +82,7 @@ class TestWebSocketTelemetryGateway:
 # =============================================================================
 
 from fastapi import FastAPI
-from v2.api.dashboard_routes import router as dashboard_router, init_dashboard_routes
+from dashboard.api.dashboard_routes import router as dashboard_router, init_dashboard_routes
 
 
 class TestDashboardAPIEndpoints:

@@ -34,7 +34,7 @@ from .precision_rules import (
     validate_trade_parameters,
 )
 
-logger = get_logger("v2.trading.execution_manager")
+logger = get_logger("execution.trading.subaccount_manager")
 
 
 @dataclass
@@ -95,7 +95,7 @@ class CoinDCXSubAccountClient:
 
     @property
     def mode(self) -> str:
-        return getattr(self.config, "mode", getattr(self.config, "v2_deployment_mode", "PAPER"))
+        return getattr(self.config, "mode", getattr(self.config, "deployment_mode", "PAPER"))
 
     @property
     def is_live_mode(self) -> bool:
@@ -558,16 +558,16 @@ class CoinDCXSubAccountClient:
         # 0. Global Kill-Switch & Execution Mode Isolation Gate
         from core.config import get_config
         cfg = get_config()
-        mode = getattr(cfg, "v2_deployment_mode", "SHADOW").upper()
-        if not cfg.v2_trading_enabled or mode != "LIVE_MICROCASH":
+        mode = getattr(cfg, "deployment_mode", "SHADOW").upper()
+        if not cfg.trading_enabled or mode != "LIVE_MICROCASH":
             logger.warning(
                 "[%s] Outbound live order blocked by kill-switch/mode gate: trading_enabled=%s, mode=%s",
-                self.subaccount_id, cfg.v2_trading_enabled, mode,
+                self.subaccount_id, cfg.trading_enabled, mode,
             )
             return {
                 "success": False,
                 "error": "EXECUTION_BLOCKED_KILL_SWITCH",
-                "message": f"Live order blocked: trading_enabled={cfg.v2_trading_enabled}, mode={mode}",
+                "message": f"Live order blocked: trading_enabled={cfg.trading_enabled}, mode={mode}",
                 "client_order_id": order_id,
             }
 
@@ -1006,7 +1006,7 @@ class CoinDCXSubAccountManager:
         self._initialize_execution_pool()
 
     def _initialize_execution_pool(self) -> None:
-        """Load configuration from V2Config or Alpha/config.json with zero hardcoded fallbacks."""
+        """Load configuration from AppConfig or Alpha/config.json with zero hardcoded fallbacks."""
         sub_configs: Dict[str, Dict[str, Any]] = {}
         order_size = float(self._config.order_size_inr) if self._config else 200.0
         pool_limit = (
@@ -1101,10 +1101,10 @@ class CoinDCXSubAccountManager:
                 client.config.default_trade_amount_inr = clamped_amount
             if self._config:
                 self._config.order_size_inr = clamped_amount
-                self._config.v2_default_trade_amount_ste = clamped_amount
-                self._config.v2_default_trade_amount_hda = clamped_amount
-                self._config.v2_default_trade_amount_vcp = clamped_amount
-                self._config.v2_default_trade_amount_bbs = clamped_amount
+                self._config.default_trade_amount_ste = clamped_amount
+                self._config.default_trade_amount_hda = clamped_amount
+                self._config.default_trade_amount_vcp = clamped_amount
+                self._config.default_trade_amount_bbs = clamped_amount
         logger.info("Subaccount manager dynamically updated order size to INR %.2f across all clients", clamped_amount)
 
     async def fetch_live_balance(self, client: Optional[httpx.AsyncClient] = None) -> Dict[str, Any]:

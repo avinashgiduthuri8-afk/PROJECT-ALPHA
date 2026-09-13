@@ -17,7 +17,7 @@ import aiosqlite
 from core.exceptions import StorageError
 from core.logging import get_logger
 
-logger = get_logger("v2.repository.base")
+logger = get_logger("core.repository.base")
 
 
 class BaseRepository(ABC):

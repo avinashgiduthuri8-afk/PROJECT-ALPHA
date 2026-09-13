@@ -1,4 +1,4 @@
-﻿"""
+"""
 Public Market Data Ingestion Feeder.
 
 Continuously polls and streams live candle updates, ticker prices, and depth
@@ -18,7 +18,7 @@ from core.repository.candle_repo import CandleRepository
 
 from .public_client import CoinDCXPublicClient
 
-logger = get_logger("v2.market.feeder")
+logger = get_logger("scanner.market.feeder")
 
 DEFAULT_PAIRS = [
     "BTC/INR",

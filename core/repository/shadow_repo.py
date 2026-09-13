@@ -1,4 +1,4 @@
-﻿"""
+"""
 V2 ShadowRepository — persistence for simulated shadow trades and divergence tracking.
 """
 
@@ -14,7 +14,7 @@ from core.types import BotName, DecisionDivergence, ShadowTrade
 from core.logging import get_logger
 from .base import BaseRepository
 
-logger = get_logger("v2.repository.shadow_repo")
+logger = get_logger("core.repository.shadow_repo")
 
 _ISO = "%Y-%m-%dT%H:%M:%S.%f+00:00"
 

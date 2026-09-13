@@ -9,16 +9,16 @@ from datetime import datetime, timezone
 from typing import Any
 import pytest
 
-from v2.bus.event_bus import EventBus
-from v2.bus.event_types import EventType
-from v2.core.config import V2Config
-from v2.core.types import BotMode, BotName, ExitReason, Position, PositionStatus, Signal
-from v2.repository.db import Database
-from v2.repository.position_repo import PositionRepository
-from v2.repository.signal_repo import SignalRepository
-from v2.repository.trade_repo import TradeRepository
-from v2.services.dashboard_service import DashboardService
-from v2.services.notification_service import (
+from core.bus.event_bus import EventBus
+from core.bus.event_types import EventType
+from core.config import V2Config
+from core.types import BotMode, BotName, ExitReason, Position, PositionStatus, Signal
+from core.repository.db import Database
+from core.repository.position_repo import PositionRepository
+from core.repository.signal_repo import SignalRepository
+from core.repository.trade_repo import TradeRepository
+from dashboard import DashboardService
+from telegram import (
     NotificationService,
     TelegramClient,
     TelegramInteractiveInterface,
@@ -32,8 +32,8 @@ from v2.services.notification_service import (
     format_telegram_signals,
     format_telegram_trades,
 )
-from v2.services.portfolio_service import PortfolioService
-from v2.services.risk_service import RiskService
+from background.portfolio import PortfolioService
+from execution.risk import RiskService
 
 
 class MockTelegramClient(TelegramClient):

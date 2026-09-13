@@ -17,16 +17,16 @@ from .event_bus import EventBus
 from .event_types import EventType
 
 if TYPE_CHECKING:
-    from v2.services.scanner_service import ScannerService
-    from v2.services.ai_intelligence_service import AIIntelligenceService
-    from v2.services.risk_service import RiskService
-    from v2.services.portfolio_service import PortfolioService
-    from v2.services.trading_service import TradingService
-    from v2.services.shadow_service import ShadowService
-    from v2.services.notification_service import NotificationService
-    from v2.services.dashboard_service import DashboardService
+    from scanner.service import ScannerService
+    from background.ai.service import AIIntelligenceService
+    from execution.risk.service import RiskService
+    from background.portfolio.service import PortfolioService
+    from execution.service import TradingService
+    from execution.shadow.service import ShadowService
+    from telegram.service import NotificationService
+    from dashboard.service import DashboardService
 
-logger = logging.getLogger("v2.bus.subscribers")
+logger = logging.getLogger("core.bus.subscribers")
 
 
 def register_all(

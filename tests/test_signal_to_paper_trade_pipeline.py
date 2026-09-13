@@ -13,24 +13,24 @@ from datetime import datetime, timezone, timedelta
 import pytest
 from unittest.mock import AsyncMock
 
-from v2.bus.event_bus import EventBus
-from v2.bus.event_types import EventType
-from v2.bus.subscribers import register_all
-from v2.core.config import V2Config
-from v2.core.types import BotName, BotMode, MarketState, OppType, Priority, RiskLevel, Signal
+from core.bus.event_bus import EventBus
+from core.bus.event_types import EventType
+from core.bus.subscribers import register_all
+from core.config import V2Config
+from core.types import BotName, BotMode, MarketState, OppType, Priority, RiskLevel, Signal
 import uuid
-from v2.repository.candle_repo import CandleRepository
-from v2.repository.signal_repo import SignalRepository
-from v2.repository.position_repo import PositionRepository
-from v2.repository.trade_repo import TradeRepository
-from v2.repository.event_log_repo import EventLogRepository
-from v2.repository.ai_repo import AIAnalysisRepository
-from v2.repository.db import Database
-from v2.services.scanner_service.service import ScannerService
-from v2.services.ai_intelligence_service.service import AIIntelligenceService
-from v2.services.risk_service.service import RiskService
-from v2.services.trading_service.service import TradingService
-from v2.services.dashboard_service.bot_pipeline import BotPipelineTracker
+from core.repository.candle_repo import CandleRepository
+from core.repository.signal_repo import SignalRepository
+from core.repository.position_repo import PositionRepository
+from core.repository.trade_repo import TradeRepository
+from core.repository.event_log_repo import EventLogRepository
+from core.repository.ai_repo import AIAnalysisRepository
+from core.repository.db import Database
+from scanner.service import ScannerService
+from background.ai.service import AIIntelligenceService
+from execution.risk.service import RiskService
+from execution.service import TradingService
+from dashboard.bot_pipeline import BotPipelineTracker
 
 
 import tempfile

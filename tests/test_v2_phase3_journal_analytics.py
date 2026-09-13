@@ -20,16 +20,16 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from v2.bus.event_bus import EventBus
-from v2.bus.event_types import EventType
-from v2.core.config import invalidate_config
-from v2.repository.db import Database
-from v2.repository.journal_repo import JournalRepository
-from v2.services.journal_service.service import JournalService
-from v2.services.analytics_service.engine import AnalyticsEngine
-from v2.services.analytics_service.tax_ledger import TaxLedgerService
-from v2.services.analytics_service.service import AnalyticsService
-from v2.app_v2 import app
+from core.bus.event_bus import EventBus
+from core.bus.event_types import EventType
+from core.config import invalidate_config
+from core.repository.db import Database
+from core.repository.journal_repo import JournalRepository
+from background.journal.service import JournalService
+from background.analytics.engine import AnalyticsEngine
+from background.analytics.tax_ledger import TaxLedgerService
+from background.analytics.service import AnalyticsService
+from app import app
 
 
 async def _create_test_journal_db(tmp_path):

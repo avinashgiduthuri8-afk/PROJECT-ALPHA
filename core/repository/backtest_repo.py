@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional
 
 from core.logging import get_logger
 
-logger = get_logger("v2.repository.backtest_repo")
+logger = get_logger("core.repository.backtest_repo")
 
 
 class BacktestRepository:

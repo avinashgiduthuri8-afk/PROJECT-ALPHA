@@ -13,18 +13,18 @@ from typing import Optional
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
-from core.config import V2Config
+from core.config import AppConfig
 from core.types import AIAnalysis, AIRecommendation, Priority, Signal
 from core.logging import get_logger
 from core.repository.ai_repo import AIAnalysisRepository
 from core.repository.event_log_repo import EventLogRepository
 from core.repository.signal_repo import SignalRepository
 
-from .circuit_breaker import CircuitBreaker, CircuitState
+from .circuit_breaker import CircuitBreaker
 from .client import GeminiClient
 from .evaluator import FallbackEvaluator
 
-logger = get_logger("background.ai")
+logger = get_logger("background.ai.service")
 
 
 class AIIntelligenceService:
@@ -35,7 +35,7 @@ class AIIntelligenceService:
         bus: EventBus,
         ai_repo: AIAnalysisRepository,
         event_log_repo: EventLogRepository,
-        config: V2Config,
+        config: AppConfig,
         signal_repo: Optional[SignalRepository] = None,
     ) -> None:
         self._bus = bus
@@ -48,16 +48,16 @@ class AIIntelligenceService:
         if self._config.gemini_api_key:
             self._client = GeminiClient(
                 api_key=self._config.gemini_api_key,
-                model=self._config.v2_ai_model,
-                timeout_seconds=self._config.v2_ai_timeout_seconds,
-                max_retries=self._config.v2_ai_max_retries,
+                model=self._config.ai_model,
+                timeout_seconds=self._config.ai_timeout_seconds,
+                max_retries=self._config.ai_max_retries,
             )
 
-        cb_threshold = getattr(self._config, "v2_ai_circuit_breaker_threshold", 3)
-        cb_cooldown = getattr(self._config, "v2_ai_circuit_breaker_cooldown_seconds", 60.0)
+        cb_threshold = getattr(self._config, "ai_circuit_breaker_threshold", 3)
+        cb_cooldown = getattr(self._config, "ai_circuit_breaker_cooldown_seconds", 60.0)
         self._circuit_breaker = CircuitBreaker(threshold=cb_threshold, cooldown_seconds=cb_cooldown)
 
-        self._min_priority = Priority(self._config.v2_ai_min_priority)
+        self._min_priority = Priority(self._config.ai_min_priority)
         self._total_evaluations = 0
         self._confirmed_count = 0
         self._rejected_count = 0
@@ -80,9 +80,9 @@ class AIIntelligenceService:
         self._bus.subscribe(EventType.SIGNAL_GENERATED, self.on_signal_generated)
         await self._bus.publish(
             EventType.SYSTEM_STARTUP,
-            {"service": "ai_intelligence_service", "model": self._config.v2_ai_model},
+            {"service": "ai_intelligence_service", "model": self._config.ai_model},
         )
-        logger.info("AIIntelligenceService started", extra={"model": self._config.v2_ai_model})
+        logger.info("AIIntelligenceService started", extra={"model": self._config.ai_model})
 
     async def stop(self) -> None:
         """Unsubscribe handlers."""
@@ -103,7 +103,7 @@ class AIIntelligenceService:
 
         allowed = self._circuit_breaker.allow_request()
 
-        if self._config.v2_ai_enabled and self._client is not None and allowed:
+        if self._config.ai_enabled and self._client is not None and allowed:
             try:
                 analysis = await self._client.evaluate_signal(signal)
                 if self._circuit_breaker.record_success():
@@ -178,7 +178,7 @@ class AIIntelligenceService:
         # 3. Confirmation vs Rejection Gating
         is_confirmed = (
             analysis.recommendation in (AIRecommendation.APPROVE, AIRecommendation.SCALE_DOWN)
-            and analysis.confidence_score >= self._config.v2_ai_confidence_threshold
+            and analysis.confidence_score >= self._config.ai_confidence_threshold
         )
 
         raw_p = signal.raw_payload or {}
@@ -198,27 +198,21 @@ class AIIntelligenceService:
                 "bot": bot,
                 "recommendation": analysis.recommendation.value,
                 "confidence_score": analysis.confidence_score,
-                "trend_evaluation": analysis.trend_evaluation,
+                "risk_score": analysis.risk_score,
+                "trade_action": analysis.trade_action.value,
+                "suggested_allocation_inr": analysis.suggested_allocation_inr,
+                "rationale": analysis.rationale,
                 "setup_quality": analysis.setup_quality,
-                "supporting_factors": analysis.supporting_factors,
-                "risk_factors": analysis.risk_factors,
-                "suggested_adjustments": analysis.suggested_adjustments,
-                "model_name": analysis.model_name,
-                "confluence_score": (signal.raw_payload or {}).get("confluence_score"),
-                "dynamic_threshold": (signal.raw_payload or {}).get("dynamic_threshold"),
-                "mtf_timeframes": (signal.raw_payload or {}).get("mtf_timeframes", ["5m", "15m", "1h"]),
-                "expires_at": signal.expires_at.isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             await self._bus.publish(EventType.SIGNAL_AI_CONFIRMED, confirm_payload)
-            await self._event_log.append(
-                event_type=EventType.SIGNAL_AI_CONFIRMED.value,
-                source_service="ai_intelligence_service",
-                entity_id=signal.id,
-                payload=confirm_payload,
-            )
             logger.info(
-                "Signal AI confirmed",
-                extra={"coin": signal.coin, "rec": analysis.recommendation.value, "conf": analysis.confidence_score},
+                "Signal CONFIRMED by AI",
+                extra={
+                    "coin": signal.coin,
+                    "confidence": analysis.confidence_score,
+                    "rec": analysis.recommendation.value,
+                },
             )
         else:
             self._rejected_count += 1
@@ -233,33 +227,44 @@ class AIIntelligenceService:
                 "bot": bot,
                 "recommendation": analysis.recommendation.value,
                 "confidence_score": analysis.confidence_score,
-                "trend_evaluation": analysis.trend_evaluation,
+                "risk_score": analysis.risk_score,
+                "trade_action": analysis.trade_action.value,
+                "rationale": analysis.rationale,
                 "setup_quality": analysis.setup_quality,
-                "supporting_factors": analysis.supporting_factors,
-                "conflicts": analysis.conflicts,
-                "risk_factors": analysis.risk_factors,
-                "model_name": analysis.model_name,
-                "confluence_score": (signal.raw_payload or {}).get("confluence_score"),
-                "dynamic_threshold": (signal.raw_payload or {}).get("dynamic_threshold"),
-                "mtf_timeframes": (signal.raw_payload or {}).get("mtf_timeframes", ["5m", "15m", "1h"]),
-                "expires_at": signal.expires_at.isoformat(),
+                "rejection_reason": (
+                    f"AI recommendation={analysis.recommendation.value}, "
+                    f"confidence={analysis.confidence_score} "
+                    f"(min={self._config.ai_confidence_threshold})"
+                ),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
-
             await self._bus.publish(EventType.SIGNAL_AI_REJECTED, reject_payload)
-            await self._event_log.append(
-                event_type=EventType.SIGNAL_AI_REJECTED.value,
-                source_service="ai_intelligence_service",
-                entity_id=signal.id,
-                payload=reject_payload,
-            )
             logger.info(
-                "Signal AI rejected / gated",
-                extra={"coin": signal.coin, "rec": analysis.recommendation.value, "conf": analysis.confidence_score},
+                "Signal REJECTED by AI",
+                extra={
+                    "coin": signal.coin,
+                    "confidence": analysis.confidence_score,
+                    "rec": analysis.recommendation.value,
+                },
             )
+
+        # 4. Record Event Log
+        await self._event_log.log_event(
+            EventType.SIGNAL_AI_CONFIRMED if is_confirmed else EventType.SIGNAL_AI_REJECTED,
+            {
+                "coin": signal.coin,
+                "signal_id": signal.id,
+                "analysis_id": analysis.id,
+                "recommendation": analysis.recommendation.value,
+                "confidence": analysis.confidence_score,
+                "used_fallback": used_fallback,
+            },
+            source_service="ai_intelligence_service",
+        )
 
         return analysis
 
-    # ── Bus Event Handlers ────────────────────────────────────────────────────
+    # ── Bus Event Handlers ────────────────────────────────────────────────    
 
     async def on_signal_generated(self, event_type: EventType, payload: dict) -> None:
         """Handle incoming signal from scanner and evaluate if priority criteria is met."""
@@ -274,8 +279,8 @@ class AIIntelligenceService:
 
             if signal is None:
                 # Construct temporary Signal from payload dictionary
-                from scanner.adapter import v1_signal_to_domain
-                signal = v1_signal_to_domain(payload)
+                from scanner.adapter import raw_signal_to_domain
+                signal = raw_signal_to_domain(payload)
 
             if signal.priority.gte(self._min_priority):
                 await self.evaluate_signal(signal)
@@ -290,11 +295,11 @@ class AIIntelligenceService:
         avg_lat = round(sum(self._latencies) / len(self._latencies), 2) if self._latencies else 0.0
         return {
             "healthy": self._started,
-            "ai_enabled": self._config.v2_ai_enabled,
-            "model": self._config.v2_ai_model,
+            "ai_enabled": self._config.ai_enabled,
+            "model": self._config.ai_model,
             "has_api_key": bool(self._config.gemini_api_key),
             "min_priority": self._min_priority.value,
-            "confidence_threshold": self._config.v2_ai_confidence_threshold,
+            "confidence_threshold": self._config.ai_confidence_threshold,
             "total_evaluations": self._total_evaluations,
             "confirmed_count": self._confirmed_count,
             "rejected_count": self._rejected_count,

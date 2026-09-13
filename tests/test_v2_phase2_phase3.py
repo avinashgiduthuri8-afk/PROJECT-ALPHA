@@ -16,27 +16,27 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import aiosqlite
 
-from v2.core.types import MarketState, Priority, RiskLevel, Signal, OppType
-from v2.core.config import get_config
-from v2.bus.event_bus import EventBus
-from v2.repository.signal_repo import SignalRepository
-from v2.repository.event_log_repo import EventLogRepository
-from v2.repository.candle_repo import CandleRepository
-from v2.services.scanner_service.market_context import (
+from core.types import MarketState, Priority, RiskLevel, Signal, OppType
+from core.config import get_config
+from core.bus.event_bus import EventBus
+from core.repository.signal_repo import SignalRepository
+from core.repository.event_log_repo import EventLogRepository
+from core.repository.candle_repo import CandleRepository
+from scanner.market_context import (
     MarketContextService,
     calculate_ema,
     determine_trend_from_candles,
 )
-from v2.services.scanner_service.news_fetcher import (
+from scanner.news_fetcher import (
     NewsRiskService,
     DELISTING_KEYWORDS,
     NEGATIVE_NEWS_KEYWORDS,
 )
-from v2.services.scanner_service.service import (
+from scanner.service import (
     ScannerService,
     AsyncRateLimiter,
 )
-from v2.services.scanner_service.confluence_engine import (
+from scanner.confluence_engine import (
     ConfluenceEngine,
     MarketSentimentEvaluator,
     NewsEventsEvaluator,

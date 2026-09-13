@@ -17,7 +17,7 @@ from core.types import BotName, ExitReason, PositionStatus
 from core.repository.position_repo import PositionRepository
 from execution.trading.subaccount_manager import CoinDCXSubAccountManager
 
-logger = get_logger("v2.services.trading_service.reconciliation")
+logger = get_logger("execution.reconciliation")
 
 
 class ReconciliationService:

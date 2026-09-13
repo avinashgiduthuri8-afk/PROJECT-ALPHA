@@ -25,10 +25,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from v2.bus.event_bus import EventBus
-from v2.bus.event_types import EventType
-from v2.core.config import DEFAULT_ORDER_AMOUNT_INR, V2Config, get_config, invalidate_config
-from v2.core.types import (
+from core.bus.event_bus import EventBus
+from core.bus.event_types import EventType
+from core.config import DEFAULT_ORDER_AMOUNT_INR, AppConfig, V2Config, get_config, invalidate_config
+from core.types import (
     BotMode,
     BotName,
     ExitReason,
@@ -36,18 +36,18 @@ from v2.core.types import (
     PositionStatus,
     Signal,
 )
-from v2.repository.db import Database
-from v2.repository.event_log_repo import EventLogRepository
-from v2.repository.position_repo import PositionRepository
-from v2.repository.signal_repo import SignalRepository
-from v2.repository.trade_repo import TradeRepository
-from v2.services.notification_service.telegram_interface import TelegramInteractiveInterface
-from v2.services.production_service.controller import ProductionController
-from v2.services.production_service.watchdog import ProductionWatchdog
-from v2.services.risk_service.service import RiskService
-from v2.services.trading_service.service import TradingService
-from v2.trading.precision_rules import get_pair_spec
-from v2.trading.subaccount_manager import CoinDCXSubAccountManager
+from core.repository.db import Database
+from core.repository.event_log_repo import EventLogRepository
+from core.repository.position_repo import PositionRepository
+from core.repository.signal_repo import SignalRepository
+from core.repository.trade_repo import TradeRepository
+from telegram.telegram_interface import TelegramInteractiveInterface
+from background.production.controller import ProductionController
+from background.production.watchdog import ProductionWatchdog
+from execution.risk.service import RiskService
+from execution.service import TradingService
+from execution.trading.precision_rules import get_pair_spec
+from execution.trading.subaccount_manager import CoinDCXSubAccountManager
 
 
 class MockTelegramClient:
@@ -182,7 +182,7 @@ async def test_03_kill_switch_blocks_every_outbound_path_buy_and_sell():
     client = sub_mgr.get_client(BotName.STE)
     client.post = AsyncMock()  # Network call mock
 
-    with patch("v2.core.config.get_config", return_value=disabled_cfg):
+    with patch("core.config.get_config", return_value=disabled_cfg):
         # 1. BUY blocked
         buy_res = await client.place_live_order(
             pair="BTC/INR",
@@ -364,7 +364,7 @@ async def test_07_live_dynamic_balance_fails_closed_when_unavailable():
     client.get_balances = AsyncMock(return_value={"success": False, "error": "NETWORK_UNAVAILABLE"})
     client.post = AsyncMock()
 
-    with patch("v2.core.config.get_config", return_value=cfg):
+    with patch("core.config.get_config", return_value=cfg):
         res = await client.place_live_order(
             pair="BTC/INR",
             side="BUY",

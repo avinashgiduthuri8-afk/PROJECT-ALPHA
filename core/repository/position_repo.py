@@ -16,7 +16,7 @@ from core.types import (
 from core.logging import get_logger
 from .base import BaseRepository
 
-logger = get_logger("v2.repository.position_repo")
+logger = get_logger("core.repository.position_repo")
 
 
 def _dt(s: str | None) -> Optional[datetime]:

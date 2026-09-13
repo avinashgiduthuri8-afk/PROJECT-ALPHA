@@ -49,7 +49,7 @@ async def run_live_simulation(
     }
 
     # 1. Listen on WebSocket in background task
-    ws_url = f"ws://127.0.0.1:5001/ws/v2/feed?api_key={api_key}"
+    ws_url = f"ws://127.0.0.1:5001/ws/feed?api_key={api_key}"
     received_frames = []
 
     async def ws_listener():
@@ -72,8 +72,8 @@ async def run_live_simulation(
 
     # 2. Dispatch Synthetic Signal via REST Endpoint
     async with httpx.AsyncClient(timeout=15.0) as client:
-        print(f"\n[EMITTING] Synthetic signal to {base_url}/api/v2/learning/simulate-signal...")
-        resp = await client.post(f"{base_url}/api/v2/learning/simulate-signal", json=payload, headers=headers)
+        print(f"\n[EMITTING] Synthetic signal to {base_url}/api/learning/simulate-signal...")
+        resp = await client.post(f"{base_url}/api/learning/simulate-signal", json=payload, headers=headers)
         if resp.status_code == 200:
             res_data = resp.json()
             print("\n[AI EVALUATION VERDICT RECEIVED]:")

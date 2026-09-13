@@ -18,10 +18,10 @@ from pathlib import Path
 # Ensure root directory is on Python path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from v2.backtest.data_feeder import COINDCX_INR_PAIRS
-from v2.backtest.engine import BacktestEngine
-from v2.backtest.fleet_selector import FleetSelector
-from v2.backtest.friction import FrictionConfig
+from background.backtest.data_feeder import COINDCX_INR_PAIRS
+from background.backtest.engine import BacktestEngine
+from background.backtest.fleet_selector import FleetSelector
+from background.backtest.friction import FrictionConfig
 
 
 def main() -> None:

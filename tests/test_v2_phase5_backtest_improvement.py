@@ -19,13 +19,13 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from v2.core.config import invalidate_config
-from v2.repository.db import Database
-from v2.repository.backtest_repo import BacktestRepository
-from v2.backtest.historical_runner import HistoricalRunner, STATUTORY_ROUND_TRIP_DRAG_RATE
-from v2.backtest.optimizer import StrategyOptimizer
-from v2.services.backtest_service.service import BacktestService
-from v2.app_v2 import app
+from core.config import invalidate_config
+from core.repository.db import Database
+from core.repository.backtest_repo import BacktestRepository
+from background.backtest.historical_runner import HistoricalRunner, STATUTORY_ROUND_TRIP_DRAG_RATE
+from background.backtest.optimizer import StrategyOptimizer
+from background.backtest.service.service import BacktestService
+from app import app
 
 
 def generate_synthetic_candles(count: int = 50, start_price: float = 100.0) -> list[dict]:

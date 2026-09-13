@@ -13,7 +13,7 @@ from core.types import BotMode, BotName, ExitReason, Trade
 from core.logging import get_logger
 from .base import BaseRepository
 
-logger = get_logger("v2.repository.trade_repo")
+logger = get_logger("core.repository.trade_repo")
 
 
 def _dt(s: str | None) -> Optional[datetime]:

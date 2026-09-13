@@ -1,8 +1,8 @@
 import pytest
 from fastapi import FastAPI, Depends
 from fastapi.testclient import TestClient
-from v2.core.config import get_config
-from v2.api.auth import require_api_key
+from core.config import get_config
+from dashboard.api.auth import require_api_key
 
 app = FastAPI()
 

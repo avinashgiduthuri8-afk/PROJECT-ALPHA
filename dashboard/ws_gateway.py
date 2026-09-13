@@ -15,7 +15,7 @@ from fastapi import WebSocket, WebSocketDisconnect, status
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
-from core.config import V2Config
+from core.config import AppConfig
 from core.logging import get_logger
 from .aggregator import DashboardAggregator
 
@@ -29,7 +29,7 @@ class WebSocketTelemetryGateway:
         self,
         aggregator: DashboardAggregator,
         bus: Optional[EventBus] = None,
-        config: Optional[V2Config] = None,
+        config: Optional[AppConfig] = None,
     ) -> None:
         self.aggregator = aggregator
         self._bus = bus

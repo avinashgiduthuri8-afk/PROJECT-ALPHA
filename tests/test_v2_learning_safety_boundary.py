@@ -5,7 +5,7 @@ Asserts that learning_service cannot modify B2 filter thresholds, B5 max signal 
 """
 
 import pytest
-from v2.services.learning_service.calibrator import (
+from background.learning.calibrator import (
     IMMUTABLE_SAFETY_BOUNDARIES,
     StrategyCalibrator,
 )

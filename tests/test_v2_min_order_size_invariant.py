@@ -6,11 +6,11 @@ Ensures no order is placed or sized below INR 200.00 in either PAPER or LIVE mod
 from __future__ import annotations
 
 import pytest
-from v2.core.config import V2Config
-from v2.core.types import BotName
-from v2.services.risk_service.capital_guard import CapitalGuard
-from v2.services.trading_service.adapters import StrategyAdapterFactory
-from v2.trading.precision_rules import PRECISION_TABLE, validate_order_notional
+from core.config import V2Config
+from core.types import BotName
+from execution.risk.capital_guard import CapitalGuard
+from execution.adapters import StrategyAdapterFactory
+from execution.trading.precision_rules import PRECISION_TABLE, validate_order_notional
 
 
 def test_precision_table_min_notional_is_200():

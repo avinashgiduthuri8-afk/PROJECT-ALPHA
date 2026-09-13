@@ -6,13 +6,13 @@ from __future__ import annotations
 
 import pytest
 
-from v2.backtest.data_feeder import COINDCX_INR_PAIRS, get_pair_spec, round_price, round_qty
-from v2.backtest.engine import BacktestEngine
-from v2.backtest.fleet_selector import FleetSelector
-from v2.backtest.friction import CoinDCXFrictionModel, FrictionConfig
-from v2.backtest.metrics import PerformanceMetrics, calculate_trade_metrics
-from v2.backtest.risk_gate import Stage06RiskGate
-from v2.backtest.strategies import MTBStrategy, HDAStrategy, STEStrategy
+from background.backtest.data_feeder import COINDCX_INR_PAIRS, get_pair_spec, round_price, round_qty
+from background.backtest.engine import BacktestEngine
+from background.backtest.fleet_selector import FleetSelector
+from background.backtest.friction import CoinDCXFrictionModel, FrictionConfig
+from background.backtest.metrics import PerformanceMetrics, calculate_trade_metrics
+from background.backtest.risk_gate import Stage06RiskGate
+from background.backtest.strategies import MTBStrategy, HDAStrategy, STEStrategy
 
 
 class TestFrictionModel:

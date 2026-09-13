@@ -1,4 +1,4 @@
-﻿"""
+"""
 V2 ShadowService — manages shadow simulation, scheduled price updates, and divergence tracking.
 """
 
@@ -8,7 +8,7 @@ from typing import Optional
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
-from core.config import V2Config
+from core.config import AppConfig
 from core.types import BotName, ShadowTrade
 from core.logging import get_logger
 from core.repository.event_log_repo import EventLogRepository
@@ -17,7 +17,7 @@ from core.repository.shadow_repo import ShadowRepository
 from .divergence import DivergenceTracker
 from .engine import ShadowEngine
 
-logger = get_logger("v2.services.shadow_service")
+logger = get_logger("execution.shadow")
 
 
 class ShadowService:
@@ -28,7 +28,7 @@ class ShadowService:
         bus: EventBus,
         shadow_repo: ShadowRepository,
         event_log_repo: EventLogRepository,
-        config: V2Config,
+        config: AppConfig,
     ) -> None:
         self._bus = bus
         self._shadow_repo = shadow_repo
@@ -127,5 +127,5 @@ class ShadowService:
     def get_health(self) -> dict:
         return {
             "healthy": self._started,
-            "shadow_mode": self._config.v2_shadow_mode,
+            "shadow_mode": self._config.shadow_mode,
         }

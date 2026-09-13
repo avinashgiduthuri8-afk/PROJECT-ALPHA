@@ -16,7 +16,7 @@ import httpx
 
 from core.logging import get_logger
 
-logger = get_logger("v2.market.public_client")
+logger = get_logger("scanner.market.public_client")
 
 
 class TokenBucketRateLimiter:

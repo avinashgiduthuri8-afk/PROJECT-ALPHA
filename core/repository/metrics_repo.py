@@ -14,7 +14,7 @@ import aiosqlite
 from core.logging import get_logger
 from .base import BaseRepository
 
-logger = get_logger("v2.repository.metrics_repo")
+logger = get_logger("core.repository.metrics_repo")
 
 
 @dataclass

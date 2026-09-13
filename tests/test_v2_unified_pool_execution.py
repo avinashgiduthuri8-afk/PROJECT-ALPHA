@@ -9,10 +9,10 @@ from datetime import datetime, timezone
 import uuid
 import pytest
 
-from v2.bus.event_bus import EventBus
-from v2.bus.event_types import EventType
-from v2.core.config import V2Config
-from v2.core.types import (
+from core.bus.event_bus import EventBus
+from core.bus.event_types import EventType
+from core.config import V2Config
+from core.types import (
     BotName,
     Position,
     PositionStatus,
@@ -23,18 +23,18 @@ from v2.core.types import (
     Priority,
     RiskLevel,
 )
-from v2.repository.db import Database
-from v2.repository.position_repo import PositionRepository
-from v2.repository.signal_repo import SignalRepository
-from v2.repository.trade_repo import TradeRepository
-from v2.repository.event_log_repo import EventLogRepository
-from v2.trading.subaccount_manager import CoinDCXExecutionManager
-from v2.trading.precision_rules import validate_order_notional
-from v2.services.risk_service.capital_guard import CapitalGuard
-from v2.services.risk_service.service import RiskService
-from v2.services.trading_service.service import TradingService
-from v2.services.trading_service.auto_trader import AutoTradeRouter
-from v2.services.trading_service.adapters import StrategyAdapterFactory
+from core.repository.db import Database
+from core.repository.position_repo import PositionRepository
+from core.repository.signal_repo import SignalRepository
+from core.repository.trade_repo import TradeRepository
+from core.repository.event_log_repo import EventLogRepository
+from execution.trading.subaccount_manager import CoinDCXExecutionManager
+from execution.trading.precision_rules import validate_order_notional
+from execution.risk.capital_guard import CapitalGuard
+from execution.risk.service import RiskService
+from execution.service import TradingService
+from execution.auto_trader import AutoTradeRouter
+from execution.adapters import StrategyAdapterFactory
 
 
 # ── 1. Unified Capital Pool Sizing Tests ─────────────────────────────────────

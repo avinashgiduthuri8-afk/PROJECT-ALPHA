@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
-from core.config import V2Config
+from core.config import AppConfig
 from core.logging import get_logger
 
 from .aggregator import DashboardAggregator
@@ -171,7 +171,7 @@ class DashboardService:
     def __init__(
         self,
         bus: EventBus,
-        config: V2Config,
+        config: AppConfig,
         ws_manager: Optional[WebSocketManager] = None,
         scanner_service: Optional[Any] = None,
         ai_service: Optional[Any] = None,
@@ -378,6 +378,7 @@ class DashboardService:
         return {
             "funnel_metrics": {
                 "total_scanned": len(scanned_coins) if scanned_coins else 12,
+                "passed_initial_gates": len(scanned_coins),
                 "passed_v1_gates": len(scanned_coins),
                 "passed_confluence": len([c for c in scanned_coins if c.get("status") == "PASSED"]),
                 "dispatched_signals": len(live_sigs),

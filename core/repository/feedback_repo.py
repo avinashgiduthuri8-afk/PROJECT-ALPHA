@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional
 
 from core.logging import get_logger
 
-logger = get_logger("v2.repository.feedback_repo")
+logger = get_logger("core.repository.feedback_repo")
 
 
 class FeedbackRepository:

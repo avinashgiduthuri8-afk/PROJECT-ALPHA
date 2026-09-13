@@ -21,9 +21,9 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from v2.bus.event_bus import EventBus
-from v2.core.config import V2Config, invalidate_config
-from v2.core.types import (
+from core.bus.event_bus import EventBus
+from core.config import V2Config, invalidate_config
+from core.types import (
     BotName,
     BotMode,
     Position,
@@ -31,26 +31,26 @@ from v2.core.types import (
     Trade,
     ExitReason,
 )
-from v2.repository.db import Database
-from v2.repository.position_repo import PositionRepository
-from v2.repository.trade_repo import TradeRepository
-from v2.services.portfolio_service.aggregator import PortfolioAggregator
-from v2.services.dashboard_service.bot_pipeline import BotPipelineTracker
-from v2.services.dashboard_service.aggregator import DashboardAggregator
-from v2.services.dashboard_service.service import DashboardService
-from v2.trading.subaccount_manager import CoinDCXSubAccountManager, SubAccountConfig
-from v2.services.trading_service.auto_trader import AutoTradeRouter
-from v2.trading.precision_rules import (
+from core.repository.db import Database
+from core.repository.position_repo import PositionRepository
+from core.repository.trade_repo import TradeRepository
+from background.portfolio.aggregator import PortfolioAggregator
+from dashboard.bot_pipeline import BotPipelineTracker
+from dashboard.aggregator import DashboardAggregator
+from dashboard.service import DashboardService
+from execution.trading.subaccount_manager import CoinDCXSubAccountManager, SubAccountConfig
+from execution.auto_trader import AutoTradeRouter
+from execution.trading.precision_rules import (
     validate_order_notional,
     round_price,
     round_qty,
     round_qty_up,
     PRECISION_TABLE,
 )
-from v2.backtest.friction import CoinDCXFrictionModel
-from v2.api.router import router as main_router, init_router
-from v2.api.dashboard_routes import router as dashboard_router, init_dashboard_routes
-from v2.api.production_routes import router as production_router, init_production_routes
+from background.backtest.friction import CoinDCXFrictionModel
+from dashboard.api.router import router as main_router, init_router
+from dashboard.api.dashboard_routes import router as dashboard_router, init_dashboard_routes
+from dashboard.api.production_routes import router as production_router, init_production_routes
 
 
 # =============================================================================

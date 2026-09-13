@@ -14,11 +14,11 @@ from __future__ import annotations
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from v2.bus.event_bus import EventBus
-from v2.bus.event_types import EventType
-from v2.bus.subscribers import register_all
-from v2.core.config import V2Config
-from v2.services.portfolio_service import PortfolioService, PortfolioAggregator
+from core.bus.event_bus import EventBus
+from core.bus.event_types import EventType
+from core.bus.subscribers import register_all
+from core.config import V2Config
+from background.portfolio import PortfolioService, PortfolioAggregator
 
 
 @pytest.mark.anyio

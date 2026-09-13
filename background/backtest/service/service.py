@@ -14,7 +14,7 @@ from background.backtest.optimizer import StrategyOptimizer
 from core.logging import get_logger
 from core.repository.backtest_repo import BacktestRepository
 
-logger = get_logger("v2.services.backtest_service")
+logger = get_logger("background.backtest.service")
 
 
 class BacktestService:

@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from core.bus.event_types import EventType
-from core.config import V2Config
+from core.config import AppConfig
 from core.logging import get_logger
 from core.types import BotName
 
@@ -120,7 +120,7 @@ class BotState:
         },
     }
 
-    def __init__(self, bot_name: str, config: Optional[V2Config] = None) -> None:
+    def __init__(self, bot_name: str, config: Optional[AppConfig] = None) -> None:
         self.bot_name = bot_name
         self._config = config
 
@@ -243,7 +243,7 @@ class BotPipelineTracker:
     for all 4 production trading bots (STE, HDA, VCP, BBS) in real time.
     """
 
-    def __init__(self, config: Optional[V2Config] = None) -> None:
+    def __init__(self, config: Optional[AppConfig] = None) -> None:
         self._config = config
         self._bots: Dict[str, BotState] = {
             BotName.STE.value: BotState("STE", config),

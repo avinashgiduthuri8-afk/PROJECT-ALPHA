@@ -12,7 +12,7 @@ from typing import Optional
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
-from core.config import V2Config
+from core.config import AppConfig
 from core.types import (
     BotName,
     OppType,
@@ -26,7 +26,7 @@ from core.repository.trade_repo import TradeRepository
 from .capital_guard import CapitalGuard
 from .circuit_breaker import CircuitBreaker
 
-logger = get_logger("v2.services.risk_service")
+logger = get_logger("execution.risk")
 
 
 class RiskService:
@@ -38,7 +38,7 @@ class RiskService:
         position_repo: PositionRepository,
         trade_repo: TradeRepository,
         event_log_repo: EventLogRepository,
-        config: V2Config,
+        config: AppConfig,
     ) -> None:
         self._bus = bus
         self._position_repo = position_repo
@@ -96,7 +96,7 @@ class RiskService:
             return breaker_dec
 
         # 2. Dynamic Live Balance Verification (In LIVE_MICROCASH mode)
-        deployment_mode = getattr(self._config, "v2_deployment_mode", "SHADOW").upper()
+        deployment_mode = getattr(self._config, "deployment_mode", "SHADOW").upper()
         if deployment_mode == "LIVE_MICROCASH":
             live_cap = available_capital
             if live_cap is None and hasattr(self, "_trading_service") and self._trading_service:
@@ -250,14 +250,14 @@ class RiskService:
         return BotName.STE
 
     def _get_default_amount_for_bot(self, bot: BotName) -> float:
-        if bot == BotName.STE and self._config.v2_default_trade_amount_ste > 200.0:
-            return float(self._config.v2_default_trade_amount_ste)
-        if bot == BotName.HDA and self._config.v2_default_trade_amount_hda > 200.0:
-            return float(self._config.v2_default_trade_amount_hda)
-        if bot == BotName.VCP and self._config.v2_default_trade_amount_vcp > 200.0:
-            return float(self._config.v2_default_trade_amount_vcp)
-        if bot == BotName.BBS and self._config.v2_default_trade_amount_bbs > 200.0:
-            return float(self._config.v2_default_trade_amount_bbs)
+        if bot == BotName.STE and self._config.default_trade_amount_ste > 200.0:
+            return float(self._config.default_trade_amount_ste)
+        if bot == BotName.HDA and self._config.default_trade_amount_hda > 200.0:
+            return float(self._config.default_trade_amount_hda)
+        if bot == BotName.VCP and self._config.default_trade_amount_vcp > 200.0:
+            return float(self._config.default_trade_amount_vcp)
+        if bot == BotName.BBS and self._config.default_trade_amount_bbs > 200.0:
+            return float(self._config.default_trade_amount_bbs)
         return max(200.0, float(self._config.order_size_inr))
 
     async def is_safe_to_resume(self) -> tuple[bool, str]:
@@ -273,8 +273,8 @@ class RiskService:
         """
         # 1. Check consecutive loss limits
         for bot_name, losses in self._circuit_breaker._consecutive_losses.items():
-            if losses >= self._config.v2_max_consecutive_losses:
-                return False, f"Strategy {bot_name} exceeded max consecutive losses ({losses}/{self._config.v2_max_consecutive_losses})"
+            if losses >= self._config.max_consecutive_losses:
+                return False, f"Strategy {bot_name} exceeded max consecutive losses ({losses}/{self._config.max_consecutive_losses})"
 
         # 2. Check if circuit breaker was tripped by a risk breach / loss event
         cb_reason = (self._circuit_breaker.reason or "").lower()
@@ -285,7 +285,7 @@ class RiskService:
                 return False, f"Circuit breaker is open: {self._circuit_breaker.reason or 'Risk limit exceeded'}"
 
         # 3. Dynamic capital & exchange safety in LIVE mode
-        deployment_mode = getattr(self._config, "v2_deployment_mode", "SHADOW").upper()
+        deployment_mode = getattr(self._config, "deployment_mode", "SHADOW").upper()
         if deployment_mode == "LIVE_MICROCASH":
             if not self._config.coindcx_api_key or not self._config.coindcx_api_secret:
                 return False, "CoinDCX API credentials missing or incomplete"
@@ -308,7 +308,7 @@ class RiskService:
         open_bbs = await self._position_repo.get_open_by_bot(BotName.BBS)
 
         return RiskState(
-            trading_enabled=self._config.v2_trading_enabled,
+            trading_enabled=self._config.trading_enabled,
             emergency_stop=self._circuit_breaker.emergency_stop,
             circuit_breaker_open=self._circuit_breaker.is_open,
             per_bot_deployed={
@@ -330,7 +330,7 @@ class RiskService:
     def get_health(self) -> dict:
         return {
             "healthy": self._started,
-            "trading_enabled": self._config.v2_trading_enabled,
+            "trading_enabled": self._config.trading_enabled,
             "circuit_breaker_open": self._circuit_breaker.is_open,
             "emergency_stop": self._circuit_breaker.emergency_stop,
             "breaker_reason": self._circuit_breaker.reason,

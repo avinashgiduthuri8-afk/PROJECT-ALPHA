@@ -15,7 +15,7 @@ import httpx
 
 from core.logging import get_logger
 
-logger = get_logger("v2.services.scanner_service.market_context")
+logger = get_logger("scanner.market_context")
 
 
 def calculate_ema(prices: List[float], period: int) -> List[float]:

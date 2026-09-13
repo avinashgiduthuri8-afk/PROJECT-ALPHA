@@ -29,7 +29,7 @@ from execution.trading.precision_rules import (
 )
 from execution.trading.subaccount_manager import CoinDCXSubAccountClient, CoinDCXSubAccountManager
 
-logger = get_logger("v2.services.trading_service.auto_trader")
+logger = get_logger("execution.auto_trader")
 
 
 class AutoTradeRouter:

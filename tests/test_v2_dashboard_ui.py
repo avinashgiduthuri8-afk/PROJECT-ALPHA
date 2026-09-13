@@ -11,8 +11,8 @@ import pytest
 import httpx
 from fastapi.testclient import TestClient
 
-from v2.app_v2 import app
-from v2.core.config import get_config, invalidate_config
+from app import app
+from core.config import get_config, invalidate_config
 
 
 @pytest.fixture(autouse=True)
@@ -146,4 +146,8 @@ def test_set_mode_security_password_protection():
         assert resp_live_ok.status_code == 200
         assert resp_live_ok.json()["success"] is True
         assert resp_live_ok.json()["mode"] == "LIVE_MICROCASH"
+
+        # 5. Clean up: reset back to PAPER mode
+        resp_reset = client.post("/api/v2/production/set-mode", json={"mode": "PAPER"}, headers=headers)
+        assert resp_reset.status_code == 200
 

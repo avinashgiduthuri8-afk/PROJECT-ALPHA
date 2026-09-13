@@ -11,7 +11,7 @@ import aiosqlite
 
 from core.logging import get_logger
 
-logger = get_logger("v2.repository.production_repo")
+logger = get_logger("core.repository.production_repo")
 
 
 class ProductionRepository:

@@ -16,7 +16,7 @@ from core.repository.position_repo import PositionRepository
 from execution.trading.order_state_machine import OrderStateMachine
 from execution.trading.subaccount_manager import CoinDCXSubAccountManager
 
-logger = get_logger("v2.services.trading_service.recovery")
+logger = get_logger("execution.recovery")
 
 
 class RestartRecoveryService:

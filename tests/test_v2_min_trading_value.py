@@ -13,10 +13,10 @@ Tests:
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from v2.bus.event_bus import EventBus
-from v2.core.config import V2Config
-from v2.core.types import BotName, Signal
-from v2.trading.precision_rules import (
+from core.bus.event_bus import EventBus
+from core.config import V2Config
+from core.types import BotName, Signal
+from execution.trading.precision_rules import (
     PRECISION_TABLE,
     get_pair_spec,
     round_price,
@@ -24,8 +24,8 @@ from v2.trading.precision_rules import (
     round_qty_up,
     validate_order_notional,
 )
-from v2.services.trading_service.auto_trader import AutoTradeRouter
-from v2.trading.subaccount_manager import CoinDCXSubAccountManager
+from execution.auto_trader import AutoTradeRouter
+from execution.trading.subaccount_manager import CoinDCXSubAccountManager
 
 
 def test_round_qty_up_discrete_steps():

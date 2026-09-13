@@ -22,7 +22,7 @@ from core.bus.event_types import EventType
 from core.logging import get_logger
 from .confluence_engine import ConfluenceEngine
 
-logger = get_logger("v2.services.scanner_service.calibration_worker")
+logger = get_logger("scanner.calibration_worker")
 
 
 def get_data_file_path(filename: str) -> Path:

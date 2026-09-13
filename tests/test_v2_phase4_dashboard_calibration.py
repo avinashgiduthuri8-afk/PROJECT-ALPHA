@@ -18,17 +18,17 @@ import httpx
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from v2.bus.event_bus import EventBus
-from v2.bus.event_types import EventType
-from v2.core.config import V2Config, get_config
-from v2.core.types import MarketState, Priority, RiskLevel, Signal, OppType
-from v2.services.dashboard_service.service import DashboardService, DashboardAnalyticsService
-from v2.services.dashboard_service.websocket import WebSocketManager
-from v2.services.scanner_service.calibration_worker import CalibrationWorker
-from v2.services.scanner_service.confluence_engine import ConfluenceEngine
-from v2.services.scanner_service.service import ScannerService
-from v2.api.router import router as api_router, init_router
-from v2.api.websocket import router as ws_router, init_websocket
+from core.bus.event_bus import EventBus
+from core.bus.event_types import EventType
+from core.config import V2Config, get_config
+from core.types import MarketState, Priority, RiskLevel, Signal, OppType
+from dashboard.service import DashboardService, DashboardAnalyticsService
+from dashboard.websocket import WebSocketManager
+from scanner.calibration_worker import CalibrationWorker
+from scanner.confluence_engine import ConfluenceEngine
+from scanner.service import ScannerService
+from dashboard.api.router import router as api_router, init_router
+from dashboard.api.websocket import router as ws_router, init_websocket
 
 
 def _make_test_signal(
@@ -125,7 +125,7 @@ async def test_calibration_worker_tightens_on_low_win_rate():
         "BTC": {"total_signals": 10, "win_rate_pct": 80.0, "avg_return_pct": 2.0},
     }
 
-    with patch("v2.services.scanner_service.calibration_worker._safe_load_json") as mock_load:
+    with patch("scanner.calibration_worker._safe_load_json") as mock_load:
         def fake_load(path: Path):
             if "signal_history" in path.name:
                 return mock_history
@@ -162,7 +162,7 @@ async def test_calibration_worker_recovery_on_high_win_rate():
         for _ in range(10)
     ]
 
-    with patch("v2.services.scanner_service.calibration_worker._safe_load_json") as mock_load:
+    with patch("scanner.calibration_worker._safe_load_json") as mock_load:
         def fake_load(path: Path):
             if "signal_history" in path.name:
                 return mock_history
@@ -237,7 +237,7 @@ async def test_analytics_rest_api_endpoints():
 
 @pytest.mark.anyio
 async def test_websocket_feed_unauthorized_rejection():
-    from v2.api.websocket import websocket_feed
+    from dashboard.api.websocket import websocket_feed
 
     cfg = get_config()
     bus = MagicMock(spec=EventBus)
@@ -247,7 +247,7 @@ async def test_websocket_feed_unauthorized_rejection():
     mock_ws = AsyncMock()
     mock_ws.headers = {}
 
-    with patch("v2.api.websocket.get_config") as mock_cfg:
+    with patch("dashboard.api.websocket.get_config") as mock_cfg:
         cfg_obj = MagicMock()
         cfg_obj.dashboard_api_key = "secret-production-key"
         mock_cfg.return_value = cfg_obj
@@ -259,7 +259,7 @@ async def test_websocket_feed_unauthorized_rejection():
 
 @pytest.mark.anyio
 async def test_websocket_feed_telemetry_snapshot():
-    from v2.api.websocket import websocket_feed
+    from dashboard.api.websocket import websocket_feed
 
     cfg = get_config()
     bus = MagicMock(spec=EventBus)

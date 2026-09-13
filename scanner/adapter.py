@@ -18,7 +18,7 @@ from core.types import (
 )
 from core.logging import get_logger
 
-logger = get_logger("v2.services.scanner_service.adapter")
+logger = get_logger("scanner.adapter")
 
 # V1 maps market_state → opportunity_type
 _STATE_TO_OPP: dict[str, OppType] = {
@@ -108,12 +108,12 @@ def _parse_datetime(raw: str | None) -> datetime | None:
     return None
 
 
-def v1_response_to_signals(
+def raw_response_to_signals(
     data: list[dict[str, Any]],
     signal_ttl_seconds: int = 300,
 ) -> list[Signal]:
     """
-    Convert the V1 /api/v1/scanner/signals response list into V2 Signal objects.
+    Convert raw scanner signal responses into canonical Signal domain objects.
 
     Signals with missing required fields are skipped with a warning.
     """
@@ -202,9 +202,13 @@ def v1_response_to_signals(
     return signals
 
 
-def v1_signal_to_domain(item: dict[str, Any], signal_ttl_seconds: int = 300) -> Signal:
-    """Convert a single raw signal dict into a V2 Signal object."""
-    results = v1_response_to_signals([item], signal_ttl_seconds=signal_ttl_seconds)
+# Backward-compatible alias
+v1_response_to_signals = raw_response_to_signals
+
+
+def raw_signal_to_domain(item: dict[str, Any], signal_ttl_seconds: int = 300) -> Signal:
+    """Convert a single raw signal dict into a canonical Signal domain object."""
+    results = raw_response_to_signals([item], signal_ttl_seconds=signal_ttl_seconds)
     if results:
         return results[0]
 
@@ -234,7 +238,12 @@ def v1_signal_to_domain(item: dict[str, Any], signal_ttl_seconds: int = 300) -> 
         mtf_alignment=_parse_bool(item.get("mtf_alignment") or item.get("mtf") or item.get("is_mtf_aligned")),
         generated_at=now,
         expires_at=now + timedelta(seconds=signal_ttl_seconds),
-        source_bot=item.get("bot") or item.get("source_bot") or "scanner_v1",
+        source_bot=item.get("bot") or item.get("source_bot") or "scanner",
         raw_payload=item,
     )
+
+
+# Backward-compatible alias
+v1_signal_to_domain = raw_signal_to_domain
+
 

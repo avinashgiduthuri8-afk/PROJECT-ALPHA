@@ -10,15 +10,15 @@ import pytest
 from datetime import datetime, timezone
 from fastapi.testclient import TestClient
 
-from v2.app_v2 import app
-from v2.bus.event_bus import EventBus
-from v2.core.config import V2Config, get_config, invalidate_config
-from v2.core.types import MarketState, OppType, Priority, RiskLevel, Signal
-from v2.repository.signal_repo import SignalRepository
-from v2.repository.event_log_repo import EventLogRepository
-from v2.repository.db import Database
-from v2.services.scanner_service.service import ScannerService
-from v2.services.scanner_service.confluence_engine import ConfluenceEngine, LayerEvaluation, ConfluenceResult
+from app import app
+from core.bus.event_bus import EventBus
+from core.config import V2Config, get_config, invalidate_config
+from core.types import MarketState, OppType, Priority, RiskLevel, Signal
+from core.repository.signal_repo import SignalRepository
+from core.repository.event_log_repo import EventLogRepository
+from core.repository.db import Database
+from scanner.service import ScannerService
+from scanner.confluence_engine import ConfluenceEngine, LayerEvaluation, ConfluenceResult
 
 
 @pytest.fixture(autouse=True)

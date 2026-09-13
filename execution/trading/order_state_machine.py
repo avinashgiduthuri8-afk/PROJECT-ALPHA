@@ -11,14 +11,14 @@ import uuid
 from datetime import datetime, timezone
 from typing import Dict, Optional, Set, Tuple
 
-from core.exceptions import V2Error
+from core.exceptions import AlphaError, V2Error
 from core.logging import get_logger
 from core.types import Order, OrderState, OrderStateTransition
 
-logger = get_logger("v2.trading.order_state_machine")
+logger = get_logger("execution.trading.order_state_machine")
 
 
-class InvalidOrderStateTransitionError(V2Error):
+class InvalidOrderStateTransitionError(AlphaError):
     """Raised when an illegal order state transition is attempted."""
     pass
 

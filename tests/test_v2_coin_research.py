@@ -19,16 +19,16 @@ import pytest
 from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
 
-from v2.app_v2 import app
-from v2.core.config import get_config, invalidate_config
-from v2.services.research_service.symbol_normalizer import (
+from app import app
+from core.config import get_config, invalidate_config
+from scanner.research.symbol_normalizer import (
     normalize_symbol, is_supported_pair, get_supported_pairs_info
 )
-from v2.services.research_service.indicators import (
+from scanner.research.indicators import (
     compute_ema, compute_rsi, compute_macd, compute_bollinger,
     compute_atr, compute_rvol, last_valid
 )
-from v2.services.research_service.service import CoinResearchService
+from scanner.research.service import CoinResearchService
 
 
 import os

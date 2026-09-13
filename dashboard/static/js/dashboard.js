@@ -9,7 +9,8 @@ class V2InstitutionalDashboard {
   constructor() {
     const urlParams = new URLSearchParams(window.location.search);
     const serverKey = (typeof window !== 'undefined' && window.__V2_API_KEY__) ? window.__V2_API_KEY__ : null;
-    this.apiKey = urlParams.get('api_key') || serverKey || localStorage.getItem('v2_api_key') || 'alpha-prod-key';
+    this.apiKey = urlParams.get('api_key') || serverKey || localStorage.getItem('api_key') || localStorage.getItem('v2_api_key') || 'alpha-prod-key';
+    localStorage.setItem('api_key', this.apiKey);
     localStorage.setItem('v2_api_key', this.apiKey);
 
     this.ws = null;
@@ -244,9 +245,10 @@ class V2InstitutionalDashboard {
     const btnKey = document.getElementById('btn-set-api-key');
     if (btnKey) {
       btnKey.addEventListener('click', () => {
-        const key = prompt('Enter V2 API Key:', this.apiKey);
+        const key = prompt('Enter Dashboard API Key:', this.apiKey);
         if (key !== null) {
           this.apiKey = key.trim();
+          localStorage.setItem('api_key', this.apiKey);
           localStorage.setItem('v2_api_key', this.apiKey);
           this.showToast('API Key Saved', 'Reconnecting with updated credentials...');
           this.fetchAllData();
@@ -279,6 +281,7 @@ class V2InstitutionalDashboard {
     let res = await fetch(url, { ...options, headers });
     if (res.status === 401 && typeof window !== 'undefined' && window.__V2_API_KEY__ && this.apiKey !== window.__V2_API_KEY__) {
       this.apiKey = window.__V2_API_KEY__;
+      localStorage.setItem('api_key', this.apiKey);
       localStorage.setItem('v2_api_key', this.apiKey);
       headers['X-API-Key'] = this.apiKey;
       res = await fetch(url, { ...options, headers });
@@ -296,7 +299,7 @@ class V2InstitutionalDashboard {
 
   async fetchOverview() {
     try {
-      const res = await fetch('/api/v2/dashboard/overview', {
+      const res = await fetch('/api/dashboard/overview', {
         headers: { 'X-API-Key': this.apiKey }
       });
       if (!res.ok) return;
@@ -309,7 +312,7 @@ class V2InstitutionalDashboard {
 
   async fetchProductionStatus() {
     try {
-      const res = await fetch('/api/v2/production/status', {
+      const res = await fetch('/api/production/status', {
         headers: { 'X-API-Key': this.apiKey }
       });
       if (!res.ok) return;
@@ -323,7 +326,7 @@ class V2InstitutionalDashboard {
 
   async fetchHealth() {
     try {
-      const res = await fetch('/api/v2/monitoring/health', {
+      const res = await fetch('/api/monitoring/health', {
         headers: { 'X-API-Key': this.apiKey }
       });
       if (!res.ok) return;
@@ -337,7 +340,7 @@ class V2InstitutionalDashboard {
 
   async fetchScanner() {
     try {
-      const res = await fetch('/api/v2/scanner/coins', {
+      const res = await fetch('/api/scanner/coins', {
         headers: { 'X-API-Key': this.apiKey }
       });
       if (!res.ok) return;
@@ -351,7 +354,7 @@ class V2InstitutionalDashboard {
 
   async fetchOrders() {
     try {
-      const res = await fetch('/api/v2/trading/orders?limit=150', {
+      const res = await fetch('/api/trading/orders?limit=150', {
         headers: { 'X-API-Key': this.apiKey }
       });
       if (!res.ok) return;
@@ -365,7 +368,7 @@ class V2InstitutionalDashboard {
 
   async fetchPipelineStages() {
     try {
-      const res = await fetch('/api/v2/pipeline/stages', {
+      const res = await fetch('/api/pipeline/stages', {
         headers: { 'X-API-Key': this.apiKey }
       });
       if (!res.ok) return;
@@ -379,7 +382,7 @@ class V2InstitutionalDashboard {
 
   async fetchFleet() {
     try {
-      const res = await fetch('/api/v2/production/status', {
+      const res = await fetch('/api/production/status', {
         headers: { 'X-API-Key': this.apiKey }
       });
       if (!res.ok) return;
@@ -393,7 +396,7 @@ class V2InstitutionalDashboard {
 
   async fetchErrors() {
     try {
-      const res = await fetch('/api/v2/monitoring/errors?limit=30', {
+      const res = await fetch('/api/monitoring/errors?limit=30', {
         headers: { 'X-API-Key': this.apiKey }
       });
       if (!res.ok) return;
@@ -1120,7 +1123,7 @@ class V2InstitutionalDashboard {
     }
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/v2/feed?api_key=${encodeURIComponent(this.apiKey)}`;
+    const wsUrl = `${protocol}//${window.location.host}/ws/feed?api_key=${encodeURIComponent(this.apiKey)}`;
 
     try {
       this.ws = new WebSocket(wsUrl);
@@ -1326,7 +1329,7 @@ class V2InstitutionalDashboard {
       btn.textContent = 'Scanning...';
     }
     try {
-      await this.apiFetch('/api/v2/scanner/scan', { method: 'POST' });
+      await this.apiFetch('/api/scanner/scan', { method: 'POST' });
       this.showToast('Scanner Triggered', 'Fresh market cycle scan initiated.');
       setTimeout(() => this.fetchScanner(), 1500);
     } catch (err) {
@@ -1353,7 +1356,7 @@ class V2InstitutionalDashboard {
   async confirmKillSwitch() {
     const reason = document.getElementById('kill-switch-reason')?.value || 'Manual operator emergency stop';
     try {
-      await this.apiFetch('/api/v2/production/kill-switch', {
+      await this.apiFetch('/api/production/kill-switch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason, operator: 'DASHBOARD_UI' })
@@ -1379,7 +1382,7 @@ class V2InstitutionalDashboard {
   async confirmResume() {
     const targetMode = document.getElementById('resume-target-mode')?.value || 'PAPER';
     try {
-      await this.apiFetch('/api/v2/production/resume', {
+      await this.apiFetch('/api/production/resume', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ target_mode: targetMode, operator: 'DASHBOARD_UI' })
@@ -1395,7 +1398,7 @@ class V2InstitutionalDashboard {
   async triggerReconcile() {
     if (!confirm('Run full Exchange vs Local SQLite Order Reconciliation now?')) return;
     try {
-      const res = await this.apiFetch('/api/v2/trading/reconcile', { method: 'POST' });
+      const res = await this.apiFetch('/api/trading/reconcile', { method: 'POST' });
       this.showToast('Reconciliation Complete', `Checked: ${res.orders_checked ?? 0}, Mismatches: ${res.mismatches ?? 0}`);
       this.fetchAllData();
     } catch (err) {
@@ -1432,7 +1435,7 @@ class V2InstitutionalDashboard {
     if (loading) loading.style.display = 'block';
 
     try {
-      const data = await this.apiFetch(`/api/v2/research/profile?symbol=${encodeURIComponent(symbol)}`);
+      const data = await this.apiFetch(`/api/research/profile?symbol=${encodeURIComponent(symbol)}`);
       this.renderResearchProfile(data);
     } catch (err) {
       console.warn('Research fetch error:', err);
@@ -1532,7 +1535,7 @@ class V2InstitutionalDashboard {
       btn.textContent = 'Running simulation...';
     }
     try {
-      const data = await this.apiFetch('/api/v2/research/backtest', {
+      const data = await this.apiFetch('/api/research/backtest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol, strategy, days }),
@@ -1573,7 +1576,7 @@ class V2InstitutionalDashboard {
       btn.textContent = 'Analyzing...';
     }
     try {
-      const data = await this.apiFetch('/api/v2/research/predict', {
+      const data = await this.apiFetch('/api/research/predict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol }),

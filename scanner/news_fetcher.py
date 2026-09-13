@@ -18,7 +18,7 @@ import httpx
 
 from core.logging import get_logger
 
-logger = get_logger("v2.services.scanner_service.news_fetcher")
+logger = get_logger("scanner.news_fetcher")
 
 # Keyword matching rules
 DELISTING_KEYWORDS: List[str] = [

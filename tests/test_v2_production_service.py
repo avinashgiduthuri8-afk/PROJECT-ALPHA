@@ -16,16 +16,16 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi.testclient import TestClient
 
-from v2.app_v2 import app
-from v2.bus.event_bus import EventBus
-from v2.bus.event_types import EventType
-from v2.core.config import V2Config, get_config, invalidate_config
-from v2.core.types import BotMode
-from v2.repository.db import Database
-from v2.repository.production_state_repo import ProductionStateRepository
-from v2.repository.event_log_repo import EventLogRepository
-from v2.services.production_service.controller import ProductionController
-from v2.services.production_service.watchdog import ProductionWatchdog
+from app import app
+from core.bus.event_bus import EventBus
+from core.bus.event_types import EventType
+from core.config import V2Config, get_config, invalidate_config
+from core.types import BotMode
+from core.repository.db import Database
+from core.repository.production_state_repo import ProductionStateRepository
+from core.repository.event_log_repo import EventLogRepository
+from background.production.controller import ProductionController
+from background.production.watchdog import ProductionWatchdog
 
 
 @pytest.fixture(autouse=True)

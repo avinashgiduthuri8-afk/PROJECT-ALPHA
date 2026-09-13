@@ -17,10 +17,10 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from v2.backtest.data_feeder import DataFeeder, validate_and_align_ohlcv
-from v2.backtest.engine import BacktestEngine
-from v2.backtest.friction import CoinDCXFrictionModel, FrictionConfig
-from v2.backtest.strategies import (
+from background.backtest.data_feeder import DataFeeder, validate_and_align_ohlcv
+from background.backtest.engine import BacktestEngine
+from background.backtest.friction import CoinDCXFrictionModel, FrictionConfig
+from background.backtest.strategies import (
     STEStrategy,
     HDAStrategy,
     VCPStrategy,

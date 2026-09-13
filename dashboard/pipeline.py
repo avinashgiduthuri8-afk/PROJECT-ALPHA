@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
-from core.config import V2Config
+from core.config import AppConfig
 from core.logging import get_logger
 
 logger = get_logger("dashboard.pipeline")
@@ -20,11 +20,11 @@ logger = get_logger("dashboard.pipeline")
 class PipelineStageCollector:
     """Collects live state, metrics, and contracts for all 14 autonomous trading pipeline stages."""
 
-    def __init__(self, bus: Optional[EventBus] = None, config: Optional[V2Config] = None) -> None:
+    def __init__(self, bus: Optional[EventBus] = None, config: Optional[AppConfig] = None) -> None:
         self._bus = bus
         self._config = config
-        self._auto_trade_enabled = getattr(config, "v2_trading_enabled", False) if config else False
-        self._paper_mode = getattr(config, "v2_shadow_mode", True) if config else True
+        self._auto_trade_enabled = getattr(config, "trading_enabled", False) if config else False
+        self._paper_mode = getattr(config, "shadow_mode", True) if config else True
 
         # Stage definitions with contracts and initial telemetry
         self._stages: Dict[str, Dict[str, Any]] = {

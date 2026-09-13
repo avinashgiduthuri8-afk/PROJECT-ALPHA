@@ -1,5 +1,5 @@
 """
-V2 Production Fleet Command & Control Routes — /api/v2/production/*
+PROJECT-ALPHA Production Fleet Command & Control Routes — /api/production/* and /api/v2/production/*
 
 Provides atomic mode management, emergency kill-switch halt & resume procedures,
 and 24/7 watchdog supervisor telemetry. Guarded by require_api_key.
@@ -65,9 +65,9 @@ async def get_production_status() -> ProductionStatusSchema:
     unified capital pool headroom, open positions count, circuit breaker,
     and watchdog inspection status.
     """
-    mode = getattr(_config, "v2_deployment_mode", "SHADOW") if _config else "SHADOW"
-    trading_enabled = getattr(_config, "v2_trading_enabled", False) if _config else False
-    shadow_mode = getattr(_config, "v2_shadow_mode", True) if _config else True
+    mode = getattr(_config, "deployment_mode", "SHADOW") if _config else "SHADOW"
+    trading_enabled = getattr(_config, "trading_enabled", False) if _config else False
+    shadow_mode = getattr(_config, "shadow_mode", True) if _config else True
     cap_limit = getattr(_config, "total_capital_limit", None) if _config else None
 
     deployed = 0.0
@@ -175,25 +175,28 @@ async def set_execution_mode(body: SetModeRequestSchema) -> SetModeResponseSchem
     if _config is None:
         raise HTTPException(status_code=503, detail="Configuration not initialized.")
 
-    _config.v2_deployment_mode = target
+    _config.deployment_mode = target
     if target in ("LIVE", "LIVE_MICROCASH"):
-        _config.v2_deployment_mode = "LIVE_MICROCASH"
-        _config.v2_trading_enabled = True
-        _config.v2_shadow_mode = False
+        _config.deployment_mode = "LIVE_MICROCASH"
+        _config.trading_enabled = True
+        _config.shadow_mode = False
         msg = f"Switched to LIVE. Real micro-orders (₹{_config.order_size_inr:.2f}) dispatch to CoinDCX."
     else:
-        _config.v2_deployment_mode = "PAPER"
-        _config.v2_trading_enabled = True
-        _config.v2_shadow_mode = False
+        _config.deployment_mode = "PAPER"
+        _config.trading_enabled = True
+        _config.shadow_mode = False
         msg = "Switched to PAPER mode. Virtual paper positions track live prices and SL/TP exits."
 
 
     try:
-        from core.config import V2Config
-        V2Config.save_runtime_overrides({
-            "v2_deployment_mode": _config.v2_deployment_mode,
-            "v2_trading_enabled": _config.v2_trading_enabled,
-            "v2_shadow_mode": _config.v2_shadow_mode,
+        from core.config import AppConfig
+        AppConfig.save_runtime_overrides({
+            "deployment_mode": _config.deployment_mode,
+            "trading_enabled": _config.trading_enabled,
+            "shadow_mode": _config.shadow_mode,
+            "v2_deployment_mode": _config.deployment_mode,
+            "v2_trading_enabled": _config.trading_enabled,
+            "v2_shadow_mode": _config.shadow_mode,
         })
     except Exception as exc:
         logger.warning("Could not persist runtime override: %s", exc)
@@ -202,8 +205,8 @@ async def set_execution_mode(body: SetModeRequestSchema) -> SetModeResponseSchem
         ok=True,
         mode=target,
         deployment_mode=target,
-        trading_enabled=_config.v2_trading_enabled,
-        shadow_mode=_config.v2_shadow_mode,
+        trading_enabled=_config.trading_enabled,
+        shadow_mode=_config.shadow_mode,
         message=msg,
     )
 
@@ -239,9 +242,9 @@ async def trigger_emergency_kill_switch() -> KillSwitchResponseSchema:
         _risk_service.circuit_breaker.trip("EMERGENCY_KILL_SWITCH_TRIGGERED")
 
     if _config:
-        _config.v2_trading_enabled = False
-        _config.v2_deployment_mode = "SHADOW"
-        _config.v2_shadow_mode = True
+        _config.trading_enabled = False
+        _config.deployment_mode = "SHADOW"
+        _config.shadow_mode = True
 
     return KillSwitchResponseSchema(
         ok=True,
@@ -291,9 +294,9 @@ async def resume_trading_operations() -> ResumeResponseSchema:
 
     mode = "PAPER"
     if _config:
-        _config.v2_trading_enabled = True
-        _config.v2_deployment_mode = mode
-        _config.v2_shadow_mode = False
+        _config.trading_enabled = True
+        _config.deployment_mode = mode
+        _config.shadow_mode = False
 
     return ResumeResponseSchema(
         ok=True,

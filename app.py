@@ -452,6 +452,7 @@ _dashboard_template_dir = _ROOT / "dashboard" / "templates"
 
 if _dashboard_static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(_dashboard_static_dir)), name="static")
+    app.mount("/v2-static", StaticFiles(directory=str(_dashboard_static_dir)), name="v2-static")
 
 templates = Jinja2Templates(directory=str(_dashboard_template_dir)) if _dashboard_template_dir.exists() else None
 

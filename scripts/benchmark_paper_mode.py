@@ -19,28 +19,28 @@ from datetime import datetime, timezone
 # Ensure project root is in sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from v2.bus.event_bus import EventBus
-from v2.bus.event_types import EventType
-from v2.core.config import get_config
-from v2.core.types import BotMode, BotName, ExitReason, PositionStatus
-from v2.repository.db import Database
-from v2.repository.event_log_repo import EventLogRepository
-from v2.repository.position_repo import PositionRepository
-from v2.repository.shadow_repo import ShadowRepository
-from v2.repository.trade_repo import TradeRepository
-from v2.services.risk_service.service import RiskService
-from v2.services.shadow_service.service import ShadowService
-from v2.services.trading_service.service import TradingService
+from core.bus.event_bus import EventBus
+from core.bus.event_types import EventType
+from core.config import get_config
+from core.types import BotMode, BotName, ExitReason, PositionStatus
+from core.repository.db import Database
+from core.repository.event_log_repo import EventLogRepository
+from core.repository.position_repo import PositionRepository
+from core.repository.shadow_repo import ShadowRepository
+from core.repository.trade_repo import TradeRepository
+from execution.risk.service import RiskService
+from execution.shadow.service import ShadowService
+from execution.service import TradingService
 
 
 async def run_paper_mode_benchmark():
     print("=" * 80)
-    print(" PROJECT-ALPHA V2: AUTOMATED PAPER SIMULATION BENCHMARK HARNESS")
+    print(" PROJECT-ALPHA: AUTOMATED PAPER SIMULATION BENCHMARK HARNESS")
     print("=" * 80)
 
     cfg = get_config()
-    print(f"[1] Configuration Loaded: v2_deployment_mode = {cfg.v2_deployment_mode}")
-    assert cfg.v2_deployment_mode == "PAPER", f"Expected V2_DEPLOYMENT_MODE='PAPER', got '{cfg.v2_deployment_mode}'"
+    print(f"[1] Configuration Loaded: deployment_mode = {cfg.deployment_mode}")
+    assert cfg.deployment_mode == "PAPER", f"Expected DEPLOYMENT_MODE='PAPER', got '{cfg.deployment_mode}'"
     print("    [PASS] Paper mode deployment invariant confirmed.")
 
     # In-memory SQLite DB for clean benchmark run

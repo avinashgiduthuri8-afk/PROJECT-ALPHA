@@ -12,13 +12,13 @@ import pytest
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
-from v2.bus.event_bus import EventBus
-from v2.core.types import BotMode, BotName, ExitReason, Position, PositionStatus, Trade
-from v2.repository.db import Database
-from v2.repository.event_log_repo import EventLogRepository
-from v2.repository.position_repo import PositionRepository
-from v2.repository.trade_repo import TradeRepository
-from v2.trading.precision_rules import (
+from core.bus.event_bus import EventBus
+from core.types import BotMode, BotName, ExitReason, Position, PositionStatus, Trade
+from core.repository.db import Database
+from core.repository.event_log_repo import EventLogRepository
+from core.repository.position_repo import PositionRepository
+from core.repository.trade_repo import TradeRepository
+from execution.trading.precision_rules import (
     extract_base_coin,
     get_pair_spec,
     infer_lot_decimals,
@@ -31,11 +31,11 @@ from v2.trading.precision_rules import (
     validate_order_notional,
     validate_trade_parameters,
 )
-from v2.trading.subaccount_manager import CoinDCXSubAccountClient, SubAccountConfig
-from v2.services.trading_service.adapters import StrategyAdapterFactory
-from v2.services.trading_service.auto_trader import AutoTradeRouter
-from v2.services.trading_service.position_manager import PositionManager
-from v2.services.trading_service.service import TradingService
+from execution.trading.subaccount_manager import CoinDCXSubAccountClient, SubAccountConfig
+from execution.adapters import StrategyAdapterFactory
+from execution.auto_trader import AutoTradeRouter
+from execution.position_manager import PositionManager
+from execution.service import TradingService
 
 
 # ── 1. Canonical Normalization Tests ──────────────────────────────────────────

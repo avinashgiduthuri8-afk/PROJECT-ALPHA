@@ -1,12 +1,12 @@
 """
-V2 Event Bus — Skeleton only.
+PROJECT-ALPHA Event Bus.
 
 Provides publish / subscribe / unsubscribe primitives.
 No production implementation yet — all methods are stubs that log intent.
 
-Usage (future):
-    from v2.bus.event_bus import EventBus
-    from v2.bus.event_types import EventType
+Usage:
+    from core.bus.event_bus import EventBus
+    from core.bus.event_types import EventType
 
     bus = EventBus()
     bus.subscribe(EventType.SIGNAL_GENERATED, my_handler)
@@ -22,7 +22,7 @@ from typing import Any, Awaitable, Callable
 
 from .event_types import EventType
 
-logger = logging.getLogger("v2.event_bus")
+logger = logging.getLogger("core.event_bus")
 
 Handler = Callable[[EventType, dict], Awaitable[None]]
 

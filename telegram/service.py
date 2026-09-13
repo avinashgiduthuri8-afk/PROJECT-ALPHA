@@ -8,7 +8,7 @@ from typing import Optional
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
-from core.config import AppConfig, V2Config
+from core.config import AppConfig
 from core.logging import get_logger
 
 from .formatters import (
@@ -33,7 +33,7 @@ class NotificationService:
     def __init__(
         self,
         bus: EventBus,
-        config: V2Config,
+        config: AppConfig,
         telegram_client: Optional[TelegramClient] = None,
         signal_repo: Optional[Any] = None,
         position_repo: Optional[Any] = None,

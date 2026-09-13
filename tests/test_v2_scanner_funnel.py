@@ -9,14 +9,14 @@ import uuid
 import pytest
 from datetime import datetime, timezone, timedelta
 
-from v2.bus.event_bus import EventBus
-from v2.core.config import V2Config, invalidate_config
-from v2.repository.db import Database
-from v2.repository.event_log_repo import EventLogRepository
-from v2.repository.signal_repo import SignalRepository
-from v2.repository.candle_repo import CandleRepository
-from v2.services.scanner_service.service import ScannerService
-from v2.services.scanner_service.confluence_engine import (
+from core.bus.event_bus import EventBus
+from core.config import V2Config, invalidate_config
+from core.repository.db import Database
+from core.repository.event_log_repo import EventLogRepository
+from core.repository.signal_repo import SignalRepository
+from core.repository.candle_repo import CandleRepository
+from scanner.service import ScannerService
+from scanner.confluence_engine import (
     ConfluenceEngine,
     NoOpSentimentProvider,
     SentimentProvider,
@@ -221,7 +221,7 @@ async def test_b3_score_vs_b4_threshold_attributable_separation():
     # Set weak/bearish macro environment (B3: -5 score delta)
     engine.update_market_sentiment(btc_trend="BEARISH", eth_trend="BEARISH", regime="RISK_OFF")
 
-    from v2.core.types import MarketState, OppType, Priority, RiskLevel, Signal
+    from core.types import MarketState, OppType, Priority, RiskLevel, Signal
     mock_sig = Signal(
         id="sig-sep-1",
         coin="SOL",
