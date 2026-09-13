@@ -254,7 +254,6 @@ class AutoTradeRouter:
                             "success": False,
                             "error": "OPPORTUNITY_LOCKED_ACTIVE_PAIR",
                             "idempotency_key": idempotency_key,
-                            "message": f"Asset {candidate_base} already has an active open position in strategy {op_bot_name}. Cross-strategy lock prevents opening in {target_bot_name}.",
                             "message": f"Asset {candidate_base} already has an active open position in strategy {op_bot_name} (PnL: {op_unrealized_pnl}%). Cross-strategy lock prevents opening in {target_bot_name}.",
                         }
             except Exception as exc:

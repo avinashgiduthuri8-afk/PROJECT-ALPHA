@@ -21,9 +21,9 @@ class STEAdapter(BaseBotAdapter):
 
     def __init__(self) -> None:
         super().__init__(BotName.STE)
-        self.base_sl_pct = 5.0
-        self.tightened_sl_pct = 3.5
-        self.take_profit_pct = 20.0
+        self.base_sl_pct = 2.0
+        self.tightened_sl_pct = 1.2
+        self.take_profit_pct = 4.6
 
     def calculate_order(
         self,
@@ -36,9 +36,14 @@ class STEAdapter(BaseBotAdapter):
         tighten = ai_adjustments.get("tighten_stop", False)
         sl_pct = self.tightened_sl_pct if tighten else self.base_sl_pct
 
+        # Dynamic TP: Standard 4.6% unless High Conviction (score >= 90) which targets 20.0%
+        score = float(ai_adjustments.get("score") or ai_adjustments.get("confluence_score") or 0.0)
+        is_high_conviction = score >= 90.0 or ai_adjustments.get("high_conviction", False)
+        tp_pct = 20.0 if is_high_conviction else self.take_profit_pct
+
         rounded_entry = round_price(pair, current_price)
         raw_sl = rounded_entry * (1.0 - sl_pct / 100.0)
-        raw_tp = rounded_entry * (1.0 + self.take_profit_pct / 100.0)
+        raw_tp = rounded_entry * (1.0 + tp_pct / 100.0)
 
         rounded_sl = round_price(pair, raw_sl)
         rounded_tp = round_price(pair, raw_tp)
@@ -60,6 +65,6 @@ class STEAdapter(BaseBotAdapter):
             "take_profit": rounded_tp,
             "strategy": "SuperTrend ATR Range Expansion",
             "sl_pct": sl_pct,
-            "tp_pct": self.take_profit_pct,
+            "tp_pct": tp_pct,
             "net_rr_target": 1.86,
         }

@@ -1,15 +1,16 @@
 # PROJECT-ALPHA Trading Philosophy & Rules
 
 ## 1. Strategy & Timeframes
-- **Core Strategy**: PROJECT-ALPHA is a trend-following **Swing Trader**, NOT a micro-scalper.
-- **Timeframes**: Scanner relies on higher timeframes (`1h`, `4h`, `1d`) for Multi-Timeframe (MTF) alignment. Do not optimize for `1m` or `5m` noise.
-- **Holding Period**: Trades are designed to be held for 1 day up to 1 week.
+- **Core Strategy**: PROJECT-ALPHA is a trend-following **Swing & Momentum Trader**.
+- **Timeframes**: Scanner relies on higher timeframes (`1h`, `4h`, `1d`) for Multi-Timeframe (MTF) alignment, while monitoring intraday momentum.
+- **Holding Period**: Trades are designed to be held from intraday up to 1 week.
 
-## 2. Risk Management & Profit Targets
-- **Take Profit (TP)**: Set aggressively high (`20.0%` to `25.0%`). We aim for big, decent profits.
-- **Stop Loss (SL)**: Set wide enough (`5.0%` to `8.0%`) to survive multi-day volatility. Do not use extremely tight (`< 2%`) stops unless dynamically triggered by a crash.
+## 2. Dynamic Take Profit (TP) & Risk Management
+- **Standard Score Signals (80 - 89 Score)**: Target **Standard Profits (4.6% - 6.0%)**.
+- **High-Conviction / Elite Signals (90+ Score)**: Extend Target to **Big Profits (20.0% - 25.0%)**.
+- **Stop Loss (SL)**: Set appropriately (`3.5%` to `5.0%`) to survive market noise.
 
-## 3. Position Scaling (Pyramiding)
-- **Adding Capital**: The system is allowed to "double down" and add capital to an actively winning position if the coin continues to show strong positive momentum and new scanner signals fire.
-- **Single-Coin Limits**: When adding capital, we bypass strict single-coin locks, provided the position is already in profit (e.g. `unrealized_pnl > 3.0%`), up to a maximum cap of 3 entries per coin.
-
+## 3. Active Trade Momentum & Market Shift (The SOL Scenario)
+- **In-Trade Scaling**: If a position is in strong profit (e.g. +9%) and the market turns strongly BULLISH:
+  1. **Add Capital (Pyramiding)**: The system bypasses single-coin locks to add a second tranche (up to 3 max) to ride the bull wave.
+  2. **Profit Protection**: The trailing stop automatically ratchets up (e.g. locking in +6% minimum profit) to protect gains while letting the remaining target run up to 20%+.
