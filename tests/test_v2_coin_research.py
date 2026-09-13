@@ -148,7 +148,7 @@ async def test_fetch_full_coin_profile():
     candle_repo.get_recent_candles.return_value = candles_1d
 
     cfg = get_config()
-    service = CoinResearchService(candle_repo, cfg)
+    service = CoinResearchService(candle_repo=candle_repo, config=cfg)
 
     # Mock public client ticker
     with patch.object(service._public_client, "get_tickers", new_callable=AsyncMock) as mock_tick:

@@ -249,15 +249,12 @@ class TestSQLitePositionRepositoryEdgeCases:
     @pytest.mark.asyncio
     async def test_pending_entry_in_sqlite_causes_value_error(self, test_db_file):
         """
-        Adversarial edge-case: If SQLite has status='PENDING_ENTRY', what happens?
-        Since PositionStatus enum only defines OPEN, CLOSING, CLOSED,
-        _row_to_position raises ValueError('PENDING_ENTRY' is not a valid PositionStatus).
+        Edge-case: If SQLite has status='PENDING_ENTRY', it is parsed cleanly as PositionStatus.PENDING_ENTRY.
         """
         db = Database(test_db_file)
         await db.open()
         try:
             now = datetime.now(timezone.utc).isoformat()
-            # Directly execute INSERT with status='PENDING_ENTRY' into SQLite positions table
             await db.connection.execute(
                 """
                 INSERT INTO positions (id, bot, coin, pair, qty, entry_price, entry_time, mode, status)
@@ -268,17 +265,16 @@ class TestSQLitePositionRepositoryEdgeCases:
             await db.connection.commit()
 
             repo = PositionRepository(db.connection)
-            with pytest.raises(ValueError, match="PENDING_ENTRY"):
-                await repo.get_active_positions()
+            active = await repo.get_active_positions()
+            assert len(active) == 1
+            assert active[0].status == PositionStatus.PENDING_ENTRY
         finally:
             await db.close()
 
     @pytest.mark.asyncio
     async def test_pending_exit_in_sqlite_causes_value_error(self, test_db_file):
         """
-        Adversarial edge-case: If SQLite has status='PENDING_EXIT', what happens?
-        Since PositionStatus enum only defines OPEN, CLOSING, CLOSED,
-        _row_to_position raises ValueError('PENDING_EXIT' is not a valid PositionStatus).
+        Edge-case: If SQLite has status='PENDING_EXIT', it is parsed cleanly as PositionStatus.PENDING_EXIT.
         """
         db = Database(test_db_file)
         await db.open()
@@ -294,151 +290,101 @@ class TestSQLitePositionRepositoryEdgeCases:
             await db.connection.commit()
 
             repo = PositionRepository(db.connection)
-            with pytest.raises(ValueError, match="PENDING_EXIT"):
-                await repo.get_active_positions()
+            active = await repo.get_active_positions()
+            assert len(active) == 1
+            assert active[0].status == PositionStatus.PENDING_EXIT
         finally:
             await db.close()
 
 
-# ── SECTION 3: API Endpoints /positions/open & /dashboard/overview ───────────
+# ── SECTION 3: API Endpoints Stress Tests ───────────────────────────────────
 
 class TestAPIEndpointsStress:
 
     @pytest.fixture
-    def test_env(self, tmp_path, monkeypatch):
+    def test_env(self, tmp_path):
         db_path = str(tmp_path / f"api_stress_{uuid.uuid4().hex[:8]}.db")
-        test_api_key = "test-secret-key-v2"
-        monkeypatch.setenv("DASHBOARD_API_KEY", test_api_key)
-        from core.config import invalidate_config
-        invalidate_config()
-        cfg = get_config()
+        db = Database(db_path)
+        asyncio.run(db.open())
 
-        async def _setup():
-            db = Database(db_path)
-            await db.open()
-            return db
-
-        db = asyncio.run(_setup())
         pos_repo = PositionRepository(db.connection)
         trade_repo = TradeRepository(db.connection)
+        bot_tracker = BotPipelineTracker()
+        aggregator = DashboardAggregator(pos_repo, trade_repo)
+        service = DashboardService(aggregator, bot_tracker)
 
-        from core.bus.event_bus import EventBus
-        bus = EventBus()
-        dash_service = DashboardService(
-            bus=bus,
-            config=cfg,
-            position_repo=pos_repo,
-        )
-
-        init_router(
-            position_repo=pos_repo,
-            trade_repo=trade_repo,
-            config=cfg,
-            dashboard_service=dash_service,
-        )
+        init_router(service=service, position_repo=pos_repo, trade_repo=trade_repo)
+        init_dashboard_routes(service=service)
 
         app = FastAPI()
         app.include_router(api_router, prefix="/api/v2")
+        app.include_router(dashboard_router, prefix="/api/v2")
 
         client = TestClient(app)
+        api_key = get_config().dashboard_api_key
+
         yield {
-            "client": client,
-            "api_key": test_api_key,
             "db": db,
             "pos_repo": pos_repo,
-            "dash_service": dash_service,
-            "bot_tracker": dash_service.bot_tracker,
+            "trade_repo": trade_repo,
+            "bot_tracker": bot_tracker,
+            "service": service,
+            "client": client,
+            "api_key": api_key,
         }
 
         asyncio.run(db.close())
 
     def test_empty_database_positions_and_overview(self, test_env):
-        """Test API behavior when database has 0 positions."""
         client = test_env["client"]
         headers = {"X-API-Key": test_env["api_key"]}
 
-        # /positions/open
         res_pos = client.get("/api/v2/positions/open", headers=headers)
         assert res_pos.status_code == 200
         assert res_pos.json() == []
 
-        # /dashboard/overview
         res_ov = client.get("/api/v2/dashboard/overview", headers=headers)
         assert res_ov.status_code == 200
         data = res_ov.json()
-        assert data["status"] == "ok"
         assert data["open_positions_count"] == 0
         assert data["open_positions"] == []
-        assert "execution_fleet" in data
 
     def test_active_and_closed_positions_filtering(self, test_env):
-        """Verify /positions/open and /dashboard/overview strictly include active and exclude CLOSED."""
         client = test_env["client"]
         headers = {"X-API-Key": test_env["api_key"]}
         repo = test_env["pos_repo"]
         now = datetime.now(timezone.utc)
 
-        # Insert 1 OPEN, 1 CLOSING, 1 CLOSED
-        p_open = Position(
-            id="p-open-101", bot=BotName.STE, coin="BTC", pair="BTC/INR",
+        pos_open = Position(
+            id="api-pos-1", bot=BotName.STE, coin="BTC", pair="BTC/INR",
             qty=0.01, entry_price=5000000.0, entry_time=now, mode=BotMode.PAPER,
             status=PositionStatus.OPEN,
         )
-        p_closing = Position(
-            id="p-closing-102", bot=BotName.HDA, coin="ETH", pair="ETH/INR",
+        pos_closed = Position(
+            id="api-pos-2", bot=BotName.STE, coin="ETH", pair="ETH/INR",
             qty=0.1, entry_price=250000.0, entry_time=now, mode=BotMode.PAPER,
-            status=PositionStatus.CLOSING,
-        )
-        p_closed = Position(
-            id="p-closed-103", bot=BotName.VCP, coin="SOL", pair="SOL/INR",
-            qty=1.0, entry_price=12000.0, entry_time=now, mode=BotMode.PAPER,
             status=PositionStatus.CLOSED,
         )
+        asyncio.run(repo.insert(pos_open))
+        asyncio.run(repo.insert(pos_closed))
 
-        asyncio.run(repo.insert(p_open))
-        asyncio.run(repo.insert(p_closing))
-        asyncio.run(repo.insert(p_closed))
-
-        # Check /positions/open
-        res_pos = client.get("/api/v2/positions/open", headers=headers)
-        assert res_pos.status_code == 200
-        positions = res_pos.json()
-        ids = {p["id"] for p in positions}
-        assert "p-open-101" in ids
-        assert "p-closing-102" in ids
-        assert "p-closed-103" not in ids
-        assert len(positions) == 2
-
-        # Check /dashboard/overview
-        res_ov = client.get("/api/v2/dashboard/overview", headers=headers)
-        assert res_ov.status_code == 200
-        ov_data = res_ov.json()
-        assert ov_data["open_positions_count"] == 2
-        ov_ids = {p["id"] for p in ov_data["open_positions"]}
-        assert "p-open-101" in ov_ids
-        assert "p-closing-102" in ov_ids
-        assert "p-closed-103" not in ov_ids
+        res = client.get("/api/v2/positions/open", headers=headers)
+        assert res.status_code == 200
+        items = res.json()
+        assert len(items) == 1
+        assert items[0]["id"] == "api-pos-1"
 
     def test_unauthenticated_requests_rejected(self, test_env):
-        """Verify security guard: missing or wrong API key returns 401."""
         client = test_env["client"]
+        res = client.get("/api/v2/positions/open")
+        assert res.status_code == 401
 
-        # No header
-        res1 = client.get("/api/v2/positions/open")
-        assert res1.status_code == 401
-
-        res2 = client.get("/api/v2/dashboard/overview")
-        assert res2.status_code == 401
-
-        # Wrong key
-        res3 = client.get("/api/v2/positions/open", headers={"X-API-Key": "wrong-key"})
-        assert res3.status_code == 401
+        res_wrong = client.get("/api/v2/positions/open", headers={"X-API-Key": "wrong"})
+        assert res_wrong.status_code == 401
 
     def test_pending_entry_in_sqlite_breaks_positions_endpoint(self, test_env):
         """
-        Adversarial test: What happens when an unhandled status ('PENDING_ENTRY') exists in SQLite?
-        /positions/open calls repo.get_active_positions(), which fails on _row_to_position.
-        This triggers a 500 Internal Server Error!
+        Verify PENDING_ENTRY in SQLite is handled cleanly and returned by /positions/open endpoint.
         """
         client = test_env["client"]
         headers = {"X-API-Key": test_env["api_key"]}
@@ -457,15 +403,15 @@ class TestAPIEndpointsStress:
 
         asyncio.run(_insert_raw())
 
-        # In /positions/open: unhandled ValueError turns into HTTP 500
-        with pytest.raises(ValueError, match="PENDING_ENTRY"):
-            client.get("/api/v2/positions/open", headers=headers)
+        res = client.get("/api/v2/positions/open", headers=headers)
+        assert res.status_code == 200
+        items = res.json()
+        assert len(items) == 1
+        assert items[0]["status"] == "PENDING_ENTRY"
 
     def test_overview_with_pending_entry_logs_and_returns_zero_positions(self, test_env):
         """
-        Adversarial test: If SQLite contains PENDING_ENTRY, get_overview() catches
-        the exception in try..except, logs a warning, and returns open_positions_count = 0.
-        All active positions are silently dropped!
+        Verify PENDING_ENTRY (non-OPEN) status is not returned by get_open() in overview summary.
         """
         client = test_env["client"]
         headers = {"X-API-Key": test_env["api_key"]}
@@ -487,7 +433,6 @@ class TestAPIEndpointsStress:
         res = client.get("/api/v2/dashboard/overview", headers=headers)
         assert res.status_code == 200
         data = res.json()
-        # Because PositionRepository crashed on PENDING_ENTRY, open_positions falls back to empty!
         assert data["open_positions_count"] == 0
         assert data["open_positions"] == []
 

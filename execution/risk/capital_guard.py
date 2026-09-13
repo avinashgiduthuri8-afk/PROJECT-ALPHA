@@ -1,5 +1,5 @@
 """
-V2 CapitalGuard — deterministic capital limit and max-position gating.
+PROJECT-ALPHA CapitalGuard — deterministic capital limit and max-position gating.
 """
 
 from __future__ import annotations

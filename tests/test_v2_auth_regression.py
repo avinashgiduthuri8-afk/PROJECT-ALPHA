@@ -17,7 +17,7 @@ def test_missing_production_api_key_fails_closed(monkeypatch):
     with TestClient(app) as client:
         r = client.get("/protected", headers={"X-API-Key": "some-key"})
         assert r.status_code == 500
-        assert "not configured" in r.json()["detail"].lower()
+        assert "not securely configured" in r.json()["detail"].lower()
 
 def test_dev_key_not_accepted_in_production(monkeypatch):
     """alpha-dev-key is not accepted when expected key is alpha-prod-key."""

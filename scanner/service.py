@@ -274,6 +274,17 @@ class ScannerService:
             for sid in to_evict:
                 self._live.pop(sid, None)
 
+    def is_in_cooldown(self, coin: str) -> bool:
+        """Check if a coin is currently in post-exit cooldown window."""
+        coin_clean = coin.upper().strip().replace("/INR", "").replace("/USDT", "").replace("B-", "")
+        info = self._cooldowns.get(coin_clean)
+        if not info or "exit_time" not in info:
+            return False
+        exit_time = info["exit_time"]
+        cooldown_dur = float(getattr(self._config, "post_exit_cooldown_seconds", 900))
+        elapsed = (datetime.now(timezone.utc) - exit_time).total_seconds()
+        return elapsed < cooldown_dur
+
     # ── Database-First Bootstrapping & Periodic Candle Cache Flushing ────────
     async def bootstrap_candles(self) -> None:
         """Database-first bootstrapping: warm up market_candles table for all watchlist coins."""
@@ -610,8 +621,13 @@ class ScannerService:
                 details[tf] = {"aligned": True, "note": "insufficient_bars"}
                 tf_aligned[tf] = True
 
-        # True MTF alignment requires at least 15m and 1h alignment
-        is_aligned = tf_aligned.get("4h", True) and tf_aligned.get("1d", True)
+        # MTF alignment: prefer 4h and 1d if provided; otherwise check available higher timeframes
+        if "4h" in tf_aligned or "1d" in tf_aligned:
+            is_aligned = tf_aligned.get("4h", True) and tf_aligned.get("1d", True)
+        elif "1h" in tf_aligned:
+            is_aligned = tf_aligned.get("1h", True) and tf_aligned.get("15m", True)
+        else:
+            is_aligned = all(tf_aligned.values()) if tf_aligned else True
         return is_aligned, details
 
     # ── Polling (called by scheduler) ─────────────────────────────────────────
@@ -656,9 +672,9 @@ class ScannerService:
                     for p in open_positions:
                         p_clean = extract_base_coin(getattr(p, "coin", "")) or extract_base_coin(getattr(p, "pair", ""))
                         if p_clean:
-                            open_coins.add(p_clean)
-                except Exception as e:
-                    logger.debug("Could not fetch open positions for early lock suppression: %s", e)
+                            open_coins.add(p_clean.upper())
+                except Exception as pos_err:
+                    logger.warning("Could not check open positions for lock suppression: %s", pos_err)
 
             # Clean up expired cooldowns
             now_utc = datetime.now(timezone.utc)
@@ -674,22 +690,6 @@ class ScannerService:
             for c_coin in expired_cooldowns:
                 del self._cooldowns[c_coin]
                 logger.info("Post-exit cooldown expired for %s. Re-entry allowed.", c_coin)
-
-            # 3. Fetch candidate signals (B1 composite ranking & B2 5-stage cascade)
-            raw = await self._fetch_candidate_signals()
-            summary["fetched"] = len(raw)
-
-            # B7: Early Lock Suppression — filter out coins with active positions or cooldowns BEFORE C2/AI compute
-            open_coins: set[str] = set()
-            if self._position_repo:
-                try:
-                    open_positions = await self._position_repo.get_open()
-                    for p in open_positions:
-                        p_clean = extract_base_coin(getattr(p, "coin", "")) or extract_base_coin(getattr(p, "pair", ""))
-                        if p_clean:
-                            open_coins.add(p_clean.upper())
-                except Exception as pos_err:
-                    logger.warning("Could not check open positions for lock suppression: %s", pos_err)
 
             actionable_raw = []
             live_sigs = self.get_live_signals()
@@ -967,8 +967,13 @@ class ScannerService:
         """Generate candidate signals natively from cached/fetched CoinDCX candles."""
         return await self._generate_native_candidates()
 
-    # Backward-compatible aliases
-    _fetch_v1_signals = _fetch_candidate_signals
+    async def _fetch_v1_signals(self) -> list[dict]:
+        """Candidate signals provider with support for method overrides."""
+        fetch_fn = getattr(self, "_fetch_candidate_signals", None)
+        if fetch_fn and fetch_fn != self._fetch_v1_signals:
+            return await fetch_fn()
+        return await self._generate_native_candidates()
+
     fetch_candidate_signals = _fetch_candidate_signals
 
     async def _generate_native_candidates(self) -> list[dict]:

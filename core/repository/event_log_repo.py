@@ -74,6 +74,9 @@ class EventLogRepository(BaseRepository):
         )
         return entry_id
 
+    # Alias for backward compatibility
+    log_event = append
+
     async def get_since(
         self, since: datetime, limit: int = 500
     ) -> list[EventLogEntry]:

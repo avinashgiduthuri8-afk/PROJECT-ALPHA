@@ -108,13 +108,12 @@ async def test_2_and_6_live_buy_confirmed_filled(tmp_path):
     payload = {"signal_id": "SIG-02", "coin": "SOL", "pair": "SOL/INR", "bot": "STE", "price": 10000.0, "approved_amount": 200.0}
     await service.on_trade_approved(EventType.TRADE_APPROVED, payload)
 
-    # Verify place_live_order was called with correct parameters
-    client.place_live_order.assert_called_once_with(
-        pair="SOL/INR",
-        side="BUY",
-        price=10000.0,
-        qty=0.02,
-    )
+    # Verify place_live_order was called for BUY with correct parameters
+    buy_call = client.place_live_order.call_args_list[0]
+    assert buy_call.kwargs["pair"] == "SOL/INR"
+    assert buy_call.kwargs["side"] == "BUY"
+    assert buy_call.kwargs["price"] == 10000.0
+    assert buy_call.kwargs["qty"] == 0.02
 
     # Verify LIVE position is OPEN and has real exchange_order_id
     open_pos = await pos_repo.get_open()
@@ -443,7 +442,7 @@ async def test_12_live_mode_never_calls_paper_place_order(tmp_path):
     await service.on_trade_approved(EventType.TRADE_APPROVED, payload)
 
     client.place_order.assert_not_called()
-    client.place_live_order.assert_called_once()
+    assert client.place_live_order.called
 
     await service.stop()
     await db.close()

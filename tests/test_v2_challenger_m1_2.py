@@ -690,11 +690,7 @@ class TestStartupHydrationIdempotency:
     @pytest.mark.anyio
     async def test_sqlite_unsupported_transitional_status_adversarial_finding(self, sqlite_env):
         """
-        Adversarial finding:
-        PROJECT.md and worker_m1 claim lifecycle includes PENDING_ENTRY and PENDING_EXIT.
-        However, PositionStatus enum only defines OPEN, CLOSING, CLOSED.
-        If SQLite contains raw 'PENDING_ENTRY' status, PositionRepository._row_to_position
-        raises ValueError: 'PENDING_ENTRY' is not a valid PositionStatus.
+        Verify PENDING_ENTRY status in SQLite is parsed cleanly as PositionStatus.PENDING_ENTRY.
         """
         env = sqlite_env
         conn = env["conn"]
@@ -711,10 +707,9 @@ class TestStartupHydrationIdempotency:
         )
         await conn.commit()
 
-        # Calling get_active_positions() attempts PositionStatus('PENDING_ENTRY')
-        # which raises ValueError because PENDING_ENTRY is not in PositionStatus enum!
-        with pytest.raises(ValueError, match="is not a valid PositionStatus"):
-            await pos_repo.get_active_positions()
+        active = await pos_repo.get_active_positions()
+        assert len(active) == 1
+        assert active[0].status == PositionStatus.PENDING_ENTRY
 
     @pytest.mark.anyio
     async def test_startup_hydration_resets_stale_in_memory_state(self, sqlite_env):

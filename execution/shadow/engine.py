@@ -1,5 +1,5 @@
 """
-V2 ShadowEngine — simulates order lifecycle, stop loss, take profit, and PnL metrics.
+PROJECT-ALPHA ShadowEngine — simulates order lifecycle, stop loss, take profit, and PnL metrics.
 """
 
 from __future__ import annotations

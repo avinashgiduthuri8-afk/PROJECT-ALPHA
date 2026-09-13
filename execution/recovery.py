@@ -1,5 +1,5 @@
 """
-V2 Restart Recovery Engine.
+PROJECT-ALPHA Restart Recovery Engine.
 
 Rehydrates active positions and bracket order state from SQLite on application startup,
 verifying local records against exchange sub-account clients to prevent state loss across restarts.

@@ -193,16 +193,16 @@ class AIIntelligenceService:
                 "coin": signal.coin,
                 "pair": signal.pair,
                 "price": price,
-                "market_state": signal.market_state.value,
-                "opportunity_type": signal.opportunity_type.value,
+                "market_state": signal.market_state.value if hasattr(signal.market_state, "value") else str(signal.market_state),
+                "opportunity_type": signal.opportunity_type.value if hasattr(signal.opportunity_type, "value") else str(signal.opportunity_type),
                 "bot": bot,
-                "recommendation": analysis.recommendation.value,
-                "confidence_score": analysis.confidence_score,
-                "risk_score": analysis.risk_score,
-                "trade_action": analysis.trade_action.value,
-                "suggested_allocation_inr": analysis.suggested_allocation_inr,
-                "rationale": analysis.rationale,
-                "setup_quality": analysis.setup_quality,
+                "recommendation": getattr(analysis.recommendation, "value", str(analysis.recommendation)),
+                "confidence_score": getattr(analysis, "confidence_score", 0),
+                "risk_score": getattr(analysis, "risk_score", 0),
+                "trade_action": getattr(getattr(analysis, "trade_action", analysis.recommendation), "value", str(getattr(analysis, "trade_action", analysis.recommendation))),
+                "suggested_allocation_inr": getattr(analysis, "suggested_allocation_inr", 200.0),
+                "rationale": getattr(analysis, "rationale", getattr(analysis, "trend_evaluation", "")),
+                "setup_quality": getattr(analysis, "setup_quality", "Medium"),
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             await self._bus.publish(EventType.SIGNAL_AI_CONFIRMED, confirm_payload)
@@ -210,8 +210,8 @@ class AIIntelligenceService:
                 "Signal CONFIRMED by AI",
                 extra={
                     "coin": signal.coin,
-                    "confidence": analysis.confidence_score,
-                    "rec": analysis.recommendation.value,
+                    "confidence": getattr(analysis, "confidence_score", 0),
+                    "rec": getattr(analysis.recommendation, "value", str(analysis.recommendation)),
                 },
             )
         else:
@@ -222,18 +222,18 @@ class AIIntelligenceService:
                 "coin": signal.coin,
                 "pair": signal.pair,
                 "price": price,
-                "market_state": signal.market_state.value,
-                "opportunity_type": signal.opportunity_type.value,
+                "market_state": signal.market_state.value if hasattr(signal.market_state, "value") else str(signal.market_state),
+                "opportunity_type": signal.opportunity_type.value if hasattr(signal.opportunity_type, "value") else str(signal.opportunity_type),
                 "bot": bot,
-                "recommendation": analysis.recommendation.value,
-                "confidence_score": analysis.confidence_score,
-                "risk_score": analysis.risk_score,
-                "trade_action": analysis.trade_action.value,
-                "rationale": analysis.rationale,
-                "setup_quality": analysis.setup_quality,
+                "recommendation": getattr(analysis.recommendation, "value", str(analysis.recommendation)),
+                "confidence_score": getattr(analysis, "confidence_score", 0),
+                "risk_score": getattr(analysis, "risk_score", 0),
+                "trade_action": getattr(getattr(analysis, "trade_action", analysis.recommendation), "value", str(getattr(analysis, "trade_action", analysis.recommendation))),
+                "rationale": getattr(analysis, "rationale", getattr(analysis, "trend_evaluation", "")),
+                "setup_quality": getattr(analysis, "setup_quality", "Medium"),
                 "rejection_reason": (
-                    f"AI recommendation={analysis.recommendation.value}, "
-                    f"confidence={analysis.confidence_score} "
+                    f"AI recommendation={getattr(analysis.recommendation, 'value', str(analysis.recommendation))}, "
+                    f"confidence={getattr(analysis, 'confidence_score', 0)} "
                     f"(min={self._config.ai_confidence_threshold})"
                 ),
                 "timestamp": datetime.now(timezone.utc).isoformat(),

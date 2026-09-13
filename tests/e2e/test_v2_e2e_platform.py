@@ -71,7 +71,7 @@ from dashboard.api.schemas import (
 )
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-_TEMPLATE_PATH = _PROJECT_ROOT / "v2" / "templates" / "dashboard.html"
+_TEMPLATE_PATH = _PROJECT_ROOT / "dashboard" / "templates" / "dashboard.html"
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────

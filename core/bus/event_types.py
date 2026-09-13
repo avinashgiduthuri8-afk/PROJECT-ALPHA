@@ -1,12 +1,8 @@
 """
-V2 Event Type Definitions.
+PROJECT-ALPHA Event Type Definitions.
 
-All 28 event names used by the V2 event bus. No logic here — pure constants.
+Event names used by the PROJECT-ALPHA event bus. Pure enum constants.
 Import from this module to publish or subscribe to events.
-
-Changelog:
-  V2.0: 16 original events
-  V2.1: +12 events (trade lifecycle, scheduler, system, config)
 """
 
 from enum import Enum

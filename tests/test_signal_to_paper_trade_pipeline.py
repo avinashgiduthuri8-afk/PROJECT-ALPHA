@@ -52,23 +52,23 @@ async def test_complete_signal_to_paper_trade_pipeline():
     event_log_repo = EventLogRepository(conn)
     ai_repo = AIAnalysisRepository(conn)
 
-    # Seed 15m and 1d bullish breakout candles for BTC/INR
+    # Seed 1h, 4h, and 1d bullish breakout candles for BTC/INR
     now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
-    step_15m = 15 * 60 * 1000
     base_price = 7800000.0
 
-    candles_15m = []
+    step_1h = 60 * 60 * 1000
+    candles_1h = []
     price = base_price
     for i in range(30):
-        ts = now_ms - (30 - i) * step_15m
+        ts = now_ms - (30 - i) * step_1h
         if i % 2 == 0 and i > 0:
             price -= 15000.0  # healthy pullback
         else:
             price += 25000.0  # upward continuation
         vol = 25.0 if i >= 27 else 10.0
-        candles_15m.append({
+        candles_1h.append({
             "pair": "BTC/INR",
-            "timeframe": "15m",
+            "timeframe": "1h",
             "timestamp": ts,
             "open": price - 20000.0,
             "high": price + 50000.0,
@@ -76,7 +76,29 @@ async def test_complete_signal_to_paper_trade_pipeline():
             "close": price,
             "volume": vol,
         })
-    await candle_repo.upsert_candles(candles_15m)
+    await candle_repo.upsert_candles(candles_1h)
+
+    step_4h = 4 * 60 * 60 * 1000
+    candles_4h = []
+    price_4h = base_price
+    for i in range(30):
+        ts = now_ms - (30 - i) * step_4h
+        if i % 2 == 0 and i > 0:
+            price_4h -= 15000.0
+        else:
+            price_4h += 25000.0
+        vol = 50.0 if i >= 27 else 20.0
+        candles_4h.append({
+            "pair": "BTC/INR",
+            "timeframe": "4h",
+            "timestamp": ts,
+            "open": price_4h - 20000.0,
+            "high": price_4h + 50000.0,
+            "low": price_4h - 50000.0,
+            "close": price_4h,
+            "volume": vol,
+        })
+    await candle_repo.upsert_candles(candles_4h)
 
     step_1d = 24 * 60 * 60 * 1000
     candles_1d = []

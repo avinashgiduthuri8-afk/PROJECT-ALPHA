@@ -1,5 +1,5 @@
 """
-V2 Trading Service Package (Execution Engine Edition).
+PROJECT-ALPHA Trading Service Package (Execution Engine Edition).
 """
 
 from .auto_trader import AutoTradeRouter

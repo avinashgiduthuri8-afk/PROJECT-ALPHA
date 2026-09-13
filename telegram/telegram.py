@@ -1,5 +1,5 @@
 """
-V2 Async Telegram Dispatcher.
+PROJECT-ALPHA Async Telegram Dispatcher.
 
 Dispatches formatted alerts to a configured Telegram chat with rate-limiting,
 exponential backoff, and graceful fallback when credentials are unconfigured.

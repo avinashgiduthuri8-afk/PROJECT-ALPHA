@@ -1,5 +1,5 @@
 """
-V2 LIVE Execution Safety Guards Engine.
+PROJECT-ALPHA LIVE Execution Safety Guards Engine.
 
 Enforces pre-order execution guards for live trading:
   1. Stale Market-Data Guard (timestamp freshness check)

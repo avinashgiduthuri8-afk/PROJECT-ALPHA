@@ -1,5 +1,5 @@
 """
-V2 Repository Layer — all persistence goes through repositories.
+PROJECT-ALPHA Repository Layer — all persistence goes through repositories.
 Services never write SQL directly.
 """
 

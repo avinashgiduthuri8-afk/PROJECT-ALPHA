@@ -1,5 +1,5 @@
 """
-V2 Risk Evaluation & Capital Guard Service (Production Fleet Edition).
+PROJECT-ALPHA Risk Evaluation & Capital Guard Service (Production Fleet Edition).
 
 Enforces hard boundaries, portfolio allocation limits, position caps, and circuit breakers
 for the 4 production bots (STE, HDA, VCP, BBS) before any live or shadow order execution.

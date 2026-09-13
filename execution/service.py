@@ -1,5 +1,5 @@
 """
-V2 Trading Execution Service (Production Fleet & CoinDCX Sub-Account Edition).
+PROJECT-ALPHA Trading Execution Service (Production Fleet & CoinDCX Sub-Account Edition).
 
 Translates approved trade candidates into concrete positions, routes to shadow simulation
 or active execution via isolated CoinDCX Sub-Account clients, and manages position exit checks.
@@ -491,16 +491,25 @@ class TradingService:
                     sl_stop_px = round_price(pos.pair, float(pos.stop_loss))
                     sl_limit_px = round_price(pos.pair, sl_stop_px * 0.995)
                     try:
-                        sl_res = sub_client.place_order(
-                            pair=pos.pair,
-                            side="sell",
-                            price=sl_limit_px,
-                            stop_price=sl_stop_px,
-                            total_quantity=fill_qty,
-                            order_type="stop_limit",
-                        )
-                        if inspect.isawaitable(sl_res):
-                            sl_res = await sl_res
+                        if is_live and hasattr(sub_client, "place_live_order"):
+                            sl_res = await sub_client.place_live_order(
+                                pair=pos.pair,
+                                side="SELL",
+                                price=sl_limit_px,
+                                qty=fill_qty,
+                                stop_price=sl_stop_px,
+                            )
+                        else:
+                            sl_res = sub_client.place_order(
+                                pair=pos.pair,
+                                side="sell",
+                                price=sl_limit_px,
+                                stop_price=sl_stop_px,
+                                total_quantity=fill_qty,
+                                order_type="stop_limit",
+                            )
+                            if inspect.isawaitable(sl_res):
+                                sl_res = await sl_res
 
                         if sl_res.get("success") and sl_res.get("exchange_order_id"):
                             sl_order_id = str(sl_res["exchange_order_id"])

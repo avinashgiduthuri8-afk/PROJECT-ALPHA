@@ -69,6 +69,7 @@ async def test_early_lock_suppresses_c2_and_ai_evaluation():
             {"coin": "BTC", "pair": "BTC/INR", "score": 90, "price": 8500000.0, "timeframe": "15m", "market_state": "bull_trend", "opportunity_type": "momentum_trade", "priority": "Elite"},
         ]
     scanner._fetch_v1_signals = mock_fetch_v1
+    scanner._generate_native_candidates = mock_fetch_v1
 
     # Track what C2 receives
     original_eval = scanner._confluence_engine.evaluate_candidates

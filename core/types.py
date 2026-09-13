@@ -1,7 +1,7 @@
 """
-V2 Domain Types.
+PROJECT-ALPHA Domain Types.
 
-Single canonical definition of every domain concept used across V2.
+Single canonical definition of domain concepts used across PROJECT-ALPHA.
 No business logic here — pure data containers and enumerations.
 """
 

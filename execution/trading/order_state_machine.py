@@ -1,5 +1,5 @@
 """
-V2 Live Order Lifecycle State Machine.
+PROJECT-ALPHA Live Order Lifecycle State Machine.
 
 Enforces valid state transition paths, quantity/price updates, idempotency,
 and generates audit trail records for order state transitions.
@@ -11,7 +11,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Dict, Optional, Set, Tuple
 
-from core.exceptions import AlphaError, V2Error
+from core.exceptions import AlphaError
 from core.logging import get_logger
 from core.types import Order, OrderState, OrderStateTransition
 

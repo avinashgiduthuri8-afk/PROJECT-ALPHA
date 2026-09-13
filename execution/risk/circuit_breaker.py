@@ -1,5 +1,5 @@
 """
-V2 CircuitBreaker — emergency halts, consecutive loss tracking, and drawdown gates.
+PROJECT-ALPHA CircuitBreaker — emergency halts, consecutive loss tracking, and drawdown gates.
 """
 
 from __future__ import annotations

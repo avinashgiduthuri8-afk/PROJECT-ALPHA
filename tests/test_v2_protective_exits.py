@@ -96,24 +96,24 @@ async def test_disaster_stop_limit_created_on_buy_fill(exit_test_env):
     mgr = exit_test_env["subaccount_mgr"]
     sub_client = mgr.get_client(BotName.STE)
 
-    # Mock live buy order response as FILLED
-    sub_client.place_live_order = AsyncMock(return_value={
-        "success": True,
-        "exchange_order_id": "EX_BUY_SOL_001",
-        "client_order_id": "CL_BUY_SOL_001",
-        "status": "FILLED",
-        "is_filled": True,
-        "filled_qty": 0.02,
-        "price": 12500.0,
-        "qty": 0.02,
-    })
-
-    # Mock resting disaster stop-loss order placement
-    sub_client.place_order = MagicMock(return_value={
-        "success": True,
-        "exchange_order_id": "EX_SL_RESTING_999",
-        "order": {"id": "EX_SL_RESTING_999"},
-    })
+    # Mock live buy order and resting disaster stop-loss order responses
+    sub_client.place_live_order = AsyncMock(side_effect=[
+        {
+            "success": True,
+            "exchange_order_id": "EX_BUY_SOL_001",
+            "client_order_id": "CL_BUY_SOL_001",
+            "status": "FILLED",
+            "is_filled": True,
+            "filled_qty": 0.02,
+            "price": 12500.0,
+            "qty": 0.02,
+        },
+        {
+            "success": True,
+            "exchange_order_id": "EX_SL_RESTING_999",
+            "order": {"id": "EX_SL_RESTING_999"},
+        },
+    ])
 
     payload = {
         "signal_id": "sig-sol-001",
@@ -127,15 +127,14 @@ async def test_disaster_stop_limit_created_on_buy_fill(exit_test_env):
 
     await trading_svc.on_trade_approved(EventType.TRADE_APPROVED, payload)
 
-    # 1. Verify place_order was invoked for disaster stop-loss
-    assert sub_client.place_order.called
-    call_kwargs = sub_client.place_order.call_args[1]
-    assert call_kwargs["order_type"] == "stop_limit"
-    assert call_kwargs["side"] == "sell"
-    assert call_kwargs["total_quantity"] == 0.02
-    assert call_kwargs["stop_price"] is not None
+    # 1. Verify place_live_order was invoked for disaster stop-loss (2nd call)
+    assert sub_client.place_live_order.call_count == 2
+    sl_kwargs = sub_client.place_live_order.call_args_list[1][1]
+    assert sl_kwargs["side"] == "SELL"
+    assert sl_kwargs["qty"] == 0.02
+    assert sl_kwargs["stop_price"] is not None
     # Ensure limit price has 0.5% discount buffer below stop_price
-    assert call_kwargs["price"] < call_kwargs["stop_price"]
+    assert sl_kwargs["price"] < sl_kwargs["stop_price"]
 
     # 2. Verify position in DB has stop_loss_order_id persisted
     open_positions = await pos_repo.get_open()
@@ -154,21 +153,22 @@ async def test_disaster_stop_limit_failure_emits_alert(exit_test_env):
     mgr = exit_test_env["subaccount_mgr"]
     sub_client = mgr.get_client(BotName.STE)
 
-    sub_client.place_live_order = AsyncMock(return_value={
-        "success": True,
-        "exchange_order_id": "EX_BUY_002",
-        "status": "FILLED",
-        "is_filled": True,
-        "filled_qty": 0.02,
-        "price": 12500.0,
-        "qty": 0.02,
-    })
-
-    sub_client.place_order = MagicMock(return_value={
-        "success": False,
-        "error": "EXCHANGE_UNAVAILABLE",
-        "message": "CoinDCX maintenance",
-    })
+    sub_client.place_live_order = AsyncMock(side_effect=[
+        {
+            "success": True,
+            "exchange_order_id": "EX_BUY_002",
+            "status": "FILLED",
+            "is_filled": True,
+            "filled_qty": 0.02,
+            "price": 12500.0,
+            "qty": 0.02,
+        },
+        {
+            "success": False,
+            "error": "EXCHANGE_UNAVAILABLE",
+            "message": "CoinDCX maintenance",
+        },
+    ])
 
     alerts = []
     async def on_alert(ev, data):

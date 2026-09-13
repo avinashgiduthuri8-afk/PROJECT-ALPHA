@@ -1,5 +1,5 @@
-﻿"""
-V2 Risk Service Package.
+"""
+PROJECT-ALPHA Risk Service Package.
 """
 
 from .service import RiskService

@@ -1,5 +1,5 @@
 """
-V2 ShadowService — manages shadow simulation, scheduled price updates, and divergence tracking.
+PROJECT-ALPHA ShadowService — manages shadow simulation, scheduled price updates, and divergence tracking.
 """
 
 from __future__ import annotations

@@ -1,5 +1,5 @@
 """
-V2 Position Manager & State Tracking Engine.
+PROJECT-ALPHA Position Manager & State Tracking Engine.
 
 Manages full position lifecycle states: PENDING_ENTRY → OPEN → PENDING_EXIT → CLOSED.
 Supports bracket order logic (Stop Loss, Take Profit, Trailing Stop) and deducts statutory

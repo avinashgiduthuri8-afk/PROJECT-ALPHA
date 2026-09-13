@@ -1,5 +1,5 @@
 """
-V2 Shadow Testing & Slippage Divergence Tracker.
+PROJECT-ALPHA Shadow Testing & Slippage Divergence Tracker.
 
 Compares simulated fill prices against real order book top-of-book quotes,
 computes slippage divergence percentages, flags latency/spread anomalies (> 0.25%),

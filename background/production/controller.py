@@ -115,6 +115,10 @@ class ProductionController:
             return False, "Order rejected: Global kill switch is active — all orders halted."
         if amount < MINIMUM_NOTIONAL_INR:
             return False, f"Order amount ₹{amount:.2f} is below minimum notional ₹{MINIMUM_NOTIONAL_INR:.2f}."
+        if amount > 500.0:
+            return False, f"Order amount ₹{amount:.2f} exceeds micro-order cap ₹500.00."
+        if current_wallet_exposure_inr + amount > 15000.0:
+            return False, f"Order amount ₹{amount:.2f} exceeds wallet ceiling ₹15000.00."
         return True, "OK"
 
     @property

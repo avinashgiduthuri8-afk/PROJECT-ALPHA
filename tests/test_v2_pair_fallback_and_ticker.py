@@ -108,6 +108,9 @@ async def test_cross_currency_single_coin_asset_lock():
     mock_pos.coin = "SOL"
     mock_pos.pair = "SOL/INR"
     mock_pos.bot = "STE"
+    mock_pos.unrealized_pnl = 0.0
+    mock_pos.unrealized_pnl_pct = 0.0
+    mock_pos.pyramid_count = 0
     mock_pos_repo.get_open.return_value = [mock_pos]
 
     router = AutoTradeRouter(bus=mock_bus, position_repo=mock_pos_repo, dry_run=True)

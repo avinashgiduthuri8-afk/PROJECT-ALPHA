@@ -216,6 +216,9 @@ class TestProductionAPIEndpoints:
         test_db = str(tmp_path / f"test_api_prod_{uuid.uuid4().hex[:6]}.db")
         monkeypatch.setenv("V2_DB_PATH", test_db)
         monkeypatch.setenv("DASHBOARD_API_KEY", "test-prod-key")
+        monkeypatch.setenv("DASHBOARD_SECURITY_PASSWORD", "110299")
+        monkeypatch.setenv("COINDCX_LIVE_API_KEY", "live_key_valid_prod")
+        monkeypatch.setenv("COINDCX_LIVE_API_SECRET", "live_secret_valid_prod")
         invalidate_config()
         yield
         invalidate_config()

@@ -1,8 +1,7 @@
 """
-V2 Exception Hierarchy.
+PROJECT-ALPHA Exception Hierarchy.
 
-All V2 exceptions derive from V2Error so callers can catch the whole
-family with a single except clause when needed.
+All PROJECT-ALPHA exceptions derive from AlphaError.
 """
 
 from __future__ import annotations

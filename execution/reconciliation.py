@@ -1,5 +1,5 @@
 """
-V2 Exchange Balance & Reconciliation Worker.
+PROJECT-ALPHA Exchange Balance & Reconciliation Worker.
 
 Runs periodic async background reconciliation jobs (e.g. every 60s) to reconcile
 local SQLite position records against CoinDCX sub-account open orders and balances.

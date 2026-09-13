@@ -121,6 +121,5 @@ class EventBus:
         }
 
 
-# Module-level singleton — import and use this in V2 services.
-# Do NOT import from V1 code.
+# Module-level singleton — import and use this in core services.
 bus = EventBus()

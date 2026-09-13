@@ -1,5 +1,5 @@
 """
-V2 Auto Trade Dispatcher & Strategy Router.
+PROJECT-ALPHA Auto Trade Dispatcher & Strategy Router.
 
 Subscribes to SIGNAL_GENERATED events on the EventBus, maps signals to isolated
 production bot strategies (STE, HDA, VCP, BBS), evaluates sub-account capital limits,

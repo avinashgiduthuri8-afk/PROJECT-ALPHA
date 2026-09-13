@@ -131,7 +131,7 @@ def test_vcp_adapter_calculations():
         ai_adjustments={},
     )
     assert order["bot"] == BotName.VCP
-    assert order["stop_loss"] == 2744.0  # -2.0%
+    assert order["stop_loss"] == 2730.0  # -2.5%
     assert order["take_profit"] == 2940.0 # +5.0%
 
 

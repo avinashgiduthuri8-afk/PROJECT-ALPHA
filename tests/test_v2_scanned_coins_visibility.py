@@ -8,6 +8,7 @@ import asyncio
 import uuid
 import pytest
 from datetime import datetime, timezone
+from unittest.mock import AsyncMock, MagicMock
 from fastapi.testclient import TestClient
 
 from app import app
@@ -108,8 +109,19 @@ async def test_scanner_snapshot_retention_and_overwrite(tmp_path):
 
 def test_api_scanned_coins_endpoints():
     """Verify GET /api/v2/scanner/coins and /api/v2/scanner/coins/{symbol}."""
+    import sys
     with TestClient(app) as client:
         headers = {"X-API-Key": "test-visibility-key"}
+
+        # Mock candidate signals on scanner service if available
+        mock_raw = [
+            {"coin": "BTC", "pair": "BTC/INR", "price": 6500000.0, "rsi": 58.0, "score": 88, "mtf_alignment": True},
+            {"coin": "ETH", "pair": "ETH/INR", "price": 280000.0, "rsi": 48.0, "score": 78, "mtf_alignment": True},
+        ]
+        router_mod = sys.modules.get("dashboard.api.router")
+        if router_mod and getattr(router_mod, "_scanner_service", None):
+            router_mod._scanner_service._fetch_candidate_signals = AsyncMock(return_value=mock_raw)
+            router_mod._scanner_service._fetch_v1_signals = AsyncMock(return_value=mock_raw)
 
         # 1. Trigger poll to populate snapshot
         poll_resp = client.post("/api/v2/scanner/poll", headers=headers)

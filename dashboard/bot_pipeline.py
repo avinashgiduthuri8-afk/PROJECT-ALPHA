@@ -10,6 +10,7 @@ pure observation and telemetry aggregation.
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -151,10 +152,10 @@ class BotState:
         # Capital limit from config
         if config:
             limit_map = {
-                "STE": config.ste_capital_limit,
-                "HDA": config.hda_capital_limit,
-                "VCP": config.vcp_capital_limit,
-                "BBS": config.bbs_capital_limit,
+                "STE": getattr(config, "ste_capital_limit", 35000.0),
+                "HDA": getattr(config, "hda_capital_limit", 30000.0),
+                "VCP": getattr(config, "vcp_capital_limit", 15000.0),
+                "BBS": getattr(config, "bbs_capital_limit", 20000.0),
             }
             self.capital_limit = limit_map.get(bot_name, 25000.0)
         else:
@@ -452,37 +453,56 @@ class BotPipelineTracker:
 
     async def sync_from_repository(self, position_repo: Any) -> None:
         """Hydrate active positions and deployed capital from SQLite repository."""
-        if not position_repo:
+        if position_repo is None:
             return
-        try:
-            if hasattr(position_repo, "get_active_positions"):
-                active_positions = await position_repo.get_active_positions()
-            elif hasattr(position_repo, "get_open"):
-                active_positions = await position_repo.get_open()
-            else:
-                active_positions = []
 
-            # Reset position counters first
-            for bot in self._bots.values():
-                bot.open_positions = 0
-                bot.capital_deployed = 0.0
+        if isinstance(position_repo, (list, tuple)):
+            active_positions = list(position_repo)
+        elif hasattr(position_repo, "get_active_positions"):
+            res = position_repo.get_active_positions()
+            active_positions = await res if asyncio.iscoroutine(res) else res
+        elif hasattr(position_repo, "get_open"):
+            res = position_repo.get_open()
+            active_positions = await res if asyncio.iscoroutine(res) else res
+        else:
+            active_positions = []
 
-            for pos in active_positions:
-                bot_name = pos.bot.value if hasattr(getattr(pos, "bot", None), "value") else str(getattr(pos, "bot", "STE"))
-                bot_key = bot_name.upper()
-                if bot_key in self._bots:
-                    bot_state = self._bots[bot_key]
-                    bot_state.open_positions += 1
+        # Reset position counters first
+        for bot in self._bots.values():
+            bot.open_positions = 0
+            bot.capital_deployed = 0.0
+            if bot.current_stage == "position_manager":
+                bot.current_stage = "scanner"
+                bot.stage_status = "IDLE"
+
+        for pos in active_positions:
+            if isinstance(pos, dict) or not hasattr(pos, "bot"):
+                continue
+
+            bot_raw = getattr(pos, "bot", None)
+            if bot_raw is None:
+                continue
+
+            bot_name = bot_raw.value if hasattr(bot_raw, "value") else str(bot_raw)
+            bot_key = bot_name.upper()
+            if bot_key in self._bots:
+                bot_state = self._bots[bot_key]
+                bot_state.open_positions += 1
+
+                dep_cap = getattr(pos, "deployed_capital", None)
+                if dep_cap is not None:
+                    bot_state.capital_deployed += float(dep_cap)
+                else:
                     entry_price = float(getattr(pos, "entry_price", 0.0) or 0.0)
                     qty = float(getattr(pos, "qty", 0.0) or 0.0)
                     bot_state.capital_deployed += (entry_price * qty)
-                    bot_state.current_stage = "position_manager"
-                    bot_state.stage_status = "IN_POSITION"
-                    bot_state.last_action = f"Position active: {getattr(pos, 'coin', '') or getattr(pos, 'pair', '')}"
-                    bot_state.last_coin = getattr(pos, "coin", "") or getattr(pos, "pair", "")
-            logger.info("BotPipelineTracker hydrated %d active positions from SQLite", len(active_positions))
-        except Exception as exc:
-            logger.warning("Failed to sync BotPipelineTracker from repository: %s", exc)
+
+                bot_state.current_stage = "position_manager"
+                bot_state.stage_status = "IN_POSITION"
+                bot_state.last_action = f"Tracking active position: {getattr(pos, 'coin', '') or getattr(pos, 'pair', '')}"
+                bot_state.last_coin = getattr(pos, "coin", "") or getattr(pos, "pair", "")
+
+        logger.info("BotPipelineTracker hydrated %d active positions from SQLite", len(active_positions))
 
     def get_health(self) -> Dict[str, Any]:
         return {
