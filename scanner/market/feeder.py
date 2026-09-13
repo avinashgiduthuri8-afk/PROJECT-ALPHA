@@ -31,7 +31,7 @@ DEFAULT_PAIRS = [
     "MATIC/INR",
 ]
 
-DEFAULT_INTERVALS = ["5m", "15m", "1h"]
+DEFAULT_INTERVALS = ["1h", "4h", "1d"]
 
 
 class MarketFeeder:
@@ -168,7 +168,7 @@ class MarketFeeder:
             return float(self._ticker_cache[pair_clean].get("last_price") or 0.0)
 
         # Fallback to most recent candle close across cached intervals
-        for interval in ["5m", "15m", "1h"]:
+        for interval in ["1h", "4h", "1d"]:
             candles = self._candle_cache.get((pair_clean, interval))
             if candles:
                 return float(candles[-1].get("close") or 0.0)

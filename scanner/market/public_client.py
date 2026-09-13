@@ -227,11 +227,18 @@ class CoinDCXPublicClient:
                 continue
 
             # Parse open, high, low, close, volume, timestamp
-            o = float(item.get("open") or item.get("o") or 0.0)
-            h = float(item.get("high") or item.get("h") or 0.0)
-            l = float(item.get("low")  or item.get("l") or 0.0)
-            c = float(item.get("close") or item.get("c") or 0.0)
-            v = float(item.get("volume") or item.get("v") or 0.0)
+            try:
+                o = float(item.get("open") or item.get("o") or 0.0)
+                h = float(item.get("high") or item.get("h") or 0.0)
+                l = float(item.get("low")  or item.get("l") or 0.0)
+                c = float(item.get("close") or item.get("c") or 0.0)
+                v = float(item.get("volume") or item.get("v") or 0.0)
+            except (ValueError, TypeError):
+                continue
+
+            # Data integrity sanity guard: drop corrupt or non-positive price bars
+            if o <= 0.0 or h <= 0.0 or l <= 0.0 or c <= 0.0:
+                continue
 
             raw_time = item.get("time") or item.get("t") or item.get("timestamp") or 0
             # Normalize to epoch seconds
