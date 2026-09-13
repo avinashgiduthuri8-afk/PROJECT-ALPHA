@@ -229,6 +229,20 @@ class AutoTradeRouter:
                 for op in open_positions:
                     op_base = extract_base_coin(getattr(op, "coin", "")) or extract_base_coin(getattr(op, "pair", ""))
                     if candidate_base and op_base and candidate_base == op_base:
+                        op_unrealized_pnl = getattr(op, "unrealized_pnl_pct", getattr(op, "unrealized_pnl", 0.0))
+                        op_pyramid_count = getattr(op, "pyramid_count", 0)
+                        
+                        # Swing Pyramiding Logic: Bypass lock if firmly in profit (>3%)
+                        if op_unrealized_pnl > 3.0 and op_pyramid_count < 3:
+                            logger.info(
+                                "Swing Pyramiding Activated for %s: Position already at +%.2f%% profit. Adding capital tranche %d/3.",
+                                candidate_base, op_unrealized_pnl, op_pyramid_count + 1
+                            )
+                            # Optional: you can set a flag on the signal here to tell the position manager to merge
+                            signal_data["is_pyramid_entry"] = True
+                            signal_data["parent_position_id"] = getattr(op, "id", None)
+                            break
+                        
                         op_bot = getattr(op, "bot", "BOT")
                         op_bot_name = op_bot.value if hasattr(op_bot, "value") else str(op_bot)
                         target_bot_name = target_bot.value if hasattr(target_bot, "value") else str(target_bot)
@@ -241,6 +255,7 @@ class AutoTradeRouter:
                             "error": "OPPORTUNITY_LOCKED_ACTIVE_PAIR",
                             "idempotency_key": idempotency_key,
                             "message": f"Asset {candidate_base} already has an active open position in strategy {op_bot_name}. Cross-strategy lock prevents opening in {target_bot_name}.",
+                            "message": f"Asset {candidate_base} already has an active open position in strategy {op_bot_name} (PnL: {op_unrealized_pnl}%). Cross-strategy lock prevents opening in {target_bot_name}.",
                         }
             except Exception as exc:
                 logger.debug("AutoTradeRouter active position cross-strategy check error: %s", exc)
