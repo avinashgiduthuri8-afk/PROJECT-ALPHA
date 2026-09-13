@@ -15,3 +15,9 @@
   1. **Add Capital (Pyramiding)**: The system bypasses single-coin locks to add a second tranche (up to 3 max) to ride the bull wave.
   2. **Strict Micro-Tranche Sizing**: Every added tranche is strictly capped at the standard order amount (e.g. ₹200 / `ORDER_SIZE_INR`). It **NEVER** increases to a large amount, ensuring ample capital remains available for other trades across the fleet.
   3. **Profit Protection**: The trailing stop automatically ratchets up (e.g. locking in +6% minimum profit) to protect gains while letting the remaining target run up to 20%+.
+
+## 4. Execution Workflow & Roadmap Invariants
+- **Linear Module Progression**: Work must proceed sequentially through the module roadmap:
+  `N (Naming) → S (Scanner) → E (Execution) → C (Core) → T (Telegram) → D (Dashboard) → B (Background) → I (Integration)`
+- **One Fix Per Prompt**: NEVER combine multiple module tasks into a single turn. Each prompt must focus on a single micro-task (e.g., N1, N2, N3, S1, S2).
+- **Scanner Signal Philosophy**: The scanner engine prioritizes **few, high-quality signals with measurable success rates** over signal volume.
