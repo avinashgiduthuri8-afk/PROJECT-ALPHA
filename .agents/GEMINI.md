@@ -13,4 +13,5 @@
 ## 3. Active Trade Momentum & Market Shift (The SOL Scenario)
 - **In-Trade Scaling**: If a position is in strong profit (e.g. +9%) and the market turns strongly BULLISH:
   1. **Add Capital (Pyramiding)**: The system bypasses single-coin locks to add a second tranche (up to 3 max) to ride the bull wave.
-  2. **Profit Protection**: The trailing stop automatically ratchets up (e.g. locking in +6% minimum profit) to protect gains while letting the remaining target run up to 20%+.
+  2. **Strict Micro-Tranche Sizing**: Every added tranche is strictly capped at the standard order amount (e.g. ₹200 / `ORDER_SIZE_INR`). It **NEVER** increases to a large amount, ensuring ample capital remains available for other trades across the fleet.
+  3. **Profit Protection**: The trailing stop automatically ratchets up (e.g. locking in +6% minimum profit) to protect gains while letting the remaining target run up to 20%+.
