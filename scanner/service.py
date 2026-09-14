@@ -128,6 +128,7 @@ class ScannerService:
         self._last_poll_at: Optional[datetime] = None
         self._last_error: Optional[str] = None
         self._started = False
+        self._poll_lock = asyncio.Lock()
 
         self._min_priority = Priority(self._config.scanner_min_priority)
 
@@ -493,13 +494,14 @@ class ScannerService:
         url = "https://public.coindcx.com/market_data/candles"
         params = {"pair": coindcx_pair, "interval": interval, "limit": limit}
         try:
+            await self._rate_limiter.acquire()
             async with httpx.AsyncClient(timeout=10.0) as client:
-                await asyncio.sleep(0.125)  # Enforce rate limiting safety (max 8 req/s)
                 resp = await client.get(url, params=params)
                 resp.raise_for_status()
                 data = resp.json()
                 if isinstance(data, list):
                     return data
+                    return list(reversed(data))
         except Exception as exc:
             logger.debug(
                 "Failed to fetch candles from CoinDCX for pair=%s: %s",
@@ -580,7 +582,6 @@ class ScannerService:
         timeframes = ["1h", "4h", "1d"]
         results: dict[str, list[dict]] = {}
         for tf in timeframes:
-            await self._rate_limiter.acquire()
             raw = await self._fetch_coindcx_candles(coindcx_pair, interval=tf, limit=30)
             results[tf] = raw
         return results
@@ -646,6 +647,11 @@ class ScannerService:
             "next_interval_s": self._config.scanner_poll_interval,
         }
 
+        if self._poll_lock.locked():
+            logger.warning("Scanner poll skipped: previous poll is still running")
+            return summary
+
+        await self._poll_lock.acquire()
         try:
             # 1. Refresh Live Macro Market Context (BTC, ETH, Fear & Greed)
             market_context = await self._market_context_service.refresh_market_context()
@@ -863,6 +869,8 @@ class ScannerService:
             self._last_error = str(exc)
             summary["errors"] = 1
             logger.exception("Scanner poll failed", extra={"error": str(exc)})
+        finally:
+            self._poll_lock.release()
 
         return summary
 
@@ -957,6 +965,7 @@ class ScannerService:
         btc_trend = str(sentiment.get("btc_trend", "SIDEWAYS")).upper()
         if regime == "RISK_OFF" or btc_trend == "BEARISH":
             return min(300, max(base, int(base * 1.5)))
+            return min(900, max(base, int(base * 1.5)))
         if regime == "RISK_ON" and btc_trend == "BULLISH":
             return max(15, int(base * 0.75))
         return base
