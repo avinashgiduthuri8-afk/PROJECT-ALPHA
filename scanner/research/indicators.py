@@ -49,6 +49,12 @@ def compute_rsi(prices: np.ndarray, period: int = 14) -> np.ndarray:
     # Seed averages
     avg_gain = np.mean(gains[:period])
     avg_loss = np.mean(losses[:period])
+    
+    if avg_loss == 0:
+        result[period] = 100.0
+    else:
+        rs = avg_gain / avg_loss
+        result[period] = 100.0 - (100.0 / (1.0 + rs))
 
     for i in range(period, len(deltas)):
         avg_gain = (avg_gain * (period - 1) + gains[i]) / period
@@ -74,8 +80,22 @@ def compute_macd(
     ema_fast = compute_ema(prices, fast)
     ema_slow = compute_ema(prices, slow)
     macd = ema_fast - ema_slow
-    signal = compute_ema(np.where(np.isnan(macd), 0.0, macd), signal_period)
+    
+    valid_idx = np.where(~np.isnan(macd))[0]
+    if len(valid_idx) < signal_period:
+        signal = np.full(len(macd), np.nan)
+        hist = np.full(len(macd), np.nan)
+        return macd, signal, hist
+        
+    first_valid = valid_idx[0]
+    valid_macd = macd[first_valid:]
+    
+    valid_signal = compute_ema(valid_macd, signal_period)
+    
+    signal = np.full(len(macd), np.nan)
+    signal[first_valid:] = valid_signal
     hist = macd - signal
+    
     return macd, signal, hist
 
 

@@ -425,7 +425,8 @@ class CoinResearchService:
         e200= last_valid(ema200)
 
         trend_aligned = (
-            price > e21 > e50
+            e50 > 0.0
+            and price > e21 > e50
             and e9 > e21
             and (e200 == 0.0 or e50 > e200)   # 200 may not have enough data
         )
@@ -743,10 +744,11 @@ class CoinResearchService:
             catalysts   = []
             risks       = []
 
-            rsi  = ind.get("rsi14", 50.0)
+            rsi   = ind.get("rsi14", 50.0)
             close = ind.get("close", 0.0)
-            e21  = ind.get("ema21", 0.0)
-            e50  = ind.get("ema50", 0.0)
+            e9    = ind.get("ema9", 0.0)
+            e21   = ind.get("ema21", 0.0)
+            e50   = ind.get("ema50", 0.0)
             macd_h = ind.get("macd_hist", 0.0)
             rvol   = ind.get("rvol", 1.0)
             bb_lo  = ind.get("bb_lower", 0.0)
@@ -765,11 +767,11 @@ class CoinResearchService:
                 bullish_pts += 1; catalysts.append(f"RSI in bullish momentum zone ({rsi:.1f})")
 
             # EMA positioning
-            if close > e21 > e50:
+            if e50 > 0.0 and close > e21 > e50:
                 bullish_pts += 3; catalysts.append("Price above EMA21 and EMA50 — bullish structure intact")
             elif close > e21:
                 bullish_pts += 1; catalysts.append("Price above EMA21")
-            elif close < e21 < e50:
+            elif e50 > 0.0 and close < e21 < e50:
                 bearish_pts += 3; risks.append("Price below both EMA21 and EMA50 — bearish structure")
             elif close < e21:
                 bearish_pts += 1; risks.append("Price below EMA21 — caution")
@@ -782,7 +784,10 @@ class CoinResearchService:
 
             # Volume
             if rvol >= 1.5:
-                bullish_pts += 1; catalysts.append(f"Volume surge (RVOL {rvol:.2f}x) confirming move")
+                if close >= e9:
+                    bullish_pts += 1; catalysts.append(f"Bullish volume surge (RVOL {rvol:.2f}x) confirming move")
+                else:
+                    bearish_pts += 1; risks.append(f"Bearish volume surge (RVOL {rvol:.2f}x) indicating distribution")
             elif rvol < 0.7:
                 risks.append(f"Below-average volume (RVOL {rvol:.2f}x) — weak conviction")
 
