@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -29,7 +29,9 @@ class HistoricalRunner:
     def __init__(self, initial_capital: float = 100000.0) -> None:
         self.initial_capital = initial_capital
 
-    def compute_statutory_drag(self, entry_price: float, exit_price: float, qty: float) -> float:
+    def compute_statutory_drag(
+        self, entry_price: float, exit_price: float, qty: float
+    ) -> float:
         """
         Compute statutory 1.572% round-trip drag friction.
         Friction is calculated on total traded value (entry notional + exit notional).
@@ -43,9 +45,9 @@ class HistoricalRunner:
         self,
         strategy_name: str,
         pair: str,
-        candles: List[Dict[str, Any]],
-        parameters: Optional[Dict[str, Any]] = None,
-    ) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
+        candles: list[dict[str, Any]],
+        parameters: dict[str, Any] | None = None,
+    ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
         """
         Run trade replay simulation over candle list.
         Each candle dict contains: timestamp, open, high, low, close, volume.
@@ -58,10 +60,14 @@ class HistoricalRunner:
         params = parameters or {}
         trade_amount = float(params.get("trade_amount", 500.0))
         sl_pct = float(params.get("stop_loss_pct", 0.02))  # Default 2% SL
-        tp_pct = float(params.get("take_profit_pct", 0.046)) # Default 4.6% TP
+        tp_pct = float(params.get("take_profit_pct", 0.046))  # Default 4.6% TP
 
         if len(candles) < 10:
-            logger.warning("Insufficient candles (%d) for backtest simulation of %s", len(candles), strat_upper)
+            logger.warning(
+                "Insufficient candles (%d) for backtest simulation of %s",
+                len(candles),
+                strat_upper,
+            )
             empty_run = {
                 "id": str(uuid.uuid4()),
                 "strategy_name": strat_upper,
@@ -81,7 +87,7 @@ class HistoricalRunner:
             return empty_run, []
 
         run_id = str(uuid.uuid4())
-        executed_trades: List[Dict[str, Any]] = []
+        executed_trades: list[dict[str, Any]] = []
 
         in_position = False
         entry_price = 0.0
@@ -95,7 +101,7 @@ class HistoricalRunner:
 
         # Signal generation & execution loop
         for i in range(5, len(sorted_candles) - 1):
-            curr_bar = sorted_candles[i]      # Bar N (signal calculation bar)
+            curr_bar = sorted_candles[i]  # Bar N (signal calculation bar)
             next_bar = sorted_candles[i + 1]  # Bar N+1 (execution bar)
 
             curr_close = float(curr_bar["close"])
@@ -122,21 +128,23 @@ class HistoricalRunner:
                     drag = self.compute_statutory_drag(entry_price, exit_price, qty)
                     net_pnl = round(gross_pnl - drag, 2)
 
-                    executed_trades.append({
-                        "id": str(uuid.uuid4()),
-                        "run_id": run_id,
-                        "pair": pair,
-                        "side": "BUY",
-                        "entry_time": entry_time,
-                        "exit_time": curr_bar["timestamp"],
-                        "entry_price": entry_price,
-                        "exit_price": exit_price,
-                        "quantity": qty,
-                        "gross_pnl": round(gross_pnl, 2),
-                        "net_pnl": net_pnl,
-                        "statutory_drag": round(drag, 2),
-                        "exit_reason": exit_reason,
-                    })
+                    executed_trades.append(
+                        {
+                            "id": str(uuid.uuid4()),
+                            "run_id": run_id,
+                            "pair": pair,
+                            "side": "BUY",
+                            "entry_time": entry_time,
+                            "exit_time": curr_bar["timestamp"],
+                            "entry_price": entry_price,
+                            "exit_price": exit_price,
+                            "quantity": qty,
+                            "gross_pnl": round(gross_pnl, 2),
+                            "net_pnl": net_pnl,
+                            "statutory_drag": round(drag, 2),
+                            "exit_reason": exit_reason,
+                        }
+                    )
 
                     in_position = False
                     continue
@@ -151,10 +159,14 @@ class HistoricalRunner:
                 if strat_upper == "STE":
                     signal_triggered = curr_close > sma5 * 1.002
                 elif strat_upper == "HDA":
-                    signal_triggered = curr_close > closes[-2] and float(curr_bar.get("volume", 1.0)) > float(sorted_candles[i-1].get("volume", 1.0))
+                    signal_triggered = curr_close > closes[-2] and float(
+                        curr_bar.get("volume", 1.0)
+                    ) > float(sorted_candles[i - 1].get("volume", 1.0))
                 elif strat_upper == "VCP":
                     volatility = float(np.std(closes))
-                    signal_triggered = volatility < curr_close * 0.01 and curr_close >= closes[-2]
+                    signal_triggered = (
+                        volatility < curr_close * 0.01 and curr_close >= closes[-2]
+                    )
                 elif strat_upper == "BBS":
                     signal_triggered = curr_close > max(closes[:-1])
 
@@ -162,7 +174,9 @@ class HistoricalRunner:
                     # ZERO LOOK-AHEAD BIAS: Entry occurs at next_bar OPEN price!
                     entry_price = float(next_bar["open"])
                     entry_time = next_bar["timestamp"]
-                    qty = round(trade_amount / entry_price, 6) if entry_price > 0 else 0.0
+                    qty = (
+                        round(trade_amount / entry_price, 6) if entry_price > 0 else 0.0
+                    )
 
                     stop_loss = entry_price * (1.0 - sl_pct)
                     take_profit = entry_price * (1.0 + tp_pct)
@@ -177,7 +191,11 @@ class HistoricalRunner:
 
             gains = sum(p for p in pnls if p > 0)
             losses = abs(sum(p for p in pnls if p < 0))
-            profit_factor = round(gains / losses, 2) if losses > 0 else (round(gains, 2) if gains > 0 else 0.0)
+            profit_factor = (
+                round(gains / losses, 2)
+                if losses > 0
+                else (round(gains, 2) if gains > 0 else 0.0)
+            )
 
             cum_pnl = np.cumsum(pnls)
             peak = np.maximum.accumulate(cum_pnl)
@@ -185,7 +203,11 @@ class HistoricalRunner:
             max_drawdown = round(float(np.max(dd)), 2) if len(dd) > 0 else 0.0
 
             std_pnl = float(np.std(pnls))
-            sharpe = round((float(np.mean(pnls)) / std_pnl) * np.sqrt(252), 2) if std_pnl > 0 else 0.0
+            sharpe = (
+                round((float(np.mean(pnls)) / std_pnl) * np.sqrt(252), 2)
+                if std_pnl > 0
+                else 0.0
+            )
             cagr = round((sum(pnls) / self.initial_capital) * 100.0, 2)
         else:
             win_rate = 0.0

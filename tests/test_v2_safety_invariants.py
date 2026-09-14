@@ -15,39 +15,35 @@ Verifies:
 10. Reconciliation Safety: No duplicate BUYs/SELLs, no reopening closed positions.
 """
 
-import asyncio
 import math
 import os
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Optional
-from unittest.mock import AsyncMock, MagicMock, patch
+from typing import Any
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from background.production.controller import ProductionController
+from background.production.watchdog import ProductionWatchdog
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
-from core.config import DEFAULT_ORDER_AMOUNT_INR, AppConfig, V2Config, get_config, invalidate_config
-from core.types import (
-    BotMode,
-    BotName,
-    ExitReason,
-    Position,
-    PositionStatus,
-    Signal,
-)
+from core.config import V2Config, invalidate_config
 from core.repository.db import Database
 from core.repository.event_log_repo import EventLogRepository
 from core.repository.position_repo import PositionRepository
-from core.repository.signal_repo import SignalRepository
 from core.repository.trade_repo import TradeRepository
-from telegram.telegram_interface import TelegramInteractiveInterface
-from background.production.controller import ProductionController
-from background.production.watchdog import ProductionWatchdog
+from core.types import (
+    BotMode,
+    BotName,
+    Position,
+    PositionStatus,
+)
 from execution.risk.service import RiskService
 from execution.service import TradingService
 from execution.trading.precision_rules import get_pair_spec
 from execution.trading.subaccount_manager import CoinDCXSubAccountManager
+from telegram.telegram_interface import TelegramInteractiveInterface
 
 
 class MockTelegramClient:
@@ -58,7 +54,9 @@ class MockTelegramClient:
         self.edited_messages: list[dict] = []
         self.is_configured = True
 
-    async def send_message(self, text: str, target_chat_id: str, reply_markup: Any = None) -> dict:
+    async def send_message(
+        self, text: str, target_chat_id: str, reply_markup: Any = None
+    ) -> dict:
         msg = {
             "text": text,
             "target_chat_id": str(target_chat_id),
@@ -68,7 +66,9 @@ class MockTelegramClient:
         self.sent_messages.append(msg)
         return {"ok": True, "result": {"message_id": len(self.sent_messages)}}
 
-    async def edit_message_text(self, text: str, chat_id: Any, message_id: int, reply_markup: Any = None) -> dict:
+    async def edit_message_text(
+        self, text: str, chat_id: Any, message_id: int, reply_markup: Any = None
+    ) -> dict:
         msg = {
             "text": text,
             "chat_id": str(chat_id),
@@ -88,6 +88,7 @@ def tmp_db_file(tmp_path):
 # 1. FIX CAPITAL MODEL CONTRADICTION
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def test_01_dynamic_capital_no_10k_fallback_configurable_order_size():
     """Verify ₹200 is DEFAULT only, no ₹10k ceiling, configurable order amount."""
     os.environ.pop("TOTAL_CAPITAL_LIMIT", None)
@@ -104,7 +105,9 @@ def test_01_dynamic_capital_no_10k_fallback_configurable_order_size():
 
     # SubAccount manager initializes dynamic pool with no 10k fallback
     mgr = CoinDCXSubAccountManager(config=cfg)
-    assert mgr._shared_pool_state["wallet_balance_inr"] == math.inf  # Dynamic unconstrained
+    assert (
+        mgr._shared_pool_state["wallet_balance_inr"] == math.inf
+    )  # Dynamic unconstrained
     assert mgr.get_client(BotName.STE).config.default_trade_amount_inr == 750.0
 
     # Update order size propagates to all bot clients
@@ -116,6 +119,7 @@ def test_01_dynamic_capital_no_10k_fallback_configurable_order_size():
 # ─────────────────────────────────────────────────────────────────────────────
 # 2. FIX ₹100 EXCHANGE FLOOR
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.anyio
 async def test_02_authoritative_precision_rules_and_no_arbitrary_100_floor(tmp_db_file):
@@ -174,10 +178,13 @@ async def test_02_authoritative_precision_rules_and_no_arbitrary_100_floor(tmp_d
 # 3. FIX GLOBAL KILL-SWITCH COVERAGE
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.anyio
 async def test_03_kill_switch_blocks_every_outbound_path_buy_and_sell():
     """Kill-switch blocks both BUY and SELL calls to CoinDCX with 0 network requests."""
-    disabled_cfg = V2Config(v2_trading_enabled=False, v2_deployment_mode="LIVE_MICROCASH")
+    disabled_cfg = V2Config(
+        v2_trading_enabled=False, v2_deployment_mode="LIVE_MICROCASH"
+    )
     sub_mgr = CoinDCXSubAccountManager(config=disabled_cfg)
     client = sub_mgr.get_client(BotName.STE)
     client.post = AsyncMock()  # Network call mock
@@ -208,6 +215,7 @@ async def test_03_kill_switch_blocks_every_outbound_path_buy_and_sell():
 # 4. FIX /resume SAFETY
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.anyio
 async def test_04_resume_rejects_when_risk_engine_reports_unsafe(tmp_db_file):
     """Resume is blocked if Risk Engine has active loss streak or unhandled breach."""
@@ -235,7 +243,10 @@ async def test_04_resume_rejects_when_risk_engine_reports_unsafe(tmp_db_file):
     risk.circuit_breaker._consecutive_losses[BotName.STE] = 4
     is_safe, reason = await risk.is_safe_to_resume()
     assert is_safe is False
-    assert "consecutive losses" in reason.lower() or "consecutive_loss_limit" in reason.lower()
+    assert (
+        "consecutive losses" in reason.lower()
+        or "consecutive_loss_limit" in reason.lower()
+    )
 
     # Controller resume attempt must fail closed
     controller = ProductionController(
@@ -254,13 +265,16 @@ async def test_04_resume_rejects_when_risk_engine_reports_unsafe(tmp_db_file):
 # 5. FIX TELEGRAM SAFETY
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.anyio
 async def test_05_telegram_safety_obeys_risk_engine(tmp_db_file):
     """Telegram /resume respects Risk Engine safety and /kill triggers immediate stop."""
     db = Database(tmp_db_file)
     await db.open()
     bus = EventBus()
-    cfg = V2Config(v2_db_path=tmp_db_file, alert_chat_id="1001", telegram_allowed_chat_ids="1001")
+    cfg = V2Config(
+        v2_db_path=tmp_db_file, alert_chat_id="1001", telegram_allowed_chat_ids="1001"
+    )
     pos_repo = PositionRepository(db.connection)
     trade_repo = TradeRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
@@ -304,13 +318,16 @@ async def test_05_telegram_safety_obeys_risk_engine(tmp_db_file):
 # 6. FIX PAPER / SHADOW / LIVE ISOLATION
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.anyio
 async def test_06_paper_and_shadow_never_call_exchange(tmp_db_file):
     """In PAPER and SHADOW modes, 0 exchange orders are ever dispatched."""
     db = Database(tmp_db_file)
     await db.open()
     bus = EventBus()
-    cfg = V2Config(v2_db_path=tmp_db_file, v2_shadow_mode=False, v2_deployment_mode="PAPER")
+    cfg = V2Config(
+        v2_db_path=tmp_db_file, v2_shadow_mode=False, v2_deployment_mode="PAPER"
+    )
     pos_repo = PositionRepository(db.connection)
     trade_repo = TradeRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
@@ -329,16 +346,19 @@ async def test_06_paper_and_shadow_never_call_exchange(tmp_db_file):
     await trading.start()
 
     # Simulate approved trade in PAPER mode
-    await trading.on_trade_approved(EventType.TRADE_APPROVED, {
-        "signal_id": "sig-01",
-        "coin": "ETH",
-        "bot": "STE",
-        "mode": "PAPER",
-        "approved_amount": 300.0,
-        "entry_price": 250000.0,
-        "stop_loss": 240000.0,
-        "take_profit": 270000.0,
-    })
+    await trading.on_trade_approved(
+        EventType.TRADE_APPROVED,
+        {
+            "signal_id": "sig-01",
+            "coin": "ETH",
+            "bot": "STE",
+            "mode": "PAPER",
+            "approved_amount": 300.0,
+            "entry_price": 250000.0,
+            "stop_loss": 240000.0,
+            "take_profit": 270000.0,
+        },
+    )
 
     # Verified: place_live_order was NEVER called
     assert client.place_live_order.call_count == 0
@@ -354,6 +374,7 @@ async def test_06_paper_and_shadow_never_call_exchange(tmp_db_file):
 # 7. FIX LIVE DYNAMIC BALANCE RESOLUTION
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.anyio
 async def test_07_live_dynamic_balance_fails_closed_when_unavailable():
     """LIVE mode fails closed (BLOCKED_BALANCE_UNAVAILABLE) if exchange balance is unverified."""
@@ -361,7 +382,9 @@ async def test_07_live_dynamic_balance_fails_closed_when_unavailable():
     sub_mgr = CoinDCXSubAccountManager(config=cfg)
     client = sub_mgr.get_client(BotName.STE)
     # Simulate network failure returning None for balance
-    client.get_balances = AsyncMock(return_value={"success": False, "error": "NETWORK_UNAVAILABLE"})
+    client.get_balances = AsyncMock(
+        return_value={"success": False, "error": "NETWORK_UNAVAILABLE"}
+    )
     client.post = AsyncMock()
 
     with patch("core.config.get_config", return_value=cfg):
@@ -378,6 +401,7 @@ async def test_07_live_dynamic_balance_fails_closed_when_unavailable():
 # ─────────────────────────────────────────────────────────────────────────────
 # 8. FIX WATCHDOG SAFETY INVARIANTS
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.anyio
 async def test_08_watchdog_safety_invariants(tmp_db_file):
@@ -415,6 +439,7 @@ async def test_08_watchdog_safety_invariants(tmp_db_file):
 # 9. FIX EXECUTION AMOUNT FLOW: BUY vs. SELL
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.anyio
 async def test_09_execution_amount_flow_buy_and_sell(tmp_db_file):
     """BUY uses approved INR amount; SELL strictly uses pos.qty."""
@@ -438,17 +463,20 @@ async def test_09_execution_amount_flow_buy_and_sell(tmp_db_file):
     await trading.start()
 
     # 1. BUY: opens position with approved amount
-    await trading.on_trade_approved(EventType.TRADE_APPROVED, {
-        "signal_id": "sig-eth-01",
-        "coin": "ETH",
-        "bot": "STE",
-        "mode": "PAPER",
-        "approved_amount": 400.0,
-        "price": 200000.0,
-        "entry_price": 200000.0,
-        "stop_loss": 190000.0,
-        "take_profit": 220000.0,
-    })
+    await trading.on_trade_approved(
+        EventType.TRADE_APPROVED,
+        {
+            "signal_id": "sig-eth-01",
+            "coin": "ETH",
+            "bot": "STE",
+            "mode": "PAPER",
+            "approved_amount": 400.0,
+            "price": 200000.0,
+            "entry_price": 200000.0,
+            "stop_loss": 190000.0,
+            "take_profit": 220000.0,
+        },
+    )
     positions = await pos_repo.get_open()
     assert len(positions) == 1
     pos = positions[0]
@@ -473,6 +501,7 @@ async def test_09_execution_amount_flow_buy_and_sell(tmp_db_file):
 # ─────────────────────────────────────────────────────────────────────────────
 # 10. FIX RECONCILIATION SAFETY
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.anyio
 async def test_10_reconciliation_safety_no_duplicates_or_reopening(tmp_db_file):

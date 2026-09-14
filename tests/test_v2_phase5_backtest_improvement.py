@@ -11,24 +11,27 @@ Verifies:
 
 from __future__ import annotations
 
-import asyncio
-import os
 import uuid
-from datetime import datetime, timezone, timedelta
-from unittest.mock import MagicMock
+from datetime import datetime, timedelta, timezone
+
 import pytest
 from fastapi.testclient import TestClient
 
-from core.config import invalidate_config
-from core.repository.db import Database
-from core.repository.backtest_repo import BacktestRepository
-from background.backtest.historical_runner import HistoricalRunner, STATUTORY_ROUND_TRIP_DRAG_RATE
+from app import app
+from background.backtest.historical_runner import (
+    STATUTORY_ROUND_TRIP_DRAG_RATE,
+    HistoricalRunner,
+)
 from background.backtest.optimizer import StrategyOptimizer
 from background.backtest.service.service import BacktestService
-from app import app
+from core.config import invalidate_config
+from core.repository.backtest_repo import BacktestRepository
+from core.repository.db import Database
 
 
-def generate_synthetic_candles(count: int = 50, start_price: float = 100.0) -> list[dict]:
+def generate_synthetic_candles(
+    count: int = 50, start_price: float = 100.0
+) -> list[dict]:
     """Helper generating synthetic candle series for backtest testing."""
     candles = []
     base_time = datetime(2026, 1, 1, 0, 0, tzinfo=timezone.utc)
@@ -44,14 +47,16 @@ def generate_synthetic_candles(count: int = 50, start_price: float = 100.0) -> l
         low_p = min(open_p, close_p) - 0.5
         price = close_p
 
-        candles.append({
-            "timestamp": t_str,
-            "open": round(open_p, 2),
-            "high": round(high_p, 2),
-            "low": round(low_p, 2),
-            "close": round(close_p, 2),
-            "volume": 100.0 + i * 2,
-        })
+        candles.append(
+            {
+                "timestamp": t_str,
+                "open": round(open_p, 2),
+                "high": round(high_p, 2),
+                "low": round(low_p, 2),
+                "close": round(close_p, 2),
+                "volume": 100.0 + i * 2,
+            }
+        )
 
     return candles
 
@@ -68,6 +73,7 @@ async def _create_test_backtest_db(tmp_path):
 # =============================================================================
 # 1. Zero Look-Ahead Bias & Statutory Friction Tests
 # =============================================================================
+
 
 class TestHistoricalRunnerEngine:
 
@@ -95,13 +101,16 @@ class TestHistoricalRunnerEngine:
         qty = 10.0
 
         drag = runner.compute_statutory_drag(entry_price, exit_price, qty)
-        expected_drag = (100.0 * 10.0 + 110.0 * 10.0) * (STATUTORY_ROUND_TRIP_DRAG_RATE / 2.0)
+        expected_drag = (100.0 * 10.0 + 110.0 * 10.0) * (
+            STATUTORY_ROUND_TRIP_DRAG_RATE / 2.0
+        )
         assert round(drag, 4) == round(expected_drag, 4)
 
 
 # =============================================================================
 # 2. Strategy Optimizer & Walk-Forward Validation Tests
 # =============================================================================
+
 
 class TestStrategyOptimizer:
 
@@ -119,7 +128,9 @@ class TestStrategyOptimizer:
             "take_profit_pct": [0.03, 0.05],
         }
 
-        wf_report = optimizer.run_walk_forward_validation("STE", "ETH/INR", candles, param_grid)
+        wf_report = optimizer.run_walk_forward_validation(
+            "STE", "ETH/INR", candles, param_grid
+        )
         assert "in_sample" in wf_report
         assert "out_of_sample" in wf_report
         assert wf_report["in_sample"]["candle_count"] == 70
@@ -141,6 +152,7 @@ class TestStrategyOptimizer:
 # =============================================================================
 # 3. Database Persistence & Service Layer Tests
 # =============================================================================
+
 
 class TestBacktestRepositoryPersistence:
 
@@ -168,6 +180,7 @@ class TestBacktestRepositoryPersistence:
 # =============================================================================
 # 4. REST API Endpoint Tests
 # =============================================================================
+
 
 class TestBacktestAPIEndpoints:
 
@@ -211,7 +224,9 @@ class TestBacktestAPIEndpoints:
             assert any(r["id"] == run_id for r in runs)
 
             # 3. GET /backtest/results/{run_id}
-            res_detail = client.get(f"/api/v2/backtest/results/{run_id}", headers=headers)
+            res_detail = client.get(
+                f"/api/v2/backtest/results/{run_id}", headers=headers
+            )
             assert res_detail.status_code == 200
             detail = res_detail.json()
             assert detail["id"] == run_id

@@ -13,19 +13,19 @@ Verifies:
 """
 
 import uuid
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
+
 import pytest
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
 from core.config import get_config
-from core.types import BotMode, BotName, Order, OrderState, OrderStateTransition
 from core.repository.db import Database
 from core.repository.event_log_repo import EventLogRepository
 from core.repository.order_repo import OrderRepository
 from core.repository.position_repo import PositionRepository
 from core.repository.trade_repo import TradeRepository
+from core.types import BotName, Order, OrderState
 from execution.recovery import RestartRecoveryService
 from execution.service import TradingService
 from execution.trading.order_state_machine import (
@@ -90,25 +90,33 @@ def test_valid_state_machine_transitions():
     )
 
     # 1. CREATED -> SUBMITTED
-    ord1, tr1 = OrderStateMachine.transition(ord1, OrderState.SUBMITTED, reason="Submitted to exchange")
+    ord1, tr1 = OrderStateMachine.transition(
+        ord1, OrderState.SUBMITTED, reason="Submitted to exchange"
+    )
     assert ord1.state == OrderState.SUBMITTED
     assert tr1.from_state == OrderState.CREATED
     assert tr1.to_state == OrderState.SUBMITTED
 
     # 2. SUBMITTED -> OPEN
-    ord1, tr2 = OrderStateMachine.transition(ord1, OrderState.OPEN, exchange_order_id="EX-100", reason="Open on book")
+    ord1, tr2 = OrderStateMachine.transition(
+        ord1, OrderState.OPEN, exchange_order_id="EX-100", reason="Open on book"
+    )
     assert ord1.state == OrderState.OPEN
     assert ord1.exchange_order_id == "EX-100"
 
     # 3. OPEN -> PARTIALLY_FILLED
-    ord1, tr3 = OrderStateMachine.transition(ord1, OrderState.PARTIALLY_FILLED, filled_qty=0.4, avg_price=300000.0)
+    ord1, tr3 = OrderStateMachine.transition(
+        ord1, OrderState.PARTIALLY_FILLED, filled_qty=0.4, avg_price=300000.0
+    )
     assert ord1.state == OrderState.PARTIALLY_FILLED
     assert ord1.filled_qty == 0.4
     assert ord1.remaining_qty == 0.6
     assert ord1.avg_price == 300000.0
 
     # 4. PARTIALLY_FILLED -> FILLED
-    ord1, tr4 = OrderStateMachine.transition(ord1, OrderState.FILLED, filled_qty=1.0, avg_price=300500.0)
+    ord1, tr4 = OrderStateMachine.transition(
+        ord1, OrderState.FILLED, filled_qty=1.0, avg_price=300500.0
+    )
     assert ord1.state == OrderState.FILLED
     assert ord1.filled_qty == 1.0
     assert ord1.remaining_qty == 0.0
@@ -152,7 +160,9 @@ def test_idempotent_duplicate_state_transition():
     )
 
     # Re-apply OPEN state
-    ord1_updated, tr = OrderStateMachine.transition(ord1, OrderState.OPEN, reason="Duplicate WS update")
+    ord1_updated, tr = OrderStateMachine.transition(
+        ord1, OrderState.OPEN, reason="Duplicate WS update"
+    )
     assert ord1_updated.state == OrderState.OPEN
     assert tr.from_state == OrderState.OPEN
     assert tr.to_state == OrderState.OPEN
@@ -224,17 +234,19 @@ async def test_restart_recovery_service_rehydrates_orders(db_env):
 
     mgr = CoinDCXSubAccountManager()
     client = mgr.get_client(BotName.STE)
-    client.get_order_by_client_id = AsyncMock(return_value={
-        "success": True,
-        "order": {
-            "id": "EX-RECOV-1",
-            "client_order_id": "CL-RECOV-1",
-            "status": "filled",
-            "quantity": 1.0,
-            "total_quantity": 1.0,
-            "price": 300000.0,
+    client.get_order_by_client_id = AsyncMock(
+        return_value={
+            "success": True,
+            "order": {
+                "id": "EX-RECOV-1",
+                "client_order_id": "CL-RECOV-1",
+                "status": "filled",
+                "quantity": 1.0,
+                "total_quantity": 1.0,
+                "price": 300000.0,
+            },
         }
-    })
+    )
 
     recov_service = RestartRecoveryService(
         position_repo=pos_repo,
@@ -301,4 +313,3 @@ async def test_trading_service_order_lifecycle_integration(db_env):
     assert len(transitions) >= 2  # CREATED -> SUBMITTED -> FILLED
 
     await service.stop()
-

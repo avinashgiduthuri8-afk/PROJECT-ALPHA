@@ -10,16 +10,18 @@ Tests for V2 BotPipelineTracker & Isolated CoinDCX Sub-Account Multi-Client Arch
 from __future__ import annotations
 
 import os
+
 import pytest
-from fastapi.testclient import TestClient
 
-from dashboard.bot_pipeline import BotPipelineTracker, BotState
 from core.bus.event_types import EventType
-from execution.trading.subaccount_manager import CoinDCXSubAccountManager, SubAccountConfig
 from core.types import BotName
-
+from dashboard.bot_pipeline import BotPipelineTracker
+from execution.trading.subaccount_manager import (
+    CoinDCXSubAccountManager,
+)
 
 # ── 1. BotPipelineTracker Unit Tests ──────────────────────────────────────────
+
 
 class TestBotPipelineTrackerInit:
 
@@ -27,18 +29,37 @@ class TestBotPipelineTrackerInit:
         tracker = BotPipelineTracker()
         bots = tracker.get_all_bots()
         names = {b["bot_name"] for b in bots}
-        assert names == {"STE", "HDA", "VCP", "BBS"}, f"Expected STE/HDA/VCP/BBS, got {names}"
+        assert names == {
+            "STE",
+            "HDA",
+            "VCP",
+            "BBS",
+        }, f"Expected STE/HDA/VCP/BBS, got {names}"
 
     def test_bot_summary_fields(self):
         tracker = BotPipelineTracker()
         bots = tracker.get_all_bots()
         for bot in bots:
             required_keys = [
-                "bot_name", "strategy", "subaccount_id", "icon", "color",
-                "current_stage", "stage_label", "stage_index", "total_stages",
-                "stage_status", "open_positions", "max_positions",
-                "capital_deployed", "capital_limit", "daily_pnl", "total_pnl",
-                "win_rate_pct", "trades_executed", "last_action",
+                "bot_name",
+                "strategy",
+                "subaccount_id",
+                "icon",
+                "color",
+                "current_stage",
+                "stage_label",
+                "stage_index",
+                "total_stages",
+                "stage_status",
+                "open_positions",
+                "max_positions",
+                "capital_deployed",
+                "capital_limit",
+                "daily_pnl",
+                "total_pnl",
+                "win_rate_pct",
+                "trades_executed",
+                "last_action",
             ]
             for key in required_keys:
                 assert key in bot, f"Missing key '{key}' in bot {bot.get('bot_name')}"
@@ -92,6 +113,7 @@ class TestBotPipelineTrackerInit:
 
 # ── 2. Pipeline Stage Transition Tests ────────────────────────────────────────
 
+
 class TestBotStageTransitions:
 
     def _make_tracker(self):
@@ -100,8 +122,7 @@ class TestBotStageTransitions:
     def test_signal_generated_advances_scanner_stage(self):
         tracker = self._make_tracker()
         tracker.handle_bus_event(
-            EventType.SIGNAL_GENERATED.value,
-            {"bot": "STE", "coin": "SOL", "score": 88}
+            EventType.SIGNAL_GENERATED.value, {"bot": "STE", "coin": "SOL", "score": 88}
         )
         detail = tracker.get_bot_detail("STE")
         assert detail["current_stage"] == "signal_engine"
@@ -112,7 +133,7 @@ class TestBotStageTransitions:
         tracker = self._make_tracker()
         tracker.handle_bus_event(
             EventType.SIGNAL_AI_CONFIRMED.value,
-            {"bot": "HDA", "coin": "ETH", "confidence_score": 92}
+            {"bot": "HDA", "coin": "ETH", "confidence_score": 92},
         )
         detail = tracker.get_bot_detail("HDA")
         assert detail["current_stage"] == "ai_intelligence"
@@ -124,7 +145,7 @@ class TestBotStageTransitions:
         tracker = self._make_tracker()
         tracker.handle_bus_event(
             EventType.SIGNAL_AI_REJECTED.value,
-            {"bot": "BBS", "coin": "SHIB", "confidence_score": 45}
+            {"bot": "BBS", "coin": "SHIB", "confidence_score": 45},
         )
         detail = tracker.get_bot_detail("BBS")
         assert detail["telemetry"]["ai_evaluations"] == 1
@@ -134,7 +155,7 @@ class TestBotStageTransitions:
         tracker = self._make_tracker()
         tracker.handle_bus_event(
             EventType.TRADE_APPROVED.value,
-            {"bot": "STE", "coin": "BTC", "approved_amount": 500.0}
+            {"bot": "STE", "coin": "BTC", "approved_amount": 500.0},
         )
         detail = tracker.get_bot_detail("STE")
         assert detail["current_stage"] == "risk_engine"
@@ -144,7 +165,7 @@ class TestBotStageTransitions:
         tracker = self._make_tracker()
         tracker.handle_bus_event(
             EventType.TRADE_EXECUTED.value,
-            {"bot": "STE", "coin": "BTC", "entry_price": 8200000.0, "qty": 0.00005}
+            {"bot": "STE", "coin": "BTC", "entry_price": 8200000.0, "qty": 0.00005},
         )
         detail = tracker.get_bot_detail("STE")
         assert detail["current_stage"] == "auto_trade"
@@ -155,8 +176,7 @@ class TestBotStageTransitions:
     def test_position_opened_advances_to_position_manager(self):
         tracker = self._make_tracker()
         tracker.handle_bus_event(
-            EventType.POSITION_OPENED.value,
-            {"bot": "VCP", "coin": "SOL"}
+            EventType.POSITION_OPENED.value, {"bot": "VCP", "coin": "SOL"}
         )
         detail = tracker.get_bot_detail("VCP")
         assert detail["current_stage"] == "position_manager"
@@ -166,12 +186,17 @@ class TestBotStageTransitions:
     def test_position_closed_updates_pnl_and_resets(self):
         tracker = self._make_tracker()
         tracker.handle_bus_event(
-            EventType.POSITION_OPENED.value,
-            {"bot": "BBS", "coin": "DOGE"}
+            EventType.POSITION_OPENED.value, {"bot": "BBS", "coin": "DOGE"}
         )
         tracker.handle_bus_event(
             EventType.POSITION_CLOSED.value,
-            {"bot": "BBS", "coin": "DOGE", "pnl": 48.5, "entry_price": 16.50, "qty": 20.0}
+            {
+                "bot": "BBS",
+                "coin": "DOGE",
+                "pnl": 48.5,
+                "entry_price": 16.50,
+                "qty": 20.0,
+            },
         )
         detail = tracker.get_bot_detail("BBS")
         assert detail["open_positions"] == 0
@@ -183,12 +208,17 @@ class TestBotStageTransitions:
         tracker = self._make_tracker()
         for pnl in [500.0, 300.0, -200.0, 100.0]:
             tracker.handle_bus_event(
-                EventType.POSITION_OPENED.value,
-                {"bot": "STE", "coin": "BTC"}
+                EventType.POSITION_OPENED.value, {"bot": "STE", "coin": "BTC"}
             )
             tracker.handle_bus_event(
                 EventType.POSITION_CLOSED.value,
-                {"bot": "STE", "coin": "BTC", "pnl": pnl, "entry_price": 0.0, "qty": 0.0}
+                {
+                    "bot": "STE",
+                    "coin": "BTC",
+                    "pnl": pnl,
+                    "entry_price": 0.0,
+                    "qty": 0.0,
+                },
             )
         detail = tracker.get_bot_detail("STE")
         # 3 wins, 1 loss → 75%
@@ -197,8 +227,7 @@ class TestBotStageTransitions:
     def test_multiple_bots_independently_tracked(self):
         tracker = self._make_tracker()
         tracker.handle_bus_event(
-            EventType.SIGNAL_GENERATED.value,
-            {"bot": "STE", "coin": "BTC", "score": 90}
+            EventType.SIGNAL_GENERATED.value, {"bot": "STE", "coin": "BTC", "score": 90}
         )
         hda_detail = tracker.get_bot_detail("HDA")
         vcp_detail = tracker.get_bot_detail("VCP")
@@ -207,6 +236,7 @@ class TestBotStageTransitions:
 
 
 # ── 3. CoinDCX Sub-Account Client & HMAC Signing Tests ────────────────────────
+
 
 class TestCoinDCXSubAccountArchitecture:
 
@@ -239,7 +269,9 @@ class TestCoinDCXSubAccountArchitecture:
         initial_avail = ste_client.available_balance_inr
 
         # Place valid order: 0.05 SOL @ ₹12,500 = ₹625 notional (> ₹100 min)
-        res = ste_client.place_order(pair="SOL/INR", side="BUY", price=12500.0, qty=0.05)
+        res = ste_client.place_order(
+            pair="SOL/INR", side="BUY", price=12500.0, qty=0.05
+        )
         assert res["success"] is True
         assert res["order"]["auth_headers_verified"] is True
         assert ste_client.available_balance_inr < initial_avail
@@ -259,25 +291,28 @@ class TestCoinDCXSubAccountArchitecture:
 
 # ── 4. API Endpoint Tests ─────────────────────────────────────────────────────
 
+
 @pytest.mark.anyio
 async def test_bot_api_endpoints(monkeypatch):
-    import os
     import tempfile
     import uuid
+
     import httpx
     from fastapi import FastAPI
-    from dashboard.api.router import router as api_router, init_router
-    from core.repository.db import Database
-    from core.repository.signal_repo import SignalRepository
-    from core.repository.ai_repo import AIAnalysisRepository
-    from core.repository.position_repo import PositionRepository
-    from core.repository.trade_repo import TradeRepository
-    from core.repository.shadow_repo import ShadowRepository
-    from core.repository.metrics_repo import MetricsRepository
-    from core.repository.event_log_repo import EventLogRepository
-    from dashboard import DashboardService
+
     from core.bus.event_bus import EventBus
     from core.config import get_config, invalidate_config
+    from core.repository.ai_repo import AIAnalysisRepository
+    from core.repository.db import Database
+    from core.repository.event_log_repo import EventLogRepository
+    from core.repository.metrics_repo import MetricsRepository
+    from core.repository.position_repo import PositionRepository
+    from core.repository.shadow_repo import ShadowRepository
+    from core.repository.signal_repo import SignalRepository
+    from core.repository.trade_repo import TradeRepository
+    from dashboard import DashboardService
+    from dashboard.api.router import init_router
+    from dashboard.api.router import router as api_router
 
     monkeypatch.setenv("DASHBOARD_API_KEY", "test-key-bots")
     invalidate_config()

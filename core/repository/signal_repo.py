@@ -4,14 +4,13 @@ V2 SignalRepository — persistence for scanner signals.
 
 from __future__ import annotations
 
-import uuid
 from datetime import datetime, timezone
-from typing import Optional
 
 import aiosqlite
 
-from core.types import MarketState, OppType, Priority, RiskLevel, Signal
 from core.logging import get_logger
+from core.types import MarketState, OppType, Priority, RiskLevel, Signal
+
 from .base import BaseRepository
 
 logger = get_logger("core.repository.signal_repo")
@@ -19,7 +18,7 @@ logger = get_logger("core.repository.signal_repo")
 _ISO = "%Y-%m-%dT%H:%M:%S.%f+00:00"
 
 
-def _dt(s: str | None) -> Optional[datetime]:
+def _dt(s: str | None) -> datetime | None:
     if s is None:
         return None
     for fmt in (_ISO, "%Y-%m-%dT%H:%M:%S+00:00", "%Y-%m-%dT%H:%M:%S"):
@@ -36,21 +35,21 @@ def _dt(s: str | None) -> Optional[datetime]:
 def _row_to_signal(row: aiosqlite.Row) -> Signal:
     d = dict(row)
     return Signal(
-        id               = d["id"],
-        coin             = d["coin"],
-        pair             = d["pair"],
-        market_state     = MarketState(d["market_state"]),
-        opportunity_type = OppType(d["opportunity_type"]),
-        priority         = Priority(d["priority"]),
-        risk_level       = RiskLevel(d["risk_level"]),
-        score            = d["score"],
-        confidence       = d["confidence"],
-        coin_class       = d.get("coin_class"),
-        mtf_alignment    = bool(d["mtf_alignment"]),
-        generated_at     = _dt(d["generated_at"]),
-        expires_at       = _dt(d["expires_at"]),
-        source_bot       = d.get("source_bot", "scanner_v1"),
-        raw_payload      = BaseRepository._loads(d.get("raw_payload")) or {},
+        id=d["id"],
+        coin=d["coin"],
+        pair=d["pair"],
+        market_state=MarketState(d["market_state"]),
+        opportunity_type=OppType(d["opportunity_type"]),
+        priority=Priority(d["priority"]),
+        risk_level=RiskLevel(d["risk_level"]),
+        score=d["score"],
+        confidence=d["confidence"],
+        coin_class=d.get("coin_class"),
+        mtf_alignment=bool(d["mtf_alignment"]),
+        generated_at=_dt(d["generated_at"]),
+        expires_at=_dt(d["expires_at"]),
+        source_bot=d.get("source_bot", "scanner_v1"),
+        raw_payload=BaseRepository._loads(d.get("raw_payload")) or {},
     )
 
 
@@ -93,9 +92,7 @@ class SignalRepository(BaseRepository):
             (now, reason, signal_id),
         )
 
-    async def get_live(
-        self, priority_gte: Optional[Priority] = None
-    ) -> list[Signal]:
+    async def get_live(self, priority_gte: Priority | None = None) -> list[Signal]:
         """Return signals that have not yet expired."""
         now = datetime.now(timezone.utc).isoformat()
         rows = await self._fetchall(
@@ -113,7 +110,7 @@ class SignalRepository(BaseRepository):
         signals = await self.get_live()
         return signals[:limit]
 
-    async def get_by_id(self, signal_id: str) -> Optional[Signal]:
+    async def get_by_id(self, signal_id: str) -> Signal | None:
         row = await self._fetchone("SELECT * FROM signals WHERE id=?", (signal_id,))
         return _row_to_signal(row) if row else None
 
@@ -124,9 +121,7 @@ class SignalRepository(BaseRepository):
         )
         return [_row_to_signal(r) for r in rows]
 
-    async def get_history(
-        self, since: datetime, limit: int = 200
-    ) -> list[Signal]:
+    async def get_history(self, since: datetime, limit: int = 200) -> list[Signal]:
         rows = await self._fetchall(
             "SELECT * FROM signals WHERE generated_at >= ? "
             "ORDER BY generated_at DESC LIMIT ?",
@@ -143,7 +138,5 @@ class SignalRepository(BaseRepository):
         return {r["priority"]: r["n"] for r in rows}
 
     async def exists(self, signal_id: str) -> bool:
-        row = await self._fetchone(
-            "SELECT 1 FROM signals WHERE id=?", (signal_id,)
-        )
+        row = await self._fetchone("SELECT 1 FROM signals WHERE id=?", (signal_id,))
         return row is not None

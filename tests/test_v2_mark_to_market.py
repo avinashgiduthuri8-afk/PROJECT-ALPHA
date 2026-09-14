@@ -17,14 +17,18 @@ Verifies:
 
 from __future__ import annotations
 
-import asyncio
-from datetime import datetime, timezone
 import uuid
+from datetime import datetime, timezone
+
 import pytest
 
+from background.portfolio.service import PortfolioService
 from core.bus.event_bus import EventBus
-from core.bus.event_types import EventType
 from core.config import V2Config
+from core.repository.db import Database
+from core.repository.event_log_repo import EventLogRepository
+from core.repository.position_repo import PositionRepository
+from core.repository.trade_repo import TradeRepository
 from core.types import (
     BotMode,
     BotName,
@@ -32,13 +36,8 @@ from core.types import (
     Position,
     PositionStatus,
 )
-from core.repository.db import Database
-from core.repository.position_repo import PositionRepository
-from core.repository.trade_repo import TradeRepository
-from core.repository.event_log_repo import EventLogRepository
-from execution.trading.subaccount_manager import CoinDCXExecutionManager
 from execution.service import TradingService
-from background.portfolio.service import PortfolioService
+from execution.trading.subaccount_manager import CoinDCXExecutionManager
 
 
 @pytest.fixture
@@ -91,6 +90,7 @@ async def setup_env(tmp_path):
 
 # ── Test A: current_price updates from entry_price on fresh ticker ───────────
 
+
 @pytest.mark.anyio
 async def test_a_current_price_updates_on_fresh_ticker(setup_env):
     env = setup_env
@@ -125,6 +125,7 @@ async def test_a_current_price_updates_on_fresh_ticker(setup_env):
 
 
 # ── Test B: Positive unrealized P&L calculation ──────────────────────────────
+
 
 @pytest.mark.anyio
 async def test_b_positive_unrealized_pnl(setup_env):
@@ -161,6 +162,7 @@ async def test_b_positive_unrealized_pnl(setup_env):
 
 # ── Test C: Negative unrealized P&L calculation ──────────────────────────────
 
+
 @pytest.mark.anyio
 async def test_c_negative_unrealized_pnl(setup_env):
     env = setup_env
@@ -195,6 +197,7 @@ async def test_c_negative_unrealized_pnl(setup_env):
 
 
 # ── Test D: Multiple positions receive independent ticker prices ─────────────
+
 
 @pytest.mark.anyio
 async def test_d_multiple_positions_independent_prices(setup_env):
@@ -247,10 +250,11 @@ async def test_d_multiple_positions_independent_prices(setup_env):
     assert db_pos1.unrealised_pnl == round((52000.0 - 50000.0) * 0.01, 2)  # +20.0
 
     assert db_pos2.current_price == 2900.0
-    assert db_pos2.unrealised_pnl == round((2900.0 - 3000.0) * 0.1, 2)   # -10.0
+    assert db_pos2.unrealised_pnl == round((2900.0 - 3000.0) * 0.1, 2)  # -10.0
 
 
 # ── Test E: Trailing stop ratchets upward with peak and triggers exit ────────
+
 
 @pytest.mark.anyio
 async def test_e_trailing_stop_ratchets_and_triggers_exit(setup_env):
@@ -282,7 +286,9 @@ async def test_e_trailing_stop_ratchets_and_triggers_exit(setup_env):
     assert db_pos.status == PositionStatus.OPEN
     assert db_pos.current_price == 110.0
     assert trading_svc.position_manager._peak_prices["pos-trail-01"] == 110.0
-    assert round(trading_svc.position_manager._trailing_stops["pos-trail-01"], 2) == 106.70
+    assert (
+        round(trading_svc.position_manager._trailing_stops["pos-trail-01"], 2) == 106.70
+    )
 
     # Step 2: Price rises further to 120.0 -> peak=120, trailing_stop = 120 * 0.97 = 116.4
     await trading_svc.check_open_position_exits({"ADA": 120.0})
@@ -290,7 +296,9 @@ async def test_e_trailing_stop_ratchets_and_triggers_exit(setup_env):
     assert db_pos.status == PositionStatus.OPEN
     assert db_pos.current_price == 120.0
     assert trading_svc.position_manager._peak_prices["pos-trail-01"] == 120.0
-    assert round(trading_svc.position_manager._trailing_stops["pos-trail-01"], 2) == 116.40
+    assert (
+        round(trading_svc.position_manager._trailing_stops["pos-trail-01"], 2) == 116.40
+    )
 
     # Step 3: Minor pullback to 118.0 (above trailing stop 116.4) -> remains OPEN
     await trading_svc.check_open_position_exits({"ADA": 118.0})
@@ -299,7 +307,9 @@ async def test_e_trailing_stop_ratchets_and_triggers_exit(setup_env):
     assert db_pos.current_price == 118.0
     # Peak must not drop
     assert trading_svc.position_manager._peak_prices["pos-trail-01"] == 120.0
-    assert round(trading_svc.position_manager._trailing_stops["pos-trail-01"], 2) == 116.40
+    assert (
+        round(trading_svc.position_manager._trailing_stops["pos-trail-01"], 2) == 116.40
+    )
 
     # Step 4: Pullback drops to 115.0 (below trailing stop 116.4) -> triggers exit
     await trading_svc.check_open_position_exits({"ADA": 115.0})
@@ -313,6 +323,7 @@ async def test_e_trailing_stop_ratchets_and_triggers_exit(setup_env):
 
 
 # ── Test F: Missing / stale / 0 ticker preserves last known mark ─────────────
+
 
 @pytest.mark.anyio
 async def test_f_missing_or_zero_ticker_preserves_last_mark(setup_env):
@@ -358,6 +369,7 @@ async def test_f_missing_or_zero_ticker_preserves_last_mark(setup_env):
 
 # ── Test G: Closed positions are not updated ─────────────────────────────────
 
+
 @pytest.mark.anyio
 async def test_g_closed_positions_not_updated(setup_env):
     env = setup_env
@@ -380,7 +392,9 @@ async def test_g_closed_positions_not_updated(setup_env):
         take_profit=60.0,
     )
     await pos_repo.insert(pos)
-    await pos_repo.close("pos-closed-01", exit_price=55.0, exit_reason=ExitReason.TAKE_PROFIT)
+    await pos_repo.close(
+        "pos-closed-01", exit_price=55.0, exit_reason=ExitReason.TAKE_PROFIT
+    )
 
     # Verify initially closed
     closed_pos = await pos_repo.get_by_id("pos-closed-01")
@@ -395,6 +409,7 @@ async def test_g_closed_positions_not_updated(setup_env):
 
 
 # ── Test H: Polling loop continues even if one coin lacks ticker ─────────────
+
 
 @pytest.mark.anyio
 async def test_h_loop_continues_when_coin_lacks_ticker(setup_env):
@@ -441,11 +456,12 @@ async def test_h_loop_continues_when_coin_lacks_ticker(setup_env):
     p_valid = await pos_repo.get_by_id("pos-valid-coin")
 
     assert p_missing.current_price == 10.0  # Preserved
-    assert p_valid.current_price == 12.0    # Updated
+    assert p_valid.current_price == 12.0  # Updated
     assert p_valid.unrealised_pnl == 100.0  # (12 - 10) * 50
 
 
 # ── Test I: PositionRepository.get_open() returns updated prices ─────────────
+
 
 @pytest.mark.anyio
 async def test_i_get_open_returns_updated_mark_prices(setup_env):
@@ -480,6 +496,7 @@ async def test_i_get_open_returns_updated_mark_prices(setup_env):
 
 
 # ── Test J: PortfolioService.get_snapshot() aggregates total_unrealised_pnl ─
+
 
 @pytest.mark.anyio
 async def test_j_portfolio_service_snapshot_aggregates_unrealized(setup_env):
@@ -536,6 +553,7 @@ async def test_j_portfolio_service_snapshot_aggregates_unrealized(setup_env):
 
 
 # ── Test K/L/M: Immutability of core fields ──────────────────────────────────
+
 
 @pytest.mark.anyio
 async def test_k_l_m_core_fields_remain_immutable(setup_env):

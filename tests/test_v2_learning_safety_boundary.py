@@ -5,6 +5,7 @@ Asserts that learning_service cannot modify B2 filter thresholds, B5 max signal 
 """
 
 import pytest
+
 from background.learning.calibrator import (
     IMMUTABLE_SAFETY_BOUNDARIES,
     StrategyCalibrator,
@@ -51,4 +52,3 @@ def test_validate_safety_boundary_raises_permission_error():
 
     with pytest.raises(PermissionError, match="Safety Violation"):
         StrategyCalibrator.validate_safety_boundary({"order_size_inr": 50000.0})
-

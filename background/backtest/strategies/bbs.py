@@ -5,7 +5,6 @@ Vectorized implementation.
 
 from __future__ import annotations
 
-from typing import List
 import numpy as np
 import pandas as pd
 
@@ -22,8 +21,8 @@ class BBSStrategy(BaseStrategy):
         df: pd.DataFrame,
         pair: str = "BTC/USDT",
         timeframe: str = "1H",
-    ) -> List[BacktestTradeSignal]:
-        signals: List[BacktestTradeSignal] = []
+    ) -> list[BacktestTradeSignal]:
+        signals: list[BacktestTradeSignal] = []
         n = len(df)
         if n < 40:
             return signals
@@ -49,7 +48,7 @@ class BBSStrategy(BaseStrategy):
                 continue
 
             entry = closes[i]
-            stop_loss = bb_lower[i-1]
+            stop_loss = bb_lower[i - 1]
             sl_distance = entry - stop_loss
             if sl_distance <= 0:
                 continue
@@ -65,7 +64,10 @@ class BBSStrategy(BaseStrategy):
                     stop_loss_price=float(stop_loss),
                     take_profit_price=float(take_profit),
                     direction="LONG",
-                    metadata={"bb_upper": float(bb_upper[i]), "kc_upper": float(kc_upper[i])},
+                    metadata={
+                        "bb_upper": float(bb_upper[i]),
+                        "kc_upper": float(kc_upper[i]),
+                    },
                 )
             )
 

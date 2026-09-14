@@ -18,30 +18,31 @@ from __future__ import annotations
 import asyncio
 import time
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
+
 import pytest
 
+from background.ai.circuit_breaker import CircuitBreaker, CircuitState
+from background.ai.service import AIIntelligenceService
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
 from core.config import V2Config
+from core.repository.ai_repo import AIAnalysisRepository
+from core.repository.db import Database
+from core.repository.event_log_repo import EventLogRepository
+from core.repository.signal_repo import SignalRepository
 from core.types import (
     AIAnalysis,
     AIRecommendation,
-    Priority,
-    Signal,
     MarketState,
     OppType,
+    Priority,
     RiskLevel,
+    Signal,
 )
-from core.repository.ai_repo import AIAnalysisRepository
-from core.repository.event_log_repo import EventLogRepository
-from core.repository.signal_repo import SignalRepository
-from core.repository.db import Database
-from background.ai.circuit_breaker import CircuitBreaker, CircuitState
-from background.ai.service import AIIntelligenceService
-
 
 # ── 1. Pure CircuitBreaker State Machine Tests ──────────────────────────────
+
 
 def test_initial_state_is_closed():
     cb = CircuitBreaker(threshold=3, cooldown_seconds=5.0)
@@ -135,6 +136,7 @@ def test_half_open_probe_failure_reopens_circuit():
 
 # ── 2. AIIntelligenceService Integration Tests ──────────────────────────────
 
+
 @pytest.fixture
 async def ai_service_env(tmp_path):
     db_path = str(tmp_path / "test_ai_cb.db")
@@ -203,6 +205,7 @@ async def test_ai_service_circuit_breaker_trip_and_fast_fail(ai_service_env):
     bus: EventBus = env["bus"]
 
     circuit_events = []
+
     async def on_event(ev, data):
         circuit_events.append((ev, data))
 
@@ -211,7 +214,9 @@ async def test_ai_service_circuit_breaker_trip_and_fast_fail(ai_service_env):
 
     # Mock client to throw exceptions on calls
     mock_client = AsyncMock()
-    mock_client.evaluate_signal.side_effect = RuntimeError("Gemini 503 Service Unavailable")
+    mock_client.evaluate_signal.side_effect = RuntimeError(
+        "Gemini 503 Service Unavailable"
+    )
     svc._client = mock_client
 
     sig = _make_dummy_signal("BTC")
@@ -222,7 +227,12 @@ async def test_ai_service_circuit_breaker_trip_and_fast_fail(ai_service_env):
     for _ in range(3):
         res = await svc.evaluate_signal(sig)
         assert res is not None
-        assert res.recommendation in [AIRecommendation.APPROVE, AIRecommendation.REJECT, AIRecommendation.SCALE_DOWN, AIRecommendation.WATCH]
+        assert res.recommendation in [
+            AIRecommendation.APPROVE,
+            AIRecommendation.REJECT,
+            AIRecommendation.SCALE_DOWN,
+            AIRecommendation.WATCH,
+        ]
 
     assert mock_client.evaluate_signal.call_count == 3
     assert svc.circuit_breaker.state == CircuitState.OPEN

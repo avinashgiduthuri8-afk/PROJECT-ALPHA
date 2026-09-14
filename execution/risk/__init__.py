@@ -2,8 +2,8 @@
 PROJECT-ALPHA Risk Service Package.
 """
 
-from .service import RiskService
 from .capital_guard import CapitalGuard
 from .circuit_breaker import CircuitBreaker
+from .service import RiskService
 
-__all__ = ["RiskService", "CapitalGuard", "CircuitBreaker"]
+__all__ = ["CapitalGuard", "CircuitBreaker", "RiskService"]

@@ -32,24 +32,30 @@ Tests:
 """
 
 import asyncio
-import json
-import math
 import os
 import uuid
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
-from typing import Any, Dict, List, Optional
-from unittest.mock import AsyncMock, MagicMock, patch
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from background.monitoring.health import HealthChecker
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
-from core.config import DEFAULT_ORDER_AMOUNT_INR, V2Config, get_config, invalidate_config
+from core.config import (
+    V2Config,
+    get_config,
+    invalidate_config,
+)
+from core.repository.db import Database
+from core.repository.event_log_repo import EventLogRepository
+from core.repository.position_repo import PositionRepository
+from core.repository.signal_repo import SignalRepository
+from core.repository.trade_repo import TradeRepository
 from core.types import (
     BotMode,
     BotName,
-    ExitReason,
     MarketState,
     OppType,
     Position,
@@ -57,24 +63,14 @@ from core.types import (
     RiskLevel,
     Signal,
 )
-from background.monitoring.health import HealthChecker
-from core.repository.db import Database
-from core.repository.event_log_repo import EventLogRepository
-from core.repository.position_repo import PositionRepository
-from core.repository.signal_repo import SignalRepository
-from core.repository.trade_repo import TradeRepository
-from telegram.formatters import mask_sensitive_data
-from telegram.telegram import TelegramClient
-from telegram.telegram_interface import (
-    TelegramInteractiveInterface,
-    build_back_keyboard,
-    build_confirm_stop_keyboard,
-    build_main_menu_keyboard,
-)
 from execution.risk.service import RiskService
-from scanner.service import ScannerService
 from execution.service import TradingService
 from execution.trading.subaccount_manager import CoinDCXSubAccountManager
+from scanner.service import ScannerService
+from telegram.formatters import mask_sensitive_data
+from telegram.telegram_interface import (
+    TelegramInteractiveInterface,
+)
 
 TEST_DB_DIR = os.path.abspath(".test_dbs")
 os.makedirs(TEST_DB_DIR, exist_ok=True)
@@ -89,17 +85,23 @@ class MockTelegramClient:
         self.answered_callbacks: list[dict] = []
         self.is_configured = True
 
-    async def send_message(self, text: str, target_chat_id: Optional[str] = None, reply_markup: Any = None) -> dict:
+    async def send_message(
+        self, text: str, target_chat_id: str | None = None, reply_markup: Any = None
+    ) -> dict:
         msg = {
             "text": text,
-            "target_chat_id": str(target_chat_id) if target_chat_id is not None else None,
+            "target_chat_id": (
+                str(target_chat_id) if target_chat_id is not None else None
+            ),
             "reply_markup": reply_markup,
             "sent_at": datetime.now(timezone.utc).isoformat(),
         }
         self.sent_messages.append(msg)
         return {"ok": True, "result": {"message_id": len(self.sent_messages)}}
 
-    async def edit_message_text(self, text: str, chat_id: Any, message_id: int, reply_markup: Any = None) -> dict:
+    async def edit_message_text(
+        self, text: str, chat_id: Any, message_id: int, reply_markup: Any = None
+    ) -> dict:
         msg = {
             "text": text,
             "chat_id": str(chat_id),
@@ -109,8 +111,12 @@ class MockTelegramClient:
         self.edited_messages.append(msg)
         return {"ok": True}
 
-    async def answer_callback_query(self, callback_query_id: str, text: Optional[str] = None, show_alert: bool = False) -> dict:
-        self.answered_callbacks.append({"id": callback_query_id, "text": text, "show_alert": show_alert})
+    async def answer_callback_query(
+        self, callback_query_id: str, text: str | None = None, show_alert: bool = False
+    ) -> dict:
+        self.answered_callbacks.append(
+            {"id": callback_query_id, "text": text, "show_alert": show_alert}
+        )
         return {"ok": True}
 
 
@@ -127,7 +133,7 @@ def clean_config(monkeypatch):
 async def _setup_telegram_test_env(
     mode: str = "SHADOW",
     order_size: float = 200.0,
-    live_balance: Optional[float] = None,
+    live_balance: float | None = None,
     scanner_healthy: bool = True,
 ):
     db_file = os.path.join(TEST_DB_DIR, f"db_tg_{uuid.uuid4().hex[:8]}.db")
@@ -151,12 +157,14 @@ async def _setup_telegram_test_env(
 
     subaccount_mgr = CoinDCXSubAccountManager()
     if live_balance is not None:
-        subaccount_mgr.get_live_balance = AsyncMock(return_value={
-            "success": True,
-            "inr_balance": live_balance,
-            "inr_locked": 0.0,
-            "error": None,
-        })
+        subaccount_mgr.get_live_balance = AsyncMock(
+            return_value={
+                "success": True,
+                "inr_balance": live_balance,
+                "inr_locked": 0.0,
+                "error": None,
+            }
+        )
 
     risk = RiskService(
         bus=bus,
@@ -184,7 +192,9 @@ async def _setup_telegram_test_env(
         config=cfg,
     )
     if scanner_healthy:
-        scanner.get_health = MagicMock(return_value={"healthy": True, "registered": True, "poll_count": 5})
+        scanner.get_health = MagicMock(
+            return_value={"healthy": True, "registered": True, "poll_count": 5}
+        )
 
     health = HealthChecker(
         db=db,
@@ -208,12 +218,28 @@ async def _setup_telegram_test_env(
         event_log_repo=event_repo,
     )
 
-    return db, bus, pos_repo, trade_repo, sig_repo, event_repo, cfg, subaccount_mgr, risk, trading, scanner, health, tg_client, c2
+    return (
+        db,
+        bus,
+        pos_repo,
+        trade_repo,
+        sig_repo,
+        event_repo,
+        cfg,
+        subaccount_mgr,
+        risk,
+        trading,
+        scanner,
+        health,
+        tg_client,
+        c2,
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # 1. AUTHORIZATION & SECURITY TESTS
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 @pytest.mark.anyio
 async def test_authorized_user_succeeds():
@@ -287,6 +313,7 @@ async def test_unknown_command_returns_help_prompt():
 # 2. SYSTEM COMMANDS TESTS
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 @pytest.mark.anyio
 async def test_cmd_start_and_menu():
     """Verify /start and /menu display welcome and mission control keyboard."""
@@ -302,7 +329,9 @@ async def test_cmd_start_and_menu():
 @pytest.mark.anyio
 async def test_cmd_status_displays_complete_telemetry():
     """Verify /status displays mode, system, scanner, execution, risk, capital, order amount, and positions."""
-    db, *_, tg_client, c2 = await _setup_telegram_test_env(mode="PAPER", order_size=400.0)
+    db, *_, tg_client, c2 = await _setup_telegram_test_env(
+        mode="PAPER", order_size=400.0
+    )
 
     await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/status"})
     text = tg_client.sent_messages[0]["text"]
@@ -358,10 +387,26 @@ async def test_cmd_uptime():
 # 3. SCANNER COMMANDS TESTS
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 @pytest.mark.anyio
 async def test_cmd_scan_and_signals():
     """Verify /scan and /signals display latest cycle and 1-line high-conviction signals."""
-    db, bus, pos_repo, trade_repo, sig_repo, event_repo, cfg, subaccount_mgr, risk, trading, scanner, health, tg_client, c2 = await _setup_telegram_test_env()
+    (
+        db,
+        bus,
+        pos_repo,
+        trade_repo,
+        sig_repo,
+        event_repo,
+        cfg,
+        subaccount_mgr,
+        risk,
+        trading,
+        scanner,
+        health,
+        tg_client,
+        c2,
+    ) = await _setup_telegram_test_env()
 
     # Inject mock signal into scanner
     mock_sig = Signal(
@@ -399,7 +444,22 @@ async def test_cmd_scan_and_signals():
 @pytest.mark.anyio
 async def test_cmd_signal_detail_deep_dive():
     """Verify /signal BTCINR inspects 4-pillar scores and AI conviction."""
-    db, bus, pos_repo, trade_repo, sig_repo, event_repo, cfg, subaccount_mgr, risk, trading, scanner, health, tg_client, c2 = await _setup_telegram_test_env()
+    (
+        db,
+        bus,
+        pos_repo,
+        trade_repo,
+        sig_repo,
+        event_repo,
+        cfg,
+        subaccount_mgr,
+        risk,
+        trading,
+        scanner,
+        health,
+        tg_client,
+        c2,
+    ) = await _setup_telegram_test_env()
 
     # Prepopulate scanner latest evaluated coin snapshot
     scanner._latest_evaluated_coins["BTCINR"] = {
@@ -419,7 +479,9 @@ async def test_cmd_signal_detail_deep_dive():
         "rejection_reasons": [],
     }
 
-    await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/signal BTCINR"})
+    await c2._handle_incoming_message(
+        {"chat": {"id": 999888}, "text": "/signal BTCINR"}
+    )
     text = tg_client.sent_messages[-1]["text"]
     assert "SIGNAL INSPECTOR — BTC/INR" in text
     assert "4-Pillar Breakdown:" in text
@@ -452,10 +514,26 @@ async def test_cmd_watchlist_and_funnel():
 # 4. TRADING COMMANDS & CAPITAL REALITY TESTS
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 @pytest.mark.anyio
 async def test_cmd_bots_fleet():
     """Verify /bots displays the 4 production bots fleet telemetry card."""
-    db, bus, pos_repo, trade_repo, sig_repo, event_repo, cfg, subaccount_mgr, risk, trading, scanner, health, tg_client, c2 = await _setup_telegram_test_env()
+    (
+        db,
+        bus,
+        pos_repo,
+        trade_repo,
+        sig_repo,
+        event_repo,
+        cfg,
+        subaccount_mgr,
+        risk,
+        trading,
+        scanner,
+        health,
+        tg_client,
+        c2,
+    ) = await _setup_telegram_test_env()
 
     await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/bots"})
     text = tg_client.sent_messages[-1]["text"]
@@ -474,7 +552,22 @@ async def test_cmd_bots_fleet():
 @pytest.mark.anyio
 async def test_cmd_positions_and_trades():
     """Verify /positions shows Coin, Entry, Capital deployed, Unrealized P&L (₹ and %), TP, SL, Status, omitting raw Qty and LTP."""
-    db, bus, pos_repo, trade_repo, sig_repo, event_repo, cfg, subaccount_mgr, risk, trading, scanner, health, tg_client, c2 = await _setup_telegram_test_env()
+    (
+        db,
+        bus,
+        pos_repo,
+        trade_repo,
+        sig_repo,
+        event_repo,
+        cfg,
+        subaccount_mgr,
+        risk,
+        trading,
+        scanner,
+        health,
+        tg_client,
+        c2,
+    ) = await _setup_telegram_test_env()
 
     # Create an open position
     pos = Position(
@@ -533,17 +626,34 @@ async def test_cmd_capital_live_mode_dynamic_balance():
 @pytest.mark.anyio
 async def test_cmd_capital_live_mode_unavailable_returns_capital_unknown():
     """In LIVE mode, if exchange balance cannot be obtained, returns CAPITAL UNKNOWN (never fake ₹10,000)."""
-    db, bus, pos_repo, trade_repo, sig_repo, event_repo, cfg, subaccount_mgr, risk, trading, scanner, health, tg_client, c2 = await _setup_telegram_test_env(
+    (
+        db,
+        bus,
+        pos_repo,
+        trade_repo,
+        sig_repo,
+        event_repo,
+        cfg,
+        subaccount_mgr,
+        risk,
+        trading,
+        scanner,
+        health,
+        tg_client,
+        c2,
+    ) = await _setup_telegram_test_env(
         mode="LIVE_MICROCASH",
         order_size=200.0,
     )
 
     # Force failure
-    subaccount_mgr.get_live_balance = AsyncMock(return_value={
-        "success": False,
-        "inr_balance": None,
-        "error": "Exchange connection timeout",
-    })
+    subaccount_mgr.get_live_balance = AsyncMock(
+        return_value={
+            "success": False,
+            "inr_balance": None,
+            "error": "Exchange connection timeout",
+        }
+    )
 
     await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/capital"})
     text = tg_client.sent_messages[-1]["text"]
@@ -557,12 +667,30 @@ async def test_cmd_capital_live_mode_unavailable_returns_capital_unknown():
 # 5. ORDER AMOUNT CONTROL (/setamount) TESTS
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 @pytest.mark.anyio
 async def test_cmd_setamount_valid_updates_config_and_persists():
     """Verify /setamount 750 persists to override file and synchronizes subaccount manager."""
-    db, bus, pos_repo, trade_repo, sig_repo, event_repo, cfg, subaccount_mgr, risk, trading, scanner, health, tg_client, c2 = await _setup_telegram_test_env()
+    (
+        db,
+        bus,
+        pos_repo,
+        trade_repo,
+        sig_repo,
+        event_repo,
+        cfg,
+        subaccount_mgr,
+        risk,
+        trading,
+        scanner,
+        health,
+        tg_client,
+        c2,
+    ) = await _setup_telegram_test_env()
 
-    await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/setamount 750"})
+    await c2._handle_incoming_message(
+        {"chat": {"id": 999888}, "text": "/setamount 750"}
+    )
     text = tg_client.sent_messages[-1]["text"]
     assert "ORDER AMOUNT UPDATED" in text
     assert "750.00" in text
@@ -581,7 +709,9 @@ async def test_cmd_setamount_rejects_invalid_values():
     db, *_, tg_client, c2 = await _setup_telegram_test_env()
 
     # 1. Valid positive amount >= 200
-    await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/setamount 250"})
+    await c2._handle_incoming_message(
+        {"chat": {"id": 999888}, "text": "/setamount 250"}
+    )
     assert "ORDER AMOUNT UPDATED" in tg_client.sent_messages[-1]["text"]
     assert "250.00" in tg_client.sent_messages[-1]["text"]
 
@@ -591,7 +721,9 @@ async def test_cmd_setamount_rejects_invalid_values():
     assert "200.00" in tg_client.sent_messages[-1]["text"]
 
     # 3. Negative amount rejected
-    await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/setamount -200"})
+    await c2._handle_incoming_message(
+        {"chat": {"id": 999888}, "text": "/setamount -200"}
+    )
     assert "Invalid Order Amount" in tg_client.sent_messages[-1]["text"]
     assert "positive finite number" in tg_client.sent_messages[-1]["text"]
 
@@ -600,7 +732,9 @@ async def test_cmd_setamount_rejects_invalid_values():
     assert "Invalid Order Amount" in tg_client.sent_messages[-1]["text"]
 
     # 5. Non-numeric rejected
-    await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/setamount abc"})
+    await c2._handle_incoming_message(
+        {"chat": {"id": 999888}, "text": "/setamount abc"}
+    )
     assert "Invalid Number:" in tg_client.sent_messages[-1]["text"]
 
     # 6. Empty arg
@@ -613,10 +747,26 @@ async def test_cmd_setamount_rejects_invalid_values():
 # 6. TRADING CONTROL TESTS (/pause, /resume, /emergency_stop, /reconcile)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 @pytest.mark.anyio
 async def test_cmd_pause_and_resume():
     """Verify /pause suspends new entries without closing open positions, and /resume restores entries."""
-    db, bus, pos_repo, trade_repo, sig_repo, event_repo, cfg, subaccount_mgr, risk, trading, scanner, health, tg_client, c2 = await _setup_telegram_test_env()
+    (
+        db,
+        bus,
+        pos_repo,
+        trade_repo,
+        sig_repo,
+        event_repo,
+        cfg,
+        subaccount_mgr,
+        risk,
+        trading,
+        scanner,
+        health,
+        tg_client,
+        c2,
+    ) = await _setup_telegram_test_env()
 
     # 1. Pause
     await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/pause"})
@@ -635,15 +785,34 @@ async def test_cmd_pause_and_resume():
 @pytest.mark.anyio
 async def test_cmd_emergency_stop_confirmation_flow():
     """Verify /emergency_stop prompts confirmation, and /emergency_stop confirm trips the circuit breaker."""
-    db, bus, pos_repo, trade_repo, sig_repo, event_repo, cfg, subaccount_mgr, risk, trading, scanner, health, tg_client, c2 = await _setup_telegram_test_env()
+    (
+        db,
+        bus,
+        pos_repo,
+        trade_repo,
+        sig_repo,
+        event_repo,
+        cfg,
+        subaccount_mgr,
+        risk,
+        trading,
+        scanner,
+        health,
+        tg_client,
+        c2,
+    ) = await _setup_telegram_test_env()
 
     # 1. First call prompts confirmation
-    await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/emergency_stop"})
+    await c2._handle_incoming_message(
+        {"chat": {"id": 999888}, "text": "/emergency_stop"}
+    )
     assert "EMERGENCY STOP CONFIRMATION REQUIRED" in tg_client.sent_messages[-1]["text"]
     assert risk.circuit_breaker.is_open is False
 
     # 2. Confirm call trips emergency stop
-    await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/emergency_stop confirm"})
+    await c2._handle_incoming_message(
+        {"chat": {"id": 999888}, "text": "/emergency_stop confirm"}
+    )
     assert "EMERGENCY STOPPED" in tg_client.sent_messages[-1]["text"]
     assert risk.circuit_breaker.is_open is True
     assert risk.circuit_breaker.emergency_stop is True
@@ -671,10 +840,26 @@ async def test_cmd_reconcile_runs_without_creating_duplicate_orders():
 # 7. RISK & MONITORING TESTS (/risk, /limits, /alerts, /logs)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 @pytest.mark.anyio
 async def test_cmd_risk_limits_alerts_logs():
     """Verify /risk, /limits, /alerts, and /logs display monitoring data and scrub secrets."""
-    db, bus, pos_repo, trade_repo, sig_repo, event_repo, cfg, subaccount_mgr, risk, trading, scanner, health, tg_client, c2 = await _setup_telegram_test_env()
+    (
+        db,
+        bus,
+        pos_repo,
+        trade_repo,
+        sig_repo,
+        event_repo,
+        cfg,
+        subaccount_mgr,
+        risk,
+        trading,
+        scanner,
+        health,
+        tg_client,
+        c2,
+    ) = await _setup_telegram_test_env()
 
     # Append test event with secret
     await event_repo.append(

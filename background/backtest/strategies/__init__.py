@@ -4,15 +4,15 @@
 
 from __future__ import annotations
 
-from .base import BaseStrategy, BacktestTradeSignal
-from .vcp import VCPStrategy
+from .base import BacktestTradeSignal, BaseStrategy
+from .bbs import BBSStrategy
+from .hda import HDAStrategy
+from .mrb import MRBStrategy
+from .mtb import MTBStrategy
 from .nr7 import NR7Strategy
 from .ppa import PPAStrategy
-from .mtb import MTBStrategy
-from .hda import HDAStrategy
 from .ste import STEStrategy
-from .bbs import BBSStrategy
-from .mrb import MRBStrategy
+from .vcp import VCPStrategy
 
 ALL_CANDIDATE_STRATEGIES = [
     VCPStrategy(),
@@ -26,15 +26,15 @@ ALL_CANDIDATE_STRATEGIES = [
 ]
 
 __all__ = [
-    "BaseStrategy",
+    "ALL_CANDIDATE_STRATEGIES",
+    "BBSStrategy",
     "BacktestTradeSignal",
-    "VCPStrategy",
+    "BaseStrategy",
+    "HDAStrategy",
+    "MRBStrategy",
+    "MTBStrategy",
     "NR7Strategy",
     "PPAStrategy",
-    "MTBStrategy",
-    "HDAStrategy",
     "STEStrategy",
-    "BBSStrategy",
-    "MRBStrategy",
-    "ALL_CANDIDATE_STRATEGIES",
+    "VCPStrategy",
 ]

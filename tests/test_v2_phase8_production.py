@@ -12,29 +12,24 @@ Verifies:
 
 from __future__ import annotations
 
-import asyncio
-import os
 import uuid
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
+
 import pytest
 from fastapi.testclient import TestClient
 
+from app import app
+from background.production.controller import (
+    DeploymentMode,
+    ProductionController,
+)
+from background.production.watchdog import ProductionWatchdog
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
 from core.config import invalidate_config
 from core.repository.db import Database
 from core.repository.production_repo import ProductionRepository
-from background.production.controller import (
-    DeploymentMode,
-    ProductionController,
-    WALLET_LIMITS_INR,
-    MICRO_ORDER_CAPS_INR,
-    MINIMUM_NOTIONAL_INR,
-)
-from background.production.service import ProductionService
-from background.production.watchdog import ProductionWatchdog
 from execution.shadow.tracker import ShadowDivergenceTracker
-from app import app
 
 
 async def _create_test_production_db(tmp_path):
@@ -49,6 +44,7 @@ async def _create_test_production_db(tmp_path):
 # =============================================================================
 # 1. Controller Mode Transitions & Sizing Safety Tests
 # =============================================================================
+
 
 class TestProductionControllerAndSafety:
 
@@ -88,7 +84,9 @@ class TestProductionControllerAndSafety:
             controller = ProductionController(production_repo=prod_repo, bus=bus)
 
             # 1. Valid micro-order (STE, ₹400)
-            valid, msg = controller.validate_order_safety("STE", 400.0, current_wallet_exposure_inr=5000.0)
+            valid, msg = controller.validate_order_safety(
+                "STE", 400.0, current_wallet_exposure_inr=5000.0
+            )
             assert valid is True
 
             # 2. Below minimum notional ₹100
@@ -102,7 +100,9 @@ class TestProductionControllerAndSafety:
             assert "exceeds micro-order cap" in msg_cap
 
             # 4. Exceeds sub-account wallet ceiling (VCP ceiling is ₹15,000)
-            valid_wall, msg_wall = controller.validate_order_safety("VCP", 300.0, current_wallet_exposure_inr=14900.0)
+            valid_wall, msg_wall = controller.validate_order_safety(
+                "VCP", 300.0, current_wallet_exposure_inr=14900.0
+            )
             assert valid_wall is False
             assert "exceeds wallet ceiling" in msg_wall
 
@@ -126,6 +126,7 @@ class TestProductionControllerAndSafety:
 # 2. Shadow Divergence Tracker Tests
 # =============================================================================
 
+
 class TestShadowDivergenceTracker:
 
     @pytest.mark.anyio
@@ -148,7 +149,9 @@ class TestShadowDivergenceTracker:
 
             # 2. Anomaly divergence (0.50% > 0.25%)
             alert_received = []
-            bus.subscribe(EventType.ALERT_GENERATED, lambda et, p: alert_received.append(p))
+            bus.subscribe(
+                EventType.ALERT_GENERATED, lambda et, p: alert_received.append(p)
+            )
 
             res_anomaly = await tracker.evaluate_trade_divergence(
                 bot_name="HDA",
@@ -156,7 +159,10 @@ class TestShadowDivergenceTracker:
                 simulated_entry_price=300000.0,
                 real_orderbook_entry_price=301500.0,
             )
-            assert res_anomaly["slippage_divergence_pct"] == 0.4975 or round(res_anomaly["slippage_divergence_pct"], 2) == 0.50
+            assert (
+                res_anomaly["slippage_divergence_pct"] == 0.4975
+                or round(res_anomaly["slippage_divergence_pct"], 2) == 0.50
+            )
             assert res_anomaly["is_anomaly"] is True
             assert len(alert_received) == 1
             assert "Shadow Divergence Anomaly" in alert_received[0]["title"]
@@ -173,6 +179,7 @@ class TestShadowDivergenceTracker:
 # =============================================================================
 # 3. 24/7 Watchdog Supervisor Tests
 # =============================================================================
+
 
 class TestProductionWatchdog:
 
@@ -196,7 +203,9 @@ class TestProductionWatchdog:
         alerts = []
         bus.subscribe(EventType.ALERT_GENERATED, lambda et, p: alerts.append(p))
 
-        watchdog = ProductionWatchdog(services=services, bus=bus, check_interval_sec=5.0)
+        watchdog = ProductionWatchdog(
+            services=services, bus=bus, check_interval_sec=5.0
+        )
         status = await watchdog.inspect_system_health()
 
         assert status["overall_status"] == "DEGRADED"
@@ -208,6 +217,7 @@ class TestProductionWatchdog:
 # =============================================================================
 # 4. REST API Endpoint Tests
 # =============================================================================
+
 
 class TestProductionAPIEndpoints:
 
@@ -237,7 +247,9 @@ class TestProductionAPIEndpoints:
             assert "wallet_limits_inr" in data_stat
 
             # 2. POST /production/set-mode -> PAPER
-            res_mode = client.post("/api/v2/production/set-mode", json={"mode": "PAPER"}, headers=headers)
+            res_mode = client.post(
+                "/api/v2/production/set-mode", json={"mode": "PAPER"}, headers=headers
+            )
             assert res_mode.status_code == 200
             assert res_mode.json()["deployment_mode"] == "PAPER"
 

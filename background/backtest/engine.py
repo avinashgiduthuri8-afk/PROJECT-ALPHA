@@ -9,15 +9,16 @@ Mandates:
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 import numpy as np
 import pandas as pd
 
-from .data_feeder import DataFeeder, COINDCX_INR_PAIRS, round_price, round_qty
+from .data_feeder import COINDCX_INR_PAIRS, DataFeeder, round_price
 from .friction import CoinDCXFrictionModel, FrictionConfig
 from .metrics import PerformanceMetrics, calculate_trade_metrics
 from .risk_gate import Stage06RiskGate
-from .strategies import ALL_CANDIDATE_STRATEGIES, BaseStrategy, BacktestTradeSignal
+from .strategies import ALL_CANDIDATE_STRATEGIES, BacktestTradeSignal, BaseStrategy
 
 
 class BacktestEngine:
@@ -26,20 +27,22 @@ class BacktestEngine:
     def __init__(
         self,
         initial_capital: float = 10000.0,
-        friction_config: Optional[FrictionConfig] = None,
-        data_feeder: Optional[DataFeeder] = None,
+        friction_config: FrictionConfig | None = None,
+        data_feeder: DataFeeder | None = None,
     ) -> None:
         self.initial_capital = initial_capital
         self.friction_config = friction_config or FrictionConfig()
         self.friction_model = CoinDCXFrictionModel(self.friction_config)
-        self.risk_gate = Stage06RiskGate(max_risk_pct_per_trade=1.0, friction_config=self.friction_config)
+        self.risk_gate = Stage06RiskGate(
+            max_risk_pct_per_trade=1.0, friction_config=self.friction_config
+        )
         self.feeder = data_feeder or DataFeeder()
 
     def run_strategy_backtest(
         self,
         strategy: BaseStrategy,
-        pairs: List[str] = None,
-        timeframes: List[str] = None,
+        pairs: list[str] = None,
+        timeframes: list[str] = None,
         sessions: int = 250,
     ) -> PerformanceMetrics:
         """
@@ -48,14 +51,18 @@ class BacktestEngine:
         pairs = pairs or list(COINDCX_INR_PAIRS.keys())
         timeframes = timeframes or ["15M", "1H", "4H"]
 
-        all_trades: List[Dict[str, Any]] = []
+        all_trades: list[dict[str, Any]] = []
 
         for pair in pairs:
             for tf in timeframes:
-                df = self.feeder.generate_ohlcv_dataframe(pair=pair, timeframe=tf, sessions=sessions)
+                df = self.feeder.generate_ohlcv_dataframe(
+                    pair=pair, timeframe=tf, sessions=sessions
+                )
                 signals = strategy.generate_signals(df, pair=pair, timeframe=tf)
 
-                trades = self._simulate_trade_executions(df, signals, pair=pair, timeframe=tf)
+                trades = self._simulate_trade_executions(
+                    df, signals, pair=pair, timeframe=tf
+                )
                 all_trades.extend(trades)
 
         # Calculate performance metrics over all executed trades
@@ -68,12 +75,12 @@ class BacktestEngine:
     def run_historical_backtest(
         self,
         strategy: BaseStrategy,
-        pairs: Optional[List[str]] = None,
-        timeframes: Optional[List[str]] = None,
-        db_path: Optional[str] = None,
-        csv_paths: Optional[Dict[str, str]] = None,
-        start_time: Optional[int] = None,
-        end_time: Optional[int] = None,
+        pairs: list[str] | None = None,
+        timeframes: list[str] | None = None,
+        db_path: str | None = None,
+        csv_paths: dict[str, str] | None = None,
+        start_time: int | None = None,
+        end_time: int | None = None,
         limit: int = 10000,
     ) -> PerformanceMetrics:
         """
@@ -82,7 +89,7 @@ class BacktestEngine:
         """
         pairs = pairs or ["BTC/INR"]
         timeframes = timeframes or ["15M", "1H"]
-        all_trades: List[Dict[str, Any]] = []
+        all_trades: list[dict[str, Any]] = []
 
         for pair in pairs:
             for tf in timeframes:
@@ -90,7 +97,9 @@ class BacktestEngine:
                 # 1. Check CSV path if provided
                 if csv_paths and (pair in csv_paths or f"{pair}_{tf}" in csv_paths):
                     file_path = csv_paths.get(pair) or csv_paths.get(f"{pair}_{tf}")
-                    df = self.feeder.load_candles_from_csv(file_path=file_path, pair=pair, timeframe=tf)
+                    df = self.feeder.load_candles_from_csv(
+                        file_path=file_path, pair=pair, timeframe=tf
+                    )
                 # 2. Otherwise load from DB
                 elif db_path is not None:
                     df = self.feeder.load_candles_from_db(
@@ -104,10 +113,14 @@ class BacktestEngine:
 
                 if df.empty:
                     # Fallback to generated dataframe if historical data is unavailable
-                    df = self.feeder.generate_ohlcv_dataframe(pair=pair, timeframe=tf, sessions=100)
+                    df = self.feeder.generate_ohlcv_dataframe(
+                        pair=pair, timeframe=tf, sessions=100
+                    )
 
                 signals = strategy.generate_signals(df, pair=pair, timeframe=tf)
-                trades = self._simulate_trade_executions(df, signals, pair=pair, timeframe=tf)
+                trades = self._simulate_trade_executions(
+                    df, signals, pair=pair, timeframe=tf
+                )
                 all_trades.extend(trades)
 
         return calculate_trade_metrics(
@@ -118,30 +131,32 @@ class BacktestEngine:
 
     def run_all_candidate_strategies(
         self,
-        pairs: List[str] = None,
-        timeframes: List[str] = None,
+        pairs: list[str] = None,
+        timeframes: list[str] = None,
         sessions: int = 250,
-    ) -> List[PerformanceMetrics]:
+    ) -> list[PerformanceMetrics]:
         """
         Runs backtest for all 10 candidate strategies.
         """
-        results: List[PerformanceMetrics] = []
+        results: list[PerformanceMetrics] = []
         for strat in ALL_CANDIDATE_STRATEGIES:
-            m = self.run_strategy_backtest(strat, pairs=pairs, timeframes=timeframes, sessions=sessions)
+            m = self.run_strategy_backtest(
+                strat, pairs=pairs, timeframes=timeframes, sessions=sessions
+            )
             results.append(m)
         return results
 
     def _simulate_trade_executions(
         self,
         df: pd.DataFrame,
-        signals: List[BacktestTradeSignal],
+        signals: list[BacktestTradeSignal],
         pair: str,
         timeframe: str,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Simulates Realistic Execution at next bar Open price with Stage 06 Risk Sizing and Statutory Friction.
         """
-        trades: List[Dict[str, Any]] = []
+        trades: list[dict[str, Any]] = []
         n = len(df)
         if not signals or n == 0:
             return trades

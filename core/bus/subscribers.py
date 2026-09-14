@@ -17,28 +17,28 @@ from .event_bus import EventBus
 from .event_types import EventType
 
 if TYPE_CHECKING:
-    from scanner.service import ScannerService
     from background.ai.service import AIIntelligenceService
-    from execution.risk.service import RiskService
     from background.portfolio.service import PortfolioService
+    from dashboard.service import DashboardService
+    from execution.risk.service import RiskService
     from execution.service import TradingService
     from execution.shadow.service import ShadowService
+    from scanner.service import ScannerService
     from telegram.service import NotificationService
-    from dashboard.service import DashboardService
 
 logger = logging.getLogger("core.bus.subscribers")
 
 
 def register_all(
     bus: EventBus,
-    scanner_service: "ScannerService | None" = None,
-    ai_service: "AIIntelligenceService | None" = None,
-    risk_service: "RiskService | None" = None,
-    portfolio_service: "PortfolioService | None" = None,
-    trading_service: "TradingService | None" = None,
-    shadow_service: "ShadowService | None" = None,
-    notification_service: "NotificationService | None" = None,
-    dashboard_service: "DashboardService | None" = None,
+    scanner_service: ScannerService | None = None,
+    ai_service: AIIntelligenceService | None = None,
+    risk_service: RiskService | None = None,
+    portfolio_service: PortfolioService | None = None,
+    trading_service: TradingService | None = None,
+    shadow_service: ShadowService | None = None,
+    notification_service: NotificationService | None = None,
+    dashboard_service: DashboardService | None = None,
 ) -> None:
     """
     Wire all service handlers to the event bus.
@@ -50,7 +50,9 @@ def register_all(
         bus.subscribe(EventType.SIGNAL_GENERATED, ai_service.on_signal_generated)
 
     if risk_service is not None:
-        bus.subscribe(EventType.SIGNAL_AI_CONFIRMED, risk_service.on_signal_ai_confirmed)
+        bus.subscribe(
+            EventType.SIGNAL_AI_CONFIRMED, risk_service.on_signal_ai_confirmed
+        )
         bus.subscribe(EventType.POSITION_CLOSED, risk_service.on_position_closed)
 
     if portfolio_service is not None:
@@ -62,7 +64,9 @@ def register_all(
         bus.subscribe(EventType.TRADE_APPROVED, trading_service.on_trade_approved)
 
     if shadow_service is not None:
-        bus.subscribe(EventType.SIGNAL_AI_REJECTED, shadow_service._on_signal_ai_rejected)
+        bus.subscribe(
+            EventType.SIGNAL_AI_REJECTED, shadow_service._on_signal_ai_rejected
+        )
         bus.subscribe(EventType.TRADE_DENIED, shadow_service._on_trade_denied)
 
     logger.info(
@@ -81,41 +85,34 @@ def register_all(
 
 # ── Placeholder handlers (filled in as phases land) ──────────────────────────
 
+
 async def on_signal_generated(event_type: EventType, payload: dict) -> None:
     """V2.2: RiskService evaluates signal for capital pre-check."""
-    pass
 
 
 async def on_signal_expired(event_type: EventType, payload: dict) -> None:
     """V2.2+: Cancel any pending TRADE_APPROVED for this signal."""
-    pass
 
 
 async def on_position_opened(event_type: EventType, payload: dict) -> None:
     """V2.3: PortfolioService updates deployed capital cache."""
-    pass
 
 
 async def on_position_closed(event_type: EventType, payload: dict) -> None:
     """V2.3: PortfolioService updates cash + PnL; RiskService updates daily_pnl."""
-    pass
 
 
 async def on_capital_limit_hit(event_type: EventType, payload: dict) -> None:
     """V2.2: AlertManager emits ALERT_GENERATED (WARN level)."""
-    pass
 
 
 async def on_circuit_breaker_triggered(event_type: EventType, payload: dict) -> None:
     """V2.2: TradingService halts; AlertManager emits ALERT_GENERATED (CRITICAL)."""
-    pass
 
 
 async def on_alert_generated(event_type: EventType, payload: dict) -> None:
     """V2.4: NotificationService dispatches to Telegram."""
-    pass
 
 
 async def on_job_failed(event_type: EventType, payload: dict) -> None:
     """V2.4: NotificationService dispatches job-failure alert."""
-    pass

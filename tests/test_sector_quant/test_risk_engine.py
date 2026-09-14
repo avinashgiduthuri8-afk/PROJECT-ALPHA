@@ -2,7 +2,6 @@
 Tests for sector_quant.portfolio.risk_engine
 """
 
-import pytest
 from datetime import datetime, timezone
 
 from sector_quant.events import FillEvent, SignalEvent
@@ -36,7 +35,15 @@ def test_sector_risk_engine_caps_and_sizing():
     assert order.quantity > 0
 
     # Simulate fill
-    fill = FillEvent(datetime.now(timezone.utc), "HDFCBANK", "NSE", order.quantity, "BUY", order.quantity * 1500.0, 50.0)
+    fill = FillEvent(
+        datetime.now(timezone.utc),
+        "HDFCBANK",
+        "NSE",
+        order.quantity,
+        "BUY",
+        order.quantity * 1500.0,
+        50.0,
+    )
     engine.update_fill(fill)
 
     assert engine.positions["HDFCBANK"] == order.quantity

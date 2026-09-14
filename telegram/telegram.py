@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Optional
 
 import httpx
 
@@ -23,40 +22,45 @@ class TelegramClient:
 
     def __init__(
         self,
-        bot_token: Optional[str] = None,
-        chat_id: Optional[str] = None,
+        bot_token: str | None = None,
+        chat_id: str | None = None,
         timeout: float = 8.0,
     ) -> None:
         self._bot_token = bot_token
         self._chat_id = chat_id
         self._timeout = timeout
         self._last_send_time = 0.0
-        self._min_interval = 0.05  # Min interval between dispatches to avoid Telegram flood limits
+        self._min_interval = (
+            0.05  # Min interval between dispatches to avoid Telegram flood limits
+        )
 
     @property
     def is_configured(self) -> bool:
         return bool(self._bot_token)
 
     @property
-    def bot_token(self) -> Optional[str]:
+    def bot_token(self) -> str | None:
         return self._bot_token
 
     @property
-    def default_chat_id(self) -> Optional[str]:
+    def default_chat_id(self) -> str | None:
         return self._chat_id
 
     async def send_message(
         self,
         text: str,
-        target_chat_id: Optional[str] = None,
+        target_chat_id: str | None = None,
         parse_mode: str = "HTML",
-        reply_markup: Optional[dict] = None,
+        reply_markup: dict | None = None,
         max_retries: int = 2,
     ) -> bool:
         """Send an HTML/Markdown formatted message to a target or default Telegram chat."""
         cid = target_chat_id or self._chat_id
         if not self._bot_token or not cid:
-            logger.info("Telegram not configured; message logged locally", extra={"preview": text[:100]})
+            logger.info(
+                "Telegram not configured; message logged locally",
+                extra={"preview": text[:100]},
+            )
             return False
 
         # Rate limiter pacing
@@ -81,10 +85,16 @@ class TelegramClient:
                     self._last_send_time = time.monotonic()
                     if resp.status_code == 200:
                         return True
-                    logger.warning("Telegram API error response", extra={"status": resp.status_code, "body": resp.text[:200]})
+                    logger.warning(
+                        "Telegram API error response",
+                        extra={"status": resp.status_code, "body": resp.text[:200]},
+                    )
             except Exception as exc:
                 if attempt == max_retries:
-                    logger.error("Failed to dispatch Telegram message after retries", extra={"error": str(exc)})
+                    logger.error(
+                        "Failed to dispatch Telegram message after retries",
+                        extra={"error": str(exc)},
+                    )
                     return False
                 await asyncio.sleep(0.5 * (attempt + 1))
 
@@ -96,7 +106,7 @@ class TelegramClient:
         chat_id: str | int,
         message_id: int,
         parse_mode: str = "HTML",
-        reply_markup: Optional[dict] = None,
+        reply_markup: dict | None = None,
         max_retries: int = 2,
     ) -> bool:
         """Edit an existing Telegram message in-place (used for dynamic inline keyboard navigation)."""
@@ -121,12 +131,21 @@ class TelegramClient:
                     if resp.status_code == 200:
                         return True
                     # 400 Bad Request if message text is unchanged — ignore harmless edit errors
-                    if resp.status_code == 400 and "message is not modified" in resp.text.lower():
+                    if (
+                        resp.status_code == 400
+                        and "message is not modified" in resp.text.lower()
+                    ):
                         return True
-                    logger.warning("Telegram editMessageText error", extra={"status": resp.status_code, "body": resp.text[:200]})
+                    logger.warning(
+                        "Telegram editMessageText error",
+                        extra={"status": resp.status_code, "body": resp.text[:200]},
+                    )
             except Exception as exc:
                 if attempt == max_retries:
-                    logger.error("Failed to edit Telegram message after retries", extra={"error": str(exc)})
+                    logger.error(
+                        "Failed to edit Telegram message after retries",
+                        extra={"error": str(exc)},
+                    )
                     return False
                 await asyncio.sleep(0.3 * (attempt + 1))
 
@@ -135,7 +154,7 @@ class TelegramClient:
     async def answer_callback_query(
         self,
         callback_query_id: str,
-        text: Optional[str] = None,
+        text: str | None = None,
         show_alert: bool = False,
     ) -> bool:
         """Acknowledge an incoming inline keyboard button tap."""
@@ -143,7 +162,10 @@ class TelegramClient:
             return False
 
         url = f"https://api.telegram.org/bot{self._bot_token}/answerCallbackQuery"
-        payload: dict = {"callback_query_id": callback_query_id, "show_alert": show_alert}
+        payload: dict = {
+            "callback_query_id": callback_query_id,
+            "show_alert": show_alert,
+        }
         if text:
             payload["text"] = text
 
@@ -157,7 +179,7 @@ class TelegramClient:
 
     async def get_updates(
         self,
-        offset: Optional[int] = None,
+        offset: int | None = None,
         timeout: int = 20,
         limit: int = 100,
     ) -> list[dict]:
@@ -182,7 +204,11 @@ class TelegramClient:
                     # Another instance is polling (e.g. VPS cloud server daemon)
                     await asyncio.sleep(5.0)
                     return []
-                logger.warning("Telegram getUpdates returned status %s: %s", resp.status_code, resp.text[:200])
+                logger.warning(
+                    "Telegram getUpdates returned status %s: %s",
+                    resp.status_code,
+                    resp.text[:200],
+                )
         except (httpx.ReadTimeout, httpx.ConnectTimeout):
             # Normal long-polling timeout when no updates occurred
             return []

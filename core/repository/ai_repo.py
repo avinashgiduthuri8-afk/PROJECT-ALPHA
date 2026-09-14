@@ -4,15 +4,14 @@ V2 AIAnalysisRepository — persistence for AI signal evaluations.
 
 from __future__ import annotations
 
-import json
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
 
 import aiosqlite
 
-from core.types import AIAnalysis, AIRecommendation
 from core.logging import get_logger
+from core.types import AIAnalysis, AIRecommendation
+
 from .base import BaseRepository
 
 logger = get_logger("core.repository.ai_repo")
@@ -20,10 +19,15 @@ logger = get_logger("core.repository.ai_repo")
 _ISO = "%Y-%m-%dT%H:%M:%S.%f+00:00"
 
 
-def _dt(s: str | None) -> Optional[datetime]:
+def _dt(s: str | None) -> datetime | None:
     if s is None:
         return None
-    for fmt in (_ISO, "%Y-%m-%dT%H:%M:%S+00:00", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S"):
+    for fmt in (
+        _ISO,
+        "%Y-%m-%dT%H:%M:%S+00:00",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%d %H:%M:%S",
+    ):
         try:
             dt = datetime.strptime(s, fmt)
             if dt.tzinfo is None:
@@ -46,26 +50,26 @@ def _row_to_ai_analysis(row: aiosqlite.Row) -> AIAnalysis:
     raw_resp = BaseRepository._loads(d.get("raw_response")) or {}
 
     return AIAnalysis(
-        id                     = d["id"],
-        signal_id              = d["signal_id"],
-        coin                   = d["coin"],
-        pair                   = d["pair"],
-        recommendation         = AIRecommendation(d["recommendation"]),
-        confidence_score       = int(d["confidence_score"]),
-        trend_evaluation       = d.get("trend_evaluation", ""),
-        momentum_evaluation    = d.get("momentum_evaluation", ""),
-        volume_evaluation      = d.get("volume_evaluation", ""),
-        setup_quality          = d.get("setup_quality", ""),
-        market_regime          = d.get("market_regime", ""),
-        risk_reward_assessment = d.get("risk_reward_assessment", ""),
-        supporting_factors     = supporting if isinstance(supporting, list) else [],
-        conflicts              = conflicts if isinstance(conflicts, list) else [],
-        risk_factors           = risks if isinstance(risks, list) else [],
-        suggested_adjustments  = adjustments if isinstance(adjustments, dict) else {},
-        model_name             = d.get("model_name", "unknown"),
-        execution_latency_ms   = float(d.get("execution_latency_ms", 0.0)),
-        analyzed_at            = _dt(d["analyzed_at"]) or datetime.now(timezone.utc),
-        raw_response           = raw_resp if isinstance(raw_resp, dict) else {},
+        id=d["id"],
+        signal_id=d["signal_id"],
+        coin=d["coin"],
+        pair=d["pair"],
+        recommendation=AIRecommendation(d["recommendation"]),
+        confidence_score=int(d["confidence_score"]),
+        trend_evaluation=d.get("trend_evaluation", ""),
+        momentum_evaluation=d.get("momentum_evaluation", ""),
+        volume_evaluation=d.get("volume_evaluation", ""),
+        setup_quality=d.get("setup_quality", ""),
+        market_regime=d.get("market_regime", ""),
+        risk_reward_assessment=d.get("risk_reward_assessment", ""),
+        supporting_factors=supporting if isinstance(supporting, list) else [],
+        conflicts=conflicts if isinstance(conflicts, list) else [],
+        risk_factors=risks if isinstance(risks, list) else [],
+        suggested_adjustments=adjustments if isinstance(adjustments, dict) else {},
+        model_name=d.get("model_name", "unknown"),
+        execution_latency_ms=float(d.get("execution_latency_ms", 0.0)),
+        analyzed_at=_dt(d["analyzed_at"]) or datetime.now(timezone.utc),
+        raw_response=raw_resp if isinstance(raw_resp, dict) else {},
     )
 
 
@@ -112,11 +116,13 @@ class AIAnalysisRepository(BaseRepository):
         )
         return analysis.id
 
-    async def get_by_id(self, analysis_id: str) -> Optional[AIAnalysis]:
-        row = await self._fetchone("SELECT * FROM ai_analyses WHERE id=?", (analysis_id,))
+    async def get_by_id(self, analysis_id: str) -> AIAnalysis | None:
+        row = await self._fetchone(
+            "SELECT * FROM ai_analyses WHERE id=?", (analysis_id,)
+        )
         return _row_to_ai_analysis(row) if row else None
 
-    async def get_by_signal_id(self, signal_id: str) -> Optional[AIAnalysis]:
+    async def get_by_signal_id(self, signal_id: str) -> AIAnalysis | None:
         row = await self._fetchone(
             "SELECT * FROM ai_analyses WHERE signal_id=? ORDER BY analyzed_at DESC LIMIT 1",
             (signal_id,),
@@ -126,7 +132,7 @@ class AIAnalysisRepository(BaseRepository):
     async def get_recent(
         self,
         limit: int = 50,
-        recommendation: Optional[str] = None,
+        recommendation: str | None = None,
         min_confidence: int = 0,
     ) -> list[AIAnalysis]:
         """Return most recent AI analyses with optional filters."""

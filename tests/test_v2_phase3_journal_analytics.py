@@ -13,23 +13,22 @@ Verifies:
 from __future__ import annotations
 
 import asyncio
-import os
 import uuid
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
+
 import pytest
 from fastapi.testclient import TestClient
 
+from app import app
+from background.analytics.engine import AnalyticsEngine
+from background.analytics.tax_ledger import TaxLedgerService
+from background.journal.service import JournalService
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
 from core.config import invalidate_config
 from core.repository.db import Database
 from core.repository.journal_repo import JournalRepository
-from background.journal.service import JournalService
-from background.analytics.engine import AnalyticsEngine
-from background.analytics.tax_ledger import TaxLedgerService
-from background.analytics.service import AnalyticsService
-from app import app
 
 
 async def _create_test_journal_db(tmp_path):
@@ -44,6 +43,7 @@ async def _create_test_journal_db(tmp_path):
 # =============================================================================
 # 1. Journal Ingestion & Statutory Friction Tests
 # =============================================================================
+
 
 class TestJournalIngestionAndFriction:
 
@@ -64,7 +64,9 @@ class TestJournalIngestionAndFriction:
         # Slippage = (100,000 + 110,000) * 0.0005 = 105.00
         # Total Statutory Drag = 420 + 75.60 + 1100 + 105 = 1,700.60
 
-        friction = service.compute_statutory_friction(entry_price=100000.0, exit_price=110000.0, quantity=1.0)
+        friction = service.compute_statutory_friction(
+            entry_price=100000.0, exit_price=110000.0, quantity=1.0
+        )
 
         assert friction["exchange_fee"] == 420.0
         assert friction["gst_tax"] == 75.60
@@ -113,15 +115,15 @@ class TestJournalIngestionAndFriction:
 
             # Statutory drag verification
             assert e["exchange_fee"] == 84.0  # (20000*0.002) + (22000*0.002) = 40 + 44
-            assert e["gst_tax"] == 15.12       # 84 * 0.18
-            assert e["tds_194s"] == 220.0      # 22000 * 0.01
+            assert e["gst_tax"] == 15.12  # 84 * 0.18
+            assert e["tds_194s"] == 220.0  # 22000 * 0.01
             assert e["slippage_cost"] == 21.0  # 42000 * 0.0005
             assert e["total_statutory_drag"] == 340.12
-            assert e["net_pnl"] == 1659.88     # 2000 - 340.12
+            assert e["net_pnl"] == 1659.88  # 2000 - 340.12
 
             # MFE & MAE
             assert e["mfe"] == 2400.0  # (11200 - 10000) * 2
-            assert e["mae"] == 200.0   # (10000 - 9900) * 2
+            assert e["mae"] == 200.0  # (10000 - 9900) * 2
         finally:
             await db.close()
 
@@ -129,6 +131,7 @@ class TestJournalIngestionAndFriction:
 # =============================================================================
 # 2. Quantitative Analytics Engine & Ratios Tests
 # =============================================================================
+
 
 class TestQuantitativeAnalyticsEngine:
 
@@ -141,36 +144,104 @@ class TestQuantitativeAnalyticsEngine:
             # Insert 4 trades: 3 wins (+1000, +500, +800), 1 loss (-400)
             trades = [
                 {
-                    "id": "J1", "position_id": "P1", "bot_name": "STE", "pair": "BTC/INR", "side": "BUY",
-                    "entry_price": 50000.0, "exit_price": 51000.0, "quantity": 1.0,
-                    "entry_timestamp": now_iso, "exit_timestamp": now_iso, "duration_seconds": 1800,
-                    "exit_reason": "TP_HIT", "gross_pnl": 1000.0, "exchange_fee": 20.0, "gst_tax": 3.6,
-                    "tds_194s": 510.0, "slippage_cost": 50.0, "total_statutory_drag": 583.6,
-                    "net_pnl": 1000.0, "net_pnl_pct": 2.0, "mfe": 1200.0, "mae": 100.0, "tags": []
+                    "id": "J1",
+                    "position_id": "P1",
+                    "bot_name": "STE",
+                    "pair": "BTC/INR",
+                    "side": "BUY",
+                    "entry_price": 50000.0,
+                    "exit_price": 51000.0,
+                    "quantity": 1.0,
+                    "entry_timestamp": now_iso,
+                    "exit_timestamp": now_iso,
+                    "duration_seconds": 1800,
+                    "exit_reason": "TP_HIT",
+                    "gross_pnl": 1000.0,
+                    "exchange_fee": 20.0,
+                    "gst_tax": 3.6,
+                    "tds_194s": 510.0,
+                    "slippage_cost": 50.0,
+                    "total_statutory_drag": 583.6,
+                    "net_pnl": 1000.0,
+                    "net_pnl_pct": 2.0,
+                    "mfe": 1200.0,
+                    "mae": 100.0,
+                    "tags": [],
                 },
                 {
-                    "id": "J2", "position_id": "P2", "bot_name": "HDA", "pair": "ETH/INR", "side": "BUY",
-                    "entry_price": 2000.0, "exit_price": 2050.0, "quantity": 10.0,
-                    "entry_timestamp": now_iso, "exit_timestamp": now_iso, "duration_seconds": 3600,
-                    "exit_reason": "TP_HIT", "gross_pnl": 500.0, "exchange_fee": 10.0, "gst_tax": 1.8,
-                    "tds_194s": 205.0, "slippage_cost": 20.0, "total_statutory_drag": 236.8,
-                    "net_pnl": 500.0, "net_pnl_pct": 2.5, "mfe": 600.0, "mae": 50.0, "tags": []
+                    "id": "J2",
+                    "position_id": "P2",
+                    "bot_name": "HDA",
+                    "pair": "ETH/INR",
+                    "side": "BUY",
+                    "entry_price": 2000.0,
+                    "exit_price": 2050.0,
+                    "quantity": 10.0,
+                    "entry_timestamp": now_iso,
+                    "exit_timestamp": now_iso,
+                    "duration_seconds": 3600,
+                    "exit_reason": "TP_HIT",
+                    "gross_pnl": 500.0,
+                    "exchange_fee": 10.0,
+                    "gst_tax": 1.8,
+                    "tds_194s": 205.0,
+                    "slippage_cost": 20.0,
+                    "total_statutory_drag": 236.8,
+                    "net_pnl": 500.0,
+                    "net_pnl_pct": 2.5,
+                    "mfe": 600.0,
+                    "mae": 50.0,
+                    "tags": [],
                 },
                 {
-                    "id": "J3", "position_id": "P3", "bot_name": "VCP", "pair": "SOL/INR", "side": "BUY",
-                    "entry_price": 100.0, "exit_price": 96.0, "quantity": 100.0,
-                    "entry_timestamp": now_iso, "exit_timestamp": now_iso, "duration_seconds": 900,
-                    "exit_reason": "SL_HIT", "gross_pnl": -400.0, "exchange_fee": 4.0, "gst_tax": 0.72,
-                    "tds_194s": 96.0, "slippage_cost": 10.0, "total_statutory_drag": 110.72,
-                    "net_pnl": -400.0, "net_pnl_pct": -4.0, "mfe": 50.0, "mae": 500.0, "tags": []
+                    "id": "J3",
+                    "position_id": "P3",
+                    "bot_name": "VCP",
+                    "pair": "SOL/INR",
+                    "side": "BUY",
+                    "entry_price": 100.0,
+                    "exit_price": 96.0,
+                    "quantity": 100.0,
+                    "entry_timestamp": now_iso,
+                    "exit_timestamp": now_iso,
+                    "duration_seconds": 900,
+                    "exit_reason": "SL_HIT",
+                    "gross_pnl": -400.0,
+                    "exchange_fee": 4.0,
+                    "gst_tax": 0.72,
+                    "tds_194s": 96.0,
+                    "slippage_cost": 10.0,
+                    "total_statutory_drag": 110.72,
+                    "net_pnl": -400.0,
+                    "net_pnl_pct": -4.0,
+                    "mfe": 50.0,
+                    "mae": 500.0,
+                    "tags": [],
                 },
                 {
-                    "id": "J4", "position_id": "P4", "bot_name": "BBS", "pair": "BNB/INR", "side": "BUY",
-                    "entry_price": 500.0, "exit_price": 516.0, "quantity": 5.0,
-                    "entry_timestamp": now_iso, "exit_timestamp": now_iso, "duration_seconds": 2700,
-                    "exit_reason": "TP_HIT", "gross_pnl": 80.0, "exchange_fee": 2.0, "gst_tax": 0.36,
-                    "tds_194s": 25.8, "slippage_cost": 2.5, "total_statutory_drag": 30.66,
-                    "net_pnl": 800.0, "net_pnl_pct": 3.2, "mfe": 900.0, "mae": 20.0, "tags": []
+                    "id": "J4",
+                    "position_id": "P4",
+                    "bot_name": "BBS",
+                    "pair": "BNB/INR",
+                    "side": "BUY",
+                    "entry_price": 500.0,
+                    "exit_price": 516.0,
+                    "quantity": 5.0,
+                    "entry_timestamp": now_iso,
+                    "exit_timestamp": now_iso,
+                    "duration_seconds": 2700,
+                    "exit_reason": "TP_HIT",
+                    "gross_pnl": 80.0,
+                    "exchange_fee": 2.0,
+                    "gst_tax": 0.36,
+                    "tds_194s": 25.8,
+                    "slippage_cost": 2.5,
+                    "total_statutory_drag": 30.66,
+                    "net_pnl": 800.0,
+                    "net_pnl_pct": 3.2,
+                    "mfe": 900.0,
+                    "mae": 20.0,
+                    "tags": [],
                 },
             ]
 
@@ -218,6 +289,7 @@ class TestQuantitativeAnalyticsEngine:
 # 3. Statutory Tax Ledger Tests
 # =============================================================================
 
+
 class TestStatutoryTaxLedger:
 
     @pytest.mark.anyio
@@ -227,12 +299,29 @@ class TestStatutoryTaxLedger:
         try:
             now_iso = datetime.now(timezone.utc).isoformat()
             t1 = {
-                "id": "T1", "position_id": "P1", "bot_name": "STE", "pair": "BTC/INR", "side": "BUY",
-                "entry_price": 100000.0, "exit_price": 110000.0, "quantity": 1.0,
-                "entry_timestamp": now_iso, "exit_timestamp": now_iso, "duration_seconds": 3600,
-                "exit_reason": "TP_HIT", "gross_pnl": 10000.0, "exchange_fee": 420.0, "gst_tax": 75.60,
-                "tds_194s": 1100.0, "slippage_cost": 105.0, "total_statutory_drag": 1700.60,
-                "net_pnl": 8299.40, "net_pnl_pct": 8.30, "mfe": 10000.0, "mae": 0.0, "tags": []
+                "id": "T1",
+                "position_id": "P1",
+                "bot_name": "STE",
+                "pair": "BTC/INR",
+                "side": "BUY",
+                "entry_price": 100000.0,
+                "exit_price": 110000.0,
+                "quantity": 1.0,
+                "entry_timestamp": now_iso,
+                "exit_timestamp": now_iso,
+                "duration_seconds": 3600,
+                "exit_reason": "TP_HIT",
+                "gross_pnl": 10000.0,
+                "exchange_fee": 420.0,
+                "gst_tax": 75.60,
+                "tds_194s": 1100.0,
+                "slippage_cost": 105.0,
+                "total_statutory_drag": 1700.60,
+                "net_pnl": 8299.40,
+                "net_pnl_pct": 8.30,
+                "mfe": 10000.0,
+                "mae": 0.0,
+                "tags": [],
             }
             await repo.insert_entry(t1)
 
@@ -253,6 +342,7 @@ class TestStatutoryTaxLedger:
 # =============================================================================
 # 4. API Endpoints Tests
 # =============================================================================
+
 
 class TestJournalAnalyticsAPIEndpoints:
 

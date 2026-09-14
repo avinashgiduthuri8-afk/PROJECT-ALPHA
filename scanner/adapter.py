@@ -13,35 +13,39 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from core.types import (
-    MarketState, OppType, Priority, RiskLevel, Signal,
-)
 from core.logging import get_logger
+from core.types import (
+    MarketState,
+    OppType,
+    Priority,
+    RiskLevel,
+    Signal,
+)
 
 logger = get_logger("scanner.adapter")
 
 # V1 maps market_state → opportunity_type
 _STATE_TO_OPP: dict[str, OppType] = {
-    "breakout":   OppType.MOMENTUM_TRADE,
+    "breakout": OppType.MOMENTUM_TRADE,
     "bull_trend": OppType.CONTINUATION,
-    "pullback":   OppType.ACCUMULATION,
-    "recovery":   OppType.RECOVERY_TRADE,
-    "sideways":   OppType.WATCHLIST,
-    "downtrend":  OppType.AVOID,
+    "pullback": OppType.ACCUMULATION,
+    "recovery": OppType.RECOVERY_TRADE,
+    "sideways": OppType.WATCHLIST,
+    "downtrend": OppType.AVOID,
 }
 
 _PRIORITY_MAP: dict[str, Priority] = {
-    "elite":  Priority.ELITE,
-    "high":   Priority.HIGH,
+    "elite": Priority.ELITE,
+    "high": Priority.HIGH,
     "medium": Priority.MEDIUM,
-    "watch":  Priority.WATCH,
+    "watch": Priority.WATCH,
     "ignore": Priority.IGNORE,
 }
 
 _RISK_MAP: dict[str, RiskLevel] = {
-    "low":    RiskLevel.LOW,
+    "low": RiskLevel.LOW,
     "medium": RiskLevel.MEDIUM,
-    "high":   RiskLevel.HIGH,
+    "high": RiskLevel.HIGH,
 }
 
 
@@ -149,16 +153,24 @@ def raw_response_to_signals(
 
             confidence = int(item.get("confidence") or 0)
             coin_class = item.get("coin_class") or item.get("class")
-            mtf = _parse_bool(item.get("mtf_alignment") or item.get("mtf") or item.get("is_mtf_aligned"))
+            mtf = _parse_bool(
+                item.get("mtf_alignment")
+                or item.get("mtf")
+                or item.get("is_mtf_aligned")
+            )
             if not mtf:
                 reasons = item.get("reasons", [])
                 if isinstance(reasons, list):
                     for r in reasons:
-                        if isinstance(r, str) and ("mtf" in r.lower() or "aligned" in r.lower()):
+                        if isinstance(r, str) and (
+                            "mtf" in r.lower() or "aligned" in r.lower()
+                        ):
                             mtf = True
                             break
 
-            generated_at = _parse_datetime(item.get("timestamp") or item.get("generated_at"))
+            generated_at = _parse_datetime(
+                item.get("timestamp") or item.get("generated_at")
+            )
             if generated_at is None:
                 generated_at = now
 
@@ -170,26 +182,28 @@ def raw_response_to_signals(
                 "4h": 14400,
                 "1d": 86400,
             }
-            tf = str(item.get("timeframe") or item.get("interval") or "").strip().lower()
+            tf = (
+                str(item.get("timeframe") or item.get("interval") or "").strip().lower()
+            )
             effective_ttl = timeframe_ttl_map.get(tf, signal_ttl_seconds)
             expires_at = generated_at + timedelta(seconds=effective_ttl)
 
             sig = Signal(
-                id               = str(uuid.uuid4()),
-                coin             = coin.upper(),
-                pair             = pair,
-                market_state     = market_state,
-                opportunity_type = opp_type,
-                priority         = priority,
-                risk_level       = risk,
-                score            = score,
-                confidence       = confidence,
-                coin_class       = coin_class,
-                mtf_alignment    = mtf,
-                generated_at     = generated_at,
-                expires_at       = expires_at,
-                source_bot       = item.get("bot") or item.get("source_bot") or "scanner_v1",
-                raw_payload      = item,
+                id=str(uuid.uuid4()),
+                coin=coin.upper(),
+                pair=pair,
+                market_state=market_state,
+                opportunity_type=opp_type,
+                priority=priority,
+                risk_level=risk,
+                score=score,
+                confidence=confidence,
+                coin_class=coin_class,
+                mtf_alignment=mtf,
+                generated_at=generated_at,
+                expires_at=expires_at,
+                source_bot=item.get("bot") or item.get("source_bot") or "scanner_v1",
+                raw_payload=item,
             )
             signals.append(sig)
 
@@ -235,7 +249,9 @@ def raw_signal_to_domain(item: dict[str, Any], signal_ttl_seconds: int = 300) ->
         score=int(item.get("score") or 0),
         confidence=int(item.get("confidence") or 0),
         coin_class=item.get("coin_class") or item.get("class"),
-        mtf_alignment=_parse_bool(item.get("mtf_alignment") or item.get("mtf") or item.get("is_mtf_aligned")),
+        mtf_alignment=_parse_bool(
+            item.get("mtf_alignment") or item.get("mtf") or item.get("is_mtf_aligned")
+        ),
         generated_at=now,
         expires_at=now + timedelta(seconds=signal_ttl_seconds),
         source_bot=item.get("bot") or item.get("source_bot") or "scanner",
@@ -245,5 +261,3 @@ def raw_signal_to_domain(item: dict[str, Any], signal_ttl_seconds: int = 300) ->
 
 # Backward-compatible alias
 v1_signal_to_domain = raw_signal_to_domain
-
-

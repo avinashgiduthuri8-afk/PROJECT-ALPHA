@@ -12,30 +12,26 @@ from __future__ import annotations
 
 import time
 import uuid
-from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import datetime, timezone
+from unittest.mock import AsyncMock, patch
+
 import pytest
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
 from core.config import V2Config
-from core.types import (
-    BotMode,
-    BotName,
-    ExitReason,
-    MarketState,
-    OppType,
-    Position,
-    PositionStatus,
-    Priority,
-    RiskLevel,
-    Signal,
-)
 from core.repository.db import Database
 from core.repository.event_log_repo import EventLogRepository
 from core.repository.order_repo import OrderRepository
 from core.repository.position_repo import PositionRepository
 from core.repository.trade_repo import TradeRepository
+from core.types import (
+    BotMode,
+    BotName,
+    ExitReason,
+    Position,
+    PositionStatus,
+)
 from execution.auto_trader import AutoTradeRouter
 from execution.position_manager import PositionManager
 from execution.service import TradingService
@@ -88,6 +84,7 @@ async def exit_test_env():
 
 # ── Test 1: Disaster stop_limit order created when BUY is filled ──────────────
 
+
 @pytest.mark.anyio
 async def test_disaster_stop_limit_created_on_buy_fill(exit_test_env):
     """When a live BUY order is confirmed FILLED, a resting stop_limit sell order must be placed on CoinDCX."""
@@ -97,23 +94,25 @@ async def test_disaster_stop_limit_created_on_buy_fill(exit_test_env):
     sub_client = mgr.get_client(BotName.STE)
 
     # Mock live buy order and resting disaster stop-loss order responses
-    sub_client.place_live_order = AsyncMock(side_effect=[
-        {
-            "success": True,
-            "exchange_order_id": "EX_BUY_SOL_001",
-            "client_order_id": "CL_BUY_SOL_001",
-            "status": "FILLED",
-            "is_filled": True,
-            "filled_qty": 0.02,
-            "price": 12500.0,
-            "qty": 0.02,
-        },
-        {
-            "success": True,
-            "exchange_order_id": "EX_SL_RESTING_999",
-            "order": {"id": "EX_SL_RESTING_999"},
-        },
-    ])
+    sub_client.place_live_order = AsyncMock(
+        side_effect=[
+            {
+                "success": True,
+                "exchange_order_id": "EX_BUY_SOL_001",
+                "client_order_id": "CL_BUY_SOL_001",
+                "status": "FILLED",
+                "is_filled": True,
+                "filled_qty": 0.02,
+                "price": 12500.0,
+                "qty": 0.02,
+            },
+            {
+                "success": True,
+                "exchange_order_id": "EX_SL_RESTING_999",
+                "order": {"id": "EX_SL_RESTING_999"},
+            },
+        ]
+    )
 
     payload = {
         "signal_id": "sig-sol-001",
@@ -153,26 +152,30 @@ async def test_disaster_stop_limit_failure_emits_alert(exit_test_env):
     mgr = exit_test_env["subaccount_mgr"]
     sub_client = mgr.get_client(BotName.STE)
 
-    sub_client.place_live_order = AsyncMock(side_effect=[
-        {
-            "success": True,
-            "exchange_order_id": "EX_BUY_002",
-            "status": "FILLED",
-            "is_filled": True,
-            "filled_qty": 0.02,
-            "price": 12500.0,
-            "qty": 0.02,
-        },
-        {
-            "success": False,
-            "error": "EXCHANGE_UNAVAILABLE",
-            "message": "CoinDCX maintenance",
-        },
-    ])
+    sub_client.place_live_order = AsyncMock(
+        side_effect=[
+            {
+                "success": True,
+                "exchange_order_id": "EX_BUY_002",
+                "status": "FILLED",
+                "is_filled": True,
+                "filled_qty": 0.02,
+                "price": 12500.0,
+                "qty": 0.02,
+            },
+            {
+                "success": False,
+                "error": "EXCHANGE_UNAVAILABLE",
+                "message": "CoinDCX maintenance",
+            },
+        ]
+    )
 
     alerts = []
+
     async def on_alert(ev, data):
         alerts.append(data)
+
     bus.subscribe(EventType.ALERT_GENERATED, on_alert)
 
     payload = {
@@ -192,6 +195,7 @@ async def test_disaster_stop_limit_failure_emits_alert(exit_test_env):
 
 
 # ── Test 2: Resting stop order cancelled before TP market sell ────────────────
+
 
 @pytest.mark.anyio
 async def test_resting_stop_loss_cancelled_on_take_profit(exit_test_env):
@@ -299,6 +303,7 @@ async def test_resting_stop_loss_cancelled_on_trailing_stop(exit_test_env):
 
 # ── Test 3: Strict manual close verification gate ────────────────────────────
 
+
 @pytest.mark.anyio
 async def test_manual_close_reverts_to_open_when_dispatch_fails(exit_test_env):
     """When manual SELL order dispatch fails, position reverts to OPEN with CRITICAL alert."""
@@ -324,15 +329,19 @@ async def test_manual_close_reverts_to_open_when_dispatch_fails(exit_test_env):
     await pos_repo.insert(pos)
 
     sub_client.cancel_order = AsyncMock(return_value={"success": True})
-    sub_client.place_live_order = AsyncMock(return_value={
-        "success": False,
-        "error": "INSUFFICIENT_LIQUIDITY",
-        "message": "Market order rejected: insufficient order book depth",
-    })
+    sub_client.place_live_order = AsyncMock(
+        return_value={
+            "success": False,
+            "error": "INSUFFICIENT_LIQUIDITY",
+            "message": "Market order rejected: insufficient order book depth",
+        }
+    )
 
     alerts = []
+
     async def on_alert(ev, data):
         alerts.append(data)
+
     bus.subscribe(EventType.ALERT_GENERATED, on_alert)
 
     res = await trading_svc.manual_close_position(pos.id)
@@ -373,13 +382,15 @@ async def test_manual_close_polls_until_filled(exit_test_env):
     await pos_repo.insert(pos)
 
     sub_client.cancel_order = AsyncMock(return_value={"success": True})
-    sub_client.place_live_order = AsyncMock(return_value={
-        "success": True,
-        "exchange_order_id": "EX_SELL_POLL_01",
-        "status": "OPEN",
-        "is_filled": False,
-        "filled_qty": 0.0,
-    })
+    sub_client.place_live_order = AsyncMock(
+        return_value={
+            "success": True,
+            "exchange_order_id": "EX_SELL_POLL_01",
+            "status": "OPEN",
+            "is_filled": False,
+            "filled_qty": 0.0,
+        }
+    )
 
     # Poll 1: OPEN, Poll 2: FILLED
     poll_results = [
@@ -423,24 +434,30 @@ async def test_manual_close_reverts_to_open_on_poll_timeout(exit_test_env):
     await pos_repo.insert(pos)
 
     sub_client.cancel_order = AsyncMock(return_value={"success": True})
-    sub_client.place_live_order = AsyncMock(return_value={
-        "success": True,
-        "exchange_order_id": "EX_SELL_STUCK_01",
-        "status": "OPEN",
-        "is_filled": False,
-        "filled_qty": 0.0,
-    })
+    sub_client.place_live_order = AsyncMock(
+        return_value={
+            "success": True,
+            "exchange_order_id": "EX_SELL_STUCK_01",
+            "status": "OPEN",
+            "is_filled": False,
+            "filled_qty": 0.0,
+        }
+    )
 
-    sub_client.get_order_status = AsyncMock(return_value={
-        "success": True,
-        "status": "OPEN",
-        "is_filled": False,
-        "filled_qty": 0.0,
-    })
+    sub_client.get_order_status = AsyncMock(
+        return_value={
+            "success": True,
+            "status": "OPEN",
+            "is_filled": False,
+            "filled_qty": 0.0,
+        }
+    )
 
     alerts = []
+
     async def on_alert(ev, data):
         alerts.append(data)
+
     bus.subscribe(EventType.ALERT_GENERATED, on_alert)
 
     with patch("asyncio.sleep", new_callable=AsyncMock):
@@ -460,6 +477,7 @@ async def test_manual_close_reverts_to_open_on_poll_timeout(exit_test_env):
 
 
 # ── Test 4: Pre-trade slippage and ticker age guards ──────────────────────────
+
 
 @pytest.mark.anyio
 async def test_auto_trader_rejects_stale_ticker_data():
@@ -529,4 +547,3 @@ async def test_auto_trader_accepts_valid_signal_within_tolerances():
     assert res is not None
     assert res["success"] is True
     assert res["dry_run"] is True
-

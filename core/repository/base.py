@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 from abc import ABC
-from typing import Any, Optional
+from typing import Any
 
 import aiosqlite
 
@@ -29,7 +29,7 @@ class BaseRepository(ABC):
     do not open or close connections.
     """
 
-    def __init__(self, conn: Optional[aiosqlite.Connection] = None) -> None:
+    def __init__(self, conn: aiosqlite.Connection | None = None) -> None:
         self._conn = conn
 
     # ── Low-level helpers ─────────────────────────────────────────────────────
@@ -50,7 +50,7 @@ class BaseRepository(ABC):
         self,
         sql: str,
         params: tuple | None = None,
-    ) -> Optional[aiosqlite.Row]:
+    ) -> aiosqlite.Row | None:
         try:
             async with self._conn.execute(sql, params or ()) as cur:
                 return await cur.fetchone()

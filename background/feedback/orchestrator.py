@@ -14,13 +14,13 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
+from background.backtest.service.service import BacktestService
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
 from core.logging import get_logger
 from core.repository.feedback_repo import FeedbackRepository
-from background.backtest.service.service import BacktestService
 
 logger = get_logger("background.feedback.orchestrator")
 
@@ -29,18 +29,17 @@ class FeedbackOrchestrator:
     """Autonomous Feedback Pipeline Orchestrator & Promotion Gate."""
 
     def __init__(
-
         self,
         feedback_repo: FeedbackRepository,
         backtest_service: BacktestService,
-        bus: Optional[EventBus] = None,
+        bus: EventBus | None = None,
     ) -> None:
         self._feedback_repo = feedback_repo
         self._backtest_service = backtest_service
         self._bus = bus
         # Track post-promotion loss counts per bot for rollback safety
-        self._post_promotion_losses: Dict[str, int] = {}
-        self._active_promotions: Dict[str, Dict[str, Any]] = {}
+        self._post_promotion_losses: dict[str, int] = {}
+        self._active_promotions: dict[str, dict[str, Any]] = {}
 
     async def evaluate_and_validate_calibration(
         self,
@@ -48,8 +47,8 @@ class FeedbackOrchestrator:
         pair: str,
         proposed_multiplier: float,
         proposed_threshold: float,
-        validation_candles: Optional[List[Dict[str, Any]]] = None,
-    ) -> Dict[str, Any]:
+        validation_candles: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
         """
         Pre-Deployment Safety Validation & Promotion Gate:
           1. Retrieve current active calibration baseline.
@@ -112,9 +111,13 @@ class FeedbackOrchestrator:
             "pair": pair,
             "action_taken": action,
             "previous_multiplier": prev_mult,
-            "new_multiplier": proposed_multiplier if status == "PROMOTED" else prev_mult,
+            "new_multiplier": (
+                proposed_multiplier if status == "PROMOTED" else prev_mult
+            ),
             "previous_threshold": prev_thresh,
-            "new_threshold": proposed_threshold if status == "PROMOTED" else prev_thresh,
+            "new_threshold": (
+                proposed_threshold if status == "PROMOTED" else prev_thresh
+            ),
             "validation_backtest_id": validation_backtest_id,
             "status": status,
             "created_at": datetime.now(timezone.utc).isoformat(),
@@ -139,13 +142,24 @@ class FeedbackOrchestrator:
                     audit_event,
                 )
 
-            logger.info("PROMOTED new calibration for %s -> Multiplier: %.2fx, Threshold: %.1f", bot_str, proposed_multiplier, proposed_threshold)
+            logger.info(
+                "PROMOTED new calibration for %s -> Multiplier: %.2fx, Threshold: %.1f",
+                bot_str,
+                proposed_multiplier,
+                proposed_threshold,
+            )
         else:
-            logger.warning("REJECTED candidate calibration for %s due to backtest degradation (PF: %.2f)", bot_str, profit_factor)
+            logger.warning(
+                "REJECTED candidate calibration for %s due to backtest degradation (PF: %.2f)",
+                bot_str,
+                profit_factor,
+            )
 
         return audit_event
 
-    async def register_trade_outcome(self, bot_name: str, pair: str, is_win: bool) -> Optional[Dict[str, Any]]:
+    async def register_trade_outcome(
+        self, bot_name: str, pair: str, is_win: bool
+    ) -> dict[str, Any] | None:
         """
         Safety Rollback Engine:
           Monitors trade outcomes for bots post-promotion.
@@ -164,11 +178,17 @@ class FeedbackOrchestrator:
 
         if current_losses >= 2:
             # Trigger Safety Rollback
-            logger.warning("Safety Rollback triggered for bot %s after %d consecutive post-promotion losses", bot_str, current_losses)
+            logger.warning(
+                "Safety Rollback triggered for bot %s after %d consecutive post-promotion losses",
+                bot_str,
+                current_losses,
+            )
 
             active_curr = await self._feedback_repo.get_active_calibration(bot_str)
             prev_mult = float(active_curr["weight_multiplier"]) if active_curr else 1.0
-            prev_thresh = float(active_curr["strict_threshold"]) if active_curr else 85.0
+            prev_thresh = (
+                float(active_curr["strict_threshold"]) if active_curr else 85.0
+            )
 
             baseline_mult = 1.0
             baseline_thresh = 85.0

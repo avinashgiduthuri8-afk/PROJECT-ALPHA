@@ -10,24 +10,20 @@ Verifies:
 
 from __future__ import annotations
 
-import asyncio
-import os
 import uuid
-from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 from fastapi.testclient import TestClient
 
 from core.bus.event_bus import EventBus
-from core.bus.event_types import EventType
 from core.config import invalidate_config
 from dashboard.aggregator import DashboardAggregator
 from dashboard.ws_gateway import WebSocketTelemetryGateway
-from app import app
-
 
 # =============================================================================
 # 1. Aggregator State Assembly Tests
 # =============================================================================
+
 
 class TestDashboardAggregator:
 
@@ -57,6 +53,7 @@ class TestDashboardAggregator:
 # 2. WebSocket Telemetry Gateway Tests
 # =============================================================================
 
+
 class TestWebSocketTelemetryGateway:
 
     @pytest.mark.anyio
@@ -71,7 +68,9 @@ class TestWebSocketTelemetryGateway:
         assert ws_gateway.active_connections_count == 0
 
         # Broadcast delta when no connections present (should not raise error)
-        await ws_gateway.broadcast_delta("DELTA_SIGNAL_GENERATED", {"symbol": "BTC/INR"})
+        await ws_gateway.broadcast_delta(
+            "DELTA_SIGNAL_GENERATED", {"symbol": "BTC/INR"}
+        )
 
         await ws_gateway.stop()
         assert ws_gateway._started is False
@@ -82,7 +81,9 @@ class TestWebSocketTelemetryGateway:
 # =============================================================================
 
 from fastapi import FastAPI
-from dashboard.api.dashboard_routes import router as dashboard_router, init_dashboard_routes
+
+from dashboard.api.dashboard_routes import init_dashboard_routes
+from dashboard.api.dashboard_routes import router as dashboard_router
 
 
 class TestDashboardAPIEndpoints:
@@ -137,13 +138,17 @@ class TestDashboardAPIEndpoints:
             headers = {"X-API-Key": "test-dashboard-key"}
 
             # 1. Pause STE bot
-            res_pause = client.post("/api/v2/dashboard/fleet/STE/pause", headers=headers)
+            res_pause = client.post(
+                "/api/v2/dashboard/fleet/STE/pause", headers=headers
+            )
             assert res_pause.status_code == 200
             assert res_pause.json()["status"] == "PAUSED"
             assert res_pause.json()["bot_name"] == "STE"
 
             # 2. Resume STE bot
-            res_resume = client.post("/api/v2/dashboard/fleet/STE/resume", headers=headers)
+            res_resume = client.post(
+                "/api/v2/dashboard/fleet/STE/resume", headers=headers
+            )
             assert res_resume.status_code == 200
             assert res_resume.json()["status"] == "ACTIVE"
 

@@ -5,7 +5,6 @@ Vectorized implementation.
 
 from __future__ import annotations
 
-from typing import List
 import numpy as np
 import pandas as pd
 
@@ -22,8 +21,8 @@ class NR7Strategy(BaseStrategy):
         df: pd.DataFrame,
         pair: str = "BTC/USDT",
         timeframe: str = "1H",
-    ) -> List[BacktestTradeSignal]:
-        signals: List[BacktestTradeSignal] = []
+    ) -> list[BacktestTradeSignal]:
+        signals: list[BacktestTradeSignal] = []
         n = len(df)
         if n < 30:
             return signals
@@ -47,8 +46,8 @@ class NR7Strategy(BaseStrategy):
             if i < 10 or i >= n - 1:
                 continue
 
-            nr7_high = highs[i-1]
-            nr7_low = lows[i-1]
+            nr7_high = highs[i - 1]
+            nr7_low = lows[i - 1]
             atr_val = atr[i]
 
             if (highs[i] - lows[i]) >= (1.1 * atr_val):
@@ -69,7 +68,10 @@ class NR7Strategy(BaseStrategy):
                         stop_loss_price=float(stop_loss),
                         take_profit_price=float(take_profit),
                         direction="LONG",
-                        metadata={"nr7_range": float(nr7_high - nr7_low), "atr": float(atr_val)},
+                        metadata={
+                            "nr7_range": float(nr7_high - nr7_low),
+                            "atr": float(atr_val),
+                        },
                     )
                 )
 

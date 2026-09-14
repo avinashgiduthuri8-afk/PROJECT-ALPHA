@@ -5,9 +5,8 @@ and live events across the 14 stages of the PROJECT-ALPHA Autonomous Pipeline.
 
 from __future__ import annotations
 
-import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
@@ -20,14 +19,18 @@ logger = get_logger("dashboard.pipeline")
 class PipelineStageCollector:
     """Collects live state, metrics, and contracts for all 14 autonomous trading pipeline stages."""
 
-    def __init__(self, bus: Optional[EventBus] = None, config: Optional[AppConfig] = None) -> None:
+    def __init__(
+        self, bus: EventBus | None = None, config: AppConfig | None = None
+    ) -> None:
         self._bus = bus
         self._config = config
-        self._auto_trade_enabled = getattr(config, "trading_enabled", False) if config else False
+        self._auto_trade_enabled = (
+            getattr(config, "trading_enabled", False) if config else False
+        )
         self._paper_mode = getattr(config, "shadow_mode", True) if config else True
 
         # Stage definitions with contracts and initial telemetry
-        self._stages: Dict[str, Dict[str, Any]] = {
+        self._stages: dict[str, dict[str, Any]] = {
             "market_data": {
                 "id": "market_data",
                 "number": 1,
@@ -116,7 +119,12 @@ class PipelineStageCollector:
                 },
                 "last_event": None,
                 "telemetry": {
-                    "active_algorithms": ["STE (SuperTrend)", "HDA (Absorption)", "VCP (Contraction)", "BBS (Squeeze)"],
+                    "active_algorithms": [
+                        "STE (SuperTrend)",
+                        "HDA (Absorption)",
+                        "VCP (Contraction)",
+                        "BBS (Squeeze)",
+                    ],
                 },
             },
             "ai_intelligence": {
@@ -164,7 +172,12 @@ class PipelineStageCollector:
                 },
                 "input_contract": {
                     "event": "SIGNAL_AI_CONFIRMED",
-                    "parameters": ["Bot Archetype", "AI Size Multiplier", "Current Price", "Volatility ATR"],
+                    "parameters": [
+                        "Bot Archetype",
+                        "AI Size Multiplier",
+                        "Current Price",
+                        "Volatility ATR",
+                    ],
                 },
                 "output_contract": {
                     "destination": "Risk Engine",
@@ -172,7 +185,12 @@ class PipelineStageCollector:
                 },
                 "last_event": None,
                 "telemetry": {
-                    "active_adapters": ["STEAdapter", "HDAAdapter", "VCPAdapter", "BBSAdapter"],
+                    "active_adapters": [
+                        "STEAdapter",
+                        "HDAAdapter",
+                        "VCPAdapter",
+                        "BBSAdapter",
+                    ],
                 },
             },
             "risk_engine": {
@@ -191,7 +209,12 @@ class PipelineStageCollector:
                 },
                 "input_contract": {
                     "source": "Trade Constructor Proposed Orders",
-                    "checks": ["Total Capital Limit", "Bot Capital Limit", "Max Concurrent Positions", "Circuit Breaker"],
+                    "checks": [
+                        "Total Capital Limit",
+                        "Bot Capital Limit",
+                        "Max Concurrent Positions",
+                        "Circuit Breaker",
+                    ],
                 },
                 "output_contract": {
                     "events": ["TRADE_APPROVED", "TRADE_DENIED"],
@@ -212,8 +235,12 @@ class PipelineStageCollector:
                 "description": "Automated order execution layer: dispatches live or paper trades to exchange API with slippage protection.",
                 "status": "ACTIVE" if self._auto_trade_enabled else "STANDBY",
                 "metrics": {
-                    "auto_trading": "ENABLED" if self._auto_trade_enabled else "DISABLED",
-                    "execution_mode": "PAPER SIMULATION" if self._paper_mode else "LIVE COINDCX",
+                    "auto_trading": (
+                        "ENABLED" if self._auto_trade_enabled else "DISABLED"
+                    ),
+                    "execution_mode": (
+                        "PAPER SIMULATION" if self._paper_mode else "LIVE COINDCX"
+                    ),
                     "executed_trades_today": 12,
                     "avg_fill_slippage_pct": 0.04,
                 },
@@ -247,7 +274,13 @@ class PipelineStageCollector:
                 },
                 "input_contract": {
                     "event": "TRADE_EXECUTED / Market Ticker Stream",
-                    "tracked_fields": ["Entry Price", "Current Price", "Unrealized PnL", "Peak Price", "SL/TP"],
+                    "tracked_fields": [
+                        "Entry Price",
+                        "Current Price",
+                        "Unrealized PnL",
+                        "Peak Price",
+                        "SL/TP",
+                    ],
                 },
                 "output_contract": {
                     "events": ["POSITION_UPDATED", "POSITION_CLOSED"],
@@ -255,7 +288,13 @@ class PipelineStageCollector:
                 },
                 "last_event": None,
                 "telemetry": {
-                    "exit_types_supported": ["TAKE_PROFIT", "STOP_LOSS", "TRAILING_STOP", "MANUAL", "CIRCUIT_BREAKER"],
+                    "exit_types_supported": [
+                        "TAKE_PROFIT",
+                        "STOP_LOSS",
+                        "TRAILING_STOP",
+                        "MANUAL",
+                        "CIRCUIT_BREAKER",
+                    ],
                 },
             },
             "trade_journal": {
@@ -273,7 +312,15 @@ class PipelineStageCollector:
                 },
                 "input_contract": {
                     "event": "POSITION_CLOSED & ALL BUS EVENTS",
-                    "fields": ["Trade ID", "Signal ID", "Coin", "PnL", "Exit Reason", "AI Score", "Holding Time"],
+                    "fields": [
+                        "Trade ID",
+                        "Signal ID",
+                        "Coin",
+                        "PnL",
+                        "Exit Reason",
+                        "AI Score",
+                        "Holding Time",
+                    ],
                 },
                 "output_contract": {
                     "destination": "Analytics Engine & Learning Engine",
@@ -326,7 +373,11 @@ class PipelineStageCollector:
                 },
                 "input_contract": {
                     "source": "Closed Trade Journal & Analytics Data",
-                    "evaluators": ["Exit Reason Distribution", "Stop-loss Tightness vs Premature Exit", "Time-of-day Edge"],
+                    "evaluators": [
+                        "Exit Reason Distribution",
+                        "Stop-loss Tightness vs Premature Exit",
+                        "Time-of-day Edge",
+                    ],
                 },
                 "output_contract": {
                     "destination": "Backtest / Validation Engine & Strategy Tuner",
@@ -334,7 +385,11 @@ class PipelineStageCollector:
                 },
                 "last_event": None,
                 "telemetry": {
-                    "feedback_weights": {"mtb_momentum_weight": 1.15, "ai_strictness": 1.10, "grid_step_factor": 0.95},
+                    "feedback_weights": {
+                        "mtb_momentum_weight": 1.15,
+                        "ai_strictness": 1.10,
+                        "grid_step_factor": 0.95,
+                    },
                 },
             },
             "backtest_test": {
@@ -378,7 +433,11 @@ class PipelineStageCollector:
                 },
                 "input_contract": {
                     "source": "Verified Backtest & Shadow Results",
-                    "upgrades": ["Dynamic ATR Stop Loss", "Multi-Timeframe Confirmation Filter", "Volatile Coin Grid Spacing"],
+                    "upgrades": [
+                        "Dynamic ATR Stop Loss",
+                        "Multi-Timeframe Confirmation Filter",
+                        "Volatile Coin Grid Spacing",
+                    ],
                 },
                 "output_contract": {
                     "destination": "Autonomous Feedback Loop (↺)",
@@ -399,12 +458,18 @@ class PipelineStageCollector:
                 "status": "CONTINUOUS",
                 "metrics": {
                     "loop_status": "CLOSED-LOOP AUTONOMOUS",
-                    "last_feedback_cycle": datetime.now(timezone.utc).strftime("%H:%M:%S UTC"),
+                    "last_feedback_cycle": datetime.now(timezone.utc).strftime(
+                        "%H:%M:%S UTC"
+                    ),
                     "total_iterations": 142,
                 },
                 "input_contract": {
                     "source": "Improved Strategy Parameters",
-                    "target_subsystems": ["Scanner Universe", "Signal Engine Thresholds", "AI Sizing Models"],
+                    "target_subsystems": [
+                        "Scanner Universe",
+                        "Signal Engine Thresholds",
+                        "AI Sizing Models",
+                    ],
                 },
                 "output_contract": {
                     "destination": "Stage 01 (Market Data & Ingestion Screener)",
@@ -419,7 +484,7 @@ class PipelineStageCollector:
 
     # ── State Accessors ───────────────────────────────────────────────────────
 
-    def get_all_stages(self) -> List[Dict[str, Any]]:
+    def get_all_stages(self) -> list[dict[str, Any]]:
         """Return list of all 14 pipeline stages with current metrics and status."""
         return [
             {
@@ -436,7 +501,7 @@ class PipelineStageCollector:
             for s in self._stages.values()
         ]
 
-    def get_stage_detail(self, stage_id: str) -> Optional[Dict[str, Any]]:
+    def get_stage_detail(self, stage_id: str) -> dict[str, Any] | None:
         """Return deep telemetry and data contracts for a specific stage."""
         return self._stages.get(stage_id)
 
@@ -449,15 +514,29 @@ class PipelineStageCollector:
         if event_type == EventType.SIGNAL_GENERATED.value:
             coin = payload.get("coin", "UNKNOWN")
             score = payload.get("score", 0)
-            self._stages["signal_engine"]["last_event"] = {"type": event_type, "coin": coin, "score": score, "time": now_str}
+            self._stages["signal_engine"]["last_event"] = {
+                "type": event_type,
+                "coin": coin,
+                "score": score,
+                "time": now_str,
+            }
             self._stages["signal_engine"]["metrics"]["signals_generated_today"] += 1
             self._stages["signal_engine"]["status"] = "ACTIVE"
 
-        elif event_type in (EventType.SIGNAL_AI_CONFIRMED.value, EventType.SIGNAL_AI_REJECTED.value):
+        elif event_type in (
+            EventType.SIGNAL_AI_CONFIRMED.value,
+            EventType.SIGNAL_AI_REJECTED.value,
+        ):
             coin = payload.get("coin", "UNKNOWN")
             rec = payload.get("recommendation", "EVALUATED")
             conf = payload.get("confidence_score", 85)
-            self._stages["ai_intelligence"]["last_event"] = {"type": event_type, "coin": coin, "recommendation": rec, "confidence": conf, "time": now_str}
+            self._stages["ai_intelligence"]["last_event"] = {
+                "type": event_type,
+                "coin": coin,
+                "recommendation": rec,
+                "confidence": conf,
+                "time": now_str,
+            }
             self._stages["ai_intelligence"]["metrics"]["ai_evaluations_today"] += 1
             self._stages["ai_intelligence"]["status"] = "ACTIVE"
 
@@ -465,28 +544,58 @@ class PipelineStageCollector:
             coin = payload.get("coin", "UNKNOWN")
             bot = payload.get("bot", "MTB")
             amt = payload.get("approved_amount", 0.0)
-            self._stages["trade_constructor"]["last_event"] = {"type": "ORDER_CONSTRUCTED", "coin": coin, "bot": bot, "amount": amt, "time": now_str}
-            self._stages["risk_engine"]["last_event"] = {"type": event_type, "coin": coin, "bot": bot, "amount": amt, "status": "APPROVED", "time": now_str}
+            self._stages["trade_constructor"]["last_event"] = {
+                "type": "ORDER_CONSTRUCTED",
+                "coin": coin,
+                "bot": bot,
+                "amount": amt,
+                "time": now_str,
+            }
+            self._stages["risk_engine"]["last_event"] = {
+                "type": event_type,
+                "coin": coin,
+                "bot": bot,
+                "amount": amt,
+                "status": "APPROVED",
+                "time": now_str,
+            }
             self._stages["risk_engine"]["metrics"]["trades_approved"] += 1
             self._stages["risk_engine"]["status"] = "ACTIVE"
 
         elif event_type == EventType.TRADE_DENIED.value:
             coin = payload.get("coin", "UNKNOWN")
             code = payload.get("code", "DENIED")
-            self._stages["risk_engine"]["last_event"] = {"type": event_type, "coin": coin, "code": code, "status": "DENIED", "time": now_str}
+            self._stages["risk_engine"]["last_event"] = {
+                "type": event_type,
+                "coin": coin,
+                "code": code,
+                "status": "DENIED",
+                "time": now_str,
+            }
             self._stages["risk_engine"]["metrics"]["trades_denied"] += 1
 
         elif event_type == EventType.TRADE_EXECUTED.value:
             coin = payload.get("coin", "UNKNOWN")
             bot = payload.get("bot", "MTB")
             price = payload.get("entry_price", 0.0)
-            self._stages["auto_trade"]["last_event"] = {"type": event_type, "coin": coin, "bot": bot, "price": price, "time": now_str}
+            self._stages["auto_trade"]["last_event"] = {
+                "type": event_type,
+                "coin": coin,
+                "bot": bot,
+                "price": price,
+                "time": now_str,
+            }
             self._stages["auto_trade"]["metrics"]["executed_trades_today"] += 1
             self._stages["auto_trade"]["status"] = "ACTIVE"
 
         elif event_type == EventType.POSITION_OPENED.value:
             coin = payload.get("coin", "UNKNOWN")
-            self._stages["position_manager"]["last_event"] = {"type": event_type, "coin": coin, "action": "POSITION_OPENED", "time": now_str}
+            self._stages["position_manager"]["last_event"] = {
+                "type": event_type,
+                "coin": coin,
+                "action": "POSITION_OPENED",
+                "time": now_str,
+            }
             self._stages["position_manager"]["metrics"]["active_open_positions"] += 1
             self._stages["position_manager"]["status"] = "ACTIVE"
 
@@ -494,9 +603,24 @@ class PipelineStageCollector:
             coin = payload.get("coin", "UNKNOWN")
             pnl = payload.get("pnl", 0.0)
             reason = payload.get("exit_reason", "EXIT")
-            self._stages["position_manager"]["last_event"] = {"type": event_type, "coin": coin, "pnl": pnl, "reason": reason, "time": now_str}
-            self._stages["position_manager"]["metrics"]["active_open_positions"] = max(0, self._stages["position_manager"]["metrics"]["active_open_positions"] - 1)
-            self._stages["trade_journal"]["last_event"] = {"type": "TRADE_LOGGED", "coin": coin, "pnl": pnl, "time": now_str}
+            self._stages["position_manager"]["last_event"] = {
+                "type": event_type,
+                "coin": coin,
+                "pnl": pnl,
+                "reason": reason,
+                "time": now_str,
+            }
+            self._stages["position_manager"]["metrics"]["active_open_positions"] = max(
+                0,
+                self._stages["position_manager"]["metrics"]["active_open_positions"]
+                - 1,
+            )
+            self._stages["trade_journal"]["last_event"] = {
+                "type": "TRADE_LOGGED",
+                "coin": coin,
+                "pnl": pnl,
+                "time": now_str,
+            }
             self._stages["trade_journal"]["metrics"]["persisted_trades"] += 1
             self._stages["learning_engine"]["metrics"]["learning_cycles_run"] += 1
             self._stages["autonomous_loop"]["metrics"]["total_iterations"] += 1
@@ -505,6 +629,11 @@ class PipelineStageCollector:
         elif event_type == EventType.PORTFOLIO_UPDATED.value:
             daily_pnl = payload.get("daily_pnl", 0.0)
             util = payload.get("capital_utilisation", 0.0)
-            self._stages["analytics"]["last_event"] = {"type": event_type, "daily_pnl": daily_pnl, "util": util, "time": now_str}
+            self._stages["analytics"]["last_event"] = {
+                "type": event_type,
+                "daily_pnl": daily_pnl,
+                "util": util,
+                "time": now_str,
+            }
             self._stages["analytics"]["metrics"]["realized_pnl_today"] = daily_pnl
             self._stages["analytics"]["metrics"]["capital_utilisation_pct"] = util

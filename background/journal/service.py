@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
@@ -46,7 +46,7 @@ class JournalService:
 
     def compute_statutory_friction(
         self, entry_price: float, exit_price: float, quantity: float
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Compute exact statutory friction and Indian crypto tax breakdown:
           - Buy Exchange Fee: 0.20% of buy notional
@@ -71,7 +71,9 @@ class JournalService:
         tds_194s = round(sell_notional * 0.01, 4)
         slippage_cost = round((buy_notional + sell_notional) * 0.0005, 4)
 
-        total_statutory_drag = round(exchange_fee + gst_tax + tds_194s + slippage_cost, 4)
+        total_statutory_drag = round(
+            exchange_fee + gst_tax + tds_194s + slippage_cost, 4
+        )
 
         return {
             "buy_notional": buy_notional,
@@ -84,7 +86,7 @@ class JournalService:
         }
 
     async def on_position_closed(
-        self, event_type: EventType, payload: Dict[str, Any]
+        self, event_type: EventType, payload: dict[str, Any]
     ) -> None:
         """
         EventBus handler for POSITION_CLOSED events.
@@ -92,8 +94,12 @@ class JournalService:
         and saves journal record.
         """
         try:
-            position_id = str(payload.get("position_id") or payload.get("id") or "UNKNOWN_POS")
-            bot_name = str(payload.get("bot") or payload.get("bot_name") or "STE").upper()
+            position_id = str(
+                payload.get("position_id") or payload.get("id") or "UNKNOWN_POS"
+            )
+            bot_name = str(
+                payload.get("bot") or payload.get("bot_name") or "STE"
+            ).upper()
             pair = str(payload.get("pair") or "BTC/INR").upper()
             side = str(payload.get("side") or "BUY").upper()
 
@@ -119,18 +125,33 @@ class JournalService:
             exit_reason = str(payload.get("exit_reason") or "TP_HIT").upper()
 
             # PnL & Statutory calculations
-            gross_pnl = round((exit_price - entry_price) * quantity if side == "BUY" else (entry_price - exit_price) * quantity, 2)
-            friction = self.compute_statutory_friction(entry_price, exit_price, quantity)
+            gross_pnl = round(
+                (
+                    (exit_price - entry_price) * quantity
+                    if side == "BUY"
+                    else (entry_price - exit_price) * quantity
+                ),
+                2,
+            )
+            friction = self.compute_statutory_friction(
+                entry_price, exit_price, quantity
+            )
 
             total_drag = friction["total_statutory_drag"]
             net_pnl = round(gross_pnl - total_drag, 2)
 
             buy_notional = friction["buy_notional"]
-            net_pnl_pct = round((net_pnl / buy_notional) * 100.0, 2) if buy_notional > 0 else 0.0
+            net_pnl_pct = (
+                round((net_pnl / buy_notional) * 100.0, 2) if buy_notional > 0 else 0.0
+            )
 
             # Excursion metrics (MFE & MAE)
-            peak_price = float(payload.get("peak_price") or max(entry_price, exit_price))
-            trough_price = float(payload.get("trough_price") or min(entry_price, exit_price))
+            peak_price = float(
+                payload.get("peak_price") or max(entry_price, exit_price)
+            )
+            trough_price = float(
+                payload.get("trough_price") or min(entry_price, exit_price)
+            )
 
             mfe = round(max(0.0, (peak_price - entry_price) * quantity), 4)
             mae = round(max(0.0, (entry_price - trough_price) * quantity), 4)
@@ -168,7 +189,9 @@ class JournalService:
             }
 
             await self._journal_repo.insert_entry(journal_entry)
-            logger.info("Processed post-trade journal entry for position %s", position_id)
+            logger.info(
+                "Processed post-trade journal entry for position %s", position_id
+            )
 
         except Exception as exc:
             logger.error("Failed to journal closed position: %s", exc, exc_info=True)

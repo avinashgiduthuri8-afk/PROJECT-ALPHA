@@ -9,10 +9,9 @@ the existing test suite.
 from __future__ import annotations
 
 import numpy as np
-from typing import Tuple
-
 
 # ── EMA ───────────────────────────────────────────────────────────────────────
+
 
 def compute_ema(prices: np.ndarray, period: int) -> np.ndarray:
     """
@@ -33,6 +32,7 @@ def compute_ema(prices: np.ndarray, period: int) -> np.ndarray:
 
 # ── RSI ───────────────────────────────────────────────────────────────────────
 
+
 def compute_rsi(prices: np.ndarray, period: int = 14) -> np.ndarray:
     """
     Relative Strength Index (Wilder's smoothed RS).
@@ -49,7 +49,7 @@ def compute_rsi(prices: np.ndarray, period: int = 14) -> np.ndarray:
     # Seed averages
     avg_gain = np.mean(gains[:period])
     avg_loss = np.mean(losses[:period])
-    
+
     if avg_loss == 0:
         result[period] = 100.0
     else:
@@ -67,12 +67,13 @@ def compute_rsi(prices: np.ndarray, period: int = 14) -> np.ndarray:
 
 # ── MACD ──────────────────────────────────────────────────────────────────────
 
+
 def compute_macd(
     prices: np.ndarray,
     fast: int = 12,
     slow: int = 26,
     signal_period: int = 9,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     MACD Line, Signal Line, and Histogram.
     Returns (macd, signal, hist) — all same length as prices.
@@ -80,32 +81,33 @@ def compute_macd(
     ema_fast = compute_ema(prices, fast)
     ema_slow = compute_ema(prices, slow)
     macd = ema_fast - ema_slow
-    
+
     valid_idx = np.where(~np.isnan(macd))[0]
     if len(valid_idx) < signal_period:
         signal = np.full(len(macd), np.nan)
         hist = np.full(len(macd), np.nan)
         return macd, signal, hist
-        
+
     first_valid = valid_idx[0]
     valid_macd = macd[first_valid:]
-    
+
     valid_signal = compute_ema(valid_macd, signal_period)
-    
+
     signal = np.full(len(macd), np.nan)
     signal[first_valid:] = valid_signal
     hist = macd - signal
-    
+
     return macd, signal, hist
 
 
 # ── Bollinger Bands ───────────────────────────────────────────────────────────
 
+
 def compute_bollinger(
     prices: np.ndarray,
     period: int = 20,
     std_dev: float = 2.0,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Bollinger Bands: (upper, mid, lower).
     Mid = SMA(period). Upper/Lower = mid ± std_dev * rolling std.
@@ -127,6 +129,7 @@ def compute_bollinger(
 
 
 # ── ATR ───────────────────────────────────────────────────────────────────────
+
 
 def compute_atr(
     high: np.ndarray,
@@ -166,6 +169,7 @@ def compute_atr(
 
 # ── RVOL ─────────────────────────────────────────────────────────────────────
 
+
 def compute_rvol(volume: np.ndarray, period: int = 20) -> float:
     """
     Relative Volume: latest bar's volume / average volume of previous `period` bars.
@@ -181,6 +185,7 @@ def compute_rvol(volume: np.ndarray, period: int = 20) -> float:
 
 # ── SMA ───────────────────────────────────────────────────────────────────────
 
+
 def compute_sma(prices: np.ndarray, period: int) -> np.ndarray:
     """Simple Moving Average."""
     result = np.full(len(prices), np.nan)
@@ -191,8 +196,8 @@ def compute_sma(prices: np.ndarray, period: int) -> np.ndarray:
 
 # ── Utility: safe last non-NaN ────────────────────────────────────────────────
 
+
 def last_valid(arr: np.ndarray) -> float:
     """Return the last non-NaN value in the array, or 0.0."""
     valid = arr[~np.isnan(arr)]
     return float(valid[-1]) if len(valid) > 0 else 0.0
-

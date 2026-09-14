@@ -11,18 +11,20 @@ Verifies that ReconciliationService & TradingService accurately detect:
   7. Position mismatches (crypto asset holding discrepancies vs SQLite open positions)
 """
 
+import uuid
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
+
 import pytest
 
-from core.types import BotMode, BotName, Position, PositionStatus
 from core.repository.db import Database
 from core.repository.position_repo import PositionRepository
+from core.types import BotMode, BotName, Position, PositionStatus
 from execution.reconciliation import ReconciliationService
-from execution.trading.subaccount_manager import CoinDCXSubAccountManager, CoinDCXSubAccountClient, SubAccountConfig
+from execution.trading.subaccount_manager import (
+    CoinDCXSubAccountManager,
+)
 
-
-import uuid
 
 @pytest.fixture
 async def test_env():
@@ -52,7 +54,14 @@ async def test_reconciliation_clean_state(test_env):
     client = mgr.get_client(BotName.STE)
 
     client.get_active_orders = AsyncMock(return_value={"success": True, "orders": []})
-    client.get_balances = AsyncMock(return_value={"success": True, "inr_balance": 10000.0, "inr_locked": 0.0, "asset_balances": {}})
+    client.get_balances = AsyncMock(
+        return_value={
+            "success": True,
+            "inr_balance": 10000.0,
+            "inr_locked": 0.0,
+            "asset_balances": {},
+        }
+    )
 
     res = await rec_service.reconcile_positions()
     assert res["status"] == "IN_SYNC"
@@ -69,27 +78,39 @@ async def test_reconciliation_detects_orphan_orders(test_env):
     client = mgr.get_client(BotName.STE)
 
     # Active order on exchange not in SQLite
-    client.get_active_orders = AsyncMock(return_value={
-        "success": True,
-        "orders": [
-            {
-                "id": "ex-orphan-999",
-                "client_order_id": "cl-orphan-999",
-                "market": "BTCINR",
-                "side": "buy",
-                "status": "open",
-                "price_per_unit": 7500000.0,
-                "total_quantity": 0.001,
-            }
-        ]
-    })
-    client.get_balances = AsyncMock(return_value={"success": True, "inr_balance": 10000.0, "inr_locked": 0.0, "asset_balances": {}})
+    client.get_active_orders = AsyncMock(
+        return_value={
+            "success": True,
+            "orders": [
+                {
+                    "id": "ex-orphan-999",
+                    "client_order_id": "cl-orphan-999",
+                    "market": "BTCINR",
+                    "side": "buy",
+                    "status": "open",
+                    "price_per_unit": 7500000.0,
+                    "total_quantity": 0.001,
+                }
+            ],
+        }
+    )
+    client.get_balances = AsyncMock(
+        return_value={
+            "success": True,
+            "inr_balance": 10000.0,
+            "inr_locked": 0.0,
+            "asset_balances": {},
+        }
+    )
 
     res = await rec_service.reconcile_positions()
     assert res["status"] == "DISCREPANCIES_DETECTED"
     assert len(res["orphan_orders"]) == 1
     assert res["orphan_orders"][0]["exchange_order_id"] == "ex-orphan-999"
-    assert res["orphan_orders"][0]["action"] in ("CANCELLED_ORPHAN_ORDER", "FLAGGED_ORPHAN_ORDER")
+    assert res["orphan_orders"][0]["action"] in (
+        "CANCELLED_ORPHAN_ORDER",
+        "FLAGGED_ORPHAN_ORDER",
+    )
 
 
 @pytest.mark.anyio
@@ -114,9 +135,20 @@ async def test_reconciliation_detects_missing_orders(test_env):
     await pos_repo.insert(pos)
 
     client.get_active_orders = AsyncMock(return_value={"success": True, "orders": []})
-    client.get_order_status = AsyncMock(return_value={"success": False, "error": "NOT_FOUND"})
-    client.get_order_by_client_id = AsyncMock(return_value={"success": False, "error": "NOT_FOUND"})
-    client.get_balances = AsyncMock(return_value={"success": True, "inr_balance": 10000.0, "inr_locked": 0.0, "asset_balances": {"SOL": 0.5}})
+    client.get_order_status = AsyncMock(
+        return_value={"success": False, "error": "NOT_FOUND"}
+    )
+    client.get_order_by_client_id = AsyncMock(
+        return_value={"success": False, "error": "NOT_FOUND"}
+    )
+    client.get_balances = AsyncMock(
+        return_value={
+            "success": True,
+            "inr_balance": 10000.0,
+            "inr_locked": 0.0,
+            "asset_balances": {"SOL": 0.5},
+        }
+    )
 
     res = await rec_service.reconcile_positions()
     assert res["status"] == "DISCREPANCIES_DETECTED"
@@ -148,13 +180,22 @@ async def test_reconciliation_aligns_partial_fills(test_env):
 
     client.get_active_orders = AsyncMock(return_value={"success": True, "orders": []})
     # Exchange says filled_qty is 0.006
-    client.get_order_status = AsyncMock(return_value={
-        "success": True,
-        "status": "PARTIALLY_FILLED",
-        "filled_qty": 0.006,
-        "exchange_order_id": "ex-partial-202",
-    })
-    client.get_balances = AsyncMock(return_value={"success": True, "inr_balance": 10000.0, "inr_locked": 0.0, "asset_balances": {"ETH": 0.006}})
+    client.get_order_status = AsyncMock(
+        return_value={
+            "success": True,
+            "status": "PARTIALLY_FILLED",
+            "filled_qty": 0.006,
+            "exchange_order_id": "ex-partial-202",
+        }
+    )
+    client.get_balances = AsyncMock(
+        return_value={
+            "success": True,
+            "inr_balance": 10000.0,
+            "inr_locked": 0.0,
+            "asset_balances": {"ETH": 0.006},
+        }
+    )
 
     res = await rec_service.reconcile_positions()
     assert res["status"] == "DISCREPANCIES_DETECTED"
@@ -189,13 +230,22 @@ async def test_reconciliation_repairs_cancelled_orders(test_env):
     await pos_repo.insert(pos)
 
     client.get_active_orders = AsyncMock(return_value={"success": True, "orders": []})
-    client.get_order_status = AsyncMock(return_value={
-        "success": True,
-        "status": "CANCELLED",
-        "filled_qty": 0.0,
-        "exchange_order_id": "ex-canc-303",
-    })
-    client.get_balances = AsyncMock(return_value={"success": True, "inr_balance": 10000.0, "inr_locked": 0.0, "asset_balances": {}})
+    client.get_order_status = AsyncMock(
+        return_value={
+            "success": True,
+            "status": "CANCELLED",
+            "filled_qty": 0.0,
+            "exchange_order_id": "ex-canc-303",
+        }
+    )
+    client.get_balances = AsyncMock(
+        return_value={
+            "success": True,
+            "inr_balance": 10000.0,
+            "inr_locked": 0.0,
+            "asset_balances": {},
+        }
+    )
 
     res = await rec_service.reconcile_positions()
     assert res["status"] == "DISCREPANCIES_DETECTED"
@@ -220,12 +270,14 @@ async def test_reconciliation_detects_balance_mismatch(test_env):
 
     client.get_active_orders = AsyncMock(return_value={"success": True, "orders": []})
     # CoinDCX real balance returns 8500.0 INR
-    client.get_balances = AsyncMock(return_value={
-        "success": True,
-        "inr_balance": 8500.0,
-        "inr_locked": 0.0,
-        "asset_balances": {},
-    })
+    client.get_balances = AsyncMock(
+        return_value={
+            "success": True,
+            "inr_balance": 8500.0,
+            "inr_locked": 0.0,
+            "asset_balances": {},
+        }
+    )
 
     res = await rec_service.reconcile_positions()
     assert res["status"] == "DISCREPANCIES_DETECTED"
@@ -260,20 +312,24 @@ async def test_reconciliation_detects_position_asset_mismatch(test_env):
     await pos_repo.insert(pos)
 
     client.get_active_orders = AsyncMock(return_value={"success": True, "orders": []})
-    client.get_order_status = AsyncMock(return_value={
-        "success": True,
-        "status": "FILLED",
-        "filled_qty": 0.005,
-        "exchange_order_id": "ex-btc-404",
-    })
+    client.get_order_status = AsyncMock(
+        return_value={
+            "success": True,
+            "status": "FILLED",
+            "filled_qty": 0.005,
+            "exchange_order_id": "ex-btc-404",
+        }
+    )
 
     # CoinDCX holding says BTC = 0.002 (0.003 difference!)
-    client.get_balances = AsyncMock(return_value={
-        "success": True,
-        "inr_balance": 10000.0,
-        "inr_locked": 0.0,
-        "asset_balances": {"BTC": 0.002},
-    })
+    client.get_balances = AsyncMock(
+        return_value={
+            "success": True,
+            "inr_balance": 10000.0,
+            "inr_locked": 0.0,
+            "asset_balances": {"BTC": 0.002},
+        }
+    )
 
     res = await rec_service.reconcile_positions()
     assert res["status"] == "DISCREPANCIES_DETECTED"
@@ -290,20 +346,33 @@ async def test_reconciliation_cancels_orphan_orders(test_env):
     mgr = test_env["mgr"]
     client = mgr.get_client(BotName.STE)
 
-    client.get_active_orders = AsyncMock(return_value={
-        "success": True,
-        "orders": [{
-            "id": "ex-orphan-auto-cancel-123",
-            "client_order_id": "cl-orphan-123",
-            "market": "ETHINR",
-            "side": "buy",
-            "status": "open",
-            "price_per_unit": 250000.0,
-            "total_quantity": 0.01,
-        }]
-    })
-    client.cancel_order = AsyncMock(return_value={"success": True, "result": {"status": "cancelled"}})
-    client.get_balances = AsyncMock(return_value={"success": True, "inr_balance": 10000.0, "inr_locked": 0.0, "asset_balances": {}})
+    client.get_active_orders = AsyncMock(
+        return_value={
+            "success": True,
+            "orders": [
+                {
+                    "id": "ex-orphan-auto-cancel-123",
+                    "client_order_id": "cl-orphan-123",
+                    "market": "ETHINR",
+                    "side": "buy",
+                    "status": "open",
+                    "price_per_unit": 250000.0,
+                    "total_quantity": 0.01,
+                }
+            ],
+        }
+    )
+    client.cancel_order = AsyncMock(
+        return_value={"success": True, "result": {"status": "cancelled"}}
+    )
+    client.get_balances = AsyncMock(
+        return_value={
+            "success": True,
+            "inr_balance": 10000.0,
+            "inr_locked": 0.0,
+            "asset_balances": {},
+        }
+    )
 
     res = await rec_service.reconcile_positions()
     assert res["status"] == "DISCREPANCIES_DETECTED"
@@ -335,29 +404,38 @@ async def test_reconciliation_desynced_missing_balance(test_env):
     await pos_repo.insert(pos)
 
     client.get_active_orders = AsyncMock(return_value={"success": True, "orders": []})
-    client.get_order_status = AsyncMock(return_value={
-        "success": True,
-        "status": "FILLED",
-        "filled_qty": 1.0,
-        "exchange_order_id": "ex-sol-505",
-    })
+    client.get_order_status = AsyncMock(
+        return_value={
+            "success": True,
+            "status": "FILLED",
+            "filled_qty": 1.0,
+            "exchange_order_id": "ex-sol-505",
+        }
+    )
     # Asset balance on CoinDCX is 0.0!
-    client.get_balances = AsyncMock(return_value={
-        "success": True,
-        "inr_balance": 10000.0,
-        "inr_locked": 0.0,
-        "asset_balances": {"SOL": 0.0},
-    })
+    client.get_balances = AsyncMock(
+        return_value={
+            "success": True,
+            "inr_balance": 10000.0,
+            "inr_locked": 0.0,
+            "asset_balances": {"SOL": 0.0},
+        }
+    )
 
     res = await rec_service.reconcile_positions()
     assert res["status"] == "DISCREPANCIES_DETECTED"
     assert len(res["desynced_positions"]) == 1
     assert res["desynced_positions"][0]["position_id"] == "pos-desync-505"
-    assert res["desynced_positions"][0]["action"] == "TRANSITIONED_TO_DESYNCED_MISSING_BALANCE"
+    assert (
+        res["desynced_positions"][0]["action"]
+        == "TRANSITIONED_TO_DESYNCED_MISSING_BALANCE"
+    )
 
     # Verify status in SQLite repo
     updated = await pos_repo.get_by_id("pos-desync-505")
-    assert getattr(updated.status, "value", updated.status) == "DESYNCED_MISSING_BALANCE"
+    assert (
+        getattr(updated.status, "value", updated.status) == "DESYNCED_MISSING_BALANCE"
+    )
 
 
 @pytest.mark.anyio
@@ -383,18 +461,22 @@ async def test_reconciliation_handles_external_manual_exit(test_env):
     await pos_repo.insert(pos)
 
     client.get_active_orders = AsyncMock(return_value={"success": True, "orders": []})
-    client.get_order_status = AsyncMock(return_value={
-        "success": True,
-        "status": "MANUALLY_CLOSED",
-        "avg_price": 60.0,
-        "exchange_order_id": "ex-xrp-606",
-    })
-    client.get_balances = AsyncMock(return_value={
-        "success": True,
-        "inr_balance": 10000.0,
-        "inr_locked": 0.0,
-        "asset_balances": {"XRP": 0.0},
-    })
+    client.get_order_status = AsyncMock(
+        return_value={
+            "success": True,
+            "status": "MANUALLY_CLOSED",
+            "avg_price": 60.0,
+            "exchange_order_id": "ex-xrp-606",
+        }
+    )
+    client.get_balances = AsyncMock(
+        return_value={
+            "success": True,
+            "inr_balance": 10000.0,
+            "inr_locked": 0.0,
+            "asset_balances": {"XRP": 0.0},
+        }
+    )
 
     res = await rec_service.reconcile_positions()
     assert res["status"] == "DISCREPANCIES_DETECTED"

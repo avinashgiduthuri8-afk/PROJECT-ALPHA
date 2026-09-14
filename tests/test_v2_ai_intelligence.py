@@ -5,20 +5,29 @@ Unit and Integration Tests for Phase 4: AI Intelligence Layer.
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone, timedelta
 import json
 import uuid
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock, patch
 
 import httpx
+import pytest
 from fastapi import FastAPI
 
+from background.ai import (
+    AIIntelligenceService,
+    FallbackEvaluator,
+    GeminiClient,
+    build_signal_prompt,
+)
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
 from core.config import V2Config
+from core.repository.ai_repo import AIAnalysisRepository
+from core.repository.db import Database
+from core.repository.event_log_repo import EventLogRepository
+from core.repository.signal_repo import SignalRepository
 from core.types import (
-    AIAnalysis,
     AIRecommendation,
     MarketState,
     OppType,
@@ -26,18 +35,8 @@ from core.types import (
     RiskLevel,
     Signal,
 )
-from core.repository.db import Database
-from core.repository.signal_repo import SignalRepository
-from core.repository.ai_repo import AIAnalysisRepository
-from core.repository.event_log_repo import EventLogRepository
-from background.ai import (
-    AIIntelligenceService,
-    FallbackEvaluator,
-    GeminiClient,
-    build_signal_prompt,
-    AI_EVALUATION_SCHEMA,
-)
-from dashboard.api.router import router as api_router, init_router
+from dashboard.api.router import init_router
+from dashboard.api.router import router as api_router
 
 
 def make_test_signal(
@@ -82,6 +81,7 @@ def make_test_signal(
 
 # ── 1. Domain Types & Prompt Building Tests ───────────────────────────────────
 
+
 def test_ai_recommendation_enum():
     assert AIRecommendation.APPROVE == "APPROVE"
     assert AIRecommendation.REJECT == "REJECT"
@@ -99,6 +99,7 @@ def test_build_signal_prompt_formatting():
 
 
 # ── 2. Fallback Evaluator Rule Tests ──────────────────────────────────────────
+
 
 def test_fallback_evaluator_strong_bull_signal():
     sig = make_test_signal(
@@ -147,6 +148,7 @@ def test_fallback_evaluator_downtrend_or_avoid_rejects():
 
 # ── 3. AI Repository & Database Tests ─────────────────────────────────────────
 
+
 @pytest.mark.anyio
 async def test_ai_repository_crud(tmp_path):
     db_path = str(tmp_path / f"test_ai_repo_{uuid.uuid4().hex[:6]}.db")
@@ -187,6 +189,7 @@ async def test_ai_repository_crud(tmp_path):
 
 # ── 4. AI Intelligence Service & Event Bus Tests ──────────────────────────────
 
+
 @pytest.mark.anyio
 async def test_ai_service_evaluate_and_publishes_events(tmp_path):
     db_path = str(tmp_path / f"test_ai_service_{uuid.uuid4().hex[:6]}.db")
@@ -199,7 +202,9 @@ async def test_ai_service_evaluate_and_publishes_events(tmp_path):
         signal_repo = SignalRepository(conn)
         ai_repo = AIAnalysisRepository(conn)
         event_log = EventLogRepository(conn)
-        cfg = V2Config(v2_db_path=db_path, v2_ai_enabled=True, v2_ai_confidence_threshold=70)
+        cfg = V2Config(
+            v2_db_path=db_path, v2_ai_enabled=True, v2_ai_confidence_threshold=70
+        )
 
         service = AIIntelligenceService(
             bus=bus,
@@ -214,9 +219,14 @@ async def test_ai_service_evaluate_and_publishes_events(tmp_path):
         confirmed_events = []
         rejected_events = []
 
-        async def on_eval(et, p): evaluated_events.append(p)
-        async def on_conf(et, p): confirmed_events.append(p)
-        async def on_rej(et, p): rejected_events.append(p)
+        async def on_eval(et, p):
+            evaluated_events.append(p)
+
+        async def on_conf(et, p):
+            confirmed_events.append(p)
+
+        async def on_rej(et, p):
+            rejected_events.append(p)
 
         bus.subscribe(EventType.SIGNAL_AI_EVALUATED, on_eval)
         bus.subscribe(EventType.SIGNAL_AI_CONFIRMED, on_conf)
@@ -233,7 +243,12 @@ async def test_ai_service_evaluate_and_publishes_events(tmp_path):
         assert confirmed_events[0]["recommendation"] in ("APPROVE", "SCALE_DOWN")
 
         # 2. Downtrend signal -> should reject
-        bear_sig = make_test_signal(coin="DOGE", score=40, market_state=MarketState.DOWNTREND, opp_type=OppType.AVOID)
+        bear_sig = make_test_signal(
+            coin="DOGE",
+            score=40,
+            market_state=MarketState.DOWNTREND,
+            opp_type=OppType.AVOID,
+        )
         await signal_repo.insert(bear_sig)
         await service.evaluate_signal(bear_sig)
 
@@ -264,7 +279,9 @@ async def test_ai_service_on_signal_generated_subscription(tmp_path):
         signal_repo = SignalRepository(conn)
         ai_repo = AIAnalysisRepository(conn)
         event_log = EventLogRepository(conn)
-        cfg = V2Config(v2_db_path=db_path, v2_ai_enabled=True, v2_ai_min_priority="Medium")
+        cfg = V2Config(
+            v2_db_path=db_path, v2_ai_enabled=True, v2_ai_min_priority="Medium"
+        )
 
         service = AIIntelligenceService(
             bus=bus,
@@ -279,7 +296,9 @@ async def test_ai_service_on_signal_generated_subscription(tmp_path):
         await signal_repo.insert(sig)
 
         # Publish SIGNAL_GENERATED to bus
-        await bus.publish(EventType.SIGNAL_GENERATED, {"signal_id": sig.id, "coin": "AVAX"})
+        await bus.publish(
+            EventType.SIGNAL_GENERATED, {"signal_id": sig.id, "coin": "AVAX"}
+        )
         await asyncio.sleep(0.05)
 
         recent = await ai_repo.get_by_coin("AVAX")
@@ -292,6 +311,7 @@ async def test_ai_service_on_signal_generated_subscription(tmp_path):
 
 
 # ── 5. Mocked Gemini API Client Tests ─────────────────────────────────────────
+
 
 @pytest.mark.anyio
 async def test_gemini_client_mock_success():
@@ -307,20 +327,22 @@ async def test_gemini_client_mock_success():
         "setup_quality": "High grade momentum breakout",
         "market_regime": "bull_trend",
         "risk_reward_assessment": "Favorable 2.8:1 asymmetric profile",
-        "supporting_factors": ["Clean resistance break", "Volume surge", "MTF confirmation"],
+        "supporting_factors": [
+            "Clean resistance break",
+            "Volume surge",
+            "MTF confirmation",
+        ],
         "conflicts": [],
         "risk_factors": ["Crypto macro headline risk"],
-        "suggested_adjustments": {"size_multiplier": 1.2, "tighten_stop": False, "target_notes": "Aim for 3R"},
+        "suggested_adjustments": {
+            "size_multiplier": 1.2,
+            "tighten_stop": False,
+            "target_notes": "Aim for 3R",
+        },
     }
 
     mock_resp = {
-        "candidates": [
-            {
-                "content": {
-                    "parts": [{"text": json.dumps(mock_gemini_json)}]
-                }
-            }
-        ]
+        "candidates": [{"content": {"parts": [{"text": json.dumps(mock_gemini_json)}]}}]
     }
 
     with patch("httpx.AsyncClient.post") as mock_post:
@@ -339,10 +361,12 @@ async def test_gemini_client_mock_success():
 
 # ── 6. FastAPI Router Endpoints Tests ─────────────────────────────────────────
 
+
 @pytest.mark.anyio
 async def test_ai_api_endpoints(tmp_path, monkeypatch):
     monkeypatch.setenv("DASHBOARD_API_KEY", "test-secret-key")
-    from core.config import invalidate_config, get_config
+    from core.config import get_config, invalidate_config
+
     invalidate_config()
 
     db_path = str(tmp_path / f"test_ai_api_{uuid.uuid4().hex[:6]}.db")
@@ -382,7 +406,9 @@ async def test_ai_api_endpoints(tmp_path, monkeypatch):
         )
 
         transport = httpx.ASGITransport(app=app)
-        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        async with httpx.AsyncClient(
+            transport=transport, base_url="http://test"
+        ) as client:
             headers = {"X-API-Key": "test-secret-key"}
 
             # 1. Health endpoint
@@ -418,6 +444,7 @@ async def test_ai_api_endpoints(tmp_path, monkeypatch):
             # 5. Synthetic signal simulation endpoint
             from dashboard.service import DashboardService
             from dashboard.websocket import WebSocketManager
+
             ws_mgr = WebSocketManager()
             dash_service = DashboardService(bus=bus, ws_manager=ws_mgr, config=cfg)
             init_router(
@@ -429,7 +456,12 @@ async def test_ai_api_endpoints(tmp_path, monkeypatch):
 
             sim_resp = await client.post(
                 "/api/v2/learning/simulate-signal",
-                json={"pair": "SOL/INR", "bot_name": "STE", "score": 89, "price": 10140.0},
+                json={
+                    "pair": "SOL/INR",
+                    "bot_name": "STE",
+                    "score": 89,
+                    "price": 10140.0,
+                },
                 headers=headers,
             )
             assert sim_resp.status_code == 200
@@ -446,4 +478,3 @@ async def test_ai_api_endpoints(tmp_path, monkeypatch):
             await service.stop()
         await db.close()
         invalidate_config()
-

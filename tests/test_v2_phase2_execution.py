@@ -11,29 +11,34 @@ Verifies:
 
 from __future__ import annotations
 
-import asyncio
 import inspect
-import os
 import uuid
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from core.bus.event_bus import EventBus
-from core.bus.event_types import EventType
-from core.types import BotMode, BotName, ExitReason, Position, PositionStatus, Signal
 from core.repository.db import Database
 from core.repository.position_repo import PositionRepository
 from core.repository.trade_repo import TradeRepository
+from core.types import BotMode, BotName, ExitReason, Position, PositionStatus
 from execution.auto_trader import AutoTradeRouter
 from execution.position_manager import (
-    STATUTORY_ROUND_TRIP_DRAG_RATE, PositionManager, PositionState
+    STATUTORY_ROUND_TRIP_DRAG_RATE,
+    PositionManager,
 )
 from execution.reconciliation import ReconciliationService
 from execution.recovery import RestartRecoveryService
-from execution.trading.precision_rules import get_pair_spec, round_price, round_qty, validate_order_notional
-from execution.trading.subaccount_manager import CoinDCXSubAccountClient, CoinDCXSubAccountManager, SubAccountConfig
+from execution.trading.precision_rules import (
+    round_price,
+    round_qty,
+    validate_order_notional,
+)
+from execution.trading.subaccount_manager import (
+    CoinDCXSubAccountClient,
+    CoinDCXSubAccountManager,
+    SubAccountConfig,
+)
 
 
 async def _create_test_db(tmp_path):
@@ -49,6 +54,7 @@ async def _create_test_db(tmp_path):
 # =============================================================================
 # 1. Precision & Notional Enforcement Tests
 # =============================================================================
+
 
 class TestPrecisionAndNotionalEnforcement:
 
@@ -98,6 +104,7 @@ class TestPrecisionAndNotionalEnforcement:
 # =============================================================================
 # 2. Sub-account Routing & HMAC Signature Tests
 # =============================================================================
+
 
 class TestSubAccountRoutingAndHMAC:
 
@@ -165,7 +172,9 @@ class TestSubAccountRoutingAndHMAC:
 
         mock_resp = MagicMock()
         mock_resp.status_code = 200
-        mock_resp.json.return_value = {"orders": [{"id": "CDX_ORD_999", "status": "open"}]}
+        mock_resp.json.return_value = {
+            "orders": [{"id": "CDX_ORD_999", "status": "open"}]
+        }
         mock_resp.raise_for_status.return_value = None
 
         with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
@@ -174,7 +183,9 @@ class TestSubAccountRoutingAndHMAC:
             res = await client.place_order_async("BTC/INR", "BUY", 8000000.0, 0.0001)
             assert res["success"] is True
             assert res["order"]["live_dispatched"] is True
-            assert res["order"]["exchange_response"] == {"orders": [{"id": "CDX_ORD_999", "status": "open"}]}
+            assert res["order"]["exchange_response"] == {
+                "orders": [{"id": "CDX_ORD_999", "status": "open"}]
+            }
 
             # Verify HTTP call arguments
             mock_post.assert_called_once()
@@ -217,15 +228,24 @@ class TestSubAccountRoutingAndHMAC:
         # 1. Test 429 Rate Limit
         mock_429 = MagicMock()
         mock_429.status_code = 429
-        with patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_429):
+        with patch(
+            "httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_429
+        ):
             res_429 = await client.place_order_async("SOL/INR", "BUY", 12000.0, 0.02)
             assert res_429["success"] is False
             assert res_429["error"] == "RATE_LIMITED"
 
         # 2. Test Timeout
         import httpx
-        with patch("httpx.AsyncClient.post", new_callable=AsyncMock, side_effect=httpx.TimeoutException("Timeout")):
-            res_timeout = await client.place_order_async("SOL/INR", "BUY", 12000.0, 0.02)
+
+        with patch(
+            "httpx.AsyncClient.post",
+            new_callable=AsyncMock,
+            side_effect=httpx.TimeoutException("Timeout"),
+        ):
+            res_timeout = await client.place_order_async(
+                "SOL/INR", "BUY", 12000.0, 0.02
+            )
             assert res_timeout["success"] is False
             assert res_timeout["error"] == "TIMEOUT"
 
@@ -233,6 +253,7 @@ class TestSubAccountRoutingAndHMAC:
 # =============================================================================
 # 3. Bracket & Trailing SL/TP Evaluation Tests
 # =============================================================================
+
 
 class TestBracketAndTrailingEvaluation:
 
@@ -305,6 +326,7 @@ class TestBracketAndTrailingEvaluation:
 # 4. Statutory Fee Deduction Tests
 # =============================================================================
 
+
 class TestStatutoryFeeDeduction:
 
     @pytest.mark.anyio
@@ -327,10 +349,14 @@ class TestStatutoryFeeDeduction:
             # Statutory drag = 210000 * (0.01572 / 2) = 1650.60
             # Gross PnL = 10000.0
             # Net PnL = 10000.0 - 1650.60 = 8349.40
-            closed_pos, trade = await pm.close_position(pos.id, exit_price=110000.0, exit_reason=ExitReason.TAKE_PROFIT)
+            closed_pos, trade = await pm.close_position(
+                pos.id, exit_price=110000.0, exit_reason=ExitReason.TAKE_PROFIT
+            )
 
             assert trade is not None
-            expected_fee_drag = (100000.0 + 110000.0) * (STATUTORY_ROUND_TRIP_DRAG_RATE / 2.0)
+            expected_fee_drag = (100000.0 + 110000.0) * (
+                STATUTORY_ROUND_TRIP_DRAG_RATE / 2.0
+            )
             expected_net_pnl = round(10000.0 - expected_fee_drag, 2)
 
             assert abs(trade.pnl - expected_net_pnl) < 0.05
@@ -341,6 +367,7 @@ class TestStatutoryFeeDeduction:
 # =============================================================================
 # 5. Restart Recovery & Reconciliation Tests
 # =============================================================================
+
 
 class TestRestartRecoveryAndReconciliation:
 
@@ -377,7 +404,9 @@ class TestRestartRecoveryAndReconciliation:
             await pos_repo.insert(p1)
             await pos_repo.insert(p2)
 
-            recovery = RestartRecoveryService(position_repo=pos_repo, subaccount_manager=mgr)
+            recovery = RestartRecoveryService(
+                position_repo=pos_repo, subaccount_manager=mgr
+            )
             rehydrated = await recovery.rehydrate_state()
 
             assert len(rehydrated) == 2
@@ -415,7 +444,9 @@ class TestRestartRecoveryAndReconciliation:
         try:
             mgr = CoinDCXSubAccountManager()
 
-            rec_service = ReconciliationService(position_repo=pos_repo, subaccount_manager=mgr)
+            rec_service = ReconciliationService(
+                position_repo=pos_repo, subaccount_manager=mgr
+            )
             result = await rec_service.reconcile_positions()
 
             assert "is_clean" in result

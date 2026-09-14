@@ -10,7 +10,6 @@ Mandate:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict
 
 from .data_feeder import get_pair_spec, round_qty
 from .friction import FrictionConfig
@@ -18,7 +17,7 @@ from .friction import FrictionConfig
 
 @dataclass
 class Stage06RiskGate:
-    max_risk_pct_per_trade: float = 1.0       # 1.0% max account equity risk per trade
+    max_risk_pct_per_trade: float = 1.0  # 1.0% max account equity risk per trade
     max_equity_allocation_pct: float = 25.0  # Max 25% account equity in a single trade
     friction_config: FrictionConfig = None
 
@@ -32,12 +31,17 @@ class Stage06RiskGate:
         entry_price: float,
         stop_loss_price: float,
         pair: str = "BTC/INR",
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Calculates exact risk-adjusted position quantity and amount with discrete lot rounding.
         """
         if account_equity <= 0 or entry_price <= 0:
-            return {"qty": 0.0, "amount": 0.0, "risk_capital": 0.0, "stop_loss_pct": 0.0}
+            return {
+                "qty": 0.0,
+                "amount": 0.0,
+                "risk_capital": 0.0,
+                "stop_loss_pct": 0.0,
+            }
 
         spec = get_pair_spec(pair)
 
@@ -46,13 +50,15 @@ class Stage06RiskGate:
         sl_pct = (sl_distance / entry_price) * 100.0
 
         # 2. Add total friction drag (fees + GST + TDS + slippage)
-        total_risk_per_unit_pct = sl_pct + self.friction_config.total_round_trip_drag_pct
+        total_risk_per_unit_pct = (
+            sl_pct + self.friction_config.total_round_trip_drag_pct
+        )
 
         # 3. Maximum allowed risk capital
         net_risk_capital = account_equity * (self.max_risk_pct_per_trade / 100.0)
 
         # 4. Position size in quote currency (₹)
-        position_amount = (net_risk_capital / (total_risk_per_unit_pct / 100.0))
+        position_amount = net_risk_capital / (total_risk_per_unit_pct / 100.0)
 
         # 5. Cap position size at max equity allocation limit
         max_allowed_amount = account_equity * (self.max_equity_allocation_pct / 100.0)
@@ -72,7 +78,12 @@ class Stage06RiskGate:
                 rounded_qty = spec.min_qty
                 actual_notional = rounded_qty * entry_price
             else:
-                return {"qty": 0.0, "amount": 0.0, "risk_capital": 0.0, "stop_loss_pct": 0.0}
+                return {
+                    "qty": 0.0,
+                    "amount": 0.0,
+                    "risk_capital": 0.0,
+                    "stop_loss_pct": 0.0,
+                }
 
         return {
             "qty": rounded_qty,

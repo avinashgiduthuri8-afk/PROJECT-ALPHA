@@ -5,27 +5,31 @@ Position Lifecycle Reconciliation, and 1.572% Statutory Friction Accounting.
 
 from __future__ import annotations
 
-import asyncio
 import uuid
+from datetime import datetime, timezone
+
 import pytest
-from datetime import datetime, timezone, timedelta
 from fastapi.testclient import TestClient
 
 from app import app
+from background.backtest.friction import CoinDCXFrictionModel
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
-from core.config import V2Config, get_config, invalidate_config
-from core.types import BotMode, BotName, ExitReason, MarketState, OppType, Position, PositionStatus, Priority, RiskLevel, Signal
+from core.config import V2Config, invalidate_config
 from core.repository.db import Database
 from core.repository.event_log_repo import EventLogRepository
 from core.repository.position_repo import PositionRepository
 from core.repository.trade_repo import TradeRepository
-from core.repository.signal_repo import SignalRepository
-from core.repository.ai_repo import AIAnalysisRepository
+from core.types import (
+    BotMode,
+    BotName,
+    ExitReason,
+    Position,
+    PositionStatus,
+)
 from execution.risk.service import RiskService
 from execution.service import TradingService
 from execution.trading.subaccount_manager import CoinDCXSubAccountManager
-from background.backtest.friction import CoinDCXFrictionModel
 
 
 @pytest.fixture(autouse=True)
@@ -54,11 +58,30 @@ async def test_shadow_mode_isolation_and_single_coin_lock(tmp_path):
     pos_repo = PositionRepository(db.connection)
     trade_repo = TradeRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
-    cfg = V2Config(v2_deployment_mode="SHADOW", v2_trading_enabled=False, total_capital_limit=10000.0, order_size_inr=200.0, enforce_single_coin_lock=True)
+    cfg = V2Config(
+        v2_deployment_mode="SHADOW",
+        v2_trading_enabled=False,
+        total_capital_limit=10000.0,
+        order_size_inr=200.0,
+        enforce_single_coin_lock=True,
+    )
 
-    risk_service = RiskService(bus=bus, position_repo=pos_repo, trade_repo=trade_repo, event_log_repo=event_repo, config=cfg)
+    risk_service = RiskService(
+        bus=bus,
+        position_repo=pos_repo,
+        trade_repo=trade_repo,
+        event_log_repo=event_repo,
+        config=cfg,
+    )
     subaccount_mgr = CoinDCXSubAccountManager()
-    trading_service = TradingService(bus=bus, position_repo=pos_repo, trade_repo=trade_repo, event_log_repo=event_repo, config=cfg, subaccount_manager=subaccount_mgr)
+    trading_service = TradingService(
+        bus=bus,
+        position_repo=pos_repo,
+        trade_repo=trade_repo,
+        event_log_repo=event_repo,
+        config=cfg,
+        subaccount_manager=subaccount_mgr,
+    )
 
     await risk_service.start()
     await trading_service.start()
@@ -82,13 +105,17 @@ async def test_shadow_mode_isolation_and_single_coin_lock(tmp_path):
     assert open_pos[0].qty > 0
 
     # 2. Test Single-Coin Lock: Subsequent HDA signal on SOL must be blocked
-    dec = await risk_service.check_trade_allowed(BotName.HDA, 200.0, coin="SOL", pair="SOL/INR")
+    dec = await risk_service.check_trade_allowed(
+        BotName.HDA, 200.0, coin="SOL", pair="SOL/INR"
+    )
     assert dec.allowed is False
     assert dec.code == "OPPORTUNITY_LOCKED_ACTIVE_PAIR"
     assert "already has an active open position" in dec.reason
 
     # 3. Non-conflicting coin (ETH) is allowed
-    dec_eth = await risk_service.check_trade_allowed(BotName.HDA, 200.0, coin="ETH", pair="ETH/INR")
+    dec_eth = await risk_service.check_trade_allowed(
+        BotName.HDA, 200.0, coin="ETH", pair="ETH/INR"
+    )
     assert dec_eth.allowed is True
 
     await risk_service.stop()
@@ -107,10 +134,22 @@ async def test_bracket_exit_and_statutory_friction(tmp_path):
     pos_repo = PositionRepository(db.connection)
     trade_repo = TradeRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
-    cfg = V2Config(v2_deployment_mode="SHADOW", v2_trading_enabled=False, total_capital_limit=10000.0, order_size_inr=200.0)
+    cfg = V2Config(
+        v2_deployment_mode="SHADOW",
+        v2_trading_enabled=False,
+        total_capital_limit=10000.0,
+        order_size_inr=200.0,
+    )
 
     subaccount_mgr = CoinDCXSubAccountManager()
-    trading_service = TradingService(bus=bus, position_repo=pos_repo, trade_repo=trade_repo, event_log_repo=event_repo, config=cfg, subaccount_manager=subaccount_mgr)
+    trading_service = TradingService(
+        bus=bus,
+        position_repo=pos_repo,
+        trade_repo=trade_repo,
+        event_log_repo=event_repo,
+        config=cfg,
+        subaccount_manager=subaccount_mgr,
+    )
     await trading_service.start()
 
     # Create position with entry=10000.0, SL=9500.0, TP=11000.0, qty=0.02 (₹200 notional)
@@ -166,7 +205,11 @@ def test_production_mode_controller_api():
         assert "open_positions_count" in data_status
 
         # 2. Switch to LIVE_MICROCASH
-        r_mode = client.post("/api/v2/production/set-mode", json={"mode": "LIVE_MICROCASH", "password": "110299"}, headers=headers)
+        r_mode = client.post(
+            "/api/v2/production/set-mode",
+            json={"mode": "LIVE_MICROCASH", "password": "110299"},
+            headers=headers,
+        )
         assert r_mode.status_code == 200
         assert r_mode.json()["mode"] == "LIVE_MICROCASH"
         assert r_mode.json()["trading_enabled"] is True
@@ -183,7 +226,9 @@ def test_production_mode_controller_api():
         assert r_kill.json()["trading_enabled"] is False
 
         # 4. Switch back to PAPER
-        r_shadow = client.post("/api/v2/production/set-mode", json={"mode": "PAPER"}, headers=headers)
+        r_shadow = client.post(
+            "/api/v2/production/set-mode", json={"mode": "PAPER"}, headers=headers
+        )
         assert r_shadow.status_code == 200
         assert r_shadow.json()["mode"] == "PAPER"
 

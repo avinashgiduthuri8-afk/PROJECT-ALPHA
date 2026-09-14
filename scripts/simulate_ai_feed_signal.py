@@ -11,8 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-import sys
-from datetime import datetime, timezone
+
 import httpx
 import websockets
 
@@ -61,10 +60,14 @@ async def run_live_simulation(
                     ftype = frame.get("type")
                     fdata = frame.get("data", {})
                     received_frames.append(frame)
-                    if ftype in ("signal.ai_confirmed", "signal.ai_rejected", "signal.generated"):
+                    if ftype in (
+                        "signal.ai_confirmed",
+                        "signal.ai_rejected",
+                        "signal.generated",
+                    ):
                         print(f"[WS REAL-TIME FRAME RECEIVED] Type: {ftype}")
                         print(f"   Data: {json.dumps(fdata, indent=2)}")
-        except Exception as e:
+        except Exception:
             pass
 
     ws_task = asyncio.create_task(ws_listener())
@@ -72,15 +75,23 @@ async def run_live_simulation(
 
     # 2. Dispatch Synthetic Signal via REST Endpoint
     async with httpx.AsyncClient(timeout=15.0) as client:
-        print(f"\n[EMITTING] Synthetic signal to {base_url}/api/learning/simulate-signal...")
-        resp = await client.post(f"{base_url}/api/learning/simulate-signal", json=payload, headers=headers)
+        print(
+            f"\n[EMITTING] Synthetic signal to {base_url}/api/learning/simulate-signal..."
+        )
+        resp = await client.post(
+            f"{base_url}/api/learning/simulate-signal", json=payload, headers=headers
+        )
         if resp.status_code == 200:
             res_data = resp.json()
             print("\n[AI EVALUATION VERDICT RECEIVED]:")
             print(f"   Signal ID:      {res_data.get('signal_id')}")
-            print(f"   Pair / Bot:     {res_data.get('pair')} ({res_data.get('bot_name')})")
+            print(
+                f"   Pair / Bot:     {res_data.get('pair')} ({res_data.get('bot_name')})"
+            )
             print(f"   Score:          {res_data.get('confluence_score')} / 100")
-            print(f"   Recommendation: {res_data.get('ai_recommendation')} (Confidence: {res_data.get('confidence_score')}%)")
+            print(
+                f"   Recommendation: {res_data.get('ai_recommendation')} (Confidence: {res_data.get('confidence_score')}%)"
+            )
             print(f"   Setup Quality:  {res_data.get('setup_quality')}")
             print(f"   AI Model:       {res_data.get('model_name')}")
             print(f"   Supporting:     {res_data.get('supporting_factors')}")

@@ -8,8 +8,8 @@ risk-adjusted ratios (Sharpe, Sortino, Calmar), strategy & pair attribution matr
 from __future__ import annotations
 
 import math
-from datetime import datetime, timezone, timedelta
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timedelta, timezone
+from typing import Any
 
 import numpy as np
 
@@ -27,17 +27,21 @@ class AnalyticsEngine:
 
     async def compute_performance_metrics(
         self,
-        bot_name: Optional[str] = None,
-        pair: Optional[str] = None,
+        bot_name: str | None = None,
+        pair: str | None = None,
         limit: int = 1000,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Compute full quantitative performance metrics over recorded trade journal entries.
         """
-        entries = await self._journal_repo.get_entries(limit=limit, offset=0, bot_name=bot_name, pair=pair)
+        entries = await self._journal_repo.get_entries(
+            limit=limit, offset=0, bot_name=bot_name, pair=pair
+        )
         return self.calculate_metrics_from_entries(entries)
 
-    def calculate_metrics_from_entries(self, entries: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def calculate_metrics_from_entries(
+        self, entries: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """
         Pure calculation function processing list of trade journal dict entries into performance dict.
         """
@@ -96,12 +100,16 @@ class AnalyticsEngine:
         cum_pnl = np.cumsum(net_pnls)
         peak = np.maximum.accumulate(cum_pnl)
         drawdown_inr = peak - cum_pnl
-        max_drawdown_inr = round(float(np.max(drawdown_inr)), 2) if len(drawdown_inr) > 0 else 0.0
+        max_drawdown_inr = (
+            round(float(np.max(drawdown_inr)), 2) if len(drawdown_inr) > 0 else 0.0
+        )
 
         initial_equity = 100000.0  # Base ₹1L benchmark equity
         peak_equity = np.maximum.accumulate(initial_equity + cum_pnl)
         drawdown_pct = (peak_equity - (initial_equity + cum_pnl)) / peak_equity * 100.0
-        max_drawdown_pct = round(float(np.max(drawdown_pct)), 2) if len(drawdown_pct) > 0 else 0.0
+        max_drawdown_pct = (
+            round(float(np.max(drawdown_pct)), 2) if len(drawdown_pct) > 0 else 0.0
+        )
 
         avg_duration = int(np.mean(durations)) if durations else 0
 
@@ -112,7 +120,9 @@ class AnalyticsEngine:
         avg_loss = float(np.mean(losses)) if losses else 0.0
         win_rate_frac = winning_trades / total_trades
         loss_rate_frac = losing_trades / total_trades
-        net_expectancy = round((win_rate_frac * avg_win) - (loss_rate_frac * avg_loss), 2)
+        net_expectancy = round(
+            (win_rate_frac * avg_win) - (loss_rate_frac * avg_loss), 2
+        )
 
         # Risk-Adjusted Ratios (Sharpe, Sortino, Calmar)
         sharpe_ratio = self._calculate_sharpe_ratio(pnl_pcts)
@@ -122,7 +132,9 @@ class AnalyticsEngine:
         # Execution Efficiency (MFE Capture)
         mfes = [float(e.get("mfe", 0.0) or 0.0) for e in entries]
         total_mfe = sum(mfes)
-        mfe_capture_ratio = round((total_net_pnl / total_mfe), 2) if total_mfe > 0 else 0.0
+        mfe_capture_ratio = (
+            round((total_net_pnl / total_mfe), 2) if total_mfe > 0 else 0.0
+        )
 
         # Multi-Horizon Win Rates
         horizon_win_rates = self._compute_horizon_win_rates(entries)
@@ -154,7 +166,9 @@ class AnalyticsEngine:
             "pair_attribution": pair_attribution,
         }
 
-    def _calculate_sharpe_ratio(self, returns_pct: List[float], annualization_factor: float = 365.0) -> float:
+    def _calculate_sharpe_ratio(
+        self, returns_pct: list[float], annualization_factor: float = 365.0
+    ) -> float:
         if not returns_pct or len(returns_pct) < 2:
             return 0.0
         arr = np.array(returns_pct)
@@ -164,29 +178,37 @@ class AnalyticsEngine:
         mean_ret = float(np.mean(arr))
         return round((mean_ret / std) * math.sqrt(annualization_factor), 2)
 
-    def _calculate_sortino_ratio(self, returns_pct: List[float], annualization_factor: float = 365.0) -> float:
+    def _calculate_sortino_ratio(
+        self, returns_pct: list[float], annualization_factor: float = 365.0
+    ) -> float:
         if not returns_pct or len(returns_pct) < 2:
             return 0.0
         arr = np.array(returns_pct)
         downside = arr[arr < 0]
         if len(downside) == 0:
             mean_ret = float(np.mean(arr))
-            return round(mean_ret * math.sqrt(annualization_factor), 2) if mean_ret > 0 else 0.0
+            return (
+                round(mean_ret * math.sqrt(annualization_factor), 2)
+                if mean_ret > 0
+                else 0.0
+            )
         downside_std = float(np.std(downside))
         if downside_std == 0.0:
-            downside_std = float(np.sqrt(np.mean(downside ** 2)))
+            downside_std = float(np.sqrt(np.mean(downside**2)))
         if downside_std == 0.0:
             return 0.0
         mean_ret = float(np.mean(arr))
         return round((mean_ret / downside_std) * math.sqrt(annualization_factor), 2)
 
-    def _calculate_calmar_ratio(self, returns_pct: List[float], max_drawdown_pct: float) -> float:
+    def _calculate_calmar_ratio(
+        self, returns_pct: list[float], max_drawdown_pct: float
+    ) -> float:
         if not returns_pct or max_drawdown_pct <= 0:
             return 0.0
         annualized_return = float(np.sum(returns_pct))
         return round(annualized_return / max_drawdown_pct, 2)
 
-    def _empty_horizon_win_rates(self) -> Dict[str, float]:
+    def _empty_horizon_win_rates(self) -> dict[str, float]:
         return {
             "1h": 0.0,
             "4h": 0.0,
@@ -196,7 +218,9 @@ class AnalyticsEngine:
             "all_time": 0.0,
         }
 
-    def _compute_horizon_win_rates(self, entries: List[Dict[str, Any]]) -> Dict[str, float]:
+    def _compute_horizon_win_rates(
+        self, entries: list[dict[str, Any]]
+    ) -> dict[str, float]:
         now = datetime.now(timezone.utc)
         horizons = {
             "1h": timedelta(hours=1),
@@ -206,7 +230,7 @@ class AnalyticsEngine:
             "30d": timedelta(days=30),
         }
 
-        results: Dict[str, float] = {}
+        results: dict[str, float] = {}
 
         for h_key, delta in horizons.items():
             cutoff = now - delta
@@ -227,17 +251,21 @@ class AnalyticsEngine:
                 results[h_key] = 0.0
 
         all_wins = sum(1 for e in entries if float(e.get("net_pnl", 0.0)) > 0)
-        results["all_time"] = round((all_wins / len(entries)) * 100.0, 2) if entries else 0.0
+        results["all_time"] = (
+            round((all_wins / len(entries)) * 100.0, 2) if entries else 0.0
+        )
 
         return results
 
-    def _compute_strategy_attribution(self, entries: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
-        grouped: Dict[str, List[Dict[str, Any]]] = {}
+    def _compute_strategy_attribution(
+        self, entries: list[dict[str, Any]]
+    ) -> dict[str, dict[str, Any]]:
+        grouped: dict[str, list[dict[str, Any]]] = {}
         for e in entries:
             bot = str(e.get("bot_name", "STE")).upper()
             grouped.setdefault(bot, []).append(e)
 
-        attribution: Dict[str, Dict[str, Any]] = {}
+        attribution: dict[str, dict[str, Any]] = {}
         for bot in ("STE", "HDA", "VCP", "BBS"):
             bot_entries = grouped.get(bot, [])
             if not bot_entries:
@@ -252,7 +280,11 @@ class AnalyticsEngine:
                 wins = sum(1 for p in pnls if p > 0)
                 gains = sum(p for p in pnls if p > 0)
                 losses = abs(sum(p for p in pnls if p < 0))
-                pf = round(gains / losses, 2) if losses > 0 else (round(gains, 2) if gains > 0 else 0.0)
+                pf = (
+                    round(gains / losses, 2)
+                    if losses > 0
+                    else (round(gains, 2) if gains > 0 else 0.0)
+                )
 
                 attribution[bot] = {
                     "trades": len(bot_entries),
@@ -263,13 +295,15 @@ class AnalyticsEngine:
 
         return attribution
 
-    def _compute_pair_attribution(self, entries: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
-        grouped: Dict[str, List[Dict[str, Any]]] = {}
+    def _compute_pair_attribution(
+        self, entries: list[dict[str, Any]]
+    ) -> dict[str, dict[str, Any]]:
+        grouped: dict[str, list[dict[str, Any]]] = {}
         for e in entries:
             pair = str(e.get("pair", "BTC/INR")).upper()
             grouped.setdefault(pair, []).append(e)
 
-        attribution: Dict[str, Dict[str, Any]] = {}
+        attribution: dict[str, dict[str, Any]] = {}
         for pair, p_entries in grouped.items():
             pnls = [float(e.get("net_pnl", 0.0)) for e in p_entries]
             wins = sum(1 for p in pnls if p > 0)

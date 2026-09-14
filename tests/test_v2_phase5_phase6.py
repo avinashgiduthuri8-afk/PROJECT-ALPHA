@@ -6,18 +6,26 @@ and Phase 6 (Shadow Mode Engine & Decision Divergence Tracking) — Production F
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone, timedelta
 import uuid
-import pytest
+from datetime import datetime, timedelta, timezone
 
 import httpx
+import pytest
 from fastapi import FastAPI
 
+from background.portfolio import PortfolioService
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
 from core.config import V2Config, get_config, invalidate_config
+from core.repository.ai_repo import AIAnalysisRepository
+from core.repository.db import Database
+from core.repository.event_log_repo import EventLogRepository
+from core.repository.metrics_repo import MetricsRepository
+from core.repository.position_repo import PositionRepository
+from core.repository.shadow_repo import ShadowRepository
+from core.repository.signal_repo import SignalRepository
+from core.repository.trade_repo import TradeRepository
 from core.types import (
-    AIRecommendation,
     BotMode,
     BotName,
     ExitReason,
@@ -29,29 +37,19 @@ from core.types import (
     RiskLevel,
     ShadowTrade,
     Signal,
-    Trade,
 )
-from core.repository.db import Database
-from core.repository.signal_repo import SignalRepository
-from core.repository.ai_repo import AIAnalysisRepository
-from core.repository.position_repo import PositionRepository
-from core.repository.trade_repo import TradeRepository
-from core.repository.shadow_repo import ShadowRepository
-from core.repository.metrics_repo import MetricsRepository
-from core.repository.event_log_repo import EventLogRepository
-
-from execution.risk import RiskService, CapitalGuard, CircuitBreaker
-from background.portfolio import PortfolioService, PortfolioAggregator
+from dashboard.api.router import init_router
+from dashboard.api.router import router as api_router
 from execution import (
-    TradingService,
-    STEAdapter,
-    HDAAdapter,
-    VCPAdapter,
     BBSAdapter,
+    HDAAdapter,
+    STEAdapter,
     StrategyAdapterFactory,
+    TradingService,
+    VCPAdapter,
 )
-from execution.shadow import ShadowService, ShadowEngine, DivergenceTracker
-from dashboard.api.router import router as api_router, init_router
+from execution.risk import CapitalGuard, CircuitBreaker, RiskService
+from execution.shadow import ShadowService
 
 
 def make_test_signal(
@@ -82,6 +80,7 @@ def make_test_signal(
 
 # ── 1. Bot Adapter Strategy Tests ─────────────────────────────────────────────
 
+
 def test_ste_adapter_calculations():
     adapter = STEAdapter()
     order = adapter.calculate_order(
@@ -93,8 +92,8 @@ def test_ste_adapter_calculations():
     )
     assert order["bot"] == BotName.STE
     assert order["qty"] == 5.0
-    assert order["stop_loss"] == 98.0   # -2.0%
-    assert order["take_profit"] == 104.6 # +4.6%
+    assert order["stop_loss"] == 98.0  # -2.0%
+    assert order["take_profit"] == 104.6  # +4.6%
 
     # Tightened stop
     order_tight = adapter.calculate_order(
@@ -118,7 +117,7 @@ def test_hda_adapter_calculations():
     )
     assert order["bot"] == BotName.HDA
     assert order["stop_loss"] == 1956.0  # -2.2%
-    assert order["take_profit"] == 2105.6 # +5.28%
+    assert order["take_profit"] == 2105.6  # +5.28%
 
 
 def test_vcp_adapter_calculations():
@@ -132,7 +131,7 @@ def test_vcp_adapter_calculations():
     )
     assert order["bot"] == BotName.VCP
     assert order["stop_loss"] == 2730.0  # -2.5%
-    assert order["take_profit"] == 2940.0 # +5.0%
+    assert order["take_profit"] == 2940.0  # +5.0%
 
 
 def test_bbs_adapter_calculations():
@@ -165,6 +164,7 @@ def test_strategy_adapter_factory():
 
 
 # ── 2. Capital Guard & Circuit Breaker Tests ──────────────────────────────────
+
 
 def test_capital_guard_limits():
     cfg = V2Config(
@@ -238,6 +238,7 @@ def test_circuit_breaker_trips_and_resets():
 
 # ── 3. Shadow Repository CRUD Tests ───────────────────────────────────────────
 
+
 @pytest.mark.anyio
 async def test_shadow_repository_crud(tmp_path):
     db_path = str(tmp_path / f"test_shadow_{uuid.uuid4().hex[:6]}.db")
@@ -292,6 +293,7 @@ async def test_shadow_repository_crud(tmp_path):
 
 # ── 4. End-to-End Trading & Risk Service Integration ──────────────────────────
 
+
 @pytest.mark.anyio
 async def test_risk_and_trading_service_flow(tmp_path):
     db_path = str(tmp_path / f"test_flow_{uuid.uuid4().hex[:6]}.db")
@@ -320,7 +322,9 @@ async def test_risk_and_trading_service_flow(tmp_path):
 
         risk_service = RiskService(bus, pos_repo, trade_repo, event_log, cfg)
         shadow_service = ShadowService(bus, shadow_repo, event_log, cfg)
-        trading_service = TradingService(bus, pos_repo, trade_repo, event_log, cfg, shadow_service.engine)
+        trading_service = TradingService(
+            bus, pos_repo, trade_repo, event_log, cfg, shadow_service.engine
+        )
 
         await risk_service.start()
         await shadow_service.start()
@@ -328,8 +332,13 @@ async def test_risk_and_trading_service_flow(tmp_path):
 
         approved_events = []
         executed_events = []
-        async def on_appr(et, p): approved_events.append(p)
-        async def on_exec(et, p): executed_events.append(p)
+
+        async def on_appr(et, p):
+            approved_events.append(p)
+
+        async def on_exec(et, p):
+            executed_events.append(p)
+
         bus.subscribe(EventType.TRADE_APPROVED, on_appr)
         bus.subscribe(EventType.TRADE_EXECUTED, on_exec)
 
@@ -345,7 +354,10 @@ async def test_risk_and_trading_service_flow(tmp_path):
                 "pair": "SOL/INR",
                 "recommendation": "APPROVE",
                 "confidence_score": 85,
-                "suggested_adjustments": {"size_multiplier": 1.0, "tighten_stop": False},
+                "suggested_adjustments": {
+                    "size_multiplier": 1.0,
+                    "tighten_stop": False,
+                },
                 "price": 100.0,
                 "bot": "STE",
             },
@@ -375,13 +387,17 @@ async def test_risk_and_trading_service_flow(tmp_path):
         assert len(open_pos_after) == 0
 
     finally:
-        if trading_service: await trading_service.stop()
-        if shadow_service: await shadow_service.stop()
-        if risk_service: await risk_service.stop()
+        if trading_service:
+            await trading_service.stop()
+        if shadow_service:
+            await shadow_service.stop()
+        if risk_service:
+            await risk_service.stop()
         await db.close()
 
 
 # ── 5. Portfolio Aggregator & Service Tests ───────────────────────────────────
+
 
 @pytest.mark.anyio
 async def test_portfolio_service_aggregation(tmp_path):
@@ -425,11 +441,13 @@ async def test_portfolio_service_aggregation(tmp_path):
         assert snapshot.total_aum == 100050.0
         assert len(snapshot.positions_by_bot[BotName.STE.value]) == 1
     finally:
-        if port_service: await port_service.stop()
+        if port_service:
+            await port_service.stop()
         await db.close()
 
 
 # ── 6. FastAPI Endpoints Tests (Phase 5 & 6) ──────────────────────────────────
+
 
 @pytest.mark.anyio
 async def test_api_endpoints_phase5_phase6(tmp_path, monkeypatch):

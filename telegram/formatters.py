@@ -100,7 +100,6 @@ def format_position_opened_alert(payload: dict[str, Any]) -> str:
     )
 
 
-
 def format_position_closed_alert(payload: dict[str, Any]) -> str:
     """Format position closed / trade exit alert."""
     coin = payload.get("coin", "UNKNOWN")
@@ -158,6 +157,7 @@ def format_generic_alert(payload: dict[str, Any]) -> str:
 
 # ── Interactive Telegram C2 Interface Formatters ──────────────────────────────
 
+
 def format_telegram_menu(overview: dict[str, Any]) -> str:
     """Format the primary Mission Control interactive hub menu."""
     status_str = overview.get("status", "HEALTHY")
@@ -205,7 +205,11 @@ def format_telegram_bot_fleet(fleet: dict[str, Any] | list[dict[str, Any]]) -> s
     bbs_status = bot_statuses.get("BBS", "ACTIVE")
 
     def _icon(s: str) -> str:
-        return "🟢 ACTIVE" if s.upper() in ("ACTIVE", "HEALTHY", "RUNNING", "IDLE") else f"🟡 {s.upper()}"
+        return (
+            "🟢 ACTIVE"
+            if s.upper() in ("ACTIVE", "HEALTHY", "RUNNING", "IDLE")
+            else f"🟡 {s.upper()}"
+        )
 
     pnl_sign = "+" if daily_pnl >= 0 else ""
 
@@ -238,7 +242,9 @@ def format_telegram_pipeline_stages(stages: list[dict[str, Any]]) -> str:
         rejected = s.get("rejected_count", 0)
         icon = "🟢" if status == "ACTIVE" else "🟡" if status == "STANDBY" else "⚪"
 
-        line = f"<b>{num:02d}. {name}</b> {icon}\n   └ Processed: <code>{processed}</code>"
+        line = (
+            f"<b>{num:02d}. {name}</b> {icon}\n   └ Processed: <code>{processed}</code>"
+        )
         if rejected > 0:
             line += f" | Filtered: <code>{rejected}</code>"
         lines.append(line)
@@ -299,7 +305,7 @@ def format_telegram_positions(positions: list[dict[str, Any]]) -> str:
         status = p.get("status", "OPEN")
         sl = p.get("stop_loss")
         tp = p.get("take_profit")
-        
+
         is_usdt = "USDT" in pair or p.get("quote") == "USDT"
         sym = "$" if is_usdt else "₹"
         deployed = float(p.get("amount", 0.0) or (qty * entry))
@@ -316,8 +322,16 @@ def format_telegram_positions(positions: list[dict[str, Any]]) -> str:
                 f"   • Status: <code>{status}</code>"
             )
         else:
-            unrealized = float(p.get("unrealised_pnl", 0.0) if p.get("unrealised_pnl") is not None else (cur - entry) * qty)
-            unrealized_pct = (unrealized / deployed * 100.0) if deployed > 0 else (((cur - entry) / entry) * 100.0 if entry > 0 else 0.0)
+            unrealized = float(
+                p.get("unrealised_pnl", 0.0)
+                if p.get("unrealised_pnl") is not None
+                else (cur - entry) * qty
+            )
+            unrealized_pct = (
+                (unrealized / deployed * 100.0)
+                if deployed > 0
+                else (((cur - entry) / entry) * 100.0 if entry > 0 else 0.0)
+            )
             sign = "+" if unrealized >= 0 else ""
             pct_sign = "+" if unrealized_pct >= 0 else ""
             emoji = "🟢" if unrealized >= 0 else "🔴"
@@ -384,7 +398,9 @@ def format_telegram_signals(signals: list[dict[str, Any]]) -> str:
         score = s.get("confluence_score", s.get("score", 0))
         ai_conf = s.get("ai_confidence", s.get("confidence_score", 0))
         risk_verdict = s.get("risk_verdict", "APPROVED")
-        lines.append(f"• <b>{coin}</b> | <code>{bot}</code> | C2: <code>{score}</code> | AI: <code>{ai_conf}%</code> | Risk: <code>{risk_verdict}</code>")
+        lines.append(
+            f"• <b>{coin}</b> | <code>{bot}</code> | C2: <code>{score}</code> | AI: <code>{ai_conf}%</code> | Risk: <code>{risk_verdict}</code>"
+        )
 
     lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━")
     lines.append("<i>Use /signal &lt;symbol&gt; for technical breakdown</i>")
@@ -396,11 +412,15 @@ def format_telegram_risk(risk_state: dict[str, Any]) -> str:
     circuit_open = risk_state.get("circuit_breaker_open", False)
     emergency_stop = risk_state.get("emergency_stop", False)
     tot_raw = risk_state.get("total_capital_limit")
-    total_cap_str = f"₹{float(tot_raw):,.2f}" if tot_raw is not None else "Dynamic (Unconstrained)"
+    total_cap_str = (
+        f"₹{float(tot_raw):,.2f}" if tot_raw is not None else "Dynamic (Unconstrained)"
+    )
     deployed = risk_state.get("per_bot_deployed", {})
     open_counts = risk_state.get("per_bot_open_count", {})
 
-    status_icon = "🔴 TRIPPED" if circuit_open or emergency_stop else "🟢 HEALTHY / ACTIVE"
+    status_icon = (
+        "🔴 TRIPPED" if circuit_open or emergency_stop else "🟢 HEALTHY / ACTIVE"
+    )
 
     lines = [
         "🛡️ <b>RISK ENGINE & CIRCUIT BREAKER</b>",
@@ -424,18 +444,44 @@ def mask_sensitive_data(text: str) -> str:
     if not isinstance(text, str):
         text = str(text)
     # Redact common key/secret patterns
-    text = re.sub(r'((?:api[_-]?)?key["\']?\s*[:=]\s*["\']?)([^"\'\s,}{]+)', r'\1***REDACTED***', text, flags=re.IGNORECASE)
-    text = re.sub(r'((?:api[_-]?)?secret(?:[_-]?(?:key|token))?["\']?\s*[:=]\s*["\']?)([^"\'\s,}{]+)', r'\1***REDACTED***', text, flags=re.IGNORECASE)
-    text = re.sub(r'((?:auth[_-]?)?token["\']?\s*[:=]\s*["\']?)([^"\'\s,}{]+)', r'\1***REDACTED***', text, flags=re.IGNORECASE)
-    text = re.sub(r'(password["\']?\s*[:=]\s*["\']?)([^"\'\s,}{]+)', r'\1***REDACTED***', text, flags=re.IGNORECASE)
-    text = re.sub(r'(bot[0-9]{8,12}:[a-zA-Z0-9_-]{35})', r'***REDACTED_TELEGRAM_TOKEN***', text)
+    text = re.sub(
+        r'((?:api[_-]?)?key["\']?\s*[:=]\s*["\']?)([^"\'\s,}{]+)',
+        r"\1***REDACTED***",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r'((?:api[_-]?)?secret(?:[_-]?(?:key|token))?["\']?\s*[:=]\s*["\']?)([^"\'\s,}{]+)',
+        r"\1***REDACTED***",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r'((?:auth[_-]?)?token["\']?\s*[:=]\s*["\']?)([^"\'\s,}{]+)',
+        r"\1***REDACTED***",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r'(password["\']?\s*[:=]\s*["\']?)([^"\'\s,}{]+)',
+        r"\1***REDACTED***",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"(bot[0-9]{8,12}:[a-zA-Z0-9_-]{35})", r"***REDACTED_TELEGRAM_TOKEN***", text
+    )
     return text
 
 
 def format_telegram_status(d: dict[str, Any]) -> str:
     """Format comprehensive /status operator response."""
     mode = d.get("mode", "SHADOW")
-    cap_str = f"₹{d['available_capital']:,.2f}" if d.get("available_capital") is not None else "CAPITAL UNKNOWN"
+    cap_str = (
+        f"₹{d['available_capital']:,.2f}"
+        if d.get("available_capital") is not None
+        else "CAPITAL UNKNOWN"
+    )
     amt_str = f"₹{d.get('order_amount_inr', 200.0):,.2f}"
 
     lines = [
@@ -512,7 +558,6 @@ def format_telegram_mode(m: dict[str, Any]) -> str:
     )
 
 
-
 def format_telegram_uptime(u: dict[str, Any]) -> str:
     """Format /uptime response."""
     mode = u.get("mode", "SHADOW")
@@ -552,13 +597,17 @@ def format_telegram_scan(s: dict[str, Any]) -> str:
             score = sig.get("confluence_score", sig.get("score", 0))
             price = float(sig.get("price", 0.0))
             direction = sig.get("direction", sig.get("action", "BUY"))
-            lines.append(f"  • <b>{coin}</b> ({direction}) — Score: <code>{score}%</code> @ ₹{price:,.2f}")
+            lines.append(
+                f"  • <b>{coin}</b> ({direction}) — Score: <code>{score}%</code> @ ₹{price:,.2f}"
+            )
 
     lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━")
     return "\n".join(lines)
 
 
-def format_telegram_signal_detail(c: dict[str, Any], symbol: str, mode: str = "SHADOW") -> str:
+def format_telegram_signal_detail(
+    c: dict[str, Any], symbol: str, mode: str = "SHADOW"
+) -> str:
     """Format /signal <symbol> deep-dive inspector with 4-pillar scores & AI conviction."""
     pair = c.get("pair") or symbol.upper()
     price = float(c.get("price", 0.0))
@@ -574,8 +623,12 @@ def format_telegram_signal_detail(c: dict[str, Any], symbol: str, mode: str = "S
     # 4 Pillar Breakdown
     eval_b = c.get("eval_breakdown", {})
     chart_score = eval_b.get("chart", {}).get("score", c.get("chart_score", 80))
-    indicator_score = eval_b.get("indicator", {}).get("score", c.get("indicator_score", int(c2_score)))
-    sentiment_score = eval_b.get("sentiment", {}).get("score", c.get("sentiment_score", 85))
+    indicator_score = eval_b.get("indicator", {}).get(
+        "score", c.get("indicator_score", int(c2_score))
+    )
+    sentiment_score = eval_b.get("sentiment", {}).get(
+        "score", c.get("sentiment_score", 85)
+    )
     news_score = eval_b.get("news", {}).get("score", c.get("news_score", 90))
 
     # AI Conviction bullets
@@ -588,7 +641,11 @@ def format_telegram_signal_detail(c: dict[str, Any], symbol: str, mode: str = "S
         f"🔍 <b>SIGNAL INSPECTOR — {pair}</b>",
         f"<b>MODE: {mode}</b> | <b>Bot:</b> <code>{bot}</code>",
         "━━━━━━━━━━━━━━━━━━━━━━━━━",
-        f"• <b>Price:</b> ₹{price:,.4f}" if price < 10 else f"• <b>Price:</b> ₹{price:,.2f}",
+        (
+            f"• <b>Price:</b> ₹{price:,.4f}"
+            if price < 10
+            else f"• <b>Price:</b> ₹{price:,.2f}"
+        ),
         f"• <b>C2 Confluence Score:</b> <code>{c2_score}/100</code> (Status: <code>{status}</code>)",
         "━━━━━━━━━━━━━━━━━━━━━━━━━",
         "🏛️ <b>4-Pillar Breakdown:</b>",
@@ -600,7 +657,9 @@ def format_telegram_signal_detail(c: dict[str, Any], symbol: str, mode: str = "S
         f"🧠 <b>AI Conviction:</b> <code>{ai_rec}</code> (<code>{ai_conf}%</code>)",
     ]
     if ai_strengths:
-        lines.append(f"  • <b>Strengths:</b> {', '.join(str(s) for s in ai_strengths[:2])}")
+        lines.append(
+            f"  • <b>Strengths:</b> {', '.join(str(s) for s in ai_strengths[:2])}"
+        )
     if ai_risks:
         lines.append(f"  • <b>Risks:</b> {', '.join(str(r) for r in ai_risks[:2])}")
 
@@ -621,7 +680,7 @@ def format_telegram_watchlist(watchlist: list[str], mode: str = "SHADOW") -> str
     if not watchlist:
         lines.append("<i>Watchlist is empty.</i>")
     else:
-        chunks = [watchlist[i:i+4] for i in range(0, len(watchlist), 4)]
+        chunks = [watchlist[i : i + 4] for i in range(0, len(watchlist), 4)]
         for chunk in chunks:
             lines.append("  • " + " | ".join(f"<b>{c}</b>" for c in chunk))
     lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━")
@@ -712,14 +771,18 @@ def format_telegram_capital(c: dict[str, Any]) -> str:
     deployed = float(c.get("deployed_capital", 0.0))
     min_order = float(c.get("min_order_size", 200.0))
     order_amt = max(min_order, float(c.get("order_amount_inr", 200.0)))
-    
+
     if avail is not None:
         avail_str = f"₹{avail:,.2f}"
         headroom = max(0.0, float(avail) - deployed)
         headroom_str = f"₹{headroom:,.2f}"
     else:
-        avail_str = "CAPITAL UNKNOWN" if mode == "LIVE_MICROCASH" else "DYNAMIC (UNCONSTRAINED)"
-        headroom_str = "CAPITAL UNKNOWN" if mode == "LIVE_MICROCASH" else "DYNAMIC (UNCONSTRAINED)"
+        avail_str = (
+            "CAPITAL UNKNOWN" if mode == "LIVE_MICROCASH" else "DYNAMIC (UNCONSTRAINED)"
+        )
+        headroom_str = (
+            "CAPITAL UNKNOWN" if mode == "LIVE_MICROCASH" else "DYNAMIC (UNCONSTRAINED)"
+        )
 
     open_pos_count = int(c.get("open_positions_count", 0))
     per_bot = c.get("per_bot_allocation", {})
@@ -743,7 +806,9 @@ def format_telegram_capital(c: dict[str, Any]) -> str:
         lines.append("  • <i>Unified Dynamic Fleet Allocation</i>")
 
     lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━")
-    lines.append(f"• <b>Capital Source:</b> <code>{c.get('source', 'COINDCX_EXCHANGE' if mode == 'LIVE_MICROCASH' else 'SIMULATION')}</code>")
+    lines.append(
+        f"• <b>Capital Source:</b> <code>{c.get('source', 'COINDCX_EXCHANGE' if mode == 'LIVE_MICROCASH' else 'SIMULATION')}</code>"
+    )
     return "\n".join(lines)
 
 
@@ -777,7 +842,7 @@ def format_telegram_reconciliation(r: dict[str, Any], mode: str = "SHADOW") -> s
     discs = r.get("discrepancies", [])
 
     lines = [
-        f"🔄 <b>EXCHANGE ORDER RECONCILIATION</b>",
+        "🔄 <b>EXCHANGE ORDER RECONCILIATION</b>",
         f"<b>MODE: {mode}</b>",
         "━━━━━━━━━━━━━━━━━━━━━━━━━",
         f"• <b>Reconciliation Status:</b> {icon} <code>{status}</code>",
@@ -788,11 +853,15 @@ def format_telegram_reconciliation(r: dict[str, Any], mode: str = "SHADOW") -> s
         "━━━━━━━━━━━━━━━━━━━━━━━━━",
     ]
     if not discs:
-        lines.append("<i>Zero discrepancy detected between local ledger and exchange.</i>")
+        lines.append(
+            "<i>Zero discrepancy detected between local ledger and exchange.</i>"
+        )
     else:
         lines.append("<b>Discrepancies:</b>")
         for d in discs[:3]:
-            lines.append(f"  • {d.get('coin', 'ASSET')}: {d.get('exchange_status', 'UNKNOWN')} — {d.get('action', 'FLAGGED')}")
+            lines.append(
+                f"  • {d.get('coin', 'ASSET')}: {d.get('exchange_status', 'UNKNOWN')} — {d.get('action', 'FLAGGED')}"
+            )
     lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━")
     return "\n".join(lines)
 
@@ -849,7 +918,9 @@ def format_telegram_logs(logs: list[dict[str, Any]], mode: str = "SHADOW") -> st
             payload = entry.get("payload", {})
             snippet = str(payload)[:60]
             masked_snippet = mask_sensitive_data(snippet)
-            lines.append(f"• <code>{ts}</code> <b>{ev}</b> ({src})\n   <i>{masked_snippet}</i>")
+            lines.append(
+                f"• <code>{ts}</code> <b>{ev}</b> ({src})\n   <i>{masked_snippet}</i>"
+            )
     lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━")
     return "\n".join(lines)
 

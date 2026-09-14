@@ -5,7 +5,6 @@ Vectorized implementation.
 
 from __future__ import annotations
 
-from typing import List
 import numpy as np
 import pandas as pd
 
@@ -22,8 +21,8 @@ class HDAStrategy(BaseStrategy):
         df: pd.DataFrame,
         pair: str = "BTC/USDT",
         timeframe: str = "1H",
-    ) -> List[BacktestTradeSignal]:
-        signals: List[BacktestTradeSignal] = []
+    ) -> list[BacktestTradeSignal]:
+        signals: list[BacktestTradeSignal] = []
         n = len(df)
         if n < 40:
             return signals
@@ -46,7 +45,7 @@ class HDAStrategy(BaseStrategy):
                 continue
 
             entry = closes[i]
-            stop_loss = np.min(lows[i-5:i]) * 0.995
+            stop_loss = np.min(lows[i - 5 : i]) * 0.995
             sl_distance = entry - stop_loss
             if sl_distance <= 0:
                 continue

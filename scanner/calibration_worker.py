@@ -11,15 +11,15 @@ signal history) and automatically calibrates:
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta, timezone
 import json
-import os
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
 from core.logging import get_logger
+
 from .confluence_engine import ConfluenceEngine
 
 logger = get_logger("scanner.calibration_worker")
@@ -58,8 +58,8 @@ class CalibrationWorker:
 
     def __init__(
         self,
-        bus: Optional[EventBus] = None,
-        confluence_engine: Optional[ConfluenceEngine] = None,
+        bus: EventBus | None = None,
+        confluence_engine: ConfluenceEngine | None = None,
         interval_seconds: int = 900,  # 15 minutes
         base_threshold: int = 85,
         tightened_threshold: int = 90,
@@ -71,13 +71,13 @@ class CalibrationWorker:
         self._tightened_threshold = tightened_threshold
 
         self._running = False
-        self._task: Optional[asyncio.Task] = None
-        self._last_run_at: Optional[datetime] = None
+        self._task: asyncio.Task | None = None
+        self._last_run_at: datetime | None = None
 
         # Current calibration state
         self.current_strict_threshold: int = base_threshold
-        self.current_coin_penalties: Dict[str, int] = {}
-        self.underperforming_coins: List[str] = []
+        self.current_coin_penalties: dict[str, int] = {}
+        self.underperforming_coins: list[str] = []
         self.rolling_fleet_win_rate: float = 0.0
         self.tightening_active: bool = False
 
@@ -91,7 +91,9 @@ class CalibrationWorker:
             return
         self._running = True
         self._task = asyncio.create_task(self._loop())
-        logger.info("CalibrationWorker background task started (interval: %ds)", self._interval)
+        logger.info(
+            "CalibrationWorker background task started (interval: %ds)", self._interval
+        )
 
     async def stop(self) -> None:
         """Stop the background calibration loop."""
@@ -119,7 +121,7 @@ class CalibrationWorker:
             except Exception as exc:
                 logger.exception("Error in CalibrationWorker loop: %s", exc)
 
-    async def run_calibration_cycle(self) -> Dict[str, Any]:
+    async def run_calibration_cycle(self) -> dict[str, Any]:
         """
         Execute a full calibration analysis cycle:
           1. Reads tier_accuracy.json and coin_performance.json in thread executor.
@@ -152,7 +154,10 @@ class CalibrationWorker:
                             ts = ts.replace(tzinfo=timezone.utc)
                         if ts >= cutoff:
                             total_signals += 1
-                            if item.get("outcome") == "win" or float(item.get("return_pct", 0.0) or 0.0) > 0:
+                            if (
+                                item.get("outcome") == "win"
+                                or float(item.get("return_pct", 0.0) or 0.0) > 0
+                            ):
                                 total_wins += 1
                     except Exception:
                         continue
@@ -173,15 +178,17 @@ class CalibrationWorker:
 
         # 2. Compute Strict Threshold Adjustment
         if total_signals >= 5 and fleet_win_rate < 50.0:
-            self.current_strict_threshold = self._tightened_threshold  # Tightening mode: 90
+            self.current_strict_threshold = (
+                self._tightened_threshold
+            )  # Tightening mode: 90
             self.tightening_active = True
         elif fleet_win_rate >= 75.0 or total_signals < 5:
             self.current_strict_threshold = self._base_threshold  # Base mode: 85
             self.tightening_active = False
 
         # 3. Evaluate Per-Coin Penalties
-        coin_penalties: Dict[str, int] = {}
-        underperforming: List[str] = []
+        coin_penalties: dict[str, int] = {}
+        underperforming: list[str] = []
 
         if isinstance(coin_data, dict):
             for coin, stats in coin_data.items():
@@ -215,7 +222,10 @@ class CalibrationWorker:
 
         logger.info(
             "Calibration cycle complete: Strict Threshold=%d (Tightening=%s), Fleet Win Rate=%.1f%%, Penalized Coins=%s",
-            self.current_strict_threshold, self.tightening_active, self.rolling_fleet_win_rate, self.underperforming_coins
+            self.current_strict_threshold,
+            self.tightening_active,
+            self.rolling_fleet_win_rate,
+            self.underperforming_coins,
         )
 
         return payload

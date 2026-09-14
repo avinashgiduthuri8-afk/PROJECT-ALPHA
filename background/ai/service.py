@@ -9,16 +9,15 @@ from __future__ import annotations
 
 import time
 from datetime import datetime, timezone
-from typing import Optional
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
 from core.config import AppConfig
-from core.types import AIAnalysis, AIRecommendation, Priority, Signal
 from core.logging import get_logger
 from core.repository.ai_repo import AIAnalysisRepository
 from core.repository.event_log_repo import EventLogRepository
 from core.repository.signal_repo import SignalRepository
+from core.types import AIAnalysis, AIRecommendation, Priority, Signal
 
 from .circuit_breaker import CircuitBreaker
 from .client import GeminiClient
@@ -36,7 +35,7 @@ class AIIntelligenceService:
         ai_repo: AIAnalysisRepository,
         event_log_repo: EventLogRepository,
         config: AppConfig,
-        signal_repo: Optional[SignalRepository] = None,
+        signal_repo: SignalRepository | None = None,
     ) -> None:
         self._bus = bus
         self._ai_repo = ai_repo
@@ -44,7 +43,7 @@ class AIIntelligenceService:
         self._config = config
         self._signal_repo = signal_repo
 
-        self._client: Optional[GeminiClient] = None
+        self._client: GeminiClient | None = None
         if self._config.gemini_api_key:
             self._client = GeminiClient(
                 api_key=self._config.gemini_api_key,
@@ -55,7 +54,9 @@ class AIIntelligenceService:
 
         cb_threshold = getattr(self._config, "ai_circuit_breaker_threshold", 3)
         cb_cooldown = getattr(self._config, "ai_circuit_breaker_cooldown_seconds", 60.0)
-        self._circuit_breaker = CircuitBreaker(threshold=cb_threshold, cooldown_seconds=cb_cooldown)
+        self._circuit_breaker = CircuitBreaker(
+            threshold=cb_threshold, cooldown_seconds=cb_cooldown
+        )
 
         self._min_priority = Priority(self._config.ai_min_priority)
         self._total_evaluations = 0
@@ -63,7 +64,7 @@ class AIIntelligenceService:
         self._rejected_count = 0
         self._fallback_count = 0
         self._latencies: list[float] = []
-        self._last_error: Optional[str] = None
+        self._last_error: str | None = None
         self._started = False
 
     @property
@@ -82,7 +83,9 @@ class AIIntelligenceService:
             EventType.SYSTEM_STARTUP,
             {"service": "ai_intelligence_service", "model": self._config.ai_model},
         )
-        logger.info("AIIntelligenceService started", extra={"model": self._config.ai_model})
+        logger.info(
+            "AIIntelligenceService started", extra={"model": self._config.ai_model}
+        )
 
     async def stop(self) -> None:
         """Unsubscribe handlers."""
@@ -98,7 +101,7 @@ class AIIntelligenceService:
         persist analysis, and publish confirmation/rejection events.
         """
         t0 = time.perf_counter()
-        analysis: Optional[AIAnalysis] = None
+        analysis: AIAnalysis | None = None
         used_fallback = False
 
         allowed = self._circuit_breaker.allow_request()
@@ -170,20 +173,27 @@ class AIIntelligenceService:
             "latency_ms": analysis.execution_latency_ms,
             "confluence_score": (signal.raw_payload or {}).get("confluence_score"),
             "dynamic_threshold": (signal.raw_payload or {}).get("dynamic_threshold"),
-            "mtf_timeframes": (signal.raw_payload or {}).get("mtf_timeframes", ["5m", "15m", "1h"]),
+            "mtf_timeframes": (signal.raw_payload or {}).get(
+                "mtf_timeframes", ["5m", "15m", "1h"]
+            ),
             "expires_at": signal.expires_at.isoformat(),
         }
         await self._bus.publish(EventType.SIGNAL_AI_EVALUATED, eval_payload)
 
         # 3. Confirmation vs Rejection Gating
         is_confirmed = (
-            analysis.recommendation in (AIRecommendation.APPROVE, AIRecommendation.SCALE_DOWN)
+            analysis.recommendation
+            in (AIRecommendation.APPROVE, AIRecommendation.SCALE_DOWN)
             and analysis.confidence_score >= self._config.ai_confidence_threshold
         )
 
         raw_p = signal.raw_payload or {}
         price = float(raw_p.get("price") or raw_p.get("close") or 0.0)
-        bot = signal.source_bot if signal.source_bot in ("STE", "HDA", "VCP", "BBS") else raw_p.get("bot", "STE")
+        bot = (
+            signal.source_bot
+            if signal.source_bot in ("STE", "HDA", "VCP", "BBS")
+            else raw_p.get("bot", "STE")
+        )
 
         if is_confirmed:
             self._confirmed_count += 1
@@ -193,15 +203,33 @@ class AIIntelligenceService:
                 "coin": signal.coin,
                 "pair": signal.pair,
                 "price": price,
-                "market_state": signal.market_state.value if hasattr(signal.market_state, "value") else str(signal.market_state),
-                "opportunity_type": signal.opportunity_type.value if hasattr(signal.opportunity_type, "value") else str(signal.opportunity_type),
+                "market_state": (
+                    signal.market_state.value
+                    if hasattr(signal.market_state, "value")
+                    else str(signal.market_state)
+                ),
+                "opportunity_type": (
+                    signal.opportunity_type.value
+                    if hasattr(signal.opportunity_type, "value")
+                    else str(signal.opportunity_type)
+                ),
                 "bot": bot,
-                "recommendation": getattr(analysis.recommendation, "value", str(analysis.recommendation)),
+                "recommendation": getattr(
+                    analysis.recommendation, "value", str(analysis.recommendation)
+                ),
                 "confidence_score": getattr(analysis, "confidence_score", 0),
                 "risk_score": getattr(analysis, "risk_score", 0),
-                "trade_action": getattr(getattr(analysis, "trade_action", analysis.recommendation), "value", str(getattr(analysis, "trade_action", analysis.recommendation))),
-                "suggested_allocation_inr": getattr(analysis, "suggested_allocation_inr", 200.0),
-                "rationale": getattr(analysis, "rationale", getattr(analysis, "trend_evaluation", "")),
+                "trade_action": getattr(
+                    getattr(analysis, "trade_action", analysis.recommendation),
+                    "value",
+                    str(getattr(analysis, "trade_action", analysis.recommendation)),
+                ),
+                "suggested_allocation_inr": getattr(
+                    analysis, "suggested_allocation_inr", 200.0
+                ),
+                "rationale": getattr(
+                    analysis, "rationale", getattr(analysis, "trend_evaluation", "")
+                ),
                 "setup_quality": getattr(analysis, "setup_quality", "Medium"),
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
@@ -211,7 +239,9 @@ class AIIntelligenceService:
                 extra={
                     "coin": signal.coin,
                     "confidence": getattr(analysis, "confidence_score", 0),
-                    "rec": getattr(analysis.recommendation, "value", str(analysis.recommendation)),
+                    "rec": getattr(
+                        analysis.recommendation, "value", str(analysis.recommendation)
+                    ),
                 },
             )
         else:
@@ -222,14 +252,30 @@ class AIIntelligenceService:
                 "coin": signal.coin,
                 "pair": signal.pair,
                 "price": price,
-                "market_state": signal.market_state.value if hasattr(signal.market_state, "value") else str(signal.market_state),
-                "opportunity_type": signal.opportunity_type.value if hasattr(signal.opportunity_type, "value") else str(signal.opportunity_type),
+                "market_state": (
+                    signal.market_state.value
+                    if hasattr(signal.market_state, "value")
+                    else str(signal.market_state)
+                ),
+                "opportunity_type": (
+                    signal.opportunity_type.value
+                    if hasattr(signal.opportunity_type, "value")
+                    else str(signal.opportunity_type)
+                ),
                 "bot": bot,
-                "recommendation": getattr(analysis.recommendation, "value", str(analysis.recommendation)),
+                "recommendation": getattr(
+                    analysis.recommendation, "value", str(analysis.recommendation)
+                ),
                 "confidence_score": getattr(analysis, "confidence_score", 0),
                 "risk_score": getattr(analysis, "risk_score", 0),
-                "trade_action": getattr(getattr(analysis, "trade_action", analysis.recommendation), "value", str(getattr(analysis, "trade_action", analysis.recommendation))),
-                "rationale": getattr(analysis, "rationale", getattr(analysis, "trend_evaluation", "")),
+                "trade_action": getattr(
+                    getattr(analysis, "trade_action", analysis.recommendation),
+                    "value",
+                    str(getattr(analysis, "trade_action", analysis.recommendation)),
+                ),
+                "rationale": getattr(
+                    analysis, "rationale", getattr(analysis, "trend_evaluation", "")
+                ),
                 "setup_quality": getattr(analysis, "setup_quality", "Medium"),
                 "rejection_reason": (
                     f"AI recommendation={getattr(analysis.recommendation, 'value', str(analysis.recommendation))}, "
@@ -250,7 +296,11 @@ class AIIntelligenceService:
 
         # 4. Record Event Log
         await self._event_log.log_event(
-            EventType.SIGNAL_AI_CONFIRMED if is_confirmed else EventType.SIGNAL_AI_REJECTED,
+            (
+                EventType.SIGNAL_AI_CONFIRMED
+                if is_confirmed
+                else EventType.SIGNAL_AI_REJECTED
+            ),
             {
                 "coin": signal.coin,
                 "signal_id": signal.id,
@@ -264,7 +314,7 @@ class AIIntelligenceService:
 
         return analysis
 
-    # ── Bus Event Handlers ────────────────────────────────────────────────    
+    # ── Bus Event Handlers ────────────────────────────────────────────────
 
     async def on_signal_generated(self, event_type: EventType, payload: dict) -> None:
         """Handle incoming signal from scanner and evaluate if priority criteria is met."""
@@ -273,26 +323,34 @@ class AIIntelligenceService:
             if not signal_id and self._signal_repo:
                 return
 
-            signal: Optional[Signal] = None
+            signal: Signal | None = None
             if self._signal_repo and signal_id:
                 signal = await self._signal_repo.get_by_id(signal_id)
 
             if signal is None:
                 # Construct temporary Signal from payload dictionary
                 from scanner.adapter import raw_signal_to_domain
+
                 signal = raw_signal_to_domain(payload)
 
             if signal.priority.gte(self._min_priority):
                 await self.evaluate_signal(signal)
         except Exception as exc:
             self._last_error = str(exc)
-            logger.error("Error processing SIGNAL_GENERATED in AIIntelligenceService", exc_info=True)
+            logger.error(
+                "Error processing SIGNAL_GENERATED in AIIntelligenceService",
+                exc_info=True,
+            )
 
     # ── Telemetry & Health ────────────────────────────────────────────────────
 
     def get_health(self) -> dict:
         """Return health, latency, and throughput statistics."""
-        avg_lat = round(sum(self._latencies) / len(self._latencies), 2) if self._latencies else 0.0
+        avg_lat = (
+            round(sum(self._latencies) / len(self._latencies), 2)
+            if self._latencies
+            else 0.0
+        )
         return {
             "healthy": self._started,
             "ai_enabled": self._config.ai_enabled,

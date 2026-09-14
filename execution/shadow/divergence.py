@@ -6,14 +6,13 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
-from core.types import BotName, DecisionDivergence
 from core.logging import get_logger
 from core.repository.event_log_repo import EventLogRepository
 from core.repository.shadow_repo import ShadowRepository
+from core.types import BotName, DecisionDivergence
 
 logger = get_logger("execution.shadow.divergence")
 
@@ -40,8 +39,8 @@ class DivergenceTracker:
         v2_action: str,
         divergence_type: str,
         reason: str,
-        v1_pnl: Optional[float] = None,
-        v2_simulated_pnl: Optional[float] = None,
+        v1_pnl: float | None = None,
+        v2_simulated_pnl: float | None = None,
     ) -> DecisionDivergence:
         now = datetime.now(timezone.utc)
         divergence = DecisionDivergence(
@@ -79,5 +78,8 @@ class DivergenceTracker:
             entity_id=divergence.id,
             payload=div_payload,
         )
-        logger.info("Decision divergence RECORDED", extra={"coin": coin, "type": divergence_type})
+        logger.info(
+            "Decision divergence RECORDED",
+            extra={"coin": coin, "type": divergence_type},
+        )
         return divergence

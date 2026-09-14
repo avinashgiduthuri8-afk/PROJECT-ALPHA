@@ -5,13 +5,18 @@ Unit and Integration Tests for Manual Position Controls, Profit Trailing, and De
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
 import uuid
+from datetime import datetime, timezone
+
 import pytest
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
 from core.config import V2Config
+from core.repository.db import Database
+from core.repository.event_log_repo import EventLogRepository
+from core.repository.position_repo import PositionRepository
+from core.repository.trade_repo import TradeRepository
 from core.types import (
     BotMode,
     BotName,
@@ -19,15 +24,11 @@ from core.types import (
     Position,
     PositionStatus,
 )
-from core.repository.db import Database
-from core.repository.position_repo import PositionRepository
-from core.repository.trade_repo import TradeRepository
-from core.repository.event_log_repo import EventLogRepository
-from execution.trading.subaccount_manager import CoinDCXExecutionManager
 from execution.service import TradingService
-
+from execution.trading.subaccount_manager import CoinDCXExecutionManager
 
 # ── 1. Default Trade Amount Verification ────────────────────────────────────
+
 
 def test_default_trade_amount_is_200():
     cfg = V2Config()
@@ -39,6 +40,7 @@ def test_default_trade_amount_is_200():
 
 
 # ── 2. Manual Close Position & Friction Verification ────────────────────────
+
 
 @pytest.mark.anyio
 async def test_manual_close_position_lifecycle(tmp_path):
@@ -84,8 +86,10 @@ async def test_manual_close_position_lifecycle(tmp_path):
 
         # Track bus event
         closed_events = []
+
         async def on_pos_closed(ev, data):
             closed_events.append(data)
+
         bus.subscribe(EventType.POSITION_CLOSED, on_pos_closed)
 
         # 2. Execute manual close at LTP ₹2,55,000 (+2.0% gross)
@@ -122,6 +126,7 @@ async def test_manual_close_position_lifecycle(tmp_path):
 
 
 # ── 3. Modify Position Targets & Trailing Stop ───────────────────────────────
+
 
 @pytest.mark.anyio
 async def test_modify_position_targets_and_trailing(tmp_path):
@@ -189,7 +194,9 @@ async def test_modify_position_targets_and_trailing(tmp_path):
             trailing_pct=0.02,
         )
         assert new_trailing == 12740.0
-        assert trading_svc.position_manager._trailing_stops["pos-sol-test-02"] == 12740.0
+        assert (
+            trading_svc.position_manager._trailing_stops["pos-sol-test-02"] == 12740.0
+        )
 
         await trading_svc.stop()
     finally:

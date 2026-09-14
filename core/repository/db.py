@@ -21,7 +21,6 @@ from __future__ import annotations
 import re
 import shutil
 from pathlib import Path
-from typing import Optional
 
 import aiosqlite
 
@@ -32,7 +31,9 @@ logger = get_logger("repository.db")
 
 _LOCAL_MIGRATIONS = Path(__file__).parent / "migrations"
 _FALLBACK_MIGRATIONS = Path("v2/repository/migrations")
-_MIGRATIONS_DIR = _LOCAL_MIGRATIONS if _LOCAL_MIGRATIONS.exists() else _FALLBACK_MIGRATIONS
+_MIGRATIONS_DIR = (
+    _LOCAL_MIGRATIONS if _LOCAL_MIGRATIONS.exists() else _FALLBACK_MIGRATIONS
+)
 
 CANONICAL_DB_PATH = "data/project_alpha.db"
 LEGACY_DB_PATH = "v2/data/alpha_v2.db"
@@ -65,20 +66,26 @@ def migrate_database_if_needed(
             if legacy_wal.exists():
                 target_wal = target.with_name(target.name + "-wal")
                 shutil.copy2(legacy_wal, target_wal)
-                logger.info("Migrated SQLite WAL file from %s to %s", legacy_wal, target_wal)
+                logger.info(
+                    "Migrated SQLite WAL file from %s to %s", legacy_wal, target_wal
+                )
 
             # Copy SHM file if present
             legacy_shm = legacy.with_name(legacy.name + "-shm")
             if legacy_shm.exists():
                 target_shm = target.with_name(target.name + "-shm")
                 shutil.copy2(legacy_shm, target_shm)
-                logger.info("Migrated SQLite SHM file from %s to %s", legacy_shm, target_shm)
+                logger.info(
+                    "Migrated SQLite SHM file from %s to %s", legacy_shm, target_shm
+                )
 
             return str(target)
         except Exception as exc:
             logger.warning(
                 "Failed to copy legacy database from %s to %s: %s. Falling back to legacy path.",
-                legacy, target, exc,
+                legacy,
+                target,
+                exc,
             )
             return str(legacy)
 
@@ -90,11 +97,11 @@ def migrate_database_if_needed(
 class Database:
     """Manages the lifecycle of the SQLite connection."""
 
-    def __init__(self, path: Optional[str] = None) -> None:
+    def __init__(self, path: str | None = None) -> None:
         if path is None:
             path = CANONICAL_DB_PATH
         self._path = path
-        self._conn: Optional[aiosqlite.Connection] = None
+        self._conn: aiosqlite.Connection | None = None
 
     @property
     def path(self) -> str:
@@ -152,9 +159,7 @@ class Database:
     async def _applied_versions(self) -> set[int]:
         """Return set of already-applied migration version numbers."""
         try:
-            async with self._conn.execute(
-                "SELECT version FROM schema_version"
-            ) as cur:
+            async with self._conn.execute("SELECT version FROM schema_version") as cur:
                 rows = await cur.fetchall()
             return {row[0] for row in rows}
         except Exception:
@@ -182,7 +187,9 @@ class Database:
             return
 
         for version, sql_file in sorted(pending):
-            logger.info("Applying migration", extra={"version": version, "file": sql_file.name})
+            logger.info(
+                "Applying migration", extra={"version": version, "file": sql_file.name}
+            )
             try:
                 sql = sql_file.read_text(encoding="utf-8").lstrip("\ufeff")
                 # Split on semicolons, skip empty statements

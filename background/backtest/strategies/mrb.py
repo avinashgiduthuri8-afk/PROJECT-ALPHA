@@ -5,7 +5,6 @@ Vectorized implementation.
 
 from __future__ import annotations
 
-from typing import List
 import numpy as np
 import pandas as pd
 
@@ -22,8 +21,8 @@ class MRBStrategy(BaseStrategy):
         df: pd.DataFrame,
         pair: str = "BTC/USDT",
         timeframe: str = "1H",
-    ) -> List[BacktestTradeSignal]:
-        signals: List[BacktestTradeSignal] = []
+    ) -> list[BacktestTradeSignal]:
+        signals: list[BacktestTradeSignal] = []
         n = len(df)
         if n < 40:
             return signals
@@ -40,7 +39,11 @@ class MRBStrategy(BaseStrategy):
         lower_shadow = np.minimum(opens, closes) - lows
         wick_ratio = np.where(candle_len > 0, lower_shadow / candle_len, 0.0)
 
-        mask = ((lows < bb_lower) | (lows < (vwap * 0.96))) & (rsi < 35) & (wick_ratio >= 0.40)
+        mask = (
+            ((lows < bb_lower) | (lows < (vwap * 0.96)))
+            & (rsi < 35)
+            & (wick_ratio >= 0.40)
+        )
         cand_indices = np.where(mask)[0]
 
         for i in cand_indices:

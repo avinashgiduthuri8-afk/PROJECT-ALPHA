@@ -7,7 +7,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from datetime import datetime
 from queue import Queue
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class DataHandler(ABC):
@@ -21,27 +21,29 @@ class DataHandler(ABC):
         self.continue_backtest = True
 
     @abstractmethod
-    def get_latest_bar(self, symbol: str) -> Optional[Dict[str, Any]]:
+    def get_latest_bar(self, symbol: str) -> dict[str, Any] | None:
         """Return the most recent single bar."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_latest_bars(self, symbol: str, N: int = 1) -> List[Dict[str, Any]]:
+    def get_latest_bars(self, symbol: str, N: int = 1) -> list[dict[str, Any]]:
         """Return the latest N bars, or fewer if not available."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_latest_bar_datetime(self, symbol: str) -> Optional[datetime]:
+    def get_latest_bar_datetime(self, symbol: str) -> datetime | None:
         """Return datetime of the most recent bar."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_latest_bar_value(self, symbol: str, val_type: str) -> Optional[float]:
+    def get_latest_bar_value(self, symbol: str, val_type: str) -> float | None:
         """Return one of Open, High, Low, Close, Volume from latest bar."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_latest_bars_values(self, symbol: str, val_type: str, N: int = 1) -> List[float]:
+    def get_latest_bars_values(
+        self, symbol: str, val_type: str, N: int = 1
+    ) -> list[float]:
         """Return list of float values for given attribute from latest N bars."""
         raise NotImplementedError
 

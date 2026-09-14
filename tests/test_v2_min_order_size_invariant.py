@@ -5,11 +5,10 @@ Ensures no order is placed or sized below INR 200.00 in either PAPER or LIVE mod
 
 from __future__ import annotations
 
-import pytest
 from core.config import V2Config
 from core.types import BotName
-from execution.risk.capital_guard import CapitalGuard
 from execution.adapters import StrategyAdapterFactory
+from execution.risk.capital_guard import CapitalGuard
 from execution.trading.precision_rules import PRECISION_TABLE, validate_order_notional
 
 
@@ -17,7 +16,9 @@ def test_precision_table_min_notional_is_200():
     """Verify all 12 CoinDCX INR pairs have min_notional_inr >= 200.0."""
     for pair, spec in PRECISION_TABLE.items():
         if pair.endswith("/INR"):
-            assert spec.min_notional_inr >= 200.0, f"Pair {pair} has min_notional_inr {spec.min_notional_inr} < 200"
+            assert (
+                spec.min_notional_inr >= 200.0
+            ), f"Pair {pair} has min_notional_inr {spec.min_notional_inr} < 200"
 
 
 def test_validate_order_notional_rejects_below_200():
@@ -39,7 +40,9 @@ def test_all_adapters_enforce_200_minimum():
             current_price=260000.0,
             ai_adjustments={},
         )
-        assert order["amount"] >= 200.0, f"Adapter {bot.value} produced order amount {order['amount']} < 200.0"
+        assert (
+            order["amount"] >= 200.0
+        ), f"Adapter {bot.value} produced order amount {order['amount']} < 200.0"
         assert order["qty"] * order["entry_price"] >= 200.0
 
 
@@ -75,5 +78,7 @@ def test_v2_config_clamps_order_size_to_200(tmp_path):
     assert cfg.order_size_inr == 200.0
 
     override_file = str(tmp_path / "test_override.json")
-    saved = V2Config.save_runtime_overrides({"order_size_inr": 75.0}, override_path=override_file)
+    saved = V2Config.save_runtime_overrides(
+        {"order_size_inr": 75.0}, override_path=override_file
+    )
     assert saved.order_size_inr == 200.0

@@ -13,9 +13,8 @@ from __future__ import annotations
 import asyncio
 import os
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
-
 from enum import Enum
+from typing import Any
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
@@ -28,12 +27,13 @@ MINIMUM_NOTIONAL_INR: float = 200.0
 # Compatibility exports for older status consumers.  These maps are
 # intentionally empty: capital allocation belongs to the configured shared
 # pool and risk engine, not hard-coded bot/subaccount ceilings.
-WALLET_LIMITS_INR: Dict[str, float] = {}
-MICRO_ORDER_CAPS_INR: Dict[str, float] = {}
+WALLET_LIMITS_INR: dict[str, float] = {}
+MICRO_ORDER_CAPS_INR: dict[str, float] = {}
 
 
 class DeploymentMode(str, Enum):
     """Execution deployment modes (PAPER simulation or LIVE microcash)."""
+
     PAPER = "PAPER"
     LIVE = "LIVE"
     LIVE_MICROCASH = "LIVE_MICROCASH"
@@ -47,14 +47,14 @@ class ProductionController:
 
     def __init__(
         self,
-        config: Optional[AppConfig] = None,
-        bus: Optional[EventBus] = None,
-        state_repo: Optional[Any] = None,
-        production_repo: Optional[Any] = None,
-        risk_service: Optional[Any] = None,
-        trading_service: Optional[Any] = None,
-        event_log_repo: Optional[Any] = None,
-        notification_service: Optional[Any] = None,
+        config: AppConfig | None = None,
+        bus: EventBus | None = None,
+        state_repo: Any | None = None,
+        production_repo: Any | None = None,
+        risk_service: Any | None = None,
+        trading_service: Any | None = None,
+        event_log_repo: Any | None = None,
+        notification_service: Any | None = None,
     ) -> None:
         self._config = config or get_config()
         self._bus = bus or EventBus()
@@ -68,7 +68,9 @@ class ProductionController:
 
     async def initialize_state(self) -> None:
         """Initialize controller state from repository if available."""
-        if self._production_repo and hasattr(self._production_repo, "get_runtime_state"):
+        if self._production_repo and hasattr(
+            self._production_repo, "get_runtime_state"
+        ):
             state = await self._production_repo.get_runtime_state()
             mode = state.get("deployment_mode", "PAPER")
             if mode == "SHADOW":
@@ -83,7 +85,6 @@ class ProductionController:
             self._config.deployment_mode = mode
             self._kill_switch_tripped = bool(state.get("global_kill_switch", False))
 
-
     @property
     def is_kill_switch_tripped(self) -> bool:
         if self._kill_switch_tripped:
@@ -92,13 +93,15 @@ class ProductionController:
             return bool(self._risk_service.circuit_breaker.is_open)
         return False
 
-    async def trip_kill_switch(self, reason: str = "Manual kill switch trip") -> Dict[str, Any]:
+    async def trip_kill_switch(
+        self, reason: str = "Manual kill switch trip"
+    ) -> dict[str, Any]:
         self._kill_switch_tripped = True
         if self._production_repo and hasattr(self._production_repo, "set_kill_switch"):
             await self._production_repo.set_kill_switch(True)
         return await self.kill_switch(reason=reason)
 
-    async def reset_kill_switch(self) -> Dict[str, Any]:
+    async def reset_kill_switch(self) -> dict[str, Any]:
         self._kill_switch_tripped = False
         if self._production_repo and hasattr(self._production_repo, "set_kill_switch"):
             await self._production_repo.set_kill_switch(False)
@@ -112,13 +115,22 @@ class ProductionController:
     ) -> tuple[bool, str]:
         """Validate order size against safety boundaries."""
         if self.is_kill_switch_tripped:
-            return False, "Order rejected: Global kill switch is active — all orders halted."
+            return (
+                False,
+                "Order rejected: Global kill switch is active — all orders halted.",
+            )
         if amount < MINIMUM_NOTIONAL_INR:
-            return False, f"Order amount ₹{amount:.2f} is below minimum notional ₹{MINIMUM_NOTIONAL_INR:.2f}."
+            return (
+                False,
+                f"Order amount ₹{amount:.2f} is below minimum notional ₹{MINIMUM_NOTIONAL_INR:.2f}.",
+            )
         if amount > 500.0:
             return False, f"Order amount ₹{amount:.2f} exceeds micro-order cap ₹500.00."
         if current_wallet_exposure_inr + amount > 15000.0:
-            return False, f"Order amount ₹{amount:.2f} exceeds wallet ceiling ₹15000.00."
+            return (
+                False,
+                f"Order amount ₹{amount:.2f} exceeds wallet ceiling ₹15000.00.",
+            )
         return True, "OK"
 
     @property
@@ -130,19 +142,23 @@ class ProductionController:
         except Exception:
             return DeploymentMode.PAPER
 
-    async def set_deployment_mode(self, target_mode: Any, operator: str = "API") -> DeploymentMode:
+    async def set_deployment_mode(
+        self, target_mode: Any, operator: str = "API"
+    ) -> DeploymentMode:
         """Set deployment mode accepting either a string or DeploymentMode enum."""
-        mode_val = target_mode.value if isinstance(target_mode, Enum) else str(target_mode)
+        mode_val = (
+            target_mode.value if isinstance(target_mode, Enum) else str(target_mode)
+        )
         await self.set_mode(mode_val, operator=operator)
         return self.mode
 
     def wire_dependencies(
         self,
-        state_repo: Optional[Any] = None,
-        risk_service: Optional[Any] = None,
-        trading_service: Optional[Any] = None,
-        event_log_repo: Optional[Any] = None,
-        notification_service: Optional[Any] = None,
+        state_repo: Any | None = None,
+        risk_service: Any | None = None,
+        trading_service: Any | None = None,
+        event_log_repo: Any | None = None,
+        notification_service: Any | None = None,
     ) -> None:
         """Wire or update references after initial container bootstrap."""
         if state_repo is not None:
@@ -160,7 +176,7 @@ class ProductionController:
         """Return the currently configured deployment mode."""
         return getattr(self._config, "deployment_mode", "PAPER")
 
-    async def set_mode(self, target_mode: str, operator: str = "API") -> Dict[str, Any]:
+    async def set_mode(self, target_mode: str, operator: str = "API") -> dict[str, Any]:
         """
         Dynamically transition execution mode (PAPER, LIVE / LIVE_MICROCASH).
         Persists changes to database and config override file.
@@ -171,16 +187,26 @@ class ProductionController:
         elif raw_mode in ("PAPER", "SHADOW"):
             mode = "PAPER"
         else:
-            raise ValueError(f"Invalid mode '{target_mode}'. Valid modes: PAPER, LIVE (LIVE_MICROCASH)")
+            raise ValueError(
+                f"Invalid mode '{target_mode}'. Valid modes: PAPER, LIVE (LIVE_MICROCASH)"
+            )
 
         if mode == "LIVE_MICROCASH":
-            if self._risk_service and hasattr(self._risk_service, "circuit_breaker") and self._risk_service.circuit_breaker.is_open:
-                raise ValueError(f"Cannot transition to LIVE_MICROCASH: Circuit breaker is OPEN ({self._risk_service.circuit_breaker.reason})")
-            
+            if (
+                self._risk_service
+                and hasattr(self._risk_service, "circuit_breaker")
+                and self._risk_service.circuit_breaker.is_open
+            ):
+                raise ValueError(
+                    f"Cannot transition to LIVE_MICROCASH: Circuit breaker is OPEN ({self._risk_service.circuit_breaker.reason})"
+                )
+
             # P0-05 Security: Validate credentials before setting LIVE_MICROCASH mode
             self._config.validate_live_security()
 
-            if self._trading_service and hasattr(self._trading_service, "subaccount_manager"):
+            if self._trading_service and hasattr(
+                self._trading_service, "subaccount_manager"
+            ):
                 sub_mgr = self._trading_service.subaccount_manager
                 if (
                     self._config.coindcx_api_key
@@ -190,7 +216,9 @@ class ProductionController:
                 ):
                     bal_res = await sub_mgr.check_account_connectivity()
                     if not bal_res.get("success"):
-                        raise ValueError(f"Cannot transition to LIVE_MICROCASH: CoinDCX connectivity check failed ({bal_res.get('error') or bal_res.get('message')})")
+                        raise ValueError(
+                            f"Cannot transition to LIVE_MICROCASH: CoinDCX connectivity check failed ({bal_res.get('error') or bal_res.get('message')})"
+                        )
             self._config.deployment_mode = "LIVE_MICROCASH"
             self._config.trading_enabled = True
             self._config.shadow_mode = False
@@ -203,16 +231,20 @@ class ProductionController:
 
         # 1. Persist config overrides to filesystem
         try:
-            AppConfig.save_runtime_overrides({
-                "deployment_mode": self._config.deployment_mode,
-                "trading_enabled": self._config.trading_enabled,
-                "shadow_mode": self._config.shadow_mode,
-            })
+            AppConfig.save_runtime_overrides(
+                {
+                    "deployment_mode": self._config.deployment_mode,
+                    "trading_enabled": self._config.trading_enabled,
+                    "shadow_mode": self._config.shadow_mode,
+                }
+            )
         except Exception as exc:
             logger.warning("Could not persist runtime override for set_mode: %s", exc)
 
         # 2. Persist to production_runtime_state table in SQLite
-        if self._production_repo and hasattr(self._production_repo, "set_deployment_mode"):
+        if self._production_repo and hasattr(
+            self._production_repo, "set_deployment_mode"
+        ):
             try:
                 await self._production_repo.set_deployment_mode(mode)
             except Exception as exc:
@@ -220,19 +252,24 @@ class ProductionController:
 
         if self._state_repo:
             try:
-                await self._state_repo.set_many({
-                    "v2_deployment_mode": self._config.v2_deployment_mode,
-                    "v2_trading_enabled": str(self._config.v2_trading_enabled).lower(),
-                    "v2_shadow_mode": str(self._config.v2_shadow_mode).lower(),
-                    "deployment_mode": self._config.deployment_mode,
-                    "trading_enabled": str(self._config.trading_enabled).lower(),
-                    "shadow_mode": str(self._config.shadow_mode).lower(),
-                    "v2_deployment_mode": self._config.deployment_mode,
-                    "v2_trading_enabled": str(self._config.trading_enabled).lower(),
-                    "v2_shadow_mode": str(self._config.shadow_mode).lower(),
-                    "mode_updated_at": datetime.now(timezone.utc).isoformat(),
-                    "mode_updated_by": operator,
-                }, updated_by=operator)
+                await self._state_repo.set_many(
+                    {
+                        "v2_deployment_mode": self._config.v2_deployment_mode,
+                        "v2_trading_enabled": str(
+                            self._config.v2_trading_enabled
+                        ).lower(),
+                        "v2_shadow_mode": str(self._config.v2_shadow_mode).lower(),
+                        "deployment_mode": self._config.deployment_mode,
+                        "trading_enabled": str(self._config.trading_enabled).lower(),
+                        "shadow_mode": str(self._config.shadow_mode).lower(),
+                        "v2_deployment_mode": self._config.deployment_mode,
+                        "v2_trading_enabled": str(self._config.trading_enabled).lower(),
+                        "v2_shadow_mode": str(self._config.shadow_mode).lower(),
+                        "mode_updated_at": datetime.now(timezone.utc).isoformat(),
+                        "mode_updated_by": operator,
+                    },
+                    updated_by=operator,
+                )
             except Exception as exc:
                 logger.warning("Failed to persist mode to SQLite state_repo: %s", exc)
 
@@ -241,7 +278,11 @@ class ProductionController:
             try:
                 await self._event_log_repo.append(
                     event_type="PRODUCTION_MODE_CHANGED",
-                    payload={"new_mode": mode, "operator": operator, "trading_enabled": self._config.trading_enabled},
+                    payload={
+                        "new_mode": mode,
+                        "operator": operator,
+                        "trading_enabled": self._config.trading_enabled,
+                    },
                     source_service="production_controller",
                 )
             except Exception as exc:
@@ -249,20 +290,25 @@ class ProductionController:
 
         # 4. Notify EventBus
         try:
-            await self._bus.publish(EventType.SYSTEM_CONFIG_UPDATED, {
-                "deployment_mode": self._config.deployment_mode,
-                "trading_enabled": self._config.trading_enabled,
-                "shadow_mode": self._config.shadow_mode,
-                "v2_deployment_mode": self._config.deployment_mode,
-                "v2_trading_enabled": self._config.trading_enabled,
-                "v2_shadow_mode": self._config.shadow_mode,
-                "operator": operator,
-            })
+            await self._bus.publish(
+                EventType.SYSTEM_CONFIG_UPDATED,
+                {
+                    "deployment_mode": self._config.deployment_mode,
+                    "trading_enabled": self._config.trading_enabled,
+                    "shadow_mode": self._config.shadow_mode,
+                    "v2_deployment_mode": self._config.deployment_mode,
+                    "v2_trading_enabled": self._config.trading_enabled,
+                    "v2_shadow_mode": self._config.shadow_mode,
+                    "operator": operator,
+                },
+            )
         except Exception as exc:
             logger.debug("Bus notification failed: %s", exc)
 
         # 5. Broadcast to Telegram
-        if self._notification_service and hasattr(self._notification_service, "telegram_client"):
+        if self._notification_service and hasattr(
+            self._notification_service, "telegram_client"
+        ):
             try:
                 await self._notification_service.telegram_client.send_message(
                     f"⚙️ <b>DEPLOYMENT MODE CHANGED</b>\n\n"
@@ -289,7 +335,7 @@ class ProductionController:
         self,
         reason: str = "Emergency Kill-Switch Triggered",
         operator: str = "API",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Emergency Halt: Immediately trips the global circuit breaker, sets trading_enabled=False,
         and halts all outbound orders.
@@ -307,29 +353,36 @@ class ProductionController:
         self._config.shadow_mode = False
 
         try:
-            AppConfig.save_runtime_overrides({
-                "deployment_mode": "PAPER",
-                "trading_enabled": False,
-                "shadow_mode": False,
-            })
+            AppConfig.save_runtime_overrides(
+                {
+                    "deployment_mode": "PAPER",
+                    "trading_enabled": False,
+                    "shadow_mode": False,
+                }
+            )
         except Exception as exc:
-            logger.warning("Could not persist runtime overrides for kill-switch: %s", exc)
+            logger.warning(
+                "Could not persist runtime overrides for kill-switch: %s", exc
+            )
 
         now_str = datetime.now(timezone.utc).isoformat()
 
         # 3. Persist state to SQLite
         if self._state_repo:
             try:
-                await self._state_repo.set_many({
-                    "circuit_breaker_status": "TRIPPED",
-                    "circuit_breaker_reason": reason,
-                    "emergency_stop": "true",
-                    "deployment_mode": "PAPER",
-                    "trading_enabled": "false",
-                    "shadow_mode": "false",
-                    "last_kill_switch_at": now_str,
-                    "kill_switch_operator": operator,
-                }, updated_by=operator)
+                await self._state_repo.set_many(
+                    {
+                        "circuit_breaker_status": "TRIPPED",
+                        "circuit_breaker_reason": reason,
+                        "emergency_stop": "true",
+                        "deployment_mode": "PAPER",
+                        "trading_enabled": "false",
+                        "shadow_mode": "false",
+                        "last_kill_switch_at": now_str,
+                        "kill_switch_operator": operator,
+                    },
+                    updated_by=operator,
+                )
             except Exception as exc:
                 logger.warning("Failed to persist kill-switch state to DB: %s", exc)
 
@@ -338,7 +391,11 @@ class ProductionController:
             try:
                 await self._event_log_repo.append(
                     event_type="CIRCUIT_BREAKER_TRIPPED",
-                    payload={"reason": reason, "operator": operator, "action": "KILL_SWITCH"},
+                    payload={
+                        "reason": reason,
+                        "operator": operator,
+                        "action": "KILL_SWITCH",
+                    },
                     source_service="production_controller",
                 )
             except Exception as exc:
@@ -346,11 +403,14 @@ class ProductionController:
 
         # 5. Broadcast alert on EventBus
         try:
-            await self._bus.publish(EventType.CIRCUIT_BREAKER_TRIPPED, {
-                "reason": reason,
-                "operator": operator,
-                "timestamp": now_str,
-            })
+            await self._bus.publish(
+                EventType.CIRCUIT_BREAKER_TRIPPED,
+                {
+                    "reason": reason,
+                    "operator": operator,
+                    "timestamp": now_str,
+                },
+            )
         except Exception as exc:
             logger.debug("Bus alert dispatch error: %s", exc)
         return {
@@ -366,14 +426,18 @@ class ProductionController:
     async def resume(
         self,
         operator: str = "API",
-        target_mode: Optional[str] = None,
-        reason: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        target_mode: str | None = None,
+        reason: str | None = None,
+    ) -> dict[str, Any]:
         """
         Verify database integrity, reset circuit breaker, re-arm order router,
         and transition back to target_mode (defaults to PAPER).
         """
-        logger.info("Resuming trading operations requested by %s (target_mode: %s)", operator, target_mode)
+        logger.info(
+            "Resuming trading operations requested by %s (target_mode: %s)",
+            operator,
+            target_mode,
+        )
 
         # 1. Database Integrity Verification
         if self._state_repo:
@@ -389,7 +453,7 @@ class ProductionController:
 
         # 2. Risk Engine Safety Verification
         if self._risk_service and hasattr(self._risk_service, "is_safe_to_resume"):
-            check_fn = getattr(self._risk_service, "is_safe_to_resume")
+            check_fn = self._risk_service.is_safe_to_resume
             res = check_fn()
             if hasattr(res, "__await__") or asyncio.iscoroutine(res):
                 is_safe, unsafe_reason = await res
@@ -399,7 +463,10 @@ class ProductionController:
                 is_safe, unsafe_reason = True, "Mock/Default"
 
             if not is_safe:
-                logger.critical("Refusing to resume trading: Risk Engine reports unsafe state: %s", unsafe_reason)
+                logger.critical(
+                    "Refusing to resume trading: Risk Engine reports unsafe state: %s",
+                    unsafe_reason,
+                )
                 return {
                     "ok": False,
                     "error": "RISK_PRECONDITION_FAILED",
@@ -425,13 +492,16 @@ class ProductionController:
         # 4. Persist normalized state in SQLite
         if self._state_repo:
             try:
-                await self._state_repo.set_many({
-                    "circuit_breaker_status": "NORMAL",
-                    "circuit_breaker_reason": "",
-                    "emergency_stop": "false",
-                    "last_resumed_at": now_str,
-                    "resumed_operator": operator,
-                }, updated_by=operator)
+                await self._state_repo.set_many(
+                    {
+                        "circuit_breaker_status": "NORMAL",
+                        "circuit_breaker_reason": "",
+                        "emergency_stop": "false",
+                        "last_resumed_at": now_str,
+                        "resumed_operator": operator,
+                    },
+                    updated_by=operator,
+                )
             except Exception as exc:
                 logger.warning("Failed to persist resume state to DB: %s", exc)
 
@@ -448,13 +518,16 @@ class ProductionController:
 
         # 6. Broadcast resume event on EventBus
         try:
-            await self._bus.publish(EventType.SYSTEM_CONFIG_UPDATED, {
-                "action": "RESUME",
-                "circuit_breaker": "NORMAL",
-                "mode": resume_mode,
-                "operator": operator,
-                "timestamp": now_str,
-            })
+            await self._bus.publish(
+                EventType.SYSTEM_CONFIG_UPDATED,
+                {
+                    "action": "RESUME",
+                    "circuit_breaker": "NORMAL",
+                    "mode": resume_mode,
+                    "operator": operator,
+                    "timestamp": now_str,
+                },
+            )
         except Exception as exc:
             logger.debug("Bus resume event dispatch error: %s", exc)
 
@@ -467,4 +540,3 @@ class ProductionController:
             "database_integrity": True,
             "message": f"Trading successfully resumed in {resume_mode} mode. Circuit breaker re-armed.",
         }
-

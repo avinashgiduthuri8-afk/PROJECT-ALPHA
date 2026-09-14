@@ -5,39 +5,40 @@ Unit and Integration Tests for Single Unified Capital Pool (₹10,000) & Single-
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
 import uuid
+from datetime import datetime, timezone
+
 import pytest
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
 from core.config import V2Config
-from core.types import (
-    BotName,
-    Position,
-    PositionStatus,
-    BotMode,
-    Signal,
-    MarketState,
-    OppType,
-    Priority,
-    RiskLevel,
-)
 from core.repository.db import Database
+from core.repository.event_log_repo import EventLogRepository
 from core.repository.position_repo import PositionRepository
 from core.repository.signal_repo import SignalRepository
 from core.repository.trade_repo import TradeRepository
-from core.repository.event_log_repo import EventLogRepository
-from execution.trading.subaccount_manager import CoinDCXExecutionManager
-from execution.trading.precision_rules import validate_order_notional
+from core.types import (
+    BotMode,
+    BotName,
+    MarketState,
+    OppType,
+    Position,
+    PositionStatus,
+    Priority,
+    RiskLevel,
+    Signal,
+)
+from execution.adapters import StrategyAdapterFactory
+from execution.auto_trader import AutoTradeRouter
 from execution.risk.capital_guard import CapitalGuard
 from execution.risk.service import RiskService
 from execution.service import TradingService
-from execution.auto_trader import AutoTradeRouter
-from execution.adapters import StrategyAdapterFactory
-
+from execution.trading.precision_rules import validate_order_notional
+from execution.trading.subaccount_manager import CoinDCXExecutionManager
 
 # ── 1. Unified Capital Pool Sizing Tests ─────────────────────────────────────
+
 
 def test_unified_capital_pool_configuration():
     cfg = V2Config(
@@ -67,9 +68,16 @@ def test_order_sizing_and_precision_rounding():
         assert order["coin"] == "SOL"
         assert order["pair"] == "SOL/INR"
         assert order["entry_price"] == 12500.0
-        assert order["qty"] == 0.02  # 200 / 12500 = 0.016 -> rounded up to 0.02 step to satisfy ₹200 min invariant
-        assert order["amount"] == 250.0  # 0.02 * 12500 = 250.0 (>= ₹200 minimum invariant)
-        assert validate_order_notional("SOL/INR", order["entry_price"], order["qty"]) is True
+        assert (
+            order["qty"] == 0.02
+        )  # 200 / 12500 = 0.016 -> rounded up to 0.02 step to satisfy ₹200 min invariant
+        assert (
+            order["amount"] == 250.0
+        )  # 0.02 * 12500 = 250.0 (>= ₹200 minimum invariant)
+        assert (
+            validate_order_notional("SOL/INR", order["entry_price"], order["qty"])
+            is True
+        )
 
 
 def test_min_notional_precision_rejection():
@@ -83,6 +91,7 @@ def test_min_notional_precision_rejection():
 
 
 # ── 2. Single-Coin Asset Deduplication & Fleet Lock Tests ─────────────────────
+
 
 @pytest.mark.anyio
 async def test_single_coin_fleet_lock_in_capital_guard():
@@ -174,7 +183,9 @@ async def test_cross_strategy_coin_lock_all_permutations():
                 active_positions=active_pos,
                 current_coin=notation,
             )
-            assert decision.allowed is False, f"Expected {notation} to be blocked for {other_bot.value}"
+            assert (
+                decision.allowed is False
+            ), f"Expected {notation} to be blocked for {other_bot.value}"
             assert decision.code == "OPPORTUNITY_LOCKED_ACTIVE_PAIR"
             assert "Cross-strategy lock prevents opening" in decision.reason
 
@@ -183,7 +194,7 @@ async def test_cross_strategy_coin_lock_all_permutations():
 async def test_auto_trade_router_cross_strategy_position_rejection():
     bus = EventBus()
     now = datetime.now(timezone.utc)
-    
+
     # Mock position repo with an active BTC position in STE
     class MockPositionRepo:
         async def get_open(self):
@@ -222,8 +233,8 @@ async def test_auto_trade_router_cross_strategy_position_rejection():
     assert "Cross-strategy lock prevents opening in HDA" in result["message"]
 
 
-
 # ── 3. Fleet Capacity & Unified Pool Ceiling Tests ───────────────────────────
+
 
 @pytest.mark.anyio
 async def test_fleet_max_concurrent_positions_limit():
@@ -237,9 +248,39 @@ async def test_fleet_max_concurrent_positions_limit():
     now = datetime.now(timezone.utc)
     # 3 active positions already open
     active_positions = [
-        Position(id="1", bot=BotName.STE, coin="BTC", pair="BTC/INR", qty=0.001, entry_price=8000000.0, entry_time=now, mode=BotMode.PAPER, status=PositionStatus.OPEN),
-        Position(id="2", bot=BotName.HDA, coin="ETH", pair="ETH/INR", qty=0.01, entry_price=250000.0, entry_time=now, mode=BotMode.PAPER, status=PositionStatus.OPEN),
-        Position(id="3", bot=BotName.VCP, coin="SOL", pair="SOL/INR", qty=0.01, entry_price=12500.0, entry_time=now, mode=BotMode.PAPER, status=PositionStatus.OPEN),
+        Position(
+            id="1",
+            bot=BotName.STE,
+            coin="BTC",
+            pair="BTC/INR",
+            qty=0.001,
+            entry_price=8000000.0,
+            entry_time=now,
+            mode=BotMode.PAPER,
+            status=PositionStatus.OPEN,
+        ),
+        Position(
+            id="2",
+            bot=BotName.HDA,
+            coin="ETH",
+            pair="ETH/INR",
+            qty=0.01,
+            entry_price=250000.0,
+            entry_time=now,
+            mode=BotMode.PAPER,
+            status=PositionStatus.OPEN,
+        ),
+        Position(
+            id="3",
+            bot=BotName.VCP,
+            coin="SOL",
+            pair="SOL/INR",
+            qty=0.01,
+            entry_price=12500.0,
+            entry_time=now,
+            mode=BotMode.PAPER,
+            status=PositionStatus.OPEN,
+        ),
     ]
 
     # 4th trade on AVAX -> BLOCKED (capacity reached)
@@ -280,6 +321,7 @@ async def test_unified_capital_pool_ceiling_enforcement():
 
 
 # ── 4. End-to-End Simultaneous Execution Gating ──────────────────────────────
+
 
 @pytest.mark.anyio
 async def test_simultaneous_ste_and_hda_signal_deduplication(tmp_path):
@@ -340,7 +382,9 @@ async def test_simultaneous_ste_and_hda_signal_deduplication(tmp_path):
 
         risk_svc = RiskService(bus, pos_repo, trade_repo, event_repo, cfg)
         exec_mgr = CoinDCXExecutionManager()
-        trading_svc = TradingService(bus, pos_repo, trade_repo, event_repo, cfg, subaccount_manager=exec_mgr)
+        trading_svc = TradingService(
+            bus, pos_repo, trade_repo, event_repo, cfg, subaccount_manager=exec_mgr
+        )
 
         await risk_svc.start()
         await trading_svc.start()
@@ -354,7 +398,9 @@ async def test_simultaneous_ste_and_hda_signal_deduplication(tmp_path):
             "price": 12500.0,
             "suggested_adjustments": {"size_multiplier": 1.0},
         }
-        await risk_svc.on_signal_ai_confirmed(EventType.SIGNAL_AI_CONFIRMED, payload_ste)
+        await risk_svc.on_signal_ai_confirmed(
+            EventType.SIGNAL_AI_CONFIRMED, payload_ste
+        )
         await asyncio.sleep(0.05)
 
         open_positions = await pos_repo.get_open()
@@ -364,8 +410,10 @@ async def test_simultaneous_ste_and_hda_signal_deduplication(tmp_path):
 
         # 2. Trigger HDA on SOL simultaneously -> gets DENIED by single-coin lock
         denied_events = []
+
         async def on_trade_denied(ev, data):
             denied_events.append(data)
+
         bus.subscribe(EventType.TRADE_DENIED, on_trade_denied)
 
         payload_hda = {
@@ -376,7 +424,9 @@ async def test_simultaneous_ste_and_hda_signal_deduplication(tmp_path):
             "price": 12500.0,
             "suggested_adjustments": {"size_multiplier": 1.0},
         }
-        await risk_svc.on_signal_ai_confirmed(EventType.SIGNAL_AI_CONFIRMED, payload_hda)
+        await risk_svc.on_signal_ai_confirmed(
+            EventType.SIGNAL_AI_CONFIRMED, payload_hda
+        )
         await asyncio.sleep(0.05)
 
         assert len(denied_events) == 1

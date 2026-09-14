@@ -8,28 +8,30 @@ Publishes LEARNING_INSIGHT_GENERATED and STRATEGY_CALIBRATED events over EventBu
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
+from background.analytics.engine import AnalyticsEngine
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
 from core.logging import get_logger
 from core.repository.learning_repo import LearningRepository
-from background.analytics.engine import AnalyticsEngine
 
 logger = get_logger("background.learning.calibrator")
 
 # B10 Immutable Safety Boundary: Learning service CANNOT mutate risk gates or filter cascade rules
-IMMUTABLE_SAFETY_BOUNDARIES: frozenset[str] = frozenset({
-    "scanner_min_24h_volume",
-    "scanner_max_price_change_pct",
-    "scanner_min_atr_pct",
-    "scanner_max_atr_pct",
-    "v2_scanner_max_signals",
-    "enforce_single_coin_lock",
-    "order_size_inr",
-    "total_capital_limit",
-    "v2_max_drawdown_pct",
-})
+IMMUTABLE_SAFETY_BOUNDARIES: frozenset[str] = frozenset(
+    {
+        "scanner_min_24h_volume",
+        "scanner_max_price_change_pct",
+        "scanner_min_atr_pct",
+        "scanner_max_atr_pct",
+        "v2_scanner_max_signals",
+        "enforce_single_coin_lock",
+        "order_size_inr",
+        "total_capital_limit",
+        "v2_max_drawdown_pct",
+    }
+)
 
 
 class StrategyCalibrator:
@@ -39,14 +41,14 @@ class StrategyCalibrator:
         self,
         learning_repo: LearningRepository,
         analytics_engine: AnalyticsEngine,
-        bus: Optional[EventBus] = None,
+        bus: EventBus | None = None,
     ) -> None:
         self._learning_repo = learning_repo
         self._analytics_engine = analytics_engine
         self._bus = bus
 
     @staticmethod
-    def validate_safety_boundary(proposed_overrides: Dict[str, Any]) -> None:
+    def validate_safety_boundary(proposed_overrides: dict[str, Any]) -> None:
         """
         Enforce B10 Learning Safety Boundary.
         Raises PermissionError if proposed calibration touches immutable safety invariants.
@@ -58,8 +60,8 @@ class StrategyCalibrator:
                 )
 
     async def calibrate_all_strategies(
-        self, insights: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, insights: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """
         Evaluate performance metrics and insights for all production bots (STE, HDA, VCP, BBS)
         and update their strategy calibrations in SQLite.
@@ -68,11 +70,12 @@ class StrategyCalibrator:
         metrics_summary = await self._analytics_engine.compute_performance_metrics()
         strategy_stats = metrics_summary.get("strategy_attribution", {})
 
-        calibrations: List[Dict[str, Any]] = []
+        calibrations: list[dict[str, Any]] = []
 
         for bot_name in ("STE", "HDA", "VCP", "BBS"):
             bot_insights = [
-                ins for ins in insights
+                ins
+                for ins in insights
                 if str(ins.get("bot_name", "")).upper() == bot_name
             ]
 
@@ -136,7 +139,10 @@ class StrategyCalibrator:
 
             logger.info(
                 "Calibrated bot %s -> Status: %s | Weight: %.2fx | Min Score: %.1f",
-                bot_name, status, weight_multiplier, min_confluence_threshold,
+                bot_name,
+                status,
+                weight_multiplier,
+                min_confluence_threshold,
             )
 
         return calibrations

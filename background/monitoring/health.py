@@ -5,7 +5,7 @@ V2 HealthChecker — aggregate liveness, readiness, and subsystem diagnostic pro
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 
 class HealthChecker:
@@ -13,15 +13,15 @@ class HealthChecker:
 
     def __init__(
         self,
-        db: Optional[Any] = None,
-        scanner_service: Optional[Any] = None,
-        ai_service: Optional[Any] = None,
-        risk_service: Optional[Any] = None,
-        portfolio_service: Optional[Any] = None,
-        trading_service: Optional[Any] = None,
-        shadow_service: Optional[Any] = None,
-        notification_service: Optional[Any] = None,
-        scheduler: Optional[Any] = None,
+        db: Any | None = None,
+        scanner_service: Any | None = None,
+        ai_service: Any | None = None,
+        risk_service: Any | None = None,
+        portfolio_service: Any | None = None,
+        trading_service: Any | None = None,
+        shadow_service: Any | None = None,
+        notification_service: Any | None = None,
+        scheduler: Any | None = None,
     ) -> None:
         self._db = db
         self._scanner_service = scanner_service
@@ -76,7 +76,8 @@ class HealthChecker:
         services["scheduler"] = probe_service(self._scheduler)
 
         unhealthy = [
-            k for k, v in services.items()
+            k
+            for k, v in services.items()
             if v.get("registered", True) is not False and not v.get("healthy", False)
         ]
 

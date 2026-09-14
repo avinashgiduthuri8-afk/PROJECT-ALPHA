@@ -17,6 +17,7 @@ V2Error = AlphaError
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
+
 class ConfigError(AlphaError):
     """Missing or invalid configuration value."""
 
@@ -27,6 +28,7 @@ class SecurityConfigError(ConfigError):
 
 # ── Storage / persistence ─────────────────────────────────────────────────────
 
+
 class StorageError(AlphaError):
     """Database or repository operation failed."""
 
@@ -36,6 +38,7 @@ class MigrationError(StorageError):
 
 
 # ── Business logic ────────────────────────────────────────────────────────────
+
 
 class ServiceError(AlphaError):
     """Generic business-logic failure."""
@@ -55,6 +58,7 @@ class SignalExpired(ServiceError):
 
 
 # ── Infrastructure ────────────────────────────────────────────────────────────
+
 
 class SchedulerError(AlphaError):
     """Job registration or execution failed."""

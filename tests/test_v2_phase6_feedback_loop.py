@@ -10,23 +10,20 @@ Verifies:
 
 from __future__ import annotations
 
-import asyncio
-import os
 import uuid
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
+
 import pytest
 from fastapi.testclient import TestClient
 
-from core.bus.event_bus import EventBus
-from core.config import invalidate_config
-from core.repository.db import Database
-from core.repository.backtest_repo import BacktestRepository
-from core.repository.feedback_repo import FeedbackRepository
+from app import app
 from background.backtest.service.service import BacktestService
 from background.feedback.orchestrator import FeedbackOrchestrator
-from background.feedback.service import FeedbackService
-from app import app
+from core.bus.event_bus import EventBus
+from core.config import invalidate_config
+from core.repository.backtest_repo import BacktestRepository
+from core.repository.db import Database
+from core.repository.feedback_repo import FeedbackRepository
 from tests.test_v2_phase5_backtest_improvement import generate_synthetic_candles
 
 
@@ -44,6 +41,7 @@ async def _create_test_feedback_db(tmp_path):
 # 1. Pre-Deployment Backtest Verification & Promotion Gate Tests
 # =============================================================================
 
+
 class TestPreDeploymentValidationGate:
 
     @pytest.mark.anyio
@@ -53,7 +51,9 @@ class TestPreDeploymentValidationGate:
         try:
             bus = EventBus()
             backtest_service = BacktestService(backtest_repo=backtest_repo)
-            orchestrator = FeedbackOrchestrator(feedback_repo=feedback_repo, backtest_service=backtest_service, bus=bus)
+            orchestrator = FeedbackOrchestrator(
+                feedback_repo=feedback_repo, backtest_service=backtest_service, bus=bus
+            )
 
             candles = generate_synthetic_candles(count=40)
 
@@ -85,15 +85,19 @@ class TestPreDeploymentValidationGate:
             backtest_service = BacktestService(backtest_repo=backtest_repo)
 
             # Mock backtest service to return degraded results (PF = 0.5 < 0.8)
-            backtest_service.run_backtest = AsyncMock(return_value={
-                "id": "BT_DEGRADED",
-                "total_trades": 10,
-                "win_rate": 20.0,
-                "profit_factor": 0.5,
-                "max_drawdown": 25.0,
-            })
+            backtest_service.run_backtest = AsyncMock(
+                return_value={
+                    "id": "BT_DEGRADED",
+                    "total_trades": 10,
+                    "win_rate": 20.0,
+                    "profit_factor": 0.5,
+                    "max_drawdown": 25.0,
+                }
+            )
 
-            orchestrator = FeedbackOrchestrator(feedback_repo=feedback_repo, backtest_service=backtest_service, bus=bus)
+            orchestrator = FeedbackOrchestrator(
+                feedback_repo=feedback_repo, backtest_service=backtest_service, bus=bus
+            )
 
             audit_event = await orchestrator.evaluate_and_validate_calibration(
                 bot_name="HDA",
@@ -114,6 +118,7 @@ class TestPreDeploymentValidationGate:
 # 2. Automated Safety Rollback Tests
 # =============================================================================
 
+
 class TestSafetyRollbackEngine:
 
     @pytest.mark.anyio
@@ -123,17 +128,23 @@ class TestSafetyRollbackEngine:
         try:
             bus = EventBus()
             backtest_service = BacktestService(backtest_repo=backtest_repo)
-            orchestrator = FeedbackOrchestrator(feedback_repo=feedback_repo, backtest_service=backtest_service, bus=bus)
+            orchestrator = FeedbackOrchestrator(
+                feedback_repo=feedback_repo, backtest_service=backtest_service, bus=bus
+            )
 
             # 1. Promote initial calibration (mult 1.5x, thresh 90.0)
             await feedback_repo.upsert_active_calibration("VCP", 1.5, 90.0)
 
             # 2. First losing trade post-promotion
-            rb1 = await orchestrator.register_trade_outcome("VCP", "BTC/INR", is_win=False)
+            rb1 = await orchestrator.register_trade_outcome(
+                "VCP", "BTC/INR", is_win=False
+            )
             assert rb1 is None  # Not yet rolled back
 
             # 3. Second consecutive losing trade post-promotion -> Trigger Rollback!
-            rb2 = await orchestrator.register_trade_outcome("VCP", "BTC/INR", is_win=False)
+            rb2 = await orchestrator.register_trade_outcome(
+                "VCP", "BTC/INR", is_win=False
+            )
             assert rb2 is not None
             assert rb2["status"] == "ROLLED_BACK"
             assert rb2["action_taken"] == "ROLLBACK"
@@ -151,6 +162,7 @@ class TestSafetyRollbackEngine:
 # =============================================================================
 # 3. Persistence & REST API Endpoint Tests
 # =============================================================================
+
 
 class TestFeedbackAPIEndpoints:
 
@@ -177,7 +189,9 @@ class TestFeedbackAPIEndpoints:
                 "threshold": 88.0,
                 "candles": candles,
             }
-            res_trigger = client.post("/api/v2/feedback/trigger-cycle", json=payload, headers=headers)
+            res_trigger = client.post(
+                "/api/v2/feedback/trigger-cycle", json=payload, headers=headers
+            )
             assert res_trigger.status_code == 200
             data_trig = res_trigger.json()
             assert "bot_name" in data_trig

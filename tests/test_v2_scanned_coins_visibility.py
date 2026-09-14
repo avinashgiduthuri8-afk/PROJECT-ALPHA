@@ -4,22 +4,25 @@ Unit and Integration Tests for V2 Scanned Coins Visibility & Latest-Scan Snapsho
 
 from __future__ import annotations
 
-import asyncio
 import uuid
-import pytest
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
+
+import pytest
 from fastapi.testclient import TestClient
 
 from app import app
 from core.bus.event_bus import EventBus
-from core.config import V2Config, get_config, invalidate_config
-from core.types import MarketState, OppType, Priority, RiskLevel, Signal
-from core.repository.signal_repo import SignalRepository
-from core.repository.event_log_repo import EventLogRepository
+from core.config import V2Config, invalidate_config
 from core.repository.db import Database
+from core.repository.event_log_repo import EventLogRepository
+from core.repository.signal_repo import SignalRepository
+from core.types import MarketState, OppType, Priority, RiskLevel, Signal
+from scanner.confluence_engine import (
+    ConfluenceResult,
+    LayerEvaluation,
+)
 from scanner.service import ScannerService
-from scanner.confluence_engine import ConfluenceEngine, LayerEvaluation, ConfluenceResult
 
 
 @pytest.fixture(autouse=True)
@@ -43,7 +46,9 @@ async def test_scanner_snapshot_retention_and_overwrite(tmp_path):
     event_repo = EventLogRepository(db.connection)
     cfg = V2Config(v2_scanner_strict_confluence_threshold=85, v2_scanner_max_signals=2)
 
-    scanner = ScannerService(bus=bus, signal_repo=sig_repo, event_log_repo=event_repo, config=cfg)
+    scanner = ScannerService(
+        bus=bus, signal_repo=sig_repo, event_log_repo=event_repo, config=cfg
+    )
 
     # Initial state
     assert scanner.get_scanned_coins() == []
@@ -51,20 +56,113 @@ async def test_scanner_snapshot_retention_and_overwrite(tmp_path):
 
     # Simulate first scan pass with 3 candidates
     now = datetime.now(timezone.utc)
-    sig_btc = Signal(id="sig-1", coin="BTC", pair="BTC/INR", market_state=MarketState.BULL_TREND, opportunity_type=OppType.MOMENTUM_TRADE, priority=Priority.HIGH, risk_level=RiskLevel.LOW, score=88, confidence=90, coin_class="A", mtf_alignment=True, generated_at=now, expires_at=now)
-    sig_eth = Signal(id="sig-2", coin="ETH", pair="ETH/INR", market_state=MarketState.PULLBACK, opportunity_type=OppType.CONTINUATION, priority=Priority.MEDIUM, risk_level=RiskLevel.MEDIUM, score=78, confidence=80, coin_class="A", mtf_alignment=True, generated_at=now, expires_at=now)
-    sig_sol = Signal(id="sig-3", coin="SOL", pair="SOL/INR", market_state=MarketState.DOWNTREND, opportunity_type=OppType.WATCHLIST, priority=Priority.WATCH, risk_level=RiskLevel.HIGH, score=62, confidence=60, coin_class="B", mtf_alignment=False, generated_at=now, expires_at=now)
+    sig_btc = Signal(
+        id="sig-1",
+        coin="BTC",
+        pair="BTC/INR",
+        market_state=MarketState.BULL_TREND,
+        opportunity_type=OppType.MOMENTUM_TRADE,
+        priority=Priority.HIGH,
+        risk_level=RiskLevel.LOW,
+        score=88,
+        confidence=90,
+        coin_class="A",
+        mtf_alignment=True,
+        generated_at=now,
+        expires_at=now,
+    )
+    sig_eth = Signal(
+        id="sig-2",
+        coin="ETH",
+        pair="ETH/INR",
+        market_state=MarketState.PULLBACK,
+        opportunity_type=OppType.CONTINUATION,
+        priority=Priority.MEDIUM,
+        risk_level=RiskLevel.MEDIUM,
+        score=78,
+        confidence=80,
+        coin_class="A",
+        mtf_alignment=True,
+        generated_at=now,
+        expires_at=now,
+    )
+    sig_sol = Signal(
+        id="sig-3",
+        coin="SOL",
+        pair="SOL/INR",
+        market_state=MarketState.DOWNTREND,
+        opportunity_type=OppType.WATCHLIST,
+        priority=Priority.WATCH,
+        risk_level=RiskLevel.HIGH,
+        score=62,
+        confidence=60,
+        coin_class="B",
+        mtf_alignment=False,
+        generated_at=now,
+        expires_at=now,
+    )
 
-    res_btc = ConfluenceResult(signal=sig_btc, accepted=True, confluence_score=88, rank=1, layer_evaluations={"chart": LayerEvaluation("Chart", True, 90), "indicator": LayerEvaluation("Indicator", True, 88), "sentiment": LayerEvaluation("Sentiment", True, 85), "news": LayerEvaluation("News", True, 90)}, rejection_reasons=[])
-    res_eth = ConfluenceResult(signal=sig_eth, accepted=False, confluence_score=78, rank=0, layer_evaluations={"chart": LayerEvaluation("Chart", True, 80), "indicator": LayerEvaluation("Indicator", True, 78), "sentiment": LayerEvaluation("Sentiment", False, 60, reasons=["Market regime is RISK_OFF"]), "news": LayerEvaluation("News", True, 90)}, rejection_reasons=["Market regime is RISK_OFF", "Confluence score (78) below strict threshold (85)"])
-    res_sol = ConfluenceResult(signal=sig_sol, accepted=False, confluence_score=62, rank=0, layer_evaluations={"chart": LayerEvaluation("Chart", False, 50, reasons=["Downtrend chart"]), "indicator": LayerEvaluation("Indicator", False, 60), "sentiment": LayerEvaluation("Sentiment", False, 60), "news": LayerEvaluation("News", True, 80)}, rejection_reasons=["Downtrend chart", "Confluence score (62) below strict threshold (85)"])
+    res_btc = ConfluenceResult(
+        signal=sig_btc,
+        accepted=True,
+        confluence_score=88,
+        rank=1,
+        layer_evaluations={
+            "chart": LayerEvaluation("Chart", True, 90),
+            "indicator": LayerEvaluation("Indicator", True, 88),
+            "sentiment": LayerEvaluation("Sentiment", True, 85),
+            "news": LayerEvaluation("News", True, 90),
+        },
+        rejection_reasons=[],
+    )
+    res_eth = ConfluenceResult(
+        signal=sig_eth,
+        accepted=False,
+        confluence_score=78,
+        rank=0,
+        layer_evaluations={
+            "chart": LayerEvaluation("Chart", True, 80),
+            "indicator": LayerEvaluation("Indicator", True, 78),
+            "sentiment": LayerEvaluation(
+                "Sentiment", False, 60, reasons=["Market regime is RISK_OFF"]
+            ),
+            "news": LayerEvaluation("News", True, 90),
+        },
+        rejection_reasons=[
+            "Market regime is RISK_OFF",
+            "Confluence score (78) below strict threshold (85)",
+        ],
+    )
+    res_sol = ConfluenceResult(
+        signal=sig_sol,
+        accepted=False,
+        confluence_score=62,
+        rank=0,
+        layer_evaluations={
+            "chart": LayerEvaluation("Chart", False, 50, reasons=["Downtrend chart"]),
+            "indicator": LayerEvaluation("Indicator", False, 60),
+            "sentiment": LayerEvaluation("Sentiment", False, 60),
+            "news": LayerEvaluation("News", True, 80),
+        },
+        rejection_reasons=[
+            "Downtrend chart",
+            "Confluence score (62) below strict threshold (85)",
+        ],
+    )
 
     # Directly mock confluence evaluation return
     async def mock_fetch_v1():
-        return [{"coin": "BTC", "price": 6500000.0, "rsi": 58.0}, {"coin": "ETH", "price": 280000.0, "rsi": 48.0}, {"coin": "SOL", "price": 14500.0, "rsi": 42.0}]
+        return [
+            {"coin": "BTC", "price": 6500000.0, "rsi": 58.0},
+            {"coin": "ETH", "price": 280000.0, "rsi": 48.0},
+            {"coin": "SOL", "price": 14500.0, "rsi": 42.0},
+        ]
 
     scanner._fetch_v1_signals = mock_fetch_v1
-    scanner._confluence_engine.evaluate_candidates = lambda *args, **kwargs: ([sig_btc], [res_btc, res_eth, res_sol])
+    scanner._confluence_engine.evaluate_candidates = lambda *args, **kwargs: (
+        [sig_btc],
+        [res_btc, res_eth, res_sol],
+    )
 
     summary = await scanner.poll()
     assert summary["new_signals"] == 1
@@ -98,30 +196,54 @@ async def test_scanner_snapshot_retention_and_overwrite(tmp_path):
         return [{"coin": "ETH", "price": 282000.0, "rsi": 50.0}]
 
     scanner._fetch_v1_signals = mock_fetch_v1_pass2
-    scanner._confluence_engine.evaluate_candidates = lambda *args, **kwargs: ([], [res_eth])
+    scanner._confluence_engine.evaluate_candidates = lambda *args, **kwargs: (
+        [],
+        [res_eth],
+    )
 
     await scanner.poll()
     scanned_pass2 = scanner.get_scanned_coins()
     assert len(scanned_pass2) == 1
     assert scanned_pass2[0]["symbol"] == "ETH"
-    assert scanner.get_scanned_coin_detail("BTC") is None  # BTC evicted from previous pass
+    assert (
+        scanner.get_scanned_coin_detail("BTC") is None
+    )  # BTC evicted from previous pass
 
 
 def test_api_scanned_coins_endpoints():
     """Verify GET /api/v2/scanner/coins and /api/v2/scanner/coins/{symbol}."""
     import sys
+
     with TestClient(app) as client:
         headers = {"X-API-Key": "test-visibility-key"}
 
         # Mock candidate signals on scanner service if available
         mock_raw = [
-            {"coin": "BTC", "pair": "BTC/INR", "price": 6500000.0, "rsi": 58.0, "score": 88, "mtf_alignment": True},
-            {"coin": "ETH", "pair": "ETH/INR", "price": 280000.0, "rsi": 48.0, "score": 78, "mtf_alignment": True},
+            {
+                "coin": "BTC",
+                "pair": "BTC/INR",
+                "price": 6500000.0,
+                "rsi": 58.0,
+                "score": 88,
+                "mtf_alignment": True,
+            },
+            {
+                "coin": "ETH",
+                "pair": "ETH/INR",
+                "price": 280000.0,
+                "rsi": 48.0,
+                "score": 78,
+                "mtf_alignment": True,
+            },
         ]
         router_mod = sys.modules.get("dashboard.api.router")
         if router_mod and getattr(router_mod, "_scanner_service", None):
-            router_mod._scanner_service._fetch_candidate_signals = AsyncMock(return_value=mock_raw)
-            router_mod._scanner_service._fetch_v1_signals = AsyncMock(return_value=mock_raw)
+            router_mod._scanner_service._fetch_candidate_signals = AsyncMock(
+                return_value=mock_raw
+            )
+            router_mod._scanner_service._fetch_v1_signals = AsyncMock(
+                return_value=mock_raw
+            )
 
         # 1. Trigger poll to populate snapshot
         poll_resp = client.post("/api/v2/scanner/poll", headers=headers)
@@ -157,7 +279,9 @@ def test_api_scanned_coins_endpoints():
         assert "news" in detail["eval_breakdown"]
 
         # 4. Query unknown coin returns 404
-        resp_404 = client.get("/api/v2/scanner/coins/NON_EXISTENT_COIN_XYZ", headers=headers)
+        resp_404 = client.get(
+            "/api/v2/scanner/coins/NON_EXISTENT_COIN_XYZ", headers=headers
+        )
         assert resp_404.status_code == 404
         assert "not found" in resp_404.json()["detail"].lower()
 

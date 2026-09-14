@@ -4,15 +4,13 @@ PROJECT-ALPHA ShadowService — manages shadow simulation, scheduled price updat
 
 from __future__ import annotations
 
-from typing import Optional
-
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
 from core.config import AppConfig
-from core.types import BotName, ShadowTrade
 from core.logging import get_logger
 from core.repository.event_log_repo import EventLogRepository
 from core.repository.shadow_repo import ShadowRepository
+from core.types import BotName
 
 from .divergence import DivergenceTracker
 from .engine import ShadowEngine
@@ -75,7 +73,9 @@ class ShadowService:
 
     # ── Event Handlers ────────────────────────────────────────────────────────
 
-    async def _on_signal_ai_rejected(self, event_type: EventType, payload: dict) -> None:
+    async def _on_signal_ai_rejected(
+        self, event_type: EventType, payload: dict
+    ) -> None:
         """Record divergence when AI gates a signal."""
         try:
             signal_id = payload.get("signal_id") or "UNKNOWN"
@@ -93,7 +93,10 @@ class ShadowService:
                 reason=reason,
             )
         except Exception as exc:
-            logger.warning("Error processing SIGNAL_AI_REJECTED divergence", extra={"error": str(exc)})
+            logger.warning(
+                "Error processing SIGNAL_AI_REJECTED divergence",
+                extra={"error": str(exc)},
+            )
 
     async def _on_trade_denied(self, event_type: EventType, payload: dict) -> None:
         """Record divergence when Risk Engine blocks a trade."""
@@ -106,7 +109,9 @@ class ShadowService:
             except ValueError:
                 bot = BotName.MTB
 
-            reason = f"Risk engine blocked trade: {payload.get('reason', 'Capital limit')}"
+            reason = (
+                f"Risk engine blocked trade: {payload.get('reason', 'Capital limit')}"
+            )
             await self._divergence_tracker.record_divergence(
                 signal_id=signal_id,
                 bot=bot,
@@ -117,7 +122,9 @@ class ShadowService:
                 reason=reason,
             )
         except Exception as exc:
-            logger.warning("Error processing TRADE_DENIED divergence", extra={"error": str(exc)})
+            logger.warning(
+                "Error processing TRADE_DENIED divergence", extra={"error": str(exc)}
+            )
 
     # ── Queries & State ───────────────────────────────────────────────────────
 

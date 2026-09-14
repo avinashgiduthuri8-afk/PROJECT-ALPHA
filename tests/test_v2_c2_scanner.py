@@ -9,7 +9,8 @@ Tests for C2 High-Conviction Crypto Scanner Architecture:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+
 import pytest
 
 from core.types import MarketState, Priority, RiskLevel, Signal
@@ -36,7 +37,11 @@ def _make_test_signal(
         coin=coin,
         pair=f"{coin}_USDT",
         market_state=market_state,
-        opportunity_type=OppType.MOMENTUM_TRADE if hasattr(OppType, 'MOMENTUM_TRADE') else "momentum_trade",
+        opportunity_type=(
+            OppType.MOMENTUM_TRADE
+            if hasattr(OppType, "MOMENTUM_TRADE")
+            else "momentum_trade"
+        ),
         priority=priority,
         risk_level=risk_level,
         score=score,
@@ -86,14 +91,18 @@ class TestMarketSentimentEvaluator:
 
     def test_risk_on_bullish_btc_passes(self):
         evaluator = MarketSentimentEvaluator()
-        evaluator.update_market_state(btc_trend="BULLISH", eth_trend="BULLISH", market_regime="RISK_ON")
+        evaluator.update_market_state(
+            btc_trend="BULLISH", eth_trend="BULLISH", market_regime="RISK_ON"
+        )
         sig = _make_test_signal()
         res = evaluator.evaluate({}, sig)
         assert res.passed is True
 
     def test_risk_off_causes_rejection(self):
         evaluator = MarketSentimentEvaluator()
-        evaluator.update_market_state(btc_trend="BEARISH", eth_trend="BEARISH", market_regime="RISK_OFF")
+        evaluator.update_market_state(
+            btc_trend="BEARISH", eth_trend="BEARISH", market_regime="RISK_OFF"
+        )
         sig = _make_test_signal()
         res = evaluator.evaluate({}, sig)
         assert res.passed is False
@@ -123,11 +132,17 @@ class TestConfluenceEngine:
         engine.update_market_sentiment("BULLISH", "BULLISH", "RISK_ON")
 
         # 1 strong candidate + 1 weak candidate
-        strong_sig = _make_test_signal("SOL", score=95, priority=Priority.ELITE, mtf_alignment=True)
-        weak_sig = _make_test_signal("DOGE", score=60, priority=Priority.WATCH, mtf_alignment=False)
+        strong_sig = _make_test_signal(
+            "SOL", score=95, priority=Priority.ELITE, mtf_alignment=True
+        )
+        weak_sig = _make_test_signal(
+            "DOGE", score=60, priority=Priority.WATCH, mtf_alignment=False
+        )
 
         raw_candidates = [{"coin": "SOL"}, {"coin": "DOGE"}]
-        accepted, all_results = engine.evaluate_candidates(raw_candidates, [strong_sig, weak_sig])
+        accepted, all_results = engine.evaluate_candidates(
+            raw_candidates, [strong_sig, weak_sig]
+        )
 
         # Weak candidate must be rejected by strict rejection gate
         accepted_coins = [s.coin for s in accepted]
@@ -195,6 +210,7 @@ class TestDeduplicationAndPrecision:
 
     def test_dedup_key_and_filter(self):
         from scanner.signal_filter import _dedup_key, deduplicate
+
         sig1 = _make_test_signal("BTC", score=90)
         sig1.source_bot = "VCP"
         assert _dedup_key(sig1) == "BTC::VCP"
@@ -213,6 +229,7 @@ class TestDeduplicationAndPrecision:
 
     def test_precision_rules_and_round_qty(self):
         from execution.trading.precision_rules import get_pair_spec, round_qty
+
         # BTC micro-lot
         btc_qty = round_qty("BTC/INR", 0.00002439)
         assert btc_qty == 0.00002
@@ -235,7 +252,6 @@ class TestDeduplicationAndPrecision:
             format_qty,
             format_signal_ai_alert,
             format_telegram_orders,
-            format_telegram_positions,
         )
 
         assert format_qty(0.00002) == "0.00002"
@@ -261,7 +277,14 @@ class TestDeduplicationAndPrecision:
 
         # Orders formatting
         orders = [
-            {"coin": "BTC", "side": "BUY", "qty": 0.00002, "price": 8200000.0, "mode": "PAPER", "status": "FILLED"}
+            {
+                "coin": "BTC",
+                "side": "BUY",
+                "qty": 0.00002,
+                "price": 8200000.0,
+                "mode": "PAPER",
+                "status": "FILLED",
+            }
         ]
         orders_text = format_telegram_orders(orders)
         assert "BUY</code> 0.00002 @" in orders_text
@@ -269,9 +292,22 @@ class TestDeduplicationAndPrecision:
 
         # Trades formatting - test no +- sign collision
         from telegram.formatters import format_telegram_trades
+
         trades = [
-            {"coin": "BTC", "bot": "STE", "pnl": 0.0, "pnl_pct": -3.58, "exit_reason": "STOP_LOSS"},
-            {"coin": "SOL", "bot": "STE", "pnl": 15.2, "pnl_pct": 5.20, "exit_reason": "TAKE_PROFIT"}
+            {
+                "coin": "BTC",
+                "bot": "STE",
+                "pnl": 0.0,
+                "pnl_pct": -3.58,
+                "exit_reason": "STOP_LOSS",
+            },
+            {
+                "coin": "SOL",
+                "bot": "STE",
+                "pnl": 15.2,
+                "pnl_pct": 5.20,
+                "exit_reason": "TAKE_PROFIT",
+            },
         ]
         trades_text = format_telegram_trades(trades)
         assert "+-" not in trades_text
@@ -284,11 +320,12 @@ class TestPostExitCooldownAndSignalLifecycle:
     @pytest.mark.anyio
     async def test_position_close_triggers_cooldown_and_suppresses_reentry(self):
         """Verify position close sets cooldown and suppresses immediate same-coin re-entry."""
+        from unittest.mock import AsyncMock
+
         from core.bus.event_bus import EventBus
         from core.bus.event_types import EventType
         from core.config import V2Config
         from scanner.service import ScannerService
-        from unittest.mock import AsyncMock
 
         bus = EventBus()
         config = V2Config(
@@ -317,7 +354,7 @@ class TestPostExitCooldownAndSignalLifecycle:
                 "exit_reason": "STOP_LOSS",
                 "exit_price": 99614.4,
                 "closed_at": now.isoformat(),
-            }
+            },
         )
 
         assert "ZEC" in scanner._cooldowns
@@ -327,16 +364,23 @@ class TestPostExitCooldownAndSignalLifecycle:
         sig_zec = _make_test_signal("ZEC", score=92)
         sig_btc = _make_test_signal("BTC", score=90)
 
-        scanner._confluence_engine.evaluate_candidates = lambda raw_candidates, signals=None, *args, **kwargs: (
-            [sig_zec, sig_btc], []
+        scanner._confluence_engine.evaluate_candidates = (
+            lambda raw_candidates, signals=None, *args, **kwargs: (
+                [sig_zec, sig_btc],
+                [],
+            )
         )
-        scanner._fetch_v1_signals = AsyncMock(return_value=[
-            {"coin": "ZEC", "score": 92},
-            {"coin": "BTC", "score": 90}
-        ])
-        scanner._market_context_service.refresh_market_context = AsyncMock(return_value={
-            "btc_trend": "BULLISH", "eth_trend": "BULLISH", "market_regime": "RISK_ON", "fear_and_greed": 70
-        })
+        scanner._fetch_v1_signals = AsyncMock(
+            return_value=[{"coin": "ZEC", "score": 92}, {"coin": "BTC", "score": 90}]
+        )
+        scanner._market_context_service.refresh_market_context = AsyncMock(
+            return_value={
+                "btc_trend": "BULLISH",
+                "eth_trend": "BULLISH",
+                "market_regime": "RISK_ON",
+                "fear_and_greed": 70,
+            }
+        )
         scanner._news_risk_service.fetch_latest_news = AsyncMock()
 
         # Run poll
@@ -358,7 +402,10 @@ class TestPostExitCooldownAndSignalLifecycle:
 
         now = datetime.now(timezone.utc)
         cooldowns = {
-            "ZEC": {"exit_time": now - timedelta(seconds=60), "exit_reason": "STOP_LOSS"}
+            "ZEC": {
+                "exit_time": now - timedelta(seconds=60),
+                "exit_reason": "STOP_LOSS",
+            }
         }
 
         # Trade on ZEC during cooldown should be denied
@@ -390,10 +437,11 @@ class TestPostExitCooldownAndSignalLifecycle:
     @pytest.mark.anyio
     async def test_cooldown_expiry_allows_new_opportunity(self):
         """Verify that after cooldown window expires, a new scanner opportunity can generate a signal."""
+        from unittest.mock import AsyncMock
+
         from core.bus.event_bus import EventBus
         from core.config import V2Config
         from scanner.service import ScannerService
-        from unittest.mock import AsyncMock
 
         bus = EventBus()
         config = V2Config(
@@ -420,11 +468,20 @@ class TestPostExitCooldownAndSignalLifecycle:
         }
 
         sig_zec = _make_test_signal("ZEC", score=92)
-        scanner._confluence_engine.evaluate_candidates = lambda raw_candidates, signals=None, *args, **kwargs: ([sig_zec], [])
-        scanner._fetch_v1_signals = AsyncMock(return_value=[{"coin": "ZEC", "score": 92}])
-        scanner._market_context_service.refresh_market_context = AsyncMock(return_value={
-            "btc_trend": "BULLISH", "eth_trend": "BULLISH", "market_regime": "RISK_ON", "fear_and_greed": 70
-        })
+        scanner._confluence_engine.evaluate_candidates = (
+            lambda raw_candidates, signals=None, *args, **kwargs: ([sig_zec], [])
+        )
+        scanner._fetch_v1_signals = AsyncMock(
+            return_value=[{"coin": "ZEC", "score": 92}]
+        )
+        scanner._market_context_service.refresh_market_context = AsyncMock(
+            return_value={
+                "btc_trend": "BULLISH",
+                "eth_trend": "BULLISH",
+                "market_regime": "RISK_ON",
+                "fear_and_greed": 70,
+            }
+        )
         scanner._news_risk_service.fetch_latest_news = AsyncMock()
 
         summary = await scanner.poll()
@@ -433,4 +490,3 @@ class TestPostExitCooldownAndSignalLifecycle:
         assert summary["new_signals"] == 1
         assert "ZEC" in [s.coin for s in scanner._live.values()]
         assert "ZEC" not in scanner._cooldowns
-

@@ -3,19 +3,19 @@ tests/test_v2_scanner_position_lock.py
 Unit tests verifying B7 Early Single-Coin Position Lock Suppression before C2/AI compute.
 """
 
-import asyncio
 import os
 import uuid
 from datetime import datetime, timezone
+
 import pytest
 
 from core.bus.event_bus import EventBus
 from core.config import V2Config
-from core.types import BotMode, BotName, Position
 from core.repository.db import Database
 from core.repository.event_log_repo import EventLogRepository
 from core.repository.position_repo import PositionRepository
 from core.repository.signal_repo import SignalRepository
+from core.types import BotMode, BotName, Position
 from scanner.service import ScannerService
 
 TEST_DB_DIR = os.path.abspath(".test_dbs")
@@ -65,9 +65,28 @@ async def test_early_lock_suppresses_c2_and_ai_evaluation():
     # Mock raw candidates returned from market data (SOL, BTC, ETH)
     async def mock_fetch_v1():
         return [
-            {"coin": "SOL", "pair": "SOL/INR", "score": 95, "price": 12100.0, "timeframe": "15m", "market_state": "bull_trend", "opportunity_type": "momentum_trade", "priority": "Elite"},
-            {"coin": "BTC", "pair": "BTC/INR", "score": 90, "price": 8500000.0, "timeframe": "15m", "market_state": "bull_trend", "opportunity_type": "momentum_trade", "priority": "Elite"},
+            {
+                "coin": "SOL",
+                "pair": "SOL/INR",
+                "score": 95,
+                "price": 12100.0,
+                "timeframe": "15m",
+                "market_state": "bull_trend",
+                "opportunity_type": "momentum_trade",
+                "priority": "Elite",
+            },
+            {
+                "coin": "BTC",
+                "pair": "BTC/INR",
+                "score": 90,
+                "price": 8500000.0,
+                "timeframe": "15m",
+                "market_state": "bull_trend",
+                "opportunity_type": "momentum_trade",
+                "priority": "Elite",
+            },
         ]
+
     scanner._fetch_v1_signals = mock_fetch_v1
     scanner._generate_native_candidates = mock_fetch_v1
 
@@ -90,4 +109,3 @@ async def test_early_lock_suppresses_c2_and_ai_evaluation():
     assert "BTC" in evaluated_coins
 
     await db.close()
-

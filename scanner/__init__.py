@@ -2,17 +2,17 @@
 PROJECT-ALPHA Scanner Module — Multi-Timeframe Trend & Confluence Engine.
 """
 
-from .service import ScannerService
+from .calibration_worker import CalibrationWorker
 from .confluence_engine import ConfluenceEngine
 from .market_context import MarketContextService, calculate_ema
 from .news_fetcher import NewsRiskService
-from .calibration_worker import CalibrationWorker
+from .service import ScannerService
 
 __all__ = [
-    "ScannerService",
+    "CalibrationWorker",
     "ConfluenceEngine",
     "MarketContextService",
     "NewsRiskService",
-    "CalibrationWorker",
+    "ScannerService",
     "calculate_ema",
 ]

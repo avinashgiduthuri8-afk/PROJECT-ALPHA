@@ -5,7 +5,7 @@ V2 WebSocket Manager — manages live client subscriptions and real-time event b
 from __future__ import annotations
 
 import json
-from typing import Any, Set
+from typing import Any
 
 from fastapi import WebSocket
 
@@ -18,7 +18,7 @@ class WebSocketManager:
     """Tracks active frontend WebSocket client connections and broadcasts live event frames."""
 
     def __init__(self) -> None:
-        self._active_connections: Set[WebSocket] = set()
+        self._active_connections: set[WebSocket] = set()
 
     @property
     def active_count(self) -> int:
@@ -27,11 +27,17 @@ class WebSocketManager:
     async def connect(self, websocket: WebSocket) -> None:
         await websocket.accept()
         self._active_connections.add(websocket)
-        logger.info("WebSocket client connected", extra={"active_connections": len(self._active_connections)})
+        logger.info(
+            "WebSocket client connected",
+            extra={"active_connections": len(self._active_connections)},
+        )
 
     def disconnect(self, websocket: WebSocket) -> None:
         self._active_connections.discard(websocket)
-        logger.info("WebSocket client disconnected", extra={"active_connections": len(self._active_connections)})
+        logger.info(
+            "WebSocket client disconnected",
+            extra={"active_connections": len(self._active_connections)},
+        )
 
     async def broadcast(self, event_type: str, payload: dict[str, Any]) -> None:
         """Broadcast JSON message to all connected clients."""

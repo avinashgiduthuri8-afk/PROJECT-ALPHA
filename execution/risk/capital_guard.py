@@ -5,11 +5,10 @@ PROJECT-ALPHA CapitalGuard — deterministic capital limit and max-position gati
 from __future__ import annotations
 
 import time
-from typing import Optional
 
 from core.config import AppConfig
-from core.types import BotName, RiskDecision
 from core.logging import get_logger
+from core.types import BotName, RiskDecision
 from execution.trading.precision_rules import extract_base_coin
 
 logger = get_logger("execution.risk.capital_guard")
@@ -28,17 +27,19 @@ class CapitalGuard:
         current_bot_deployed: float,
         total_deployed: float,
         current_bot_positions: int,
-        active_positions: Optional[list] = None,
-        current_coin: Optional[str] = None,
-        cooldowns: Optional[dict[str, dict]] = None,
+        active_positions: list | None = None,
+        current_coin: str | None = None,
+        cooldowns: dict[str, dict] | None = None,
     ) -> RiskDecision:
         t0 = time.perf_counter()
 
         # -1. Minimum Order Sizing Gate (Mandatory >= ₹200.00 in all execution modes)
         # Reject non-finite values as well as values below the project invariant.
-        if not isinstance(requested_amount, (int, float)) or not (
-            requested_amount == requested_amount
-        ) or requested_amount < 200.0:
+        if (
+            not isinstance(requested_amount, (int, float))
+            or not (requested_amount == requested_amount)
+            or requested_amount < 200.0
+        ):
             ms = (time.perf_counter() - t0) * 1000.0
             return RiskDecision(
                 allowed=False,
@@ -69,12 +70,28 @@ class CapitalGuard:
 
         # 1. Single-Coin Asset Deduplication & Cross-Strategy Fleet Lock Check
         # If one coin position is active in ANY strategy bot, do not allow opening in any strategy bot.
-        if self._config.enforce_single_coin_lock and candidate_base and active_positions:
+        if (
+            self._config.enforce_single_coin_lock
+            and candidate_base
+            and active_positions
+        ):
             for pos in active_positions:
-                pos_coin = getattr(pos, "coin", None) or (pos.get("coin") if isinstance(pos, dict) else "") or ""
-                pos_pair = getattr(pos, "pair", None) or (pos.get("pair") if isinstance(pos, dict) else "") or ""
-                pos_bot = getattr(pos, "bot", None) or (pos.get("bot") if isinstance(pos, dict) else "BOT")
-                pos_bot_name = pos_bot.value if hasattr(pos_bot, "value") else str(pos_bot)
+                pos_coin = (
+                    getattr(pos, "coin", None)
+                    or (pos.get("coin") if isinstance(pos, dict) else "")
+                    or ""
+                )
+                pos_pair = (
+                    getattr(pos, "pair", None)
+                    or (pos.get("pair") if isinstance(pos, dict) else "")
+                    or ""
+                )
+                pos_bot = getattr(pos, "bot", None) or (
+                    pos.get("bot") if isinstance(pos, dict) else "BOT"
+                )
+                pos_bot_name = (
+                    pos_bot.value if hasattr(pos_bot, "value") else str(pos_bot)
+                )
 
                 pos_base = extract_base_coin(pos_coin) or extract_base_coin(pos_pair)
                 if candidate_base == pos_base:
@@ -86,9 +103,7 @@ class CapitalGuard:
                             f"Cross-strategy lock prevents opening in {target_bot_name}."
                         )
                     else:
-                        reason_str = (
-                            f"Asset {candidate_base} already has an active open position in strategy {pos_bot_name}."
-                        )
+                        reason_str = f"Asset {candidate_base} already has an active open position in strategy {pos_bot_name}."
                     return RiskDecision(
                         allowed=False,
                         code="OPPORTUNITY_LOCKED_ACTIVE_PAIR",
@@ -100,7 +115,10 @@ class CapitalGuard:
                     )
 
         # 2. Max Fleet-Wide Concurrency Cap Check
-        if active_positions is not None and len(active_positions) >= self._config.max_concurrent_positions:
+        if (
+            active_positions is not None
+            and len(active_positions) >= self._config.max_concurrent_positions
+        ):
             ms = (time.perf_counter() - t0) * 1000.0
             return RiskDecision(
                 allowed=False,
@@ -143,7 +161,11 @@ class CapitalGuard:
 
         # 5. Check Unified Global Capital Pool Limit (Shared Ceiling, None = dynamic)
         total_limit = self._config.total_capital_limit
-        if total_limit is not None and total_limit > 0 and (total_deployed + requested_amount) > total_limit:
+        if (
+            total_limit is not None
+            and total_limit > 0
+            and (total_deployed + requested_amount) > total_limit
+        ):
             available = max(0.0, total_limit - total_deployed)
             ms = (time.perf_counter() - t0) * 1000.0
             return RiskDecision(

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import hmac
 import json
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect, status
 
@@ -19,13 +19,13 @@ from dashboard.websocket import WebSocketManager
 logger = get_logger("dashboard.api.websocket")
 
 router = APIRouter()
-_ws_manager: Optional[WebSocketManager] = None
-_dashboard_service: Optional[Any] = None
+_ws_manager: WebSocketManager | None = None
+_dashboard_service: Any | None = None
 
 
 def init_websocket(
     ws_manager: WebSocketManager,
-    dashboard_service: Optional[Any] = None,
+    dashboard_service: Any | None = None,
 ) -> None:
     """Inject the WebSocket manager and DashboardService instance from application lifespan."""
     global _ws_manager, _dashboard_service
@@ -38,7 +38,7 @@ def init_websocket(
 @router.websocket("/ws/v2/feed")
 async def websocket_feed(
     websocket: WebSocket,
-    api_key: Optional[str] = Query(default=None, alias="api_key"),
+    api_key: str | None = Query(default=None, alias="api_key"),
 ) -> None:
     """
     Real-time push feed for V2 events.
@@ -53,11 +53,15 @@ async def websocket_feed(
     provided_key = api_key or websocket.headers.get("X-API-Key")
 
     if not expected_key:
-        logger.warning("WebSocket rejected: DASHBOARD_API_KEY is not configured on server")
+        logger.warning(
+            "WebSocket rejected: DASHBOARD_API_KEY is not configured on server"
+        )
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
-    is_authorized = bool(provided_key and hmac.compare_digest(provided_key, expected_key))
+    is_authorized = bool(
+        provided_key and hmac.compare_digest(provided_key, expected_key)
+    )
 
     if not is_authorized:
         logger.warning("WebSocket rejected: Invalid API key")
@@ -74,7 +78,9 @@ async def websocket_feed(
     if _dashboard_service is not None:
         try:
             snap = _dashboard_service.get_telemetry_snapshot()
-            await websocket.send_text(json.dumps({"type": "TELEMETRY_SNAPSHOT", "data": snap}, default=str))
+            await websocket.send_text(
+                json.dumps({"type": "TELEMETRY_SNAPSHOT", "data": snap}, default=str)
+            )
         except Exception as exc:
             logger.debug("Failed sending initial telemetry snapshot: %s", exc)
 

@@ -4,8 +4,6 @@ sector_quant.portfolio.risk_engine — Sector exposure caps & single-stock risk 
 
 from __future__ import annotations
 
-from typing import Dict, Optional
-
 from sector_quant.events import FillEvent, OrderEvent, SignalEvent
 
 
@@ -22,20 +20,20 @@ class SectorRiskEngine:
         initial_capital: float = 1_000_000.0,
         max_sector_exposure_pct: float = 0.30,
         max_stock_exposure_pct: float = 0.15,
-        symbol_sector_map: Optional[Dict[str, str]] = None,
+        symbol_sector_map: dict[str, str] | None = None,
     ) -> None:
         self.initial_capital = initial_capital
         self.current_cash = initial_capital
         self.max_sector_pct = max_sector_exposure_pct
         self.max_stock_pct = max_stock_exposure_pct
-        self.symbol_sector_map: Dict[str, str] = {
+        self.symbol_sector_map: dict[str, str] = {
             k.upper(): v.upper() for k, v in (symbol_sector_map or {}).items()
         }
 
         # Positions tracking: symbol -> signed quantity (+ for long, - for short)
-        self.positions: Dict[str, int] = {}
+        self.positions: dict[str, int] = {}
         # Current market prices: symbol -> price
-        self.current_prices: Dict[str, float] = {}
+        self.current_prices: dict[str, float] = {}
 
     def update_price(self, symbol: str, price: float) -> None:
         self.current_prices[symbol.upper()] = price
@@ -74,10 +72,10 @@ class SectorRiskEngine:
         qty = fill.quantity
 
         if direction == "BUY":
-            self.current_cash -= (fill_cost + commission)
+            self.current_cash -= fill_cost + commission
             self.positions[sym] = self.positions.get(sym, 0) + qty
         elif direction == "SELL":
-            self.current_cash += (fill_cost - commission)
+            self.current_cash += fill_cost - commission
             self.positions[sym] = self.positions.get(sym, 0) - qty
 
         # Clean up zero positions
@@ -89,7 +87,7 @@ class SectorRiskEngine:
         signal: SignalEvent,
         current_price: float,
         target_allocation_pct: float = 0.10,
-    ) -> Optional[OrderEvent]:
+    ) -> OrderEvent | None:
         """
         Evaluate SignalEvent, enforce sector & stock risk caps,
         and generate a compliant OrderEvent.
@@ -121,7 +119,9 @@ class SectorRiskEngine:
         # Enforce Sector Cap
         available_sector_headroom = max(0.0, max_sector_capital - curr_sector_exp)
 
-        allowed_notional = min(desired_notional, available_stock_headroom, available_sector_headroom)
+        allowed_notional = min(
+            desired_notional, available_stock_headroom, available_sector_headroom
+        )
         if allowed_notional < current_price:
             # Cannot afford even 1 share within risk bounds
             return None

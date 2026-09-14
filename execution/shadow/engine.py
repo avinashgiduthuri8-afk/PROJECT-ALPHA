@@ -6,15 +6,14 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
 from core.config import AppConfig
-from core.types import BotName, ShadowTrade
 from core.logging import get_logger
 from core.repository.event_log_repo import EventLogRepository
 from core.repository.shadow_repo import ShadowRepository
+from core.types import BotName, ShadowTrade
 
 logger = get_logger("execution.shadow.engine")
 
@@ -43,10 +42,10 @@ class ShadowEngine:
         entry_price: float,
         qty: float,
         amount: float,
-        stop_loss: Optional[float],
-        take_profit: Optional[float],
-        ai_recommendation: Optional[str] = "APPROVE",
-        raw_adjustments: Optional[dict] = None,
+        stop_loss: float | None,
+        take_profit: float | None,
+        ai_recommendation: str | None = "APPROVE",
+        raw_adjustments: dict | None = None,
     ) -> ShadowTrade:
         """Create and persist a new simulated shadow trade."""
         now = datetime.now(timezone.utc)
@@ -91,7 +90,10 @@ class ShadowEngine:
             entity_id=trade.id,
             payload=trade_payload,
         )
-        logger.info("Shadow trade RECORDED", extra={"coin": coin, "bot": bot.value, "amount": amount})
+        logger.info(
+            "Shadow trade RECORDED",
+            extra={"coin": coin, "bot": bot.value, "amount": amount},
+        )
         return trade
 
     async def evaluate_prices(self, price_map: dict[str, float]) -> list[ShadowTrade]:
@@ -145,6 +147,13 @@ class ShadowEngine:
                     entity_id=trade.id,
                     payload=close_payload,
                 )
-                logger.info("Shadow trade CLOSED", extra={"coin": trade.coin, "pnl": trade.simulated_pnl, "reason": trade.exit_reason})
+                logger.info(
+                    "Shadow trade CLOSED",
+                    extra={
+                        "coin": trade.coin,
+                        "pnl": trade.simulated_pnl,
+                        "reason": trade.exit_reason,
+                    },
+                )
 
         return closed_trades

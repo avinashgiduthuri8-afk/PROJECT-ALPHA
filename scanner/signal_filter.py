@@ -6,15 +6,13 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from core.types import Priority, Signal
 from core.logging import get_logger
+from core.types import Priority, Signal
 
 logger = get_logger("scanner.signal_filter")
 
 
-def filter_by_priority(
-    signals: list[Signal], min_priority: Priority
-) -> list[Signal]:
+def filter_by_priority(signals: list[Signal], min_priority: Priority) -> list[Signal]:
     """Keep only signals at or above *min_priority*."""
     return [s for s in signals if s.priority.gte(min_priority)]
 
@@ -66,4 +64,3 @@ def detect_expired(
 def _dedup_key(sig: Signal) -> str:
     bot = sig.source_bot or "scanner_v1"
     return f"{sig.coin.upper()}::{bot}"
-

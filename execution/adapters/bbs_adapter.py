@@ -9,10 +9,11 @@ Specification:
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
 
-from core.types import BotName, ExitReason
+from core.types import BotName
 from execution.trading.precision_rules import round_price, round_qty, round_qty_up
+
 from .base import BaseBotAdapter
 
 
@@ -32,13 +33,17 @@ class BBSAdapter(BaseBotAdapter):
         approved_amount: float,
         current_price: float,
         ai_adjustments: dict,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         tighten = ai_adjustments.get("tighten_stop", False)
         sl_pct = self.tightened_sl_pct if tighten else self.base_sl_pct
 
         # Dynamic TP: Standard 6.0% unless High Conviction (score >= 90) which targets 25.0%
-        score = float(ai_adjustments.get("score") or ai_adjustments.get("confluence_score") or 0.0)
-        is_high_conviction = score >= 90.0 or ai_adjustments.get("high_conviction", False)
+        score = float(
+            ai_adjustments.get("score") or ai_adjustments.get("confluence_score") or 0.0
+        )
+        is_high_conviction = score >= 90.0 or ai_adjustments.get(
+            "high_conviction", False
+        )
         tp_pct = 25.0 if is_high_conviction else self.take_profit_pct
 
         rounded_entry = round_price(pair, current_price)

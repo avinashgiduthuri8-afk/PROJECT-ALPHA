@@ -7,12 +7,13 @@ Exposes loop status, audit trail queries, and trigger-cycle execution for REST A
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
+from background.backtest.service.service import BacktestService
 from core.bus.event_bus import EventBus
 from core.logging import get_logger
 from core.repository.feedback_repo import FeedbackRepository
-from background.backtest.service.service import BacktestService
+
 from .orchestrator import FeedbackOrchestrator
 
 logger = get_logger("background.feedback")
@@ -25,8 +26,8 @@ class FeedbackService:
         self,
         feedback_repo: FeedbackRepository,
         backtest_service: BacktestService,
-        bus: Optional[EventBus] = None,
-        orchestrator: Optional[FeedbackOrchestrator] = None,
+        bus: EventBus | None = None,
+        orchestrator: FeedbackOrchestrator | None = None,
     ) -> None:
         self._feedback_repo = feedback_repo
         self._backtest_service = backtest_service
@@ -42,13 +43,15 @@ class FeedbackService:
         if self._started:
             return
         self._started = True
-        logger.info("FeedbackService started with FeedbackOrchestrator & Pre-Deployment Gate")
+        logger.info(
+            "FeedbackService started with FeedbackOrchestrator & Pre-Deployment Gate"
+        )
 
     async def stop(self) -> None:
         self._started = False
         logger.info("FeedbackService stopped")
 
-    async def get_loop_status(self) -> Dict[str, Any]:
+    async def get_loop_status(self) -> dict[str, Any]:
         """Return current autonomous feedback loop state and active calibrations cache."""
         calibrations = await self._feedback_repo.get_all_active_calibrations()
         history = await self._feedback_repo.get_audit_history(limit=10)
@@ -61,10 +64,12 @@ class FeedbackService:
         }
 
     async def get_audit_trail(
-        self, bot_name: Optional[str] = None, limit: int = 50
-    ) -> List[Dict[str, Any]]:
+        self, bot_name: str | None = None, limit: int = 50
+    ) -> list[dict[str, Any]]:
         """Fetch chronological feedback audit trail events."""
-        return await self._feedback_repo.get_audit_history(bot_name=bot_name, limit=limit)
+        return await self._feedback_repo.get_audit_history(
+            bot_name=bot_name, limit=limit
+        )
 
     async def trigger_feedback_cycle(
         self,
@@ -72,8 +77,8 @@ class FeedbackService:
         pair: str = "BTC/INR",
         multiplier: float = 1.0,
         threshold: float = 85.0,
-        candles: Optional[List[Dict[str, Any]]] = None,
-    ) -> Dict[str, Any]:
+        candles: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
         """Trigger an immediate autonomous feedback evaluation & backtest validation pass."""
         return await self.orchestrator.evaluate_and_validate_calibration(
             bot_name=bot_name,

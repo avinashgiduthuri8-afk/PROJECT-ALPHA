@@ -11,4 +11,4 @@ Usage:
 from .event_bus import EventBus, bus
 from .event_types import EventType
 
-__all__ = ["EventBus", "bus", "EventType"]
+__all__ = ["EventBus", "EventType", "bus"]

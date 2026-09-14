@@ -6,10 +6,11 @@ Unified service facade coordinating AnalyticsEngine and TaxLedgerService.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 from core.logging import get_logger
 from core.repository.journal_repo import JournalRepository
+
 from .engine import AnalyticsEngine
 from .tax_ledger import TaxLedgerService
 
@@ -37,17 +38,21 @@ class AnalyticsService:
 
     async def get_performance_summary(
         self,
-        bot_name: Optional[str] = None,
-        pair: Optional[str] = None,
+        bot_name: str | None = None,
+        pair: str | None = None,
         limit: int = 1000,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Fetch quantitative performance metrics summary."""
-        return await self.engine.compute_performance_metrics(bot_name=bot_name, pair=pair, limit=limit)
+        return await self.engine.compute_performance_metrics(
+            bot_name=bot_name, pair=pair, limit=limit
+        )
 
     async def get_tax_ledger_summary(
         self,
-        start_iso: Optional[str] = None,
-        end_iso: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        start_iso: str | None = None,
+        end_iso: str | None = None,
+    ) -> dict[str, Any]:
         """Fetch statutory tax & compliance summary."""
-        return await self.tax_ledger.get_tax_summary(start_iso=start_iso, end_iso=end_iso)
+        return await self.tax_ledger.get_tax_summary(
+            start_iso=start_iso, end_iso=end_iso
+        )

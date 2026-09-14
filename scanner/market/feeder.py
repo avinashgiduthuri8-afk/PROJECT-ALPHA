@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Any, Optional
+from typing import Any
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
@@ -39,11 +39,11 @@ class MarketFeeder:
 
     def __init__(
         self,
-        client: Optional[CoinDCXPublicClient] = None,
-        candle_repo: Optional[CandleRepository] = None,
-        bus: Optional[EventBus] = None,
-        pairs: Optional[list[str]] = None,
-        intervals: Optional[list[str]] = None,
+        client: CoinDCXPublicClient | None = None,
+        candle_repo: CandleRepository | None = None,
+        bus: EventBus | None = None,
+        pairs: list[str] | None = None,
+        intervals: list[str] | None = None,
         poll_interval: float = 15.0,
     ) -> None:
         self._client = client or CoinDCXPublicClient()
@@ -58,8 +58,8 @@ class MarketFeeder:
         self._orderbook_cache: dict[str, dict[str, Any]] = {}
 
         self._running = False
-        self._feeder_task: Optional[asyncio.Task] = None
-        self._last_poll_time: Optional[float] = None
+        self._feeder_task: asyncio.Task | None = None
+        self._last_poll_time: float | None = None
         self._total_polls = 0
         self._total_errors = 0
 
@@ -76,7 +76,11 @@ class MarketFeeder:
         self._feeder_task = asyncio.create_task(self._feeder_loop())
         logger.info(
             "MarketFeeder started",
-            extra={"pairs": self._pairs, "intervals": self._intervals, "interval_sec": self._poll_interval},
+            extra={
+                "pairs": self._pairs,
+                "intervals": self._intervals,
+                "interval_sec": self._poll_interval,
+            },
         )
 
     async def stop(self) -> None:
@@ -102,7 +106,9 @@ class MarketFeeder:
                 break
             except Exception as exc:
                 self._total_errors += 1
-                logger.warning("Error in market feeder cycle", extra={"error": str(exc)})
+                logger.warning(
+                    "Error in market feeder cycle", extra={"error": str(exc)}
+                )
 
             try:
                 await asyncio.sleep(self._poll_interval)
@@ -128,14 +134,18 @@ class MarketFeeder:
                     base = m[:-4]
                     self._ticker_cache[f"{base}/USDT"] = t
         except Exception as exc:
-            logger.warning("Failed to fetch tickers in poll cycle", extra={"error": str(exc)})
+            logger.warning(
+                "Failed to fetch tickers in poll cycle", extra={"error": str(exc)}
+            )
 
         # 2. Fetch candles for all active pairs & intervals
         updated_counts = 0
         for pair in self._pairs:
             for interval in self._intervals:
                 try:
-                    candles = await self._client.get_candles(pair=pair, interval=interval, limit=120)
+                    candles = await self._client.get_candles(
+                        pair=pair, interval=interval, limit=120
+                    )
                     if candles:
                         self._candle_cache[(pair, interval)] = candles
                         updated_counts += len(candles)
@@ -144,7 +154,10 @@ class MarketFeeder:
                         if self._candle_repo:
                             await self._candle_repo.upsert_candles(candles)
                 except Exception as exc:
-                    logger.debug("Failed to pull candles for pair", extra={"pair": pair, "interval": interval, "error": str(exc)})
+                    logger.debug(
+                        "Failed to pull candles for pair",
+                        extra={"pair": pair, "interval": interval, "error": str(exc)},
+                    )
 
         # 3. Publish MARKET_DATA_UPDATED event over EventBus
         summary = {
@@ -161,7 +174,7 @@ class MarketFeeder:
 
     # ── Read Accessors ────────────────────────────────────────────────────────
 
-    def get_latest_price(self, pair: str) -> Optional[float]:
+    def get_latest_price(self, pair: str) -> float | None:
         """Get latest price from ticker cache or most recent candle."""
         pair_clean = pair.upper()
         if pair_clean in self._ticker_cache:
@@ -187,7 +200,7 @@ class MarketFeeder:
             await self._bus.publish(EventType.ORDERBOOK_UPDATED, ob)
         return ob
 
-    def get_cached_orderbook(self, pair: str) -> Optional[dict[str, Any]]:
+    def get_cached_orderbook(self, pair: str) -> dict[str, Any] | None:
         return self._orderbook_cache.get(pair.upper())
 
     def get_health(self) -> dict[str, Any]:

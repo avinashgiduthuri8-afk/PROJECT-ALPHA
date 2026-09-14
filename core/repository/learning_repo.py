@@ -7,10 +7,12 @@ and dynamic strategy calibrations (weight multipliers & confluence score thresho
 
 from __future__ import annotations
 
-import sqlite3, aiosqlite
+import sqlite3
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
+
+import aiosqlite
 
 from core.logging import get_logger
 
@@ -32,7 +34,7 @@ class LearningRepository:
         else:
             return self._conn.execute(query, params)
 
-    async def _fetchall(self, query: str, params: tuple = ()) -> List[Dict[str, Any]]:
+    async def _fetchall(self, query: str, params: tuple = ()) -> list[dict[str, Any]]:
         if self._is_async():
             async with self._conn.execute(query, params) as cursor:
                 rows = await cursor.fetchall()
@@ -44,13 +46,13 @@ class LearningRepository:
             cols = [description[0] for description in cur.description]
             return [dict(zip(cols, r)) for r in rows]
 
-    async def _fetchone(self, query: str, params: tuple = ()) -> Optional[Dict[str, Any]]:
+    async def _fetchone(self, query: str, params: tuple = ()) -> dict[str, Any] | None:
         rows = await self._fetchall(query, params)
         return rows[0] if rows else None
 
     # ── Learning Insights ─────────────────────────────────────────────────────
 
-    async def record_insight(self, insight: Dict[str, Any]) -> str:
+    async def record_insight(self, insight: dict[str, Any]) -> str:
         """Insert a learned insight record into SQLite."""
         insight_id = str(insight.get("id") or uuid.uuid4())
         now_str = datetime.now(timezone.utc).isoformat()
@@ -77,19 +79,22 @@ class LearningRepository:
 
         logger.info(
             "Recorded learning insight %s [%s] for bot %s: %s",
-            insight_id, insight["pattern_type"], insight.get("bot_name"), insight["lesson_summary"],
+            insight_id,
+            insight["pattern_type"],
+            insight.get("bot_name"),
+            insight["lesson_summary"],
         )
         return insight_id
 
     async def get_active_insights(
         self,
-        bot_name: Optional[str] = None,
-        pair: Optional[str] = None,
+        bot_name: str | None = None,
+        pair: str | None = None,
         limit: int = 50,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Fetch recent learning insights filtered by optional bot_name or pair."""
-        conditions: List[str] = []
-        params: List[Any] = []
+        conditions: list[str] = []
+        params: list[Any] = []
 
         if bot_name:
             conditions.append("bot_name = ?")
@@ -110,7 +115,7 @@ class LearningRepository:
     async def upsert_calibration(
         self,
         bot_name: str,
-        pair: Optional[str] = None,
+        pair: str | None = None,
         weight_multiplier: float = 1.0,
         min_confluence_threshold: float = 85.0,
         status: str = "ACTIVE",
@@ -147,15 +152,18 @@ class LearningRepository:
 
         logger.info(
             "Upserted calibration for bot %s -> status=%s, multiplier=%.2f, threshold=%.1f",
-            bot_str, status, weight_multiplier, min_confluence_threshold,
+            bot_str,
+            status,
+            weight_multiplier,
+            min_confluence_threshold,
         )
 
-    async def get_calibrations(self) -> List[Dict[str, Any]]:
+    async def get_calibrations(self) -> list[dict[str, Any]]:
         """Fetch all active strategy calibrations."""
         query = "SELECT * FROM strategy_calibrations ORDER BY bot_name ASC"
         return await self._fetchall(query)
 
-    async def get_calibration_for_bot(self, bot_name: str) -> Optional[Dict[str, Any]]:
+    async def get_calibration_for_bot(self, bot_name: str) -> dict[str, Any] | None:
         """Fetch strategy calibration for a specific bot."""
         query = "SELECT * FROM strategy_calibrations WHERE bot_name = ?"
         return await self._fetchone(query, (bot_name.upper(),))

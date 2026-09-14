@@ -5,14 +5,14 @@ Unit and Integration Tests for V2 Mission Control Dashboard UI and Static Assets
 from __future__ import annotations
 
 import tempfile
-from pathlib import Path
 import uuid
+from pathlib import Path
+
 import pytest
-import httpx
 from fastapi.testclient import TestClient
 
 from app import app
-from core.config import get_config, invalidate_config
+from core.config import invalidate_config
 
 
 @pytest.fixture(autouse=True)
@@ -79,7 +79,9 @@ def test_websocket_connection_and_auth():
                 received.append(msg)
                 if "pong" in msg:
                     break
-            assert any("pong" in m for m in received), f"Expected pong in received messages, got: {received}"
+            assert any(
+                "pong" in m for m in received
+            ), f"Expected pong in received messages, got: {received}"
 
 
 def test_dashboard_security_elements_rendered():
@@ -108,14 +110,18 @@ def test_auth_verify_password_endpoint():
         headers = {"X-API-Key": "test-ui-key"}
 
         # 1. Correct PIN
-        resp = client.post("/api/v2/auth/verify-password", json={"password": "110299"}, headers=headers)
+        resp = client.post(
+            "/api/v2/auth/verify-password", json={"password": "110299"}, headers=headers
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
         assert data["authorized"] is True
 
         # 2. Incorrect PIN
-        resp_wrong = client.post("/api/v2/auth/verify-password", json={"password": "wrong"}, headers=headers)
+        resp_wrong = client.post(
+            "/api/v2/auth/verify-password", json={"password": "wrong"}, headers=headers
+        )
         assert resp_wrong.status_code == 401
         data_wrong = resp_wrong.json()
         assert "detail" in data_wrong
@@ -127,27 +133,42 @@ def test_set_mode_security_password_protection():
         headers = {"X-API-Key": "test-ui-key"}
 
         # 1. Switching to PAPER succeeds without password
-        resp_paper = client.post("/api/v2/production/set-mode", json={"mode": "PAPER"}, headers=headers)
+        resp_paper = client.post(
+            "/api/v2/production/set-mode", json={"mode": "PAPER"}, headers=headers
+        )
         assert resp_paper.status_code == 200
         assert resp_paper.json()["success"] is True
         assert resp_paper.json()["mode"] == "PAPER"
 
         # 2. Switching to LIVE without password fails
-        resp_live_fail = client.post("/api/v2/production/set-mode", json={"mode": "LIVE_MICROCASH"}, headers=headers)
+        resp_live_fail = client.post(
+            "/api/v2/production/set-mode",
+            json={"mode": "LIVE_MICROCASH"},
+            headers=headers,
+        )
         assert resp_live_fail.status_code == 403
         assert "password required" in resp_live_fail.json()["detail"].lower()
 
         # 3. Switching to LIVE with wrong password fails
-        resp_live_wrong = client.post("/api/v2/production/set-mode", json={"mode": "LIVE_MICROCASH", "password": "999"}, headers=headers)
+        resp_live_wrong = client.post(
+            "/api/v2/production/set-mode",
+            json={"mode": "LIVE_MICROCASH", "password": "999"},
+            headers=headers,
+        )
         assert resp_live_wrong.status_code == 403
 
         # 4. Switching to LIVE with correct PIN 110299 succeeds
-        resp_live_ok = client.post("/api/v2/production/set-mode", json={"mode": "LIVE_MICROCASH", "password": "110299"}, headers=headers)
+        resp_live_ok = client.post(
+            "/api/v2/production/set-mode",
+            json={"mode": "LIVE_MICROCASH", "password": "110299"},
+            headers=headers,
+        )
         assert resp_live_ok.status_code == 200
         assert resp_live_ok.json()["success"] is True
         assert resp_live_ok.json()["mode"] == "LIVE_MICROCASH"
 
         # 5. Clean up: reset back to PAPER mode
-        resp_reset = client.post("/api/v2/production/set-mode", json={"mode": "PAPER"}, headers=headers)
+        resp_reset = client.post(
+            "/api/v2/production/set-mode", json={"mode": "PAPER"}, headers=headers
+        )
         assert resp_reset.status_code == 200
-

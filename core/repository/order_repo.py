@@ -6,22 +6,28 @@ Handles persistence, retrieval, and audit logging for live order lifecycle manag
 
 from __future__ import annotations
 
-import json
-from datetime import datetime, timezone
-from typing import List, Optional
+from datetime import datetime
 
 import aiosqlite
 
-from core.types import BotMode, BotName, Order, OrderState, OrderStateTransition
 from core.repository.base import BaseRepository
+from core.types import BotMode, BotName, Order, OrderState, OrderStateTransition
 
 
 class OrderRepository(BaseRepository):
     """Repository for managing Order entity and OrderStateTransition audit records in SQLite."""
 
     def _row_to_order(self, row: aiosqlite.Row) -> Order:
-        created_at_dt = datetime.fromisoformat(row["created_at"]) if isinstance(row["created_at"], str) else row["created_at"]
-        updated_at_dt = datetime.fromisoformat(row["updated_at"]) if isinstance(row["updated_at"], str) else row["updated_at"]
+        created_at_dt = (
+            datetime.fromisoformat(row["created_at"])
+            if isinstance(row["created_at"], str)
+            else row["created_at"]
+        )
+        updated_at_dt = (
+            datetime.fromisoformat(row["updated_at"])
+            if isinstance(row["updated_at"], str)
+            else row["updated_at"]
+        )
         return Order(
             id=row["id"],
             client_order_id=row["client_order_id"],
@@ -46,7 +52,11 @@ class OrderRepository(BaseRepository):
         )
 
     def _row_to_transition(self, row: aiosqlite.Row) -> OrderStateTransition:
-        ts_dt = datetime.fromisoformat(row["timestamp"]) if isinstance(row["timestamp"], str) else row["timestamp"]
+        ts_dt = (
+            datetime.fromisoformat(row["timestamp"])
+            if isinstance(row["timestamp"], str)
+            else row["timestamp"]
+        )
         meta = self._loads(row["metadata"]) if row["metadata"] else {}
         return OrderStateTransition(
             id=row["id"],
@@ -128,33 +138,41 @@ class OrderRepository(BaseRepository):
         params = (
             transition.id,
             transition.order_id,
-            transition.from_state.value if hasattr(transition.from_state, "value") else str(transition.from_state),
-            transition.to_state.value if hasattr(transition.to_state, "value") else str(transition.to_state),
+            (
+                transition.from_state.value
+                if hasattr(transition.from_state, "value")
+                else str(transition.from_state)
+            ),
+            (
+                transition.to_state.value
+                if hasattr(transition.to_state, "value")
+                else str(transition.to_state)
+            ),
             transition.timestamp.isoformat(),
             transition.reason,
             self._dumps(transition.metadata or {}),
         )
         await self._execute(sql, params)
 
-    async def get_by_id(self, order_id: str) -> Optional[Order]:
+    async def get_by_id(self, order_id: str) -> Order | None:
         """Fetch order by internal order ID."""
         sql = "SELECT * FROM orders WHERE id = ?"
         row = await self._fetchone(sql, (order_id,))
         return self._row_to_order(row) if row else None
 
-    async def get_by_client_order_id(self, client_order_id: str) -> Optional[Order]:
+    async def get_by_client_order_id(self, client_order_id: str) -> Order | None:
         """Fetch order by client_order_id."""
         sql = "SELECT * FROM orders WHERE client_order_id = ?"
         row = await self._fetchone(sql, (client_order_id,))
         return self._row_to_order(row) if row else None
 
-    async def get_by_exchange_order_id(self, exchange_order_id: str) -> Optional[Order]:
+    async def get_by_exchange_order_id(self, exchange_order_id: str) -> Order | None:
         """Fetch order by exchange_order_id."""
         sql = "SELECT * FROM orders WHERE exchange_order_id = ?"
         row = await self._fetchone(sql, (exchange_order_id,))
         return self._row_to_order(row) if row else None
 
-    async def get_active_orders(self) -> List[Order]:
+    async def get_active_orders(self) -> list[Order]:
         """Fetch all orders in active / non-terminal states."""
         active_states = (
             OrderState.CREATED.value,
@@ -167,7 +185,9 @@ class OrderRepository(BaseRepository):
         rows = await self._fetchall(sql, active_states)
         return [self._row_to_order(r) for r in rows]
 
-    async def get_transitions_for_order(self, order_id: str) -> List[OrderStateTransition]:
+    async def get_transitions_for_order(
+        self, order_id: str
+    ) -> list[OrderStateTransition]:
         """Fetch all state transition audit logs for a specific order."""
         sql = "SELECT * FROM order_state_transitions WHERE order_id = ? ORDER BY timestamp ASC"
         rows = await self._fetchall(sql, (order_id,))

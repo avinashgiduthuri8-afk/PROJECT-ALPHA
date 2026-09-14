@@ -4,8 +4,6 @@ V2 AlertManager — monitors health checks and metrics thresholds, auto-emitting
 
 from __future__ import annotations
 
-from typing import Optional
-
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
 from core.logging import get_logger
@@ -23,7 +21,7 @@ class AlertManager:
         self,
         bus: EventBus,
         health_checker: HealthChecker,
-        metrics: Optional[MetricsCollector] = None,
+        metrics: MetricsCollector | None = None,
     ) -> None:
         self._bus = bus
         self._health_checker = health_checker
@@ -45,7 +43,10 @@ class AlertManager:
             }
             await self._bus.publish(EventType.HEALTH_DEGRADED, alert_payload)
             await self._bus.publish(EventType.ALERT_GENERATED, alert_payload)
-            logger.warning("System health DEGRADED", extra={"unhealthy": health["unhealthy_services"]})
+            logger.warning(
+                "System health DEGRADED",
+                extra={"unhealthy": health["unhealthy_services"]},
+            )
 
         elif current_status == "healthy" and self._last_status != "healthy":
             # Subsystem recovered

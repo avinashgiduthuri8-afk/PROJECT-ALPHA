@@ -7,28 +7,25 @@ PROJECT-ALPHA — Phase 4 Test Suite:
 
 from __future__ import annotations
 
-import asyncio
-from datetime import datetime, timezone
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-import httpx
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from core.bus.event_bus import EventBus
-from core.bus.event_types import EventType
 from core.config import V2Config, get_config
-from core.types import MarketState, Priority, RiskLevel, Signal, OppType
-from dashboard.service import DashboardService, DashboardAnalyticsService
-from dashboard.websocket import WebSocketManager
+from core.types import MarketState, OppType, Priority, RiskLevel, Signal
+from dashboard.api.router import init_router
+from dashboard.api.router import router as api_router
+from dashboard.api.websocket import init_websocket
+from dashboard.api.websocket import router as ws_router
+from dashboard.service import DashboardAnalyticsService, DashboardService
 from scanner.calibration_worker import CalibrationWorker
 from scanner.confluence_engine import ConfluenceEngine
-from scanner.service import ScannerService
-from dashboard.api.router import router as api_router, init_router
-from dashboard.api.websocket import router as ws_router, init_websocket
 
 
 def _make_test_signal(
@@ -68,6 +65,7 @@ def _build_test_app(dash_svc: DashboardService, cfg: V2Config) -> FastAPI:
 
 # ── 1. Analytics Service & Endpoints Tests ────────────────────────────────────
 
+
 def test_dashboard_analytics_service_win_rates():
     analytics = DashboardAnalyticsService()
     res = analytics.get_win_rates()
@@ -102,6 +100,7 @@ def test_dashboard_analytics_service_funnel():
 
 # ── 2. Dynamic Calibration Worker Tests ───────────────────────────────────────
 
+
 @pytest.mark.anyio
 async def test_calibration_worker_tightens_on_low_win_rate():
     bus = MagicMock(spec=EventBus)
@@ -117,7 +116,11 @@ async def test_calibration_worker_tightens_on_low_win_rate():
 
     # Mock low win-rate history (< 50%)
     mock_history = [
-        {"timestamp": datetime.now(timezone.utc).isoformat(), "outcome": "loss", "return_pct": -2.0}
+        {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "outcome": "loss",
+            "return_pct": -2.0,
+        }
         for _ in range(10)
     ]
     mock_coins = {
@@ -126,6 +129,7 @@ async def test_calibration_worker_tightens_on_low_win_rate():
     }
 
     with patch("scanner.calibration_worker._safe_load_json") as mock_load:
+
         def fake_load(path: Path):
             if "signal_history" in path.name:
                 return mock_history
@@ -158,11 +162,16 @@ async def test_calibration_worker_recovery_on_high_win_rate():
 
     # Mock high win-rate history (> 75%)
     mock_history = [
-        {"timestamp": datetime.now(timezone.utc).isoformat(), "outcome": "win", "return_pct": 3.0}
+        {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "outcome": "win",
+            "return_pct": 3.0,
+        }
         for _ in range(10)
     ]
 
     with patch("scanner.calibration_worker._safe_load_json") as mock_load:
+
         def fake_load(path: Path):
             if "signal_history" in path.name:
                 return mock_history
@@ -197,6 +206,7 @@ def test_confluence_engine_applies_coin_penalties():
 
 
 # ── 3. FastAPI Analytics REST Endpoints Integration ───────────────────────────
+
 
 @pytest.mark.anyio
 async def test_analytics_rest_api_endpoints():
@@ -234,6 +244,7 @@ async def test_analytics_rest_api_endpoints():
 
 
 # ── 4. WebSocket Telemetry Stream Integration ─────────────────────────────────
+
 
 @pytest.mark.anyio
 async def test_websocket_feed_unauthorized_rejection():
@@ -277,8 +288,12 @@ async def test_websocket_feed_telemetry_snapshot():
     assert mock_ws.send_text.called
 
     # Verify that one of the sent frames contains TELEMETRY_SNAPSHOT
-    sent_frames = [call.args[0] for call in mock_ws.send_text.call_args_list if call.args]
-    telemetry_frame = next((json.loads(f) for f in sent_frames if "TELEMETRY_SNAPSHOT" in f), None)
+    sent_frames = [
+        call.args[0] for call in mock_ws.send_text.call_args_list if call.args
+    ]
+    telemetry_frame = next(
+        (json.loads(f) for f in sent_frames if "TELEMETRY_SNAPSHOT" in f), None
+    )
     assert telemetry_frame is not None
     data = telemetry_frame["data"]
     assert "funnel_metrics" in data

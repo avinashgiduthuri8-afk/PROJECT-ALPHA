@@ -9,10 +9,9 @@ Ingests crypto news feeds (e.g. CryptoPanic public API) and evaluates headline r
 
 from __future__ import annotations
 
-import asyncio
-from datetime import datetime, timezone
 import re
-from typing import Any, Dict, List, Optional, Set
+from datetime import datetime, timezone
+from typing import Any
 
 import httpx
 
@@ -21,7 +20,7 @@ from core.logging import get_logger
 logger = get_logger("scanner.news_fetcher")
 
 # Keyword matching rules
-DELISTING_KEYWORDS: List[str] = [
+DELISTING_KEYWORDS: list[str] = [
     "delist",
     "delisting",
     "remove pair",
@@ -32,7 +31,7 @@ DELISTING_KEYWORDS: List[str] = [
     "delisted",
 ]
 
-NEGATIVE_NEWS_KEYWORDS: List[str] = [
+NEGATIVE_NEWS_KEYWORDS: list[str] = [
     "hack",
     "hacked",
     "exploit",
@@ -53,7 +52,7 @@ NEGATIVE_NEWS_KEYWORDS: List[str] = [
     "criminal",
 ]
 
-POSITIVE_KEYWORDS: List[str] = [
+POSITIVE_KEYWORDS: list[str] = [
     "partnership",
     "upgrade",
     "mainnet",
@@ -76,16 +75,16 @@ class NewsRiskService:
 
     def __init__(
         self,
-        api_token: Optional[str] = None,
+        api_token: str | None = None,
         cache_ttl_seconds: int = 180,
         timeout_seconds: float = 6.0,
     ) -> None:
         self._api_token = api_token
         self._cache_ttl = cache_ttl_seconds
         self._timeout = timeout_seconds
-        self._last_fetch_time: Optional[datetime] = None
-        self._cached_news_by_coin: Dict[str, Dict[str, Any]] = {}
-        self._all_recent_posts: List[Dict[str, Any]] = []
+        self._last_fetch_time: datetime | None = None
+        self._cached_news_by_coin: dict[str, dict[str, Any]] = {}
+        self._all_recent_posts: list[dict[str, Any]] = []
 
     def is_cache_valid(self) -> bool:
         if not self._last_fetch_time:
@@ -93,7 +92,7 @@ class NewsRiskService:
         elapsed = (datetime.now(timezone.utc) - self._last_fetch_time).total_seconds()
         return elapsed < self._cache_ttl
 
-    async def fetch_latest_news(self) -> Dict[str, Dict[str, Any]]:
+    async def fetch_latest_news(self) -> dict[str, dict[str, Any]]:
         """
         Fetch latest news posts from CryptoPanic or public crypto feeds.
         Parses headlines and populates per-coin risk maps.
@@ -101,7 +100,7 @@ class NewsRiskService:
         if self.is_cache_valid() and self._cached_news_by_coin:
             return self._cached_news_by_coin
 
-        posts: List[Dict[str, Any]] = []
+        posts: list[dict[str, Any]] = []
         url = "https://cryptopanic.com/api/v2/posts/?public=true"
         if self._api_token:
             url += f"&auth_token={self._api_token}"
@@ -113,24 +112,31 @@ class NewsRiskService:
                     data = resp.json()
                     posts = data.get("results", data.get("posts", []))
                 else:
-                    logger.debug("CryptoPanic returned HTTP %d, using local analysis", resp.status_code)
+                    logger.debug(
+                        "CryptoPanic returned HTTP %d, using local analysis",
+                        resp.status_code,
+                    )
         except Exception as exc:
-            logger.debug("News fetch failed (%s), relying on cached/internal news evaluator", exc)
+            logger.debug(
+                "News fetch failed (%s), relying on cached/internal news evaluator", exc
+            )
 
         self._all_recent_posts = posts
         self._last_fetch_time = datetime.now(timezone.utc)
         self._cached_news_by_coin = self._index_posts_by_coin(posts)
         return self._cached_news_by_coin
 
-    def _index_posts_by_coin(self, posts: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    def _index_posts_by_coin(
+        self, posts: list[dict[str, Any]]
+    ) -> dict[str, dict[str, Any]]:
         """Indexes raw post objects into per-coin evaluations."""
-        coin_posts_map: Dict[str, List[Dict[str, Any]]] = {}
+        coin_posts_map: dict[str, list[dict[str, Any]]] = {}
 
         for post in posts:
             title = post.get("title", "")
             # Check tagged currencies
             currencies = post.get("currencies", [])
-            tagged_coins: Set[str] = set()
+            tagged_coins: set[str] = set()
 
             for curr in currencies:
                 code = curr.get("code", "").upper()
@@ -147,18 +153,20 @@ class NewsRiskService:
                     coin_posts_map[coin_upper] = []
                 coin_posts_map[coin_upper].append(post)
 
-        indexed: Dict[str, Dict[str, Any]] = {}
+        indexed: dict[str, dict[str, Any]] = {}
         for coin, coin_posts in coin_posts_map.items():
             indexed[coin] = self._analyze_posts_for_coin(coin, coin_posts)
 
         return indexed
 
-    def _analyze_posts_for_coin(self, coin: str, posts: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _analyze_posts_for_coin(
+        self, coin: str, posts: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """Analyzes a set of posts specifically for a given coin."""
         has_negative_news = False
         delisting_risk = False
-        matched_keywords: List[str] = []
-        headlines: List[str] = []
+        matched_keywords: list[str] = []
+        headlines: list[str] = []
         positive_count = 0
         negative_count = 0
 
@@ -204,7 +212,7 @@ class NewsRiskService:
             "headlines": headlines[:5],
         }
 
-    def evaluate_coin_news(self, coin_symbol: str) -> Dict[str, Any]:
+    def evaluate_coin_news(self, coin_symbol: str) -> dict[str, Any]:
         """
         Evaluate news risk for a given coin ticker.
         If cached analysis is available, returns it. Otherwise returns clean default baseline.

@@ -5,16 +5,15 @@ V2 PortfolioService — tracks open positions, AUM, cash, and publishes portfoli
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Optional
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
 from core.config import AppConfig
-from core.types import PortfolioSnapshot
 from core.logging import get_logger
 from core.repository.metrics_repo import MetricsRepository
 from core.repository.position_repo import PositionRepository
 from core.repository.trade_repo import TradeRepository
+from core.types import PortfolioSnapshot
 
 from .aggregator import PortfolioAggregator
 
@@ -27,17 +26,17 @@ class PortfolioService:
     def __init__(
         self,
         bus: EventBus,
-        position_repo: Optional[PositionRepository] = None,
-        trade_repo: Optional[TradeRepository] = None,
-        metrics_repo: Optional[MetricsRepository] = None,
-        config: Optional[AppConfig] = None,
+        position_repo: PositionRepository | None = None,
+        trade_repo: TradeRepository | None = None,
+        metrics_repo: MetricsRepository | None = None,
+        config: AppConfig | None = None,
     ) -> None:
         self._bus = bus
         self._position_repo = position_repo
         self._trade_repo = trade_repo
         self._metrics_repo = metrics_repo
         self._config = config
-        self._last_snapshot: Optional[PortfolioSnapshot] = None
+        self._last_snapshot: PortfolioSnapshot | None = None
         self._started = False
 
     @property
@@ -60,7 +59,9 @@ class PortfolioService:
         self._bus.subscribe(EventType.POSITION_OPENED, self._on_position_event)
         self._bus.subscribe(EventType.POSITION_CLOSED, self._on_position_event)
         self._bus.subscribe(EventType.POSITION_UPDATED, self._on_position_event)
-        await self._bus.publish(EventType.SYSTEM_STARTUP, {"service": "portfolio_service"})
+        await self._bus.publish(
+            EventType.SYSTEM_STARTUP, {"service": "portfolio_service"}
+        )
         logger.info("PortfolioService started")
 
     async def stop(self) -> None:
@@ -86,7 +87,9 @@ class PortfolioService:
 
         recent_trades = []
         if self._trade_repo is not None:
-            since = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+            since = datetime.now(timezone.utc).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
             recent_trades = await self._trade_repo.get_since(since, limit=200)
 
         snapshot = PortfolioAggregator.aggregate(
@@ -128,7 +131,9 @@ class PortfolioService:
             if self._position_repo is not None:
                 await self.capture_and_publish_snapshot()
         except Exception as exc:
-            logger.warning("Error updating portfolio on position event", extra={"error": str(exc)})
+            logger.warning(
+                "Error updating portfolio on position event", extra={"error": str(exc)}
+            )
 
     # ── Health & Diagnostics ──────────────────────────────────────────────────
 
@@ -136,7 +141,13 @@ class PortfolioService:
         """Return health status dictionary for monitoring."""
         return {
             "healthy": self._started,
-            "last_snapshot_at": self._last_snapshot.captured_at.isoformat() if self._last_snapshot else None,
+            "last_snapshot_at": (
+                self._last_snapshot.captured_at.isoformat()
+                if self._last_snapshot
+                else None
+            ),
             "last_aum": self._last_snapshot.total_aum if self._last_snapshot else 0.0,
-            "last_deployed": self._last_snapshot.total_deployed if self._last_snapshot else 0.0,
+            "last_deployed": (
+                self._last_snapshot.total_deployed if self._last_snapshot else 0.0
+            ),
         }

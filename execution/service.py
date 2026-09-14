@@ -11,42 +11,37 @@ import asyncio
 import inspect
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
 from core.config import AppConfig
+from core.logging import get_logger
+from core.repository.event_log_repo import EventLogRepository
+from core.repository.order_repo import OrderRepository
+from core.repository.position_repo import PositionRepository
+from core.repository.trade_repo import TradeRepository
 from core.types import (
     BotMode,
     BotName,
     ExitReason,
     Order,
     OrderState,
-    OrderStateTransition,
     Position,
     PositionStatus,
     Trade,
 )
-from core.logging import get_logger
-from core.repository.event_log_repo import EventLogRepository
-from core.repository.position_repo import PositionRepository
-from core.repository.trade_repo import TradeRepository
-from core.repository.order_repo import OrderRepository
-from execution.trading.order_state_machine import OrderStateMachine
-from execution.trading.subaccount_manager import CoinDCXSubAccountManager
 from execution.trading.execution_guards import ExecutionSafetyGuards
+from execution.trading.order_state_machine import OrderStateMachine
 from execution.trading.precision_rules import (
     extract_base_coin,
-    get_pair_spec,
     normalize_price,
-    normalize_qty,
     round_price,
-    round_qty,
     round_qty_up,
-    validate_order_notional,
     validate_trade_parameters,
 )
-from .adapters import BaseBotAdapter, StrategyAdapterFactory
+from execution.trading.subaccount_manager import CoinDCXSubAccountManager
+
+from .adapters import StrategyAdapterFactory
 from .auto_trader import AutoTradeRouter
 from .position_manager import PositionManager
 from .reconciliation import ReconciliationService
@@ -65,9 +60,9 @@ class TradingService:
         trade_repo: TradeRepository,
         event_log_repo: EventLogRepository,
         config: AppConfig,
-        shadow_engine: Optional[object] = None,
-        subaccount_manager: Optional[CoinDCXSubAccountManager] = None,
-        order_repo: Optional[OrderRepository] = None,
+        shadow_engine: object | None = None,
+        subaccount_manager: CoinDCXSubAccountManager | None = None,
+        order_repo: OrderRepository | None = None,
     ) -> None:
         self._bus = bus
         self._position_repo = position_repo
@@ -146,10 +141,15 @@ class TradingService:
         # Start reconciliation worker
         await self.reconciliation_service.start()
 
-        await self._bus.publish(EventType.SYSTEM_STARTUP, {"service": "trading_service"})
+        await self._bus.publish(
+            EventType.SYSTEM_STARTUP, {"service": "trading_service"}
+        )
         logger.info(
             "TradingService started with AutoTradeRouter, PositionManager, Recovery & Reconciliation",
-            extra={"shadow_mode": self._config.shadow_mode, "trading_enabled": self._config.trading_enabled},
+            extra={
+                "shadow_mode": self._config.shadow_mode,
+                "trading_enabled": self._config.trading_enabled,
+            },
         )
 
     async def stop(self) -> None:
@@ -167,7 +167,9 @@ class TradingService:
             coin = payload.get("coin", "UNKNOWN")
             pair = payload.get("pair") or f"{coin}/INR"
             bot_str = payload.get("bot", "STE")
-            approved_amount = float(payload.get("approved_amount") or self._config.order_size_inr)
+            approved_amount = float(
+                payload.get("approved_amount") or self._config.order_size_inr
+            )
             if approved_amount < 200.0:
                 logger.warning(
                     "Trade approval below mandatory minimum rejected before construction: %.2f",
@@ -176,13 +178,19 @@ class TradingService:
                 return
             ai_adjustments = payload.get("ai_adjustments") or {}
 
-            raw_price = payload.get("price") or payload.get("current_price") or payload.get("entry_price")
+            raw_price = (
+                payload.get("price")
+                or payload.get("current_price")
+                or payload.get("entry_price")
+            )
             try:
                 price = normalize_price(raw_price)
             except ValueError as exc:
                 logger.warning(
                     "Final execution validation rejected order: pair=%s raw_price=%s reason=%s",
-                    pair, raw_price, exc,
+                    pair,
+                    raw_price,
+                    exc,
                 )
                 return
 
@@ -238,15 +246,21 @@ class TradingService:
                 for op in open_positions:
                     op_base = extract_base_coin(op.coin) or extract_base_coin(op.pair)
                     if candidate_base and op_base and candidate_base == op_base:
-                        op_bot_name = op.bot.value if hasattr(op.bot, "value") else str(op.bot)
+                        op_bot_name = (
+                            op.bot.value if hasattr(op.bot, "value") else str(op.bot)
+                        )
                         logger.warning(
                             "Order skipped by Cross-Strategy Single-Coin Lock: %s already has active position in strategy %s (attempted: %s)",
-                            candidate_base, op_bot_name, bot.value,
+                            candidate_base,
+                            op_bot_name,
+                            bot.value,
                         )
                         return
 
             deployment_mode = getattr(self._config, "deployment_mode", "SHADOW").upper()
-            is_live = (deployment_mode == "LIVE_MICROCASH" and self._config.trading_enabled)
+            is_live = (
+                deployment_mode == "LIVE_MICROCASH" and self._config.trading_enabled
+            )
 
             # Evaluate Live Execution Safety Guards before NEW live orders
             if is_live:
@@ -271,7 +285,8 @@ class TradingService:
                     rejections = [g.message for g in guard_results if not g.passed]
                     logger.warning(
                         "Live order execution BLOCKED by Execution Safety Guards for %s: %s",
-                        coin, "; ".join(rejections),
+                        coin,
+                        "; ".join(rejections),
                     )
                     return
 
@@ -386,7 +401,9 @@ class TradingService:
                 )
                 logger.info(
                     "[SHADOW] Paper trade EXECUTED and Position OPENED for %s (Qty: %s @ INR %.2f)",
-                    coin, pos.qty, pos.entry_price,
+                    coin,
+                    pos.qty,
+                    pos.entry_price,
                 )
                 return
 
@@ -403,29 +420,47 @@ class TradingService:
 
                 if not order_result.get("success"):
                     # Timeout / Network Ambiguity Handling: verify via client_order_id before giving up
-                    if order_result.get("error") == "TIMEOUT" or order_result.get("requires_reconciliation"):
+                    if order_result.get("error") == "TIMEOUT" or order_result.get(
+                        "requires_reconciliation"
+                    ):
                         cl_id = order_result.get("client_order_id")
                         cl_id = order_result.get("client_order_id") or client_order_id
                         if cl_id:
                             try:
-                                check_res = await sub_client.get_order_by_client_id(cl_id)
-                                if check_res.get("success") and check_res.get("exchange_order_id"):
+                                check_res = await sub_client.get_order_by_client_id(
+                                    cl_id
+                                )
+                                if check_res.get("success") and check_res.get(
+                                    "exchange_order_id"
+                                ):
                                     order_result = check_res
                             except Exception as e:
-                                logger.warning("Failed to verify ambiguous order %s: %s", cl_id, e)
+                                logger.warning(
+                                    "Failed to verify ambiguous order %s: %s", cl_id, e
+                                )
 
                     if not order_result.get("success"):
                         self._consecutive_order_failures += 1
                         logger.warning(
                             "Live CoinDCX BUY order placement failed for %s (%s): %s",
-                            coin, bot.value, order_result.get("message") or order_result.get("error"),
+                            coin,
+                            bot.value,
+                            order_result.get("message") or order_result.get("error"),
                         )
                         if self._order_repo:
-                            err_st = OrderState.UNKNOWN if order_result.get("error") == "TIMEOUT" else OrderState.REJECTED
+                            err_st = (
+                                OrderState.UNKNOWN
+                                if order_result.get("error") == "TIMEOUT"
+                                else OrderState.REJECTED
+                            )
                             order, tr_err = OrderStateMachine.transition(
                                 order=order,
                                 to_state=err_st,
-                                reason=str(order_result.get("message") or order_result.get("error") or "Order placement failed"),
+                                reason=str(
+                                    order_result.get("message")
+                                    or order_result.get("error")
+                                    or "Order placement failed"
+                                ),
                             )
                             await self._order_repo.update(order)
                             await self._order_repo.record_transition(tr_err)
@@ -436,16 +471,30 @@ class TradingService:
                 # Fill Confirmation Gate: Only create local OPEN position if confirmed FILLED on exchange
                 exchange_order_id = order_result.get("exchange_order_id")
                 order_status = str(order_result.get("status", "OPEN")).upper()
-                is_filled = order_result.get("is_filled", False) or (order_status == "FILLED")
-                actual_filled_qty = float(order_result.get("filled_qty") or order_result.get("qty") or 0.0)
+                is_filled = order_result.get("is_filled", False) or (
+                    order_status == "FILLED"
+                )
+                actual_filled_qty = float(
+                    order_result.get("filled_qty") or order_result.get("qty") or 0.0
+                )
 
                 if self._order_repo:
-                    succ_st = OrderState.FILLED if is_filled else (OrderState.PARTIALLY_FILLED if actual_filled_qty > 0 else OrderState.OPEN)
+                    succ_st = (
+                        OrderState.FILLED
+                        if is_filled
+                        else (
+                            OrderState.PARTIALLY_FILLED
+                            if actual_filled_qty > 0
+                            else OrderState.OPEN
+                        )
+                    )
                     order, tr_succ = OrderStateMachine.transition(
                         order=order,
                         to_state=succ_st,
                         filled_qty=actual_filled_qty,
-                        avg_price=float(order_result.get("price", order_data["entry_price"])),
+                        avg_price=float(
+                            order_result.get("price", order_data["entry_price"])
+                        ),
                         exchange_order_id=exchange_order_id,
                         reason=f"Exchange order response: {order_status}",
                     )
@@ -455,7 +504,9 @@ class TradingService:
                 if not is_filled or actual_filled_qty <= 0.0 or not exchange_order_id:
                     logger.warning(
                         "Live order submitted (Exchange ID: %s) but not confirmed FILLED (Status: %s, Filled Qty: %s). Position NOT opened.",
-                        exchange_order_id, order_status, actual_filled_qty,
+                        exchange_order_id,
+                        order_status,
+                        actual_filled_qty,
                     )
                     return
 
@@ -514,16 +565,29 @@ class TradingService:
                         if sl_res.get("success") and sl_res.get("exchange_order_id"):
                             sl_order_id = str(sl_res["exchange_order_id"])
                             pos.stop_loss_order_id = sl_order_id
-                            await self._position_repo.update_stop_loss_order_id(pos.id, sl_order_id)
+                            await self._position_repo.update_stop_loss_order_id(
+                                pos.id, sl_order_id
+                            )
                             logger.info(
                                 "[%s] Disaster stop-loss order placed (%s) for %s @ stop=%.8f limit=%.8f",
-                                sub_client.subaccount_id, sl_order_id, pos.coin, sl_stop_px, sl_limit_px,
+                                sub_client.subaccount_id,
+                                sl_order_id,
+                                pos.coin,
+                                sl_stop_px,
+                                sl_limit_px,
                             )
                         else:
-                            sl_err = sl_res.get("message") or sl_res.get("error") or "Failed to place disaster stop-loss"
+                            sl_err = (
+                                sl_res.get("message")
+                                or sl_res.get("error")
+                                or "Failed to place disaster stop-loss"
+                            )
                             logger.critical(
                                 "[%s] CRITICAL: Failed to place resting disaster stop-loss for %s (pos_id=%s): %s",
-                                sub_client.subaccount_id, pos.coin, pos.id, sl_err,
+                                sub_client.subaccount_id,
+                                pos.coin,
+                                pos.id,
+                                sl_err,
                             )
                             await self._bus.publish(
                                 EventType.ALERT_GENERATED,
@@ -538,7 +602,11 @@ class TradingService:
                     except Exception as sl_exc:
                         logger.critical(
                             "[%s] CRITICAL: Exception placing disaster stop-loss for %s (pos_id=%s): %s",
-                            sub_client.subaccount_id, pos.coin, pos.id, sl_exc, exc_info=True,
+                            sub_client.subaccount_id,
+                            pos.coin,
+                            pos.id,
+                            sl_exc,
+                            exc_info=True,
                         )
                         await self._bus.publish(
                             EventType.ALERT_GENERATED,
@@ -580,17 +648,24 @@ class TradingService:
                 )
                 logger.info(
                     "[%s] Confirmed Live CoinDCX Trade EXECUTED (Exchange ID: %s) and Position OPENED for %s (Qty: %s @ INR %.2f)",
-                    sub_client.subaccount_id, exchange_order_id, coin, pos.qty, pos.entry_price,
+                    sub_client.subaccount_id,
+                    exchange_order_id,
+                    coin,
+                    pos.qty,
+                    pos.entry_price,
                 )
 
-        except Exception as exc:
+        except Exception:
             logger.error("Error executing trade in TradingService", exc_info=True)
 
     # ── Position Exit Monitoring ──────────────────────────────────────────────
 
-    async def check_open_position_exits(self, current_prices: dict[str, float]) -> list[Trade]:
+    async def check_open_position_exits(
+        self, current_prices: dict[str, float]
+    ) -> list[Trade]:
         """Check all live/shadow open positions against current market prices for SL/TP exit triggers with 1.572% statutory friction."""
         from background.backtest.friction import CoinDCXFrictionModel
+
         friction_model = CoinDCXFrictionModel()
         closed_trades: list[Trade] = []
         open_positions = await self._position_repo.get_open()
@@ -625,14 +700,22 @@ class TradingService:
             if raw_px is None:
                 logger.debug(
                     "No fresh ticker price matching quote currency for open position %s (%s, pair: %s). Preserving last mark.",
-                    pos.id, pos.coin, pos.pair,
+                    pos.id,
+                    pos.coin,
+                    pos.pair,
                 )
                 continue
 
             try:
                 price = normalize_price(raw_px)
             except ValueError as e:
-                logger.warning("Corrupted current market price '%s' for position %s (%s): %s", raw_px, pos.id, pos.coin, e)
+                logger.warning(
+                    "Corrupted current market price '%s' for position %s (%s): %s",
+                    raw_px,
+                    pos.id,
+                    pos.coin,
+                    e,
+                )
                 continue
 
             # Price magnitude sanity check against entry price (e.g. Reject 100x jumps from malformed ticker data)
@@ -641,7 +724,10 @@ class TradingService:
                 if ratio > 10.0 or ratio < 0.1:
                     logger.error(
                         "Suspicious price jump detected for %s (entry: %.8f, market: %.8f, ratio: %.2fx). Rejecting exit check to protect P&L.",
-                        pos.pair, pos.entry_price, price, ratio,
+                        pos.pair,
+                        pos.entry_price,
+                        price,
+                        ratio,
                     )
                     continue
 
@@ -671,7 +757,11 @@ class TradingService:
 
                 # 1. If live position, dispatch real CoinDCX sell order via place_live_order
                 deployment_mode = getattr(self._config, "deployment_mode", "").upper()
-                if pos.mode == BotMode.LIVE and self._config.trading_enabled and deployment_mode == "LIVE_MICROCASH":
+                if (
+                    pos.mode == BotMode.LIVE
+                    and self._config.trading_enabled
+                    and deployment_mode == "LIVE_MICROCASH"
+                ):
                     sub_client = self._subaccount_manager.get_client(pos.bot)
                     try:
                         sell_result = await sub_client.place_live_order(
@@ -681,41 +771,68 @@ class TradingService:
                             qty=pos.qty,
                         )
                     except Exception as e:
-                        logger.error("Network error dispatching live SELL order to CoinDCX for %s: %s", pos.coin, e)
+                        logger.error(
+                            "Network error dispatching live SELL order to CoinDCX for %s: %s",
+                            pos.coin,
+                            e,
+                        )
                         self._pending_exits.discard(pos.id)
                         continue  # DO NOT close position if order failed
 
                     # Timeout / Network Ambiguity Handling
                     if not sell_result.get("success"):
-                        if sell_result.get("error") == "TIMEOUT" or sell_result.get("requires_reconciliation"):
+                        if sell_result.get("error") == "TIMEOUT" or sell_result.get(
+                            "requires_reconciliation"
+                        ):
                             cl_id = sell_result.get("client_order_id")
                             if cl_id:
                                 try:
-                                    check_res = await sub_client.get_order_by_client_id(cl_id)
-                                    if check_res.get("success") and check_res.get("exchange_order_id"):
+                                    check_res = await sub_client.get_order_by_client_id(
+                                        cl_id
+                                    )
+                                    if check_res.get("success") and check_res.get(
+                                        "exchange_order_id"
+                                    ):
                                         sell_result = check_res
                                 except Exception as err:
-                                    logger.warning("Failed to verify ambiguous SELL order %s: %s", cl_id, err)
+                                    logger.warning(
+                                        "Failed to verify ambiguous SELL order %s: %s",
+                                        cl_id,
+                                        err,
+                                    )
 
                     if not sell_result.get("success"):
                         logger.warning(
                             "Live SELL order failed on CoinDCX for %s (Reason: %s, Details: %s). Position remains OPEN.",
-                            pos.coin, sell_result.get("error"), sell_result.get("message") or sell_result.get("details"),
+                            pos.coin,
+                            sell_result.get("error"),
+                            sell_result.get("message") or sell_result.get("details"),
                         )
                         self._pending_exits.discard(pos.id)
                         continue  # DO NOT close position on exchange rejection / failure
 
                     exchange_sell_order_id = sell_result.get("exchange_order_id")
                     sell_status = str(sell_result.get("status", "OPEN")).upper()
-                    is_sell_filled = sell_result.get("is_filled", False) or (sell_status == "FILLED")
-                    actual_sell_qty = float(sell_result.get("filled_qty") or (pos.qty if is_sell_filled else 0.0))
+                    is_sell_filled = sell_result.get("is_filled", False) or (
+                        sell_status == "FILLED"
+                    )
+                    actual_sell_qty = float(
+                        sell_result.get("filled_qty")
+                        or (pos.qty if is_sell_filled else 0.0)
+                    )
 
-                    is_partial_sell = (sell_status == "PARTIALLY_FILLED" or (0.0 < actual_sell_qty < pos.qty))
+                    is_partial_sell = sell_status == "PARTIALLY_FILLED" or (
+                        0.0 < actual_sell_qty < pos.qty
+                    )
 
-                    if actual_sell_qty <= 0.0 or (not is_sell_filled and not is_partial_sell):
+                    if actual_sell_qty <= 0.0 or (
+                        not is_sell_filled and not is_partial_sell
+                    ):
                         logger.warning(
                             "Live SELL order submitted (Exchange ID: %s) but not yet FILLED (Status: %s, Filled: %s). Position remains OPEN.",
-                            exchange_sell_order_id, sell_status, actual_sell_qty,
+                            exchange_sell_order_id,
+                            sell_status,
+                            actual_sell_qty,
                         )
                         # Keep in pending exits to avoid duplicate submissions while pending on exchange
                         continue
@@ -760,7 +877,10 @@ class TradingService:
                     remaining_qty = round(pos.qty - sell_filled_qty, 8)
                     logger.info(
                         "Partial SELL filled on exchange for %s: Filled %.6f / Total %.6f (Remaining: %.6f). Position remains OPEN.",
-                        pos.coin, sell_filled_qty, pos.qty, remaining_qty,
+                        pos.coin,
+                        sell_filled_qty,
+                        pos.qty,
+                        remaining_qty,
                     )
                     await self._position_repo.update_qty(pos.id, remaining_qty)
                     pos.qty = remaining_qty
@@ -801,7 +921,9 @@ class TradingService:
                     "friction_cost": pnl_data.get("total_friction_cost", 0.0),
                     "exit_reason": exit_reason.value,
                     "exit_price": exit_price,
-                    "mode": pos.mode.value if hasattr(pos.mode, "value") else str(pos.mode),
+                    "mode": (
+                        pos.mode.value if hasattr(pos.mode, "value") else str(pos.mode)
+                    ),
                     "is_partial": is_partial_sell,
                     "closed_at": now.isoformat(),
                 }
@@ -818,12 +940,21 @@ class TradingService:
                 logger.info(
                     "Position %s (%s): %s %s PnL=INR %.2f (%.2f%%) [Friction=INR %.2f, Reason=%s, Exchange ID=%s]",
                     "PARTIALLY_FILLED" if is_partial_sell else "CLOSED",
-                    trade_payload["mode"], pos.bot.value, pos.coin, trade.pnl, trade.pnl_pct, pnl_data.get("total_friction_cost", 0.0), exit_reason.value, trade.exchange_order_id,
+                    trade_payload["mode"],
+                    pos.bot.value,
+                    pos.coin,
+                    trade.pnl,
+                    trade.pnl_pct,
+                    pnl_data.get("total_friction_cost", 0.0),
+                    exit_reason.value,
+                    trade.exchange_order_id,
                 )
 
         return closed_trades
 
-    async def poll_exits(self, price_provider: Optional[dict[str, float]] = None) -> list[Trade]:
+    async def poll_exits(
+        self, price_provider: dict[str, float] | None = None
+    ) -> list[Trade]:
         """
         Scheduled background task: checks open positions against live market prices.
         Runs approximately every 5 seconds.
@@ -836,6 +967,7 @@ class TradingService:
         if not current_prices:
             try:
                 import httpx
+
                 async with httpx.AsyncClient(timeout=4.0) as client:
                     resp = await client.get("https://api.coindcx.com/exchange/ticker")
                     if resp.status_code == 200:
@@ -862,7 +994,9 @@ class TradingService:
                                     current_prices[f"{coin}USDT"] = last_p
                                     current_prices[f"B-{coin}_USDT"] = last_p
             except Exception as e:
-                logger.debug("Failed to fetch fresh ticker prices for exit check: %s", e)
+                logger.debug(
+                    "Failed to fetch fresh ticker prices for exit check: %s", e
+                )
 
         return await self.check_open_position_exits(current_prices)
 
@@ -914,7 +1048,7 @@ class TradingService:
     async def manual_close_position(
         self,
         position_id: str,
-        exit_price: Optional[float] = None,
+        exit_price: float | None = None,
         reason: str = "MANUAL",
     ) -> dict:
         """
@@ -922,11 +1056,16 @@ class TradingService:
         Deducts statutory 1.572% friction, records trade, and restores capacity.
         """
         from background.backtest.friction import CoinDCXFrictionModel
+
         friction_model = CoinDCXFrictionModel()
 
         pos = await self._position_repo.get_by_id(position_id)
         if not pos or pos.status != PositionStatus.OPEN:
-            return {"success": False, "error": "POSITION_NOT_OPEN", "message": f"Position {position_id} is not open."}
+            return {
+                "success": False,
+                "error": "POSITION_NOT_OPEN",
+                "message": f"Position {position_id} is not open.",
+            }
 
         price = exit_price or pos.current_price or pos.entry_price
         if price <= 0.0:
@@ -944,15 +1083,25 @@ class TradingService:
                 await self._position_repo.update_stop_loss_order_id(pos.id, None)
                 pos.stop_loss_order_id = None
             except Exception as e:
-                logger.warning("Failed to cancel resting stop loss order %s on manual close: %s", pos.stop_loss_order_id, e)
+                logger.warning(
+                    "Failed to cancel resting stop loss order %s on manual close: %s",
+                    pos.stop_loss_order_id,
+                    e,
+                )
 
         # 2. If live position, dispatch real CoinDCX sell order with 5-poll Verification Gate
         deployment_mode = getattr(self._config, "deployment_mode", "").upper()
         sell_filled_qty = pos.qty
         is_partial_sell = False
-        is_live = (pos.mode == BotMode.LIVE) or (self._config.trading_enabled and deployment_mode == "LIVE_MICROCASH")
+        is_live = (pos.mode == BotMode.LIVE) or (
+            self._config.trading_enabled and deployment_mode == "LIVE_MICROCASH"
+        )
 
-        if pos.mode == BotMode.LIVE and self._config.trading_enabled and deployment_mode == "LIVE_MICROCASH":
+        if (
+            pos.mode == BotMode.LIVE
+            and self._config.trading_enabled
+            and deployment_mode == "LIVE_MICROCASH"
+        ):
             sub_client = self._subaccount_manager.get_client(pos.bot)
         if is_live:
             sell_result = await sub_client.place_live_order(
@@ -965,7 +1114,11 @@ class TradingService:
                 self._consecutive_order_failures += 1
                 await self._position_repo.update_status(pos.id, PositionStatus.OPEN)
                 self._pending_exits.discard(pos.id)
-                err_msg = sell_result.get("message") or sell_result.get("error") or "Order placement failed"
+                err_msg = (
+                    sell_result.get("message")
+                    or sell_result.get("error")
+                    or "Order placement failed"
+                )
                 await self._bus.publish(
                     EventType.ALERT_GENERATED,
                     {
@@ -983,7 +1136,11 @@ class TradingService:
                 }
 
             self._consecutive_order_failures = 0
-            exit_order_id = str(sell_result.get("exchange_order_id") or sell_result.get("client_order_id") or "")
+            exit_order_id = str(
+                sell_result.get("exchange_order_id")
+                or sell_result.get("client_order_id")
+                or ""
+            )
             raw_status = str(sell_result.get("status", "")).upper()
             is_filled = bool(sell_result.get("is_filled")) or (raw_status == "FILLED")
             sell_filled_qty = float(sell_result.get("filled_qty") or 0.0)
@@ -995,19 +1152,45 @@ class TradingService:
                     try:
                         st_res = await sub_client.get_order_status(exit_order_id)
                         if st_res.get("success"):
-                            st_order = st_res.get("order") if isinstance(st_res.get("order"), dict) else st_res
-                            st_val = str(st_res.get("status") or st_order.get("status") or "").upper()
+                            st_order = (
+                                st_res.get("order")
+                                if isinstance(st_res.get("order"), dict)
+                                else st_res
+                            )
+                            st_val = str(
+                                st_res.get("status") or st_order.get("status") or ""
+                            ).upper()
                             if st_val == "FILLED" or st_res.get("is_filled"):
                                 is_filled = True
-                                sell_filled_qty = float(st_res.get("filled_qty") or st_order.get("filled_quantity") or pos.qty)
+                                sell_filled_qty = float(
+                                    st_res.get("filled_qty")
+                                    or st_order.get("filled_quantity")
+                                    or pos.qty
+                                )
                                 break
-                            elif st_val == "PARTIALLY_FILLED" or (float(st_res.get("filled_qty") or st_order.get("filled_quantity") or 0.0) > 0):
-                                sell_filled_qty = float(st_res.get("filled_qty") or st_order.get("filled_quantity") or 0.0)
+                            elif st_val == "PARTIALLY_FILLED" or (
+                                float(
+                                    st_res.get("filled_qty")
+                                    or st_order.get("filled_quantity")
+                                    or 0.0
+                                )
+                                > 0
+                            ):
+                                sell_filled_qty = float(
+                                    st_res.get("filled_qty")
+                                    or st_order.get("filled_quantity")
+                                    or 0.0
+                                )
                                 break
                             elif st_val in ("CANCELLED", "REJECTED"):
                                 break
                     except Exception as poll_exc:
-                        logger.warning("Error polling manual exit status (%d/5) for %s: %s", poll_attempt + 1, exit_order_id, poll_exc)
+                        logger.warning(
+                            "Error polling manual exit status (%d/5) for %s: %s",
+                            poll_attempt + 1,
+                            exit_order_id,
+                            poll_exc,
+                        )
 
             if not is_filled and sell_filled_qty <= 0.0:
                 self._consecutive_order_failures += 1
@@ -1015,7 +1198,9 @@ class TradingService:
                 self._pending_exits.discard(pos.id)
                 logger.warning(
                     "Manual SELL order for %s (order %s) unconfirmed or 0 fill (status=%s). Reverting position to OPEN.",
-                    pos.coin, exit_order_id, sell_result.get("status")
+                    pos.coin,
+                    exit_order_id,
+                    sell_result.get("status"),
                 )
                 await self._bus.publish(
                     EventType.ALERT_GENERATED,
@@ -1034,7 +1219,9 @@ class TradingService:
                 }
 
             self._consecutive_order_failures = 0
-            if sell_result.get("status") == "PARTIALLY_FILLED" or (0.0 < sell_filled_qty < pos.qty):
+            if sell_result.get("status") == "PARTIALLY_FILLED" or (
+                0.0 < sell_filled_qty < pos.qty
+            ):
                 is_partial_sell = True
 
         # 2. Compute 1.572% statutory friction based on filled quantity
@@ -1069,7 +1256,12 @@ class TradingService:
             await self._position_repo.update_qty(pos.id, remaining_qty)
             await self._position_repo.update_status(pos.id, PositionStatus.OPEN)
             self._pending_exits.discard(pos.id)
-            logger.info("Manual partial SELL filled for %s: Filled %.6f / Remaining %.6f", pos.coin, sell_filled_qty, remaining_qty)
+            logger.info(
+                "Manual partial SELL filled for %s: Filled %.6f / Remaining %.6f",
+                pos.coin,
+                sell_filled_qty,
+                remaining_qty,
+            )
             return {
                 "success": True,
                 "status": "PARTIALLY_FILLED",
@@ -1081,7 +1273,9 @@ class TradingService:
                 "message": f"Manual partial sell filled for {sell_filled_qty} {pos.coin}. Remaining {remaining_qty} stays OPEN.",
             }
         else:
-            await self._position_repo.close(position_id=pos.id, exit_price=price, exit_reason=ExitReason.MANUAL)
+            await self._position_repo.close(
+                position_id=pos.id, exit_price=price, exit_reason=ExitReason.MANUAL
+            )
             self.position_manager._peak_prices.pop(pos.id, None)
             self.position_manager._trailing_stops.pop(pos.id, None)
             self._pending_exits.discard(pos.id)
@@ -1111,7 +1305,11 @@ class TradingService:
             }
             await self._bus.publish(EventType.POSITION_CLOSED, trade_payload)
 
-            logger.info("Manual SELL fully confirmed for position %s (%s). Position CLOSED.", pos.id, pos.pair)
+            logger.info(
+                "Manual SELL fully confirmed for position %s (%s). Position CLOSED.",
+                pos.id,
+                pos.pair,
+            )
             return {
                 "success": True,
                 "status": "CLOSED",
@@ -1129,31 +1327,48 @@ class TradingService:
     async def modify_position_targets(
         self,
         position_id: str,
-        stop_loss: Optional[float] = None,
-        take_profit: Optional[float] = None,
-        trailing_stop_pct: Optional[float] = None,
+        stop_loss: float | None = None,
+        take_profit: float | None = None,
+        trailing_stop_pct: float | None = None,
     ) -> dict:
         """
         Manually adjust Stop-Loss, Take-Profit targets, or Trailing Stop % on an active open position.
         """
         pos = await self._position_repo.get_by_id(position_id)
         if not pos or pos.status != PositionStatus.OPEN:
-            return {"success": False, "error": "POSITION_NOT_OPEN", "message": f"Position {position_id} is not open."}
+            return {
+                "success": False,
+                "error": "POSITION_NOT_OPEN",
+                "message": f"Position {position_id} is not open.",
+            }
 
         new_sl = float(stop_loss) if stop_loss is not None else pos.stop_loss
         new_tp = float(take_profit) if take_profit is not None else pos.take_profit
 
-        await self._position_repo.update_brackets(position_id, stop_loss=new_sl, take_profit=new_tp)
+        await self._position_repo.update_brackets(
+            position_id, stop_loss=new_sl, take_profit=new_tp
+        )
 
         trailing_stop_val = None
         if trailing_stop_pct is not None and float(trailing_stop_pct) > 0:
             trailing_stop_val = await self.position_manager.update_trailing_stop(
                 position_id=position_id,
                 current_price=pos.current_price or pos.entry_price,
-                trailing_pct=float(trailing_stop_pct) / 100.0 if float(trailing_stop_pct) > 1.0 else float(trailing_stop_pct),
+                trailing_pct=(
+                    float(trailing_stop_pct) / 100.0
+                    if float(trailing_stop_pct) > 1.0
+                    else float(trailing_stop_pct)
+                ),
             )
 
-        logger.info("Modified targets for position %s on %s: SL=₹%s, TP=₹%s, Trailing SL=₹%s", pos.id, pos.coin, new_sl, new_tp, trailing_stop_val)
+        logger.info(
+            "Modified targets for position %s on %s: SL=₹%s, TP=₹%s, Trailing SL=₹%s",
+            pos.id,
+            pos.coin,
+            new_sl,
+            new_tp,
+            trailing_stop_val,
+        )
 
         return {
             "success": True,
@@ -1164,4 +1379,3 @@ class TradingService:
             "trailing_stop": trailing_stop_val,
             "message": f"Targets for {pos.coin} updated: SL=₹{new_sl or 0:.2f}, TP=₹{new_tp or 0:.2f}",
         }
-

@@ -10,14 +10,12 @@ from __future__ import annotations
 import time
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
 
 from core.types import (
     AIAnalysis,
     AIRecommendation,
     MarketState,
     OppType,
-    Priority,
     RiskLevel,
     Signal,
 )
@@ -27,7 +25,7 @@ class FallbackEvaluator:
     """Rule-based quantitative evaluator for crypto signals."""
 
     @staticmethod
-    def evaluate(signal: Signal, start_time: Optional[float] = None) -> AIAnalysis:
+    def evaluate(signal: Signal, start_time: float | None = None) -> AIAnalysis:
         """Evaluate a signal deterministically and return structured AIAnalysis."""
         t0 = start_time or time.perf_counter()
         raw = signal.raw_payload or {}
@@ -64,14 +62,22 @@ class FallbackEvaluator:
 
         # ── 1. Supporting factors ─────────────────────────────────────────────
         if mtf:
-            supporting_factors.append("Multi-timeframe trend alignment confirmed across 1h/4h/24h.")
+            supporting_factors.append(
+                "Multi-timeframe trend alignment confirmed across 1h/4h/24h."
+            )
         if score >= 80:
-            supporting_factors.append(f"High conviction scanner quality score ({score}/100).")
+            supporting_factors.append(
+                f"High conviction scanner quality score ({score}/100)."
+            )
         elif score >= 70:
-            supporting_factors.append(f"Moderate conviction scanner quality score ({score}/100).")
+            supporting_factors.append(
+                f"Moderate conviction scanner quality score ({score}/100)."
+            )
 
         if vol_spike >= 1.5:
-            supporting_factors.append(f"Strong volume expansion detected ({vol_spike:.1f}x average).")
+            supporting_factors.append(
+                f"Strong volume expansion detected ({vol_spike:.1f}x average)."
+            )
         elif vol_spike >= 1.1:
             supporting_factors.append("Volume participation above baseline.")
 
@@ -83,17 +89,25 @@ class FallbackEvaluator:
             supporting_factors.append("Early stage recovery momentum structure.")
 
         if 40.0 <= rsi <= 65.0:
-            supporting_factors.append(f"RSI in optimal momentum expansion zone ({rsi:.1f}).")
+            supporting_factors.append(
+                f"RSI in optimal momentum expansion zone ({rsi:.1f})."
+            )
 
         # ── 2. Conflicts & Risks ──────────────────────────────────────────────
         if not mtf:
-            conflicts.append("Lack of multi-timeframe confirmation; conflicting timeframe trends.")
+            conflicts.append(
+                "Lack of multi-timeframe confirmation; conflicting timeframe trends."
+            )
 
         if rsi > 75.0:
-            conflicts.append(f"RSI severely overbought ({rsi:.1f}), elevated risk of mean-reversion pullbacks.")
+            conflicts.append(
+                f"RSI severely overbought ({rsi:.1f}), elevated risk of mean-reversion pullbacks."
+            )
             risk_factors.append("Over-extended momentum.")
         elif rsi < 30.0 and market_state != MarketState.RECOVERY:
-            conflicts.append(f"RSI deeply oversold ({rsi:.1f}) in non-recovery structure.")
+            conflicts.append(
+                f"RSI deeply oversold ({rsi:.1f}) in non-recovery structure."
+            )
 
         if risk_level == RiskLevel.HIGH:
             risk_factors.append("High volatility / risk classification from scanner.")
@@ -104,16 +118,29 @@ class FallbackEvaluator:
             conflicts.append("Primary market regime is in downtrend.")
             risk_factors.append("Trading against broader macro trend.")
         elif market_state == MarketState.SIDEWAYS:
-            risk_factors.append("Range-bound sideways regime with low follow-through probability.")
+            risk_factors.append(
+                "Range-bound sideways regime with low follow-through probability."
+            )
 
         if abs(pct_change) > 18.0:
             risk_factors.append(f"High 24h price extension ({pct_change:+.1f}%).")
 
         # ── 3. Recommendation & Confidence ────────────────────────────────────
-        computed_confidence = int(round((score * 0.5) + (confidence * 0.3) + (15 if mtf else 0) + (5 if vol_spike >= 1.2 else 0)))
+        computed_confidence = int(
+            round(
+                (score * 0.5)
+                + (confidence * 0.3)
+                + (15 if mtf else 0)
+                + (5 if vol_spike >= 1.2 else 0)
+            )
+        )
         computed_confidence = max(10, min(95, computed_confidence))
 
-        if market_state == MarketState.DOWNTREND or opp_type == OppType.AVOID or score < 55:
+        if (
+            market_state == MarketState.DOWNTREND
+            or opp_type == OppType.AVOID
+            or score < 55
+        ):
             recommendation = AIRecommendation.REJECT
             computed_confidence = min(computed_confidence, 40)
             tighten_stop = True
@@ -136,7 +163,9 @@ class FallbackEvaluator:
             computed_confidence = max(computed_confidence, 50)
             tighten_stop = True
             size_multiplier = 0.0
-            setup_quality = "Neutral - awaiting clearer trigger or breakout confirmation"
+            setup_quality = (
+                "Neutral - awaiting clearer trigger or breakout confirmation"
+            )
         else:
             recommendation = AIRecommendation.REJECT
             computed_confidence = min(computed_confidence, 45)
@@ -158,17 +187,28 @@ class FallbackEvaluator:
             volume_evaluation=f"Volume spike ratio: {vol_spike:.2f}x",
             setup_quality=setup_quality,
             market_regime=market_state.value,
-            risk_reward_assessment="Estimated R:R 2.2:1 based on standard ATR channel boundaries." if recommendation == AIRecommendation.APPROVE else "Unfavorable or uncertain R:R profile.",
+            risk_reward_assessment=(
+                "Estimated R:R 2.2:1 based on standard ATR channel boundaries."
+                if recommendation == AIRecommendation.APPROVE
+                else "Unfavorable or uncertain R:R profile."
+            ),
             supporting_factors=supporting_factors or ["Baseline scanner criteria met."],
             conflicts=conflicts or ["No critical structural divergences detected."],
             risk_factors=risk_factors or ["Standard market volatility."],
             suggested_adjustments={
                 "size_multiplier": size_multiplier,
                 "tighten_stop": tighten_stop,
-                "target_notes": "Scale out at 1.5R and 2.5R targets." if size_multiplier > 0 else "N/A",
+                "target_notes": (
+                    "Scale out at 1.5R and 2.5R targets."
+                    if size_multiplier > 0
+                    else "N/A"
+                ),
             },
             model_name="heuristic-fallback",
             execution_latency_ms=round(latency_ms, 2),
             analyzed_at=datetime.now(timezone.utc),
-            raw_response={"evaluator": "FallbackEvaluator", "evaluated_at": datetime.now(timezone.utc).isoformat()},
+            raw_response={
+                "evaluator": "FallbackEvaluator",
+                "evaluated_at": datetime.now(timezone.utc).isoformat(),
+            },
         )

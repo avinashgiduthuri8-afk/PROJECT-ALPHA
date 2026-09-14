@@ -6,11 +6,10 @@ from __future__ import annotations
 
 import time
 from datetime import datetime, timezone
-from typing import Optional
 
 from core.config import AppConfig
-from core.types import BotName, RiskDecision
 from core.logging import get_logger
+from core.types import BotName, RiskDecision
 
 logger = get_logger("execution.risk.circuit_breaker")
 
@@ -22,8 +21,8 @@ class CircuitBreaker:
         self._config = config
         self._is_open = False
         self._emergency_stop = False
-        self._reason: Optional[str] = None
-        self._tripped_at: Optional[datetime] = None
+        self._reason: str | None = None
+        self._tripped_at: datetime | None = None
         self._consecutive_losses: dict[str, int] = {
             BotName.STE.value: 0,
             BotName.HDA.value: 0,
@@ -44,11 +43,11 @@ class CircuitBreaker:
         return self._emergency_stop
 
     @property
-    def reason(self) -> Optional[str]:
+    def reason(self) -> str | None:
         return self._reason
 
     @property
-    def tripped_at(self) -> Optional[datetime]:
+    def tripped_at(self) -> datetime | None:
         return self._tripped_at
 
     def trip(self, reason: str) -> None:
@@ -57,7 +56,9 @@ class CircuitBreaker:
         self._tripped_at = datetime.now(timezone.utc)
         logger.critical("Circuit breaker TRIPPED", extra={"reason": reason})
 
-    def set_emergency_stop(self, enabled: bool, reason: str = "Manual Emergency Stop") -> None:
+    def set_emergency_stop(
+        self, enabled: bool, reason: str = "Manual Emergency Stop"
+    ) -> None:
         self._emergency_stop = enabled
         if enabled:
             self._reason = reason
@@ -104,7 +105,9 @@ class CircuitBreaker:
 
         losses = self._consecutive_losses.get(bot.value, 0)
         if losses >= self._config.max_consecutive_losses:
-            self.trip(f"{bot.value} exceeded max consecutive losses ({losses}/{self._config.max_consecutive_losses})")
+            self.trip(
+                f"{bot.value} exceeded max consecutive losses ({losses}/{self._config.max_consecutive_losses})"
+            )
             ms = (time.perf_counter() - t0) * 1000.0
             return RiskDecision(
                 allowed=False,

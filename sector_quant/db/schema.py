@@ -5,7 +5,7 @@ sector_quant.db.schema — Relational schema and queries for Securities Master.
 from __future__ import annotations
 
 import sqlite3
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 def init_schema(conn: sqlite3.Connection) -> None:
@@ -60,7 +60,10 @@ def init_schema(conn: sqlite3.Connection) -> None:
 def insert_sector(conn: sqlite3.Connection, name: str, benchmark: str = "") -> int:
     """Insert or retrieve sector id."""
     cursor = conn.cursor()
-    cursor.execute("INSERT OR IGNORE INTO sectors (name, benchmark) VALUES (?, ?)", (name, benchmark))
+    cursor.execute(
+        "INSERT OR IGNORE INTO sectors (name, benchmark) VALUES (?, ?)",
+        (name, benchmark),
+    )
     conn.commit()
     cursor.execute("SELECT id FROM sectors WHERE name = ?", (name,))
     row = cursor.fetchone()
@@ -83,7 +86,14 @@ def insert_symbol(
         INSERT OR IGNORE INTO symbols (ticker, name, sector_id, exchange, currency, is_active)
         VALUES (?, ?, ?, ?, ?, ?)
         """,
-        (ticker.upper(), name, sector_id, exchange.upper(), currency.upper(), 1 if is_active else 0),
+        (
+            ticker.upper(),
+            name,
+            sector_id,
+            exchange.upper(),
+            currency.upper(),
+            1 if is_active else 0,
+        ),
     )
     conn.commit()
     cursor.execute("SELECT id FROM symbols WHERE ticker = ?", (ticker.upper(),))
@@ -100,7 +110,7 @@ def insert_daily_price(
     low: float,
     close: float,
     volume: int,
-    adj_close: Optional[float] = None,
+    adj_close: float | None = None,
 ) -> None:
     """Insert or replace a daily price bar."""
     cursor = conn.cursor()
@@ -133,7 +143,7 @@ def insert_corporate_action(
     conn.commit()
 
 
-def get_symbol(conn: sqlite3.Connection, ticker: str) -> Optional[Dict[str, Any]]:
+def get_symbol(conn: sqlite3.Connection, ticker: str) -> dict[str, Any] | None:
     """Query symbol info by ticker."""
     cursor = conn.cursor()
     cursor.execute(
@@ -160,7 +170,9 @@ def get_symbol(conn: sqlite3.Connection, ticker: str) -> Optional[Dict[str, Any]
     }
 
 
-def get_symbols_by_sector(conn: sqlite3.Connection, sector_name: str) -> List[Dict[str, Any]]:
+def get_symbols_by_sector(
+    conn: sqlite3.Connection, sector_name: str
+) -> list[dict[str, Any]]:
     """Query all symbols belonging to a sector."""
     cursor = conn.cursor()
     cursor.execute(
@@ -192,13 +204,13 @@ def get_symbols_by_sector(conn: sqlite3.Connection, sector_name: str) -> List[Di
 def get_daily_prices(
     conn: sqlite3.Connection,
     symbol_id: int,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
-) -> List[Dict[str, Any]]:
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> list[dict[str, Any]]:
     """Fetch chronological daily price series for a symbol."""
     cursor = conn.cursor()
     query = "SELECT price_date, open, high, low, close, volume, adj_close FROM daily_prices WHERE symbol_id = ?"
-    params: List[Any] = [symbol_id]
+    params: list[Any] = [symbol_id]
 
     if start_date:
         query += " AND price_date >= ?"

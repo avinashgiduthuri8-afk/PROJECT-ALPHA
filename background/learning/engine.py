@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.logging import get_logger
 from core.repository.journal_repo import JournalRepository
@@ -34,17 +34,19 @@ class LearningEngine:
 
     async def analyze_trades_and_extract_insights(
         self, limit: int = 100
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Run mistake pattern detection across recent trade journal entries.
         Returns list of newly generated learning insight dictionaries.
         """
         entries = await self._journal_repo.get_entries(limit=limit, offset=0)
         if not entries:
-            logger.info("No trade journal entries available for learning engine analysis")
+            logger.info(
+                "No trade journal entries available for learning engine analysis"
+            )
             return []
 
-        insights: List[Dict[str, Any]] = []
+        insights: list[dict[str, Any]] = []
 
         # 1. Consecutive Loss Clustering Detection
         loss_insights = self._detect_consecutive_losses(entries)
@@ -66,28 +68,32 @@ class LearningEngine:
         for insight in insights:
             await self._learning_repo.record_insight(insight)
 
-        logger.info("LearningEngine generated %d insight(s) from %d trades", len(insights), len(entries))
+        logger.info(
+            "LearningEngine generated %d insight(s) from %d trades",
+            len(insights),
+            len(entries),
+        )
         return insights
 
     def _detect_consecutive_losses(
-        self, entries: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, entries: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Detect 3+ consecutive losing trades grouped by bot or pair."""
-        insights: List[Dict[str, Any]] = []
+        insights: list[dict[str, Any]] = []
         now_str = datetime.now(timezone.utc).isoformat()
 
         # Group chronologically ascending
         sorted_entries = sorted(entries, key=lambda x: str(x.get("exit_timestamp", "")))
 
         # Group by bot_name
-        by_bot: Dict[str, List[Dict[str, Any]]] = {}
+        by_bot: dict[str, list[dict[str, Any]]] = {}
         for e in sorted_entries:
             bot = str(e.get("bot_name", "STE")).upper()
             by_bot.setdefault(bot, []).append(e)
 
         for bot_name, bot_trades in by_bot.items():
             consecutive_losses = 0
-            loss_pairs: List[str] = []
+            loss_pairs: list[str] = []
             for t in bot_trades:
                 net_pnl = float(t.get("net_pnl", 0.0))
                 if net_pnl < 0:
@@ -99,24 +105,28 @@ class LearningEngine:
 
                 if consecutive_losses >= 3:
                     last_pair = loss_pairs[-1] if loss_pairs else "GENERAL"
-                    insights.append({
-                        "id": str(uuid.uuid4()),
-                        "bot_name": bot_name,
-                        "pair": last_pair,
-                        "pattern_type": "CONSECUTIVE_LOSSES",
-                        "severity": "HIGH" if consecutive_losses == 3 else "CRITICAL",
-                        "lesson_summary": f"Detected {consecutive_losses} consecutive stop-outs for strategy {bot_name} on {last_pair}.",
-                        "recommended_adjustment": f"Initiate COOLING_DOWN status for {bot_name}, tighten confluence threshold to 90.0, and reduce multiplier to 0.5x.",
-                        "created_at": now_str,
-                    })
+                    insights.append(
+                        {
+                            "id": str(uuid.uuid4()),
+                            "bot_name": bot_name,
+                            "pair": last_pair,
+                            "pattern_type": "CONSECUTIVE_LOSSES",
+                            "severity": (
+                                "HIGH" if consecutive_losses == 3 else "CRITICAL"
+                            ),
+                            "lesson_summary": f"Detected {consecutive_losses} consecutive stop-outs for strategy {bot_name} on {last_pair}.",
+                            "recommended_adjustment": f"Initiate COOLING_DOWN status for {bot_name}, tighten confluence threshold to 90.0, and reduce multiplier to 0.5x.",
+                            "created_at": now_str,
+                        }
+                    )
 
         return insights
 
     def _detect_mae_excursions(
-        self, entries: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, entries: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Detect trades where Maximum Adverse Excursion (MAE) was excessively large (>2% of entry notional)."""
-        insights: List[Dict[str, Any]] = []
+        insights: list[dict[str, Any]] = []
         now_str = datetime.now(timezone.utc).isoformat()
 
         for e in entries:
@@ -130,24 +140,26 @@ class LearningEngine:
                 if mae_pct > 2.0:
                     bot_name = str(e.get("bot_name", "STE")).upper()
                     pair = str(e.get("pair", "BTC/INR")).upper()
-                    insights.append({
-                        "id": str(uuid.uuid4()),
-                        "bot_name": bot_name,
-                        "pair": pair,
-                        "pattern_type": "MAE_EXCURSION_LEAK",
-                        "severity": "MEDIUM" if mae_pct < 4.0 else "HIGH",
-                        "lesson_summary": f"Excessive MAE excursion ({mae_pct:.2f}%) on {pair} before trade completion.",
-                        "recommended_adjustment": f"Tighten entry trigger timing and require confirmation candle for strategy {bot_name} on {pair}.",
-                        "created_at": now_str,
-                    })
+                    insights.append(
+                        {
+                            "id": str(uuid.uuid4()),
+                            "bot_name": bot_name,
+                            "pair": pair,
+                            "pattern_type": "MAE_EXCURSION_LEAK",
+                            "severity": "MEDIUM" if mae_pct < 4.0 else "HIGH",
+                            "lesson_summary": f"Excessive MAE excursion ({mae_pct:.2f}%) on {pair} before trade completion.",
+                            "recommended_adjustment": f"Tighten entry trigger timing and require confirmation candle for strategy {bot_name} on {pair}.",
+                            "created_at": now_str,
+                        }
+                    )
 
         return insights
 
     def _detect_low_mfe_efficiency(
-        self, entries: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, entries: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Detect winning trades that captured less than 30% of potential Maximum Favorable Excursion (MFE)."""
-        insights: List[Dict[str, Any]] = []
+        insights: list[dict[str, Any]] = []
         now_str = datetime.now(timezone.utc).isoformat()
 
         for e in entries:
@@ -160,48 +172,59 @@ class LearningEngine:
                     capture_pct = round(capture_ratio * 100.0, 2)
                     bot_name = str(e.get("bot_name", "STE")).upper()
                     pair = str(e.get("pair", "BTC/INR")).upper()
-                    insights.append({
-                        "id": str(uuid.uuid4()),
-                        "bot_name": bot_name,
-                        "pair": pair,
-                        "pattern_type": "LOW_MFE_EFFICIENCY",
-                        "severity": "LOW" if capture_pct >= 20.0 else "MEDIUM",
-                        "lesson_summary": f"Low MFE capture efficiency ({capture_pct}%) on winning trade for {pair}.",
-                        "recommended_adjustment": f"Optimize trailing stop offset and delay premature take-profit triggers for strategy {bot_name}.",
-                        "created_at": now_str,
-                    })
+                    insights.append(
+                        {
+                            "id": str(uuid.uuid4()),
+                            "bot_name": bot_name,
+                            "pair": pair,
+                            "pattern_type": "LOW_MFE_EFFICIENCY",
+                            "severity": "LOW" if capture_pct >= 20.0 else "MEDIUM",
+                            "lesson_summary": f"Low MFE capture efficiency ({capture_pct}%) on winning trade for {pair}.",
+                            "recommended_adjustment": f"Optimize trailing stop offset and delay premature take-profit triggers for strategy {bot_name}.",
+                            "created_at": now_str,
+                        }
+                    )
 
         return insights
 
     def _detect_regime_mismatch(
-        self, entries: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, entries: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Detect strategy underperformance during specific market regimes from tags."""
-        insights: List[Dict[str, Any]] = []
+        insights: list[dict[str, Any]] = []
         now_str = datetime.now(timezone.utc).isoformat()
 
-        regime_losses: Dict[str, Dict[str, int]] = {}
+        regime_losses: dict[str, dict[str, int]] = {}
 
         for e in entries:
             tags = e.get("tags") or []
             bot_name = str(e.get("bot_name", "STE")).upper()
             net_pnl = float(e.get("net_pnl", 0.0))
 
-            regime = "BEARISH" if any("bear" in str(t).lower() or "risk_off" in str(t).lower() for t in tags) else None
+            regime = (
+                "BEARISH"
+                if any(
+                    "bear" in str(t).lower() or "risk_off" in str(t).lower()
+                    for t in tags
+                )
+                else None
+            )
             if regime and net_pnl < 0:
                 regime_losses.setdefault(bot_name, {}).setdefault(regime, 0)
                 regime_losses[bot_name][regime] += 1
 
                 if regime_losses[bot_name][regime] >= 2:
-                    insights.append({
-                        "id": str(uuid.uuid4()),
-                        "bot_name": bot_name,
-                        "pair": str(e.get("pair", "BTC/INR")).upper(),
-                        "pattern_type": "REGIME_MISMATCH",
-                        "severity": "HIGH",
-                        "lesson_summary": f"Strategy {bot_name} exhibits underperformance during {regime} market regime.",
-                        "recommended_adjustment": f"Require higher confluence score threshold (90+) for {bot_name} during {regime} market conditions.",
-                        "created_at": now_str,
-                    })
+                    insights.append(
+                        {
+                            "id": str(uuid.uuid4()),
+                            "bot_name": bot_name,
+                            "pair": str(e.get("pair", "BTC/INR")).upper(),
+                            "pattern_type": "REGIME_MISMATCH",
+                            "severity": "HIGH",
+                            "lesson_summary": f"Strategy {bot_name} exhibits underperformance during {regime} market regime.",
+                            "recommended_adjustment": f"Require higher confluence score threshold (90+) for {bot_name} during {regime} market conditions.",
+                            "created_at": now_str,
+                        }
+                    )
 
         return insights

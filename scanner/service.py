@@ -16,33 +16,35 @@ Responsibilities:
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
 import json
-from typing import Any, Optional
+from datetime import datetime, timezone
+from typing import Any
 
 import httpx
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
 from core.config import AppConfig
-from core.types import MarketState, OppType, Priority, Signal
 from core.logging import get_logger
-from core.repository.signal_repo import SignalRepository
-from core.repository.event_log_repo import EventLogRepository
 from core.repository.candle_repo import CandleRepository
+from core.repository.event_log_repo import EventLogRepository
 from core.repository.position_repo import PositionRepository
+from core.repository.signal_repo import SignalRepository
 from core.repository.trade_repo import TradeRepository
+from core.types import MarketState, Priority, Signal
 from execution.trading.precision_rules import extract_base_coin
 
-from .adapter import raw_response_to_signals, v1_response_to_signals
-from .confluence_engine import ConfluenceEngine
+from .adapter import raw_response_to_signals
 from .calibration_worker import CalibrationWorker, get_data_file_path
+from .confluence_engine import ConfluenceEngine
 from .market_context import MarketContextService, calculate_ema
 from .news_fetcher import NewsRiskService
 from .signal_filter import (
-    filter_by_priority, filter_live, deduplicate, detect_expired, _dedup_key,
+    _dedup_key,
+    deduplicate,
+    detect_expired,
+    filter_by_priority,
 )
-
 
 logger = get_logger("scanner.service")
 
@@ -89,12 +91,12 @@ class ScannerService:
         signal_repo: SignalRepository,
         event_log_repo: EventLogRepository,
         config: AppConfig,
-        candle_repo: Optional[CandleRepository] = None,
-        position_repo: Optional[PositionRepository] = None,
-        trade_repo: Optional[TradeRepository] = None,
-        market_context_service: Optional[MarketContextService] = None,
-        news_risk_service: Optional[NewsRiskService] = None,
-        calibration_worker: Optional[CalibrationWorker] = None,
+        candle_repo: CandleRepository | None = None,
+        position_repo: PositionRepository | None = None,
+        trade_repo: TradeRepository | None = None,
+        market_context_service: MarketContextService | None = None,
+        news_risk_service: NewsRiskService | None = None,
+        calibration_worker: CalibrationWorker | None = None,
     ) -> None:
         self._bus = bus
         self._signal_repo = signal_repo
@@ -106,7 +108,6 @@ class ScannerService:
 
         # Post-exit cooldown tracking {coin_symbol: {"exit_time": datetime, "exit_reason": str, "price": float}}
         self._cooldowns: dict[str, dict] = {}
-
 
         # Services for Macro Context, Sentiment, and News Risk
         self._market_context_service = market_context_service or MarketContextService()
@@ -125,8 +126,8 @@ class ScannerService:
         self._seen_keys: set[str] = set()
 
         self._poll_count = 0
-        self._last_poll_at: Optional[datetime] = None
-        self._last_error: Optional[str] = None
+        self._last_poll_at: datetime | None = None
+        self._last_error: str | None = None
         self._started = False
         self._poll_lock = asyncio.Lock()
 
@@ -134,7 +135,9 @@ class ScannerService:
 
         # C2 High-Conviction Confluence Engine (5-layer evaluation, strict rejection gate, max 1–2 signals)
         self._confluence_engine = ConfluenceEngine(
-            strict_threshold=getattr(self._config, "scanner_strict_confluence_threshold", 85),
+            strict_threshold=getattr(
+                self._config, "scanner_strict_confluence_threshold", 85
+            ),
             max_signals=getattr(self._config, "scanner_max_signals", 2),
         )
 
@@ -182,12 +185,20 @@ class ScannerService:
                 now = datetime.now(timezone.utc)
                 cooldown_dur = getattr(self._config, "post_exit_cooldown_seconds", 900)
                 for tr in recent_trades:
-                    c_time = getattr(tr, "closed_at", None) or getattr(tr, "executed_at", None)
+                    c_time = getattr(tr, "closed_at", None) or getattr(
+                        tr, "executed_at", None
+                    )
                     if c_time:
                         if c_time.tzinfo is None:
                             c_time = c_time.replace(tzinfo=timezone.utc)
                         if (now - c_time).total_seconds() < cooldown_dur:
-                            coin_clean = (getattr(tr, "coin", "") or "").upper().replace("/INR", "").replace("/USDT", "").replace("B-", "")
+                            coin_clean = (
+                                (getattr(tr, "coin", "") or "")
+                                .upper()
+                                .replace("/INR", "")
+                                .replace("/USDT", "")
+                                .replace("B-", "")
+                            )
                             if coin_clean and coin_clean not in self._cooldowns:
                                 self._cooldowns[coin_clean] = {
                                     "exit_time": c_time,
@@ -195,7 +206,11 @@ class ScannerService:
                                     "price": float(getattr(tr, "price", 0.0) or 0.0),
                                 }
                 if self._cooldowns:
-                    logger.info("Bootstrapped %d active post-exit cooldowns: %s", len(self._cooldowns), list(self._cooldowns.keys()))
+                    logger.info(
+                        "Bootstrapped %d active post-exit cooldowns: %s",
+                        len(self._cooldowns),
+                        list(self._cooldowns.keys()),
+                    )
             except Exception as exc:
                 logger.debug("Could not bootstrap post-exit cooldowns: %s", exc)
 
@@ -232,7 +247,13 @@ class ScannerService:
 
     async def on_position_closed(self, event_type: EventType, payload: dict) -> None:
         """Record post-exit cooldown and invalidate any live signals for this coin."""
-        coin = (payload.get("coin") or "").upper().replace("/INR", "").replace("/USDT", "").replace("B-", "")
+        coin = (
+            (payload.get("coin") or "")
+            .upper()
+            .replace("/INR", "")
+            .replace("/USDT", "")
+            .replace("B-", "")
+        )
         if not coin:
             return
         now = datetime.now(timezone.utc)
@@ -246,11 +267,21 @@ class ScannerService:
         }
         logger.info(
             "Post-exit cooldown started for %s (%s, duration: %ds)",
-            coin, exit_reason, cooldown_dur
+            coin,
+            exit_reason,
+            cooldown_dur,
         )
 
         # Evict any active in-memory live signals for this coin
-        to_evict = [sid for sid, sig in self._live.items() if sig.coin.upper().replace("/INR", "").replace("/USDT", "").replace("B-", "") == coin]
+        to_evict = [
+            sid
+            for sid, sig in self._live.items()
+            if sig.coin.upper()
+            .replace("/INR", "")
+            .replace("/USDT", "")
+            .replace("B-", "")
+            == coin
+        ]
         for sid in to_evict:
             sig = self._live.pop(sid, None)
             if sig:
@@ -262,7 +293,13 @@ class ScannerService:
     async def on_trade_executed(self, event_type: EventType, payload: dict) -> None:
         """Mark signal consumed when trade executes."""
         signal_id = payload.get("signal_id")
-        coin = (payload.get("coin") or "").upper().replace("/INR", "").replace("/USDT", "").replace("B-", "")
+        coin = (
+            (payload.get("coin") or "")
+            .upper()
+            .replace("/INR", "")
+            .replace("/USDT", "")
+            .replace("B-", "")
+        )
         if signal_id:
             self._live.pop(signal_id, None)
             try:
@@ -271,13 +308,27 @@ class ScannerService:
                 pass
         # Also clean up any other live signals for this coin
         if coin:
-            to_evict = [sid for sid, sig in self._live.items() if sig.coin.upper().replace("/INR", "").replace("/USDT", "").replace("B-", "") == coin]
+            to_evict = [
+                sid
+                for sid, sig in self._live.items()
+                if sig.coin.upper()
+                .replace("/INR", "")
+                .replace("/USDT", "")
+                .replace("B-", "")
+                == coin
+            ]
             for sid in to_evict:
                 self._live.pop(sid, None)
 
     def is_in_cooldown(self, coin: str) -> bool:
         """Check if a coin is currently in post-exit cooldown window."""
-        coin_clean = coin.upper().strip().replace("/INR", "").replace("/USDT", "").replace("B-", "")
+        coin_clean = (
+            coin.upper()
+            .strip()
+            .replace("/INR", "")
+            .replace("/USDT", "")
+            .replace("B-", "")
+        )
         info = self._cooldowns.get(coin_clean)
         if not info or "exit_time" not in info:
             return False
@@ -293,11 +344,26 @@ class ScannerService:
         try:
             coins = await self._fetch_watchlist_coins()
             canonical_inr_coins = {
-                "BTC", "ETH", "BNB", "SOL", "AVAX", "LINK", 
-                "XRP", "ADA", "MATIC", "DOGE", "TRX", "SHIB", "POL",
-                "NEAR", "FET", "ZEC", "LTC", "DASH"
+                "BTC",
+                "ETH",
+                "BNB",
+                "SOL",
+                "AVAX",
+                "LINK",
+                "XRP",
+                "ADA",
+                "MATIC",
+                "DOGE",
+                "TRX",
+                "SHIB",
+                "POL",
+                "NEAR",
+                "FET",
+                "ZEC",
+                "LTC",
+                "DASH",
             }
-            
+
             pairs = []
             for coin in coins:
                 if "/" in coin:
@@ -311,56 +377,83 @@ class ScannerService:
             for pair in pairs:
                 for timeframe in ["1h", "4h", "1d"]:
                     try:
-                        db_candles = await self._candle_repo.get_recent_candles(pair, timeframe, limit=120)
+                        db_candles = await self._candle_repo.get_recent_candles(
+                            pair, timeframe, limit=120
+                        )
                         if len(db_candles) < 120:
                             logger.info(
                                 "[Bootstrap] Insufficient cached candles for pair=%s timeframe=%s (%d/120). Catching up from exchange API...",
-                                pair, timeframe, len(db_candles)
+                                pair,
+                                timeframe,
+                                len(db_candles),
                             )
                             coindcx_pair = canonical_to_coindcx_pair(pair)
                             interval = timeframe
-                            raw_candles = await self._fetch_coindcx_candles(coindcx_pair, interval, limit=120)
-                            
+                            raw_candles = await self._fetch_coindcx_candles(
+                                coindcx_pair, interval, limit=120
+                            )
+
                             if raw_candles:
                                 formatted = []
                                 for c in raw_candles:
                                     try:
                                         ts_ms = int(c.get("time", c.get("t", 0)) or 0)
-                                        close = float(c.get("close", c.get("c", 0.0)) or 0.0)
+                                        close = float(
+                                            c.get("close", c.get("c", 0.0)) or 0.0
+                                        )
                                         if ts_ms <= 0 or close <= 0:
                                             continue
-                                        formatted.append({
-                                            "pair": pair,
-                                            "timeframe": timeframe,
-                                            "timestamp": ts_ms,
-                                            "open": float(c.get("open", c.get("o", close))),
-                                            "high": float(c.get("high", c.get("h", close))),
-                                            "low": float(c.get("low", c.get("l", close))),
-                                            "close": close,
-                                            "volume": float(c.get("volume", c.get("v", 0.0))),
-                                        })
+                                        formatted.append(
+                                            {
+                                                "pair": pair,
+                                                "timeframe": timeframe,
+                                                "timestamp": ts_ms,
+                                                "open": float(
+                                                    c.get("open", c.get("o", close))
+                                                ),
+                                                "high": float(
+                                                    c.get("high", c.get("h", close))
+                                                ),
+                                                "low": float(
+                                                    c.get("low", c.get("l", close))
+                                                ),
+                                                "close": close,
+                                                "volume": float(
+                                                    c.get("volume", c.get("v", 0.0))
+                                                ),
+                                            }
+                                        )
                                     except (TypeError, ValueError, KeyError):
                                         continue
-                                
+
                                 if formatted:
                                     await self._candle_repo.upsert_candles(formatted)
                                     logger.info(
                                         "[Bootstrap] Idempotent upserted %d candles for pair=%s timeframe=%s",
-                                        len(formatted), pair, timeframe
+                                        len(formatted),
+                                        pair,
+                                        timeframe,
                                     )
                         else:
                             logger.info(
                                 "[Bootstrap] Sufficient cached candles found in SQLite for pair=%s timeframe=%s (%d)",
-                                pair, timeframe, len(db_candles)
+                                pair,
+                                timeframe,
+                                len(db_candles),
                             )
                     except Exception as exc:
                         logger.warning(
                             "[Bootstrap] Failed to bootstrap candles for pair=%s timeframe=%s: %s",
-                            pair, timeframe, exc
+                            pair,
+                            timeframe,
+                            exc,
                         )
             logger.info("[Bootstrap] Database-first candle warm-up complete.")
         except Exception as exc:
-            logger.exception("[Bootstrap] Critical failure during candle warm-up", extra={"error": str(exc)})
+            logger.exception(
+                "[Bootstrap] Critical failure during candle warm-up",
+                extra={"error": str(exc)},
+            )
 
     async def _fetch_watchlist_coins(self) -> list[str]:
         """Return a market-wide, deterministic Top-50 pair universe.
@@ -404,21 +497,26 @@ class ScannerService:
                 turnover = volume * last
                 mid = (bid + ask) / 2.0 if bid > 0 and ask > 0 else last
                 spread_pct = abs(ask - bid) / mid * 100.0 if mid > 0 else 100.0
-                markets.append({
-                    "pair": f"{base}/{quote}",
-                    "turnover": turnover,
-                    "spread_pct": spread_pct,
-                    "change_24h": change,
-                    "last_price": last,
-                })
+                markets.append(
+                    {
+                        "pair": f"{base}/{quote}",
+                        "turnover": turnover,
+                        "spread_pct": spread_pct,
+                        "change_24h": change,
+                        "last_price": last,
+                    }
+                )
 
-            self._market_snapshot = {
-                m["pair"]: m for m in markets
-            }
-            min_turnover = float(getattr(self._config, "scanner_min_24h_volume", 0.0) or 0.0)
-            max_spread = float(getattr(self._config, "scanner_max_spread_pct", 2.0) or 2.0)
+            self._market_snapshot = {m["pair"]: m for m in markets}
+            min_turnover = float(
+                getattr(self._config, "scanner_min_24h_volume", 0.0) or 0.0
+            )
+            max_spread = float(
+                getattr(self._config, "scanner_max_spread_pct", 2.0) or 2.0
+            )
             eligible = [
-                m for m in markets
+                m
+                for m in markets
                 if m["turnover"] >= min_turnover and m["spread_pct"] <= max_spread
             ]
             # Log-normal-ish bounded score: turnover is the primary ranking
@@ -435,21 +533,25 @@ class ScannerService:
             top_n = int(getattr(self._config, "scanner_ranking_top_n", 50) or 50)
             selected = eligible[:top_n]
             self._market_snapshot = {m["pair"]: m for m in selected}
-            self._last_funnel_counters.update({
-                "market_universe": len(markets),
-                "market_liquidity_rejected": len(markets) - len(eligible),
-                "market_top_n": len(selected),
-            })
+            self._last_funnel_counters.update(
+                {
+                    "market_universe": len(markets),
+                    "market_liquidity_rejected": len(markets) - len(eligible),
+                    "market_top_n": len(selected),
+                }
+            )
             return [m["pair"] for m in selected]
 
         # A temporary public-market outage must not silently fall back to a
         # narrow watchlist; return no candidates and expose the failure.
         self._market_snapshot = {}
-        self._last_funnel_counters.update({
-            "market_universe": 0,
-            "market_liquidity_rejected": 0,
-            "market_top_n": 0,
-        })
+        self._last_funnel_counters.update(
+            {
+                "market_universe": 0,
+                "market_liquidity_rejected": 0,
+                "market_top_n": 0,
+            }
+        )
         return []
 
     async def _get_candles_for_pair(
@@ -485,7 +587,19 @@ class ScannerService:
             logger.debug("Could not read watchlist.json, using defaults: %s", exc)
 
         # Default canonical CoinDCX watchlist
-        return ["BTC", "ETH", "SOL", "BNB", "XRP", "ZEC", "AVAX", "LINK", "DOGE", "SHIB", "MATIC"]
+        return [
+            "BTC",
+            "ETH",
+            "SOL",
+            "BNB",
+            "XRP",
+            "ZEC",
+            "AVAX",
+            "LINK",
+            "DOGE",
+            "SHIB",
+            "MATIC",
+        ]
 
     async def _fetch_coindcx_candles(
         self, coindcx_pair: str, interval: str, limit: int = 120
@@ -505,7 +619,8 @@ class ScannerService:
         except Exception as exc:
             logger.debug(
                 "Failed to fetch candles from CoinDCX for pair=%s: %s",
-                coindcx_pair, exc
+                coindcx_pair,
+                exc,
             )
         return []
 
@@ -518,15 +633,30 @@ class ScannerService:
                 await asyncio.sleep(self._config.scanner_poll_interval)
                 if not self._started:
                     break
-                
+
                 logger.info("[Flusher] Periodic candle flush cycle started")
                 coins = await self._fetch_watchlist_coins()
                 canonical_inr_coins = {
-                    "BTC", "ETH", "BNB", "SOL", "AVAX", "LINK", 
-                    "XRP", "ADA", "MATIC", "DOGE", "TRX", "SHIB", "POL",
-                    "NEAR", "FET", "ZEC", "LTC", "DASH"
+                    "BTC",
+                    "ETH",
+                    "BNB",
+                    "SOL",
+                    "AVAX",
+                    "LINK",
+                    "XRP",
+                    "ADA",
+                    "MATIC",
+                    "DOGE",
+                    "TRX",
+                    "SHIB",
+                    "POL",
+                    "NEAR",
+                    "FET",
+                    "ZEC",
+                    "LTC",
+                    "DASH",
                 }
-                
+
                 pairs = []
                 for coin in coins:
                     if "/" in coin:
@@ -542,37 +672,56 @@ class ScannerService:
                         coindcx_pair = canonical_to_coindcx_pair(pair)
                         interval = timeframe
                         # Limit to last 5 candles to catch the latest closed ones
-                        raw_candles = await self._fetch_coindcx_candles(coindcx_pair, interval, limit=5)
-                        
+                        raw_candles = await self._fetch_coindcx_candles(
+                            coindcx_pair, interval, limit=5
+                        )
+
                         if raw_candles:
                             formatted = []
                             for c in raw_candles:
                                 try:
                                     ts_ms = int(c.get("time", c.get("t", 0)) or 0)
-                                    close = float(c.get("close", c.get("c", 0.0)) or 0.0)
+                                    close = float(
+                                        c.get("close", c.get("c", 0.0)) or 0.0
+                                    )
                                     if ts_ms <= 0 or close <= 0:
                                         continue
-                                    formatted.append({
-                                        "pair": pair,
-                                        "timeframe": timeframe,
-                                        "timestamp": ts_ms,
-                                        "open": float(c.get("open", c.get("o", close))),
-                                        "high": float(c.get("high", c.get("h", close))),
-                                        "low": float(c.get("low", c.get("l", close))),
-                                        "close": close,
-                                        "volume": float(c.get("volume", c.get("v", 0.0))),
-                                    })
+                                    formatted.append(
+                                        {
+                                            "pair": pair,
+                                            "timeframe": timeframe,
+                                            "timestamp": ts_ms,
+                                            "open": float(
+                                                c.get("open", c.get("o", close))
+                                            ),
+                                            "high": float(
+                                                c.get("high", c.get("h", close))
+                                            ),
+                                            "low": float(
+                                                c.get("low", c.get("l", close))
+                                            ),
+                                            "close": close,
+                                            "volume": float(
+                                                c.get("volume", c.get("v", 0.0))
+                                            ),
+                                        }
+                                    )
                                 except (TypeError, ValueError, KeyError):
                                     continue
-                            
+
                             if formatted:
                                 await self._candle_repo.upsert_candles(formatted)
-                                
-                logger.info("[Flusher] Periodic candle flush cycle completed successfully")
+
+                logger.info(
+                    "[Flusher] Periodic candle flush cycle completed successfully"
+                )
             except asyncio.CancelledError:
                 break
             except Exception as exc:
-                logger.exception("[Flusher] Unexpected error in candle flusher loop", extra={"error": str(exc)})
+                logger.exception(
+                    "[Flusher] Unexpected error in candle flusher loop",
+                    extra={"error": str(exc)},
+                )
 
     # ── True Multi-Timeframe (MTF) Data Fetching ─────────────────────────────
     async def fetch_mtf_candles(self, coindcx_pair: str) -> dict[str, list[dict]]:
@@ -676,11 +825,16 @@ class ScannerService:
                 try:
                     open_positions = await self._position_repo.get_open()
                     for p in open_positions:
-                        p_clean = extract_base_coin(getattr(p, "coin", "")) or extract_base_coin(getattr(p, "pair", ""))
+                        p_clean = extract_base_coin(
+                            getattr(p, "coin", "")
+                        ) or extract_base_coin(getattr(p, "pair", ""))
                         if p_clean:
                             open_coins.add(p_clean.upper())
                 except Exception as pos_err:
-                    logger.warning("Could not check open positions for lock suppression: %s", pos_err)
+                    logger.warning(
+                        "Could not check open positions for lock suppression: %s",
+                        pos_err,
+                    )
 
             # Clean up expired cooldowns
             now_utc = datetime.now(timezone.utc)
@@ -695,7 +849,9 @@ class ScannerService:
                     expired_cooldowns.append(c_coin)
             for c_coin in expired_cooldowns:
                 del self._cooldowns[c_coin]
-                logger.info("Post-exit cooldown expired for %s. Re-entry allowed.", c_coin)
+                logger.info(
+                    "Post-exit cooldown expired for %s. Re-entry allowed.", c_coin
+                )
 
             actionable_raw = []
             live_sigs = self.get_live_signals()
@@ -705,13 +861,22 @@ class ScannerService:
                 if not c_coin:
                     continue
                 if c_coin in open_coins:
-                    logger.debug("Early lock suppression: %s has active open position. Skipping C2/AI compute.", c_coin)
+                    logger.debug(
+                        "Early lock suppression: %s has active open position. Skipping C2/AI compute.",
+                        c_coin,
+                    )
                     continue
                 if self.is_in_cooldown(c_coin):
-                    logger.debug("Early lock suppression: %s is in post-exit cooldown. Skipping C2/AI compute.", c_coin)
+                    logger.debug(
+                        "Early lock suppression: %s is in post-exit cooldown. Skipping C2/AI compute.",
+                        c_coin,
+                    )
                     continue
                 if c_coin in live_coins:
-                    logger.debug("Early lock suppression: %s has live unexpired signal active. Skipping C2/AI.", c_coin)
+                    logger.debug(
+                        "Early lock suppression: %s has live unexpired signal active. Skipping C2/AI.",
+                        c_coin,
+                    )
                     continue
                 actionable_raw.append(c)
 
@@ -736,12 +901,14 @@ class ScannerService:
             # B3: Macro Regime (RISK_ON / RISK_OFF / BTC trend) applies bounded +/-5 score adjustment
             # B4: Dynamic Threshold (80-92) responds solely to volatility & sideways chop
             btc_trend = market_context.get("btc_trend", "SIDEWAYS")
-            is_choppy = (btc_trend == "SIDEWAYS")
-            high_conviction_signals, eval_results = self._confluence_engine.evaluate_candidates(
-                raw_candidates=enriched_raw,
-                signals=candidates,
-                market_volatility=1.0,
-                is_choppy=is_choppy,
+            is_choppy = btc_trend == "SIDEWAYS"
+            high_conviction_signals, eval_results = (
+                self._confluence_engine.evaluate_candidates(
+                    raw_candidates=enriched_raw,
+                    signals=candidates,
+                    market_volatility=1.0,
+                    is_choppy=is_choppy,
+                )
             )
 
             # Preserve the C2 decision and MTF evidence on the domain signal.
@@ -749,15 +916,17 @@ class ScannerService:
             # same immutable decision metadata rather than recomputing it.
             for res in eval_results:
                 payload = res.signal.raw_payload or {}
-                payload.update({
-                    "confluence_score": res.confluence_score,
-                    "confluence_base_score": res.base_score,
-                    "regime_adjustment": res.regime_adjustment,
-                    "dynamic_threshold": res.dynamic_threshold,
-                    "confluence_accepted": res.accepted,
-                    "confluence_rejection_reasons": list(res.rejection_reasons),
-                    "mtf_timeframes": ["1h", "4h", "1d"],
-                })
+                payload.update(
+                    {
+                        "confluence_score": res.confluence_score,
+                        "confluence_base_score": res.base_score,
+                        "regime_adjustment": res.regime_adjustment,
+                        "dynamic_threshold": res.dynamic_threshold,
+                        "confluence_accepted": res.accepted,
+                        "confluence_rejection_reasons": list(res.rejection_reasons),
+                        "mtf_timeframes": ["1h", "4h", "1d"],
+                    }
+                )
                 res.signal.raw_payload = payload
 
             # 8. Retain latest-scan evaluation snapshot in memory (atomic replacement)
@@ -765,20 +934,48 @@ class ScannerService:
             for res in eval_results:
                 coin_sym = res.signal.coin.upper()
                 cand_raw = cand_by_coin.get(coin_sym, {})
-                
+
                 # Determine EMA trend
                 if coin_sym == "BTC":
-                    ema_trend = self._market_context_service.get_current_sentiment().get("btc_trend", "SIDEWAYS")
+                    ema_trend = (
+                        self._market_context_service.get_current_sentiment().get(
+                            "btc_trend", "SIDEWAYS"
+                        )
+                    )
                 elif coin_sym == "ETH":
-                    ema_trend = self._market_context_service.get_current_sentiment().get("eth_trend", "SIDEWAYS")
+                    ema_trend = (
+                        self._market_context_service.get_current_sentiment().get(
+                            "eth_trend", "SIDEWAYS"
+                        )
+                    )
                 else:
                     ema_trend = "BULLISH" if res.signal.mtf_alignment else "SIDEWAYS"
 
                 raw_payload = res.signal.raw_payload or {}
-                price_val = float(cand_raw.get("price") or raw_payload.get("price") or raw_payload.get("close") or 0.0)
-                vol_24h = float(cand_raw.get("volume_24h") or cand_raw.get("volume") or raw_payload.get("volume_24h") or 0.0)
-                vol_ratio = float(cand_raw.get("volume_spike_ratio") or cand_raw.get("volume_ratio") or raw_payload.get("volume_spike_ratio") or 1.0)
-                rsi_val = float(cand_raw.get("rsi") or raw_payload.get("rsi_14") or raw_payload.get("rsi") or 50.0)
+                price_val = float(
+                    cand_raw.get("price")
+                    or raw_payload.get("price")
+                    or raw_payload.get("close")
+                    or 0.0
+                )
+                vol_24h = float(
+                    cand_raw.get("volume_24h")
+                    or cand_raw.get("volume")
+                    or raw_payload.get("volume_24h")
+                    or 0.0
+                )
+                vol_ratio = float(
+                    cand_raw.get("volume_spike_ratio")
+                    or cand_raw.get("volume_ratio")
+                    or raw_payload.get("volume_spike_ratio")
+                    or 1.0
+                )
+                rsi_val = float(
+                    cand_raw.get("rsi")
+                    or raw_payload.get("rsi_14")
+                    or raw_payload.get("rsi")
+                    or 50.0
+                )
 
                 eval_item = {
                     "symbol": coin_sym,
@@ -795,46 +992,73 @@ class ScannerService:
                     "status": "PASSED" if res.accepted else "REJECTED",
                     "accepted": res.accepted,
                     "eval_breakdown": {
-                        "chart": {
-                            "score": res.layer_evaluations["chart"].score,
-                            "passed": res.layer_evaluations["chart"].passed,
-                            "details": res.layer_evaluations["chart"].details,
-                            "reasons": res.layer_evaluations["chart"].reasons,
-                        } if "chart" in res.layer_evaluations else {},
-                        "indicator": {
-                            "score": res.layer_evaluations["indicator"].score,
-                            "passed": res.layer_evaluations["indicator"].passed,
-                            "details": res.layer_evaluations["indicator"].details,
-                            "reasons": res.layer_evaluations["indicator"].reasons,
-                        } if "indicator" in res.layer_evaluations else {},
-                        "sentiment": {
-                            "score": res.layer_evaluations["sentiment"].score,
-                            "passed": res.layer_evaluations["sentiment"].passed,
-                            "details": res.layer_evaluations["sentiment"].details,
-                            "reasons": res.layer_evaluations["sentiment"].reasons,
-                        } if "sentiment" in res.layer_evaluations else {},
-                        "news": {
-                            "score": res.layer_evaluations["news"].score,
-                            "passed": res.layer_evaluations["news"].passed,
-                            "details": res.layer_evaluations["news"].details,
-                            "reasons": res.layer_evaluations["news"].reasons,
-                        } if "news" in res.layer_evaluations else {},
+                        "chart": (
+                            {
+                                "score": res.layer_evaluations["chart"].score,
+                                "passed": res.layer_evaluations["chart"].passed,
+                                "details": res.layer_evaluations["chart"].details,
+                                "reasons": res.layer_evaluations["chart"].reasons,
+                            }
+                            if "chart" in res.layer_evaluations
+                            else {}
+                        ),
+                        "indicator": (
+                            {
+                                "score": res.layer_evaluations["indicator"].score,
+                                "passed": res.layer_evaluations["indicator"].passed,
+                                "details": res.layer_evaluations["indicator"].details,
+                                "reasons": res.layer_evaluations["indicator"].reasons,
+                            }
+                            if "indicator" in res.layer_evaluations
+                            else {}
+                        ),
+                        "sentiment": (
+                            {
+                                "score": res.layer_evaluations["sentiment"].score,
+                                "passed": res.layer_evaluations["sentiment"].passed,
+                                "details": res.layer_evaluations["sentiment"].details,
+                                "reasons": res.layer_evaluations["sentiment"].reasons,
+                            }
+                            if "sentiment" in res.layer_evaluations
+                            else {}
+                        ),
+                        "news": (
+                            {
+                                "score": res.layer_evaluations["news"].score,
+                                "passed": res.layer_evaluations["news"].passed,
+                                "details": res.layer_evaluations["news"].details,
+                                "reasons": res.layer_evaluations["news"].reasons,
+                            }
+                            if "news" in res.layer_evaluations
+                            else {}
+                        ),
                     },
                     "rejection_reasons": res.rejection_reasons,
-                    "rejection_reason": "; ".join(res.rejection_reasons) if res.rejection_reasons else None,
+                    "rejection_reason": (
+                        "; ".join(res.rejection_reasons)
+                        if res.rejection_reasons
+                        else None
+                    ),
                     "evaluated_at": datetime.now(timezone.utc).isoformat(),
                 }
                 new_eval_snapshot[coin_sym] = eval_item
                 new_eval_snapshot[res.signal.pair.upper()] = eval_item
-                clean_pair = res.signal.pair.replace("/", "").replace("_", "").replace("-", "").upper()
+                clean_pair = (
+                    res.signal.pair.replace("/", "")
+                    .replace("_", "")
+                    .replace("-", "")
+                    .upper()
+                )
                 new_eval_snapshot[clean_pair] = eval_item
 
             self._latest_evaluated_coins = new_eval_snapshot
 
             # 9. Cooldown & open positions defense-in-depth, then deduplicate against seen set
             valid_signals = [
-                s for s in high_conviction_signals
-                if s.coin.upper() not in self._cooldowns and s.coin.upper() not in open_coins
+                s
+                for s in high_conviction_signals
+                if s.coin.upper() not in self._cooldowns
+                and s.coin.upper() not in open_coins
             ]
             new_signals, new_keys = deduplicate(valid_signals, self._seen_keys)
             self._seen_keys.update(new_keys)
@@ -862,7 +1086,11 @@ class ScannerService:
             self._last_error = None
             logger.info(
                 "Scanner poll complete",
-                extra={**summary, "live_count": len(self._live), "evaluated_count": len(eval_results)},
+                extra={
+                    **summary,
+                    "live_count": len(self._live),
+                    "evaluated_count": len(eval_results),
+                },
             )
 
         except Exception as exc:
@@ -888,7 +1116,6 @@ class ScannerService:
             await self._publish_signal_expired(sig)
         return len(newly_expired)
 
-
     # ── Public query interface ─────────────────────────────────────────────────
 
     def get_live_signals(self) -> list[Signal]:
@@ -897,7 +1124,7 @@ class ScannerService:
 
     def get_scanned_coins(
         self,
-        min_score: Optional[int] = None,
+        min_score: int | None = None,
         limit: int = 50,
         sort_by: str = "confluence_score",
     ) -> list[dict]:
@@ -921,7 +1148,7 @@ class ScannerService:
 
         return items[:limit]
 
-    def get_scanned_coin_detail(self, symbol: str) -> Optional[dict]:
+    def get_scanned_coin_detail(self, symbol: str) -> dict | None:
         """Return detail for a specific scanned coin (case-insensitive, handles BTC, BTCINR, BTC/INR)."""
         if not symbol:
             return None
@@ -943,16 +1170,18 @@ class ScannerService:
 
     def get_health(self) -> dict:
         return {
-            "poll_count":         self._poll_count,
-            "last_poll_at":       self._last_poll_at.isoformat() if self._last_poll_at else None,
-            "live_signals":       len(self._live),
-            "evaluated_coins":    len(self.get_scanned_coins()),
-            "last_error":         self._last_error,
-            "healthy":            self._last_error is None and self._poll_count > 0,
+            "poll_count": self._poll_count,
+            "last_poll_at": (
+                self._last_poll_at.isoformat() if self._last_poll_at else None
+            ),
+            "live_signals": len(self._live),
+            "evaluated_coins": len(self.get_scanned_coins()),
+            "last_error": self._last_error,
+            "healthy": self._last_error is None and self._poll_count > 0,
             "adaptive_interval_s": self.get_adaptive_poll_interval(),
         }
 
-    def get_adaptive_poll_interval(self, context: Optional[dict] = None) -> int:
+    def get_adaptive_poll_interval(self, context: dict | None = None) -> int:
         """Choose a bounded scan cadence from current market conditions.
 
         Clean bullish conditions can be checked more frequently; sideways and
@@ -994,14 +1223,32 @@ class ScannerService:
         coins = await self._fetch_watchlist_coins()
         discovery_metrics = dict(self._last_funnel_counters)
         canonical_inr_coins = {
-            "BTC", "ETH", "SOL", "BNB", "XRP", "ZEC", "AVAX", "LINK", 
-            "DOGE", "SHIB", "MATIC", "POL", "ADA", "TRX", "NEAR", "FET", "LTC", "DASH"
+            "BTC",
+            "ETH",
+            "SOL",
+            "BNB",
+            "XRP",
+            "ZEC",
+            "AVAX",
+            "LINK",
+            "DOGE",
+            "SHIB",
+            "MATIC",
+            "POL",
+            "ADA",
+            "TRX",
+            "NEAR",
+            "FET",
+            "LTC",
+            "DASH",
         }
-        
+
         funnel_counters = {
             "raw_universe": 0,
             "market_universe": discovery_metrics.get("market_universe", 0),
-            "market_liquidity_rejected": discovery_metrics.get("market_liquidity_rejected", 0),
+            "market_liquidity_rejected": discovery_metrics.get(
+                "market_liquidity_rejected", 0
+            ),
             "market_top_n": discovery_metrics.get("market_top_n", len(coins)),
             "liquidity_passed": 0,
             "volume_passed": 0,
@@ -1015,7 +1262,9 @@ class ScannerService:
 
         # Configured thresholds
         min_vol_24h = getattr(self._config, "scanner_min_24h_volume", 50000.0)
-        max_price_change_pct = getattr(self._config, "scanner_max_price_change_pct", 25.0)
+        max_price_change_pct = getattr(
+            self._config, "scanner_max_price_change_pct", 25.0
+        )
         min_atr_pct = getattr(self._config, "scanner_min_atr_pct", 0.5)
         max_atr_pct = getattr(self._config, "scanner_max_atr_pct", 12.0)
         w_vol = getattr(self._config, "scanner_ranking_weight_volume", 0.40)
@@ -1074,7 +1323,9 @@ class ScannerService:
             latest_close = closes[-1]
             latest_high = highs[-1] if highs else latest_close
             latest_low = lows[-1] if lows else latest_close
-            vol_24h = ticker_turnover or (sum(volumes) * latest_close if volumes else 0.0)
+            vol_24h = ticker_turnover or (
+                sum(volumes) * latest_close if volumes else 0.0
+            )
 
             # Stage 2: 24h Volume Floor
             # If in testing or live, enforce floor unless dataset is micro-scale simulation
@@ -1083,7 +1334,11 @@ class ScannerService:
             funnel_counters["volume_passed"] += 1
 
             # Stage 3: Max price change % (Pump/Dump protection)
-            price_change_24h_pct = ((latest_close - closes[0]) / closes[0]) * 100.0 if closes[0] > 0 else 0.0
+            price_change_24h_pct = (
+                ((latest_close - closes[0]) / closes[0]) * 100.0
+                if closes[0] > 0
+                else 0.0
+            )
             if abs(price_change_24h_pct) > max_price_change_pct:
                 continue
             funnel_counters["pump_dump_passed"] += 1
@@ -1112,7 +1367,7 @@ class ScannerService:
 
                 # RSI 14
                 if len(closes) >= 15:
-                    deltas = [closes[i] - closes[i-1] for i in range(1, len(closes))]
+                    deltas = [closes[i] - closes[i - 1] for i in range(1, len(closes))]
                     gains = [d if d > 0 else 0.0 for d in deltas]
                     losses = [-d if d < 0 else 0.0 for d in deltas]
                     avg_g = sum(gains[-14:]) / 14.0
@@ -1126,10 +1381,13 @@ class ScannerService:
                 # Volume ratio
                 if volumes:
                     avg_vol = sum(volumes[-20:]) / max(1, len(volumes[-20:]))
-                    volume_ratio = round(volumes[-1] / avg_vol, 2) if avg_vol > 0 else 1.0
+                    volume_ratio = (
+                        round(volumes[-1] / avg_vol, 2) if avg_vol > 0 else 1.0
+                    )
 
                 # Stage 4: 1h / 4h / 1d trend & MTF alignment
-                is_4h_bullish = (ema9 >= ema21 * 0.995)
+                is_4h_bullish = ema9 >= ema21 * 0.995
+
                 def _is_bullish(candle_set: list[dict]) -> bool:
                     values = [
                         float(c.get("close", c.get("c", 0.0)))
@@ -1157,7 +1415,9 @@ class ScannerService:
                 funnel_counters["trend_aligned_passed"] += 1
 
                 # Stage 5: ATR volatility sanity band (0.5% - 12.0%)
-                atr_val = sum((highs[i] - lows[i]) for i in range(-min(14, len(highs)), 0)) / max(1, min(14, len(highs)))
+                atr_val = sum(
+                    (highs[i] - lows[i]) for i in range(-min(14, len(highs)), 0)
+                ) / max(1, min(14, len(highs)))
                 atr_pct = (atr_val / latest_close) * 100.0 if latest_close > 0 else 1.0
                 if atr_pct < min_atr_pct or atr_pct > max_atr_pct:
                     continue
@@ -1166,7 +1426,9 @@ class ScannerService:
                 # Market state determination
                 recent_high = max(highs[-10:-1]) if len(highs) >= 10 else latest_high
                 if ema9 >= ema21:
-                    if latest_close >= recent_high or ((latest_close - ema9) / ema9 > 0.005):
+                    if latest_close >= recent_high or (
+                        (latest_close - ema9) / ema9 > 0.005
+                    ):
                         market_state = MarketState.BREAKOUT.value
                     elif latest_close >= ema9:
                         market_state = MarketState.BULL_TREND.value
@@ -1179,8 +1441,12 @@ class ScannerService:
                         market_state = MarketState.DOWNTREND.value
 
                 # Bot Archetype & Opportunity Type selection
-                recent_range = (max(highs[-5:]) - min(lows[-5:])) if len(highs) >= 5 else 1.0
-                wider_range = (max(highs[-15:]) - min(lows[-15:])) if len(highs) >= 15 else 1.0
+                recent_range = (
+                    (max(highs[-5:]) - min(lows[-5:])) if len(highs) >= 5 else 1.0
+                )
+                wider_range = (
+                    (max(highs[-15:]) - min(lows[-15:])) if len(highs) >= 15 else 1.0
+                )
                 is_vcp = wider_range > 0 and (recent_range / wider_range) < 0.45
 
                 if volume_ratio >= 1.5:
@@ -1202,12 +1468,15 @@ class ScannerService:
 
                 # Candidate technical score calculation
                 score = 75.0
-                if ema9 >= ema21 and ema21 > 0:
+                if ema9 >= ema21 > 0:
                     spread_ratio = (ema9 - ema21) / ema21
                     score += min(15.0, spread_ratio * 500)
                 if 45 <= rsi <= 70:
                     score += 5.0
-                if market_state in (MarketState.BREAKOUT.value, MarketState.BULL_TREND.value):
+                if market_state in (
+                    MarketState.BREAKOUT.value,
+                    MarketState.BULL_TREND.value,
+                ):
                     score += 5.0
                 if mtf_aligned:
                     score += 5.0
@@ -1228,33 +1497,45 @@ class ScannerService:
             norm_vol = min(100.0, volume_ratio * 30.0)
             # Liquidity & Depth: 24h INR turnover scale (benchmarked to ₹200k) + direct INR spot liquidity
             turnover_inr = vol_24h
-            turnover_score = min(100.0, (turnover_inr / 200000.0) * 100.0) if turnover_inr > 0 else 50.0
+            turnover_score = (
+                min(100.0, (turnover_inr / 200000.0) * 100.0)
+                if turnover_inr > 0
+                else 50.0
+            )
             pair_liquidity = 100.0 if quote == "INR" else 75.0
             norm_liq = (0.60 * turnover_score) + (0.40 * pair_liquidity)
             norm_atr = min(100.0, (atr_pct / 5.0) * 100.0)
-            composite_rank_score = (w_vol * norm_vol) + (w_liq * norm_liq) + (w_atr * norm_atr)
+            composite_rank_score = (
+                (w_vol * norm_vol) + (w_liq * norm_liq) + (w_atr * norm_atr)
+            )
 
-            candidates.append({
-                "coin": coin_upper,
-                "pair": pair,
-                "score": round(score, 1),
-                "composite_score": round(composite_rank_score, 2),
-                "price": latest_close,
-                "priority": "Elite" if score >= 90 else ("High" if score >= 80 else "Medium"),
-                "strategy": strategy_name,
-                "timeframe": "4h",
-                "mtf_timeframes": ["1h", "4h", "1d"],
-                "market_state": market_state,
-                "opportunity_type": opp_type,
-                "coin_class": coin_class,
-                "mtf_alignment": mtf_aligned,
-                "is_mtf_aligned": mtf_aligned,
-                "bot": bot,
-                "rsi": round(rsi, 2),
-                "atr_pct": round(atr_pct, 2),
-                "volume_24h": round(vol_24h, 2),
-                "volume_ratio": round(volume_ratio, 2),
-            })
+            candidates.append(
+                {
+                    "coin": coin_upper,
+                    "pair": pair,
+                    "score": round(score, 1),
+                    "composite_score": round(composite_rank_score, 2),
+                    "price": latest_close,
+                    "priority": (
+                        "Elite"
+                        if score >= 90
+                        else ("High" if score >= 80 else "Medium")
+                    ),
+                    "strategy": strategy_name,
+                    "timeframe": "4h",
+                    "mtf_timeframes": ["1h", "4h", "1d"],
+                    "market_state": market_state,
+                    "opportunity_type": opp_type,
+                    "coin_class": coin_class,
+                    "mtf_alignment": mtf_aligned,
+                    "is_mtf_aligned": mtf_aligned,
+                    "bot": bot,
+                    "rsi": round(rsi, 2),
+                    "atr_pct": round(atr_pct, 2),
+                    "volume_24h": round(vol_24h, 2),
+                    "volume_ratio": round(volume_ratio, 2),
+                }
+            )
 
         # B1: Rank by composite score descending and cap at top N (default 50)
         candidates.sort(key=lambda c: c.get("composite_score", 0.0), reverse=True)
@@ -1271,7 +1552,7 @@ class ScannerService:
             funnel_counters["trend_aligned_passed"],
             funnel_counters["volatility_passed"],
             funnel_counters["c2_evaluated"],
-            extra={"funnel": funnel_counters}
+            extra={"funnel": funnel_counters},
         )
 
         return candidates
@@ -1279,44 +1560,50 @@ class ScannerService:
     async def _publish_signal_generated(self, sig: Signal) -> None:
         raw_p = sig.raw_payload or {}
         price = float(raw_p.get("price") or raw_p.get("close") or 0.0)
-        bot = sig.source_bot if sig.source_bot in ("STE", "HDA", "VCP", "BBS") else raw_p.get("bot", "STE")
+        bot = (
+            sig.source_bot
+            if sig.source_bot in ("STE", "HDA", "VCP", "BBS")
+            else raw_p.get("bot", "STE")
+        )
         payload = {
-            "signal_id":        sig.id,
-            "coin":             sig.coin,
-            "pair":             sig.pair,
-            "priority":         sig.priority.value,
-            "score":            sig.score,
-            "price":            price,
-            "market_state":     sig.market_state.value,
+            "signal_id": sig.id,
+            "coin": sig.coin,
+            "pair": sig.pair,
+            "priority": sig.priority.value,
+            "score": sig.score,
+            "price": price,
+            "market_state": sig.market_state.value,
             "opportunity_type": sig.opportunity_type.value,
-            "bot":              bot,
-            "coin_class":       sig.coin_class,
-            "expires_at":       sig.expires_at.isoformat(),
-            "source":           "scanner_service",
-            "confluence":       sig.confluence_breakdown or {},
+            "bot": bot,
+            "coin_class": sig.coin_class,
+            "expires_at": sig.expires_at.isoformat(),
+            "source": "scanner_service",
+            "confluence": sig.confluence_breakdown or {},
             "confluence_score": (sig.raw_payload or {}).get("confluence_score"),
             "dynamic_threshold": (sig.raw_payload or {}).get("dynamic_threshold"),
-            "mtf_timeframes": (sig.raw_payload or {}).get("mtf_timeframes", ["1h", "4h", "1d"]),
+            "mtf_timeframes": (sig.raw_payload or {}).get(
+                "mtf_timeframes", ["1h", "4h", "1d"]
+            ),
             "ai_eligible": True,
         }
         await self._bus.publish(EventType.SIGNAL_GENERATED, payload)
         await self._event_log.append(
-            event_type     = EventType.SIGNAL_GENERATED.value,
-            payload        = payload,
-            source_service = "scanner_service",
-            entity_id      = sig.id,
+            event_type=EventType.SIGNAL_GENERATED.value,
+            payload=payload,
+            source_service="scanner_service",
+            entity_id=sig.id,
         )
 
     async def _publish_signal_expired(self, sig: Signal) -> None:
         payload = {
             "signal_id": sig.id,
-            "coin":      sig.coin,
-            "reason":    "TTL",
+            "coin": sig.coin,
+            "reason": "TTL",
         }
         await self._bus.publish(EventType.SIGNAL_EXPIRED, payload)
         await self._event_log.append(
-            event_type     = EventType.SIGNAL_EXPIRED.value,
-            payload        = payload,
-            source_service = "scanner_service",
-            entity_id      = sig.id,
+            event_type=EventType.SIGNAL_EXPIRED.value,
+            payload=payload,
+            source_service="scanner_service",
+            entity_id=sig.id,
         )

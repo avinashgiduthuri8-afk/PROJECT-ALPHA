@@ -10,11 +10,11 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Optional
 
 import aiosqlite
 
 from core.logging import get_logger
+
 from .base import BaseRepository
 
 logger = get_logger("core.repository.event_log_repo")
@@ -22,15 +22,15 @@ logger = get_logger("core.repository.event_log_repo")
 
 @dataclass
 class EventLogEntry:
-    id:             str
-    event_type:     str
-    source_service: Optional[str]
-    entity_id:      Optional[str]
-    payload:        dict
-    logged_at:      datetime
+    id: str
+    event_type: str
+    source_service: str | None
+    entity_id: str | None
+    payload: dict
+    logged_at: datetime
 
 
-def _dt(s: str | None) -> Optional[datetime]:
+def _dt(s: str | None) -> datetime | None:
     if s is None:
         return None
     try:
@@ -43,12 +43,12 @@ def _dt(s: str | None) -> Optional[datetime]:
 def _row_to_entry(row: aiosqlite.Row, loads) -> EventLogEntry:
     d = dict(row)
     return EventLogEntry(
-        id             = d["id"],
-        event_type     = d["event_type"],
-        source_service = d.get("source_service"),
-        entity_id      = d.get("entity_id"),
-        payload        = loads(d.get("payload_json")) or {},
-        logged_at      = _dt(d["logged_at"]),
+        id=d["id"],
+        event_type=d["event_type"],
+        source_service=d.get("source_service"),
+        entity_id=d.get("entity_id"),
+        payload=loads(d.get("payload_json")) or {},
+        logged_at=_dt(d["logged_at"]),
     )
 
 
@@ -58,8 +58,8 @@ class EventLogRepository(BaseRepository):
         self,
         event_type: str,
         payload: dict,
-        source_service: Optional[str] = None,
-        entity_id: Optional[str] = None,
+        source_service: str | None = None,
+        entity_id: str | None = None,
     ) -> str:
         entry_id = str(uuid.uuid4())
         now = datetime.now(timezone.utc).isoformat()
@@ -69,17 +69,21 @@ class EventLogRepository(BaseRepository):
             (id, event_type, source_service, entity_id, payload_json, logged_at)
             VALUES (?,?,?,?,?,?)
             """,
-            (entry_id, event_type, source_service, entity_id,
-             self._dumps(payload), now),
+            (
+                entry_id,
+                event_type,
+                source_service,
+                entity_id,
+                self._dumps(payload),
+                now,
+            ),
         )
         return entry_id
 
     # Alias for backward compatibility
     log_event = append
 
-    async def get_since(
-        self, since: datetime, limit: int = 500
-    ) -> list[EventLogEntry]:
+    async def get_since(self, since: datetime, limit: int = 500) -> list[EventLogEntry]:
         rows = await self._fetchall(
             "SELECT * FROM event_log WHERE logged_at >= ? "
             "ORDER BY logged_at DESC LIMIT ?",

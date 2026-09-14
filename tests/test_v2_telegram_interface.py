@@ -7,17 +7,19 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timezone
 from typing import Any
+
 import pytest
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
 from core.config import V2Config
-from core.types import BotMode, BotName, ExitReason, Position, PositionStatus, Signal
 from core.repository.db import Database
 from core.repository.position_repo import PositionRepository
 from core.repository.signal_repo import SignalRepository
 from core.repository.trade_repo import TradeRepository
+from core.types import BotMode, BotName, Position, PositionStatus
 from dashboard import DashboardService
+from execution.risk import RiskService
 from telegram import (
     NotificationService,
     TelegramClient,
@@ -28,18 +30,15 @@ from telegram import (
     format_telegram_pipeline_stages,
     format_telegram_portfolio,
     format_telegram_positions,
-    format_telegram_risk,
-    format_telegram_signals,
-    format_telegram_trades,
 )
-from background.portfolio import PortfolioService
-from execution.risk import RiskService
 
 
 class MockTelegramClient(TelegramClient):
     """Mock Telegram client capturing sent and edited messages."""
 
-    def __init__(self, bot_token: str = "mock-bot-token", chat_id: str = "123456789") -> None:
+    def __init__(
+        self, bot_token: str = "mock-bot-token", chat_id: str = "123456789"
+    ) -> None:
         super().__init__(bot_token=bot_token, chat_id=chat_id)
         self.sent_messages: list[dict[str, Any]] = []
         self.edited_messages: list[dict[str, Any]] = []
@@ -54,12 +53,14 @@ class MockTelegramClient(TelegramClient):
         reply_markup: dict | None = None,
         max_retries: int = 2,
     ) -> bool:
-        self.sent_messages.append({
-            "text": text,
-            "chat_id": target_chat_id or self._chat_id,
-            "parse_mode": parse_mode,
-            "reply_markup": reply_markup,
-        })
+        self.sent_messages.append(
+            {
+                "text": text,
+                "chat_id": target_chat_id or self._chat_id,
+                "parse_mode": parse_mode,
+                "reply_markup": reply_markup,
+            }
+        )
         return True
 
     async def edit_message_text(
@@ -71,13 +72,15 @@ class MockTelegramClient(TelegramClient):
         reply_markup: dict | None = None,
         max_retries: int = 2,
     ) -> bool:
-        self.edited_messages.append({
-            "text": text,
-            "chat_id": chat_id,
-            "message_id": message_id,
-            "parse_mode": parse_mode,
-            "reply_markup": reply_markup,
-        })
+        self.edited_messages.append(
+            {
+                "text": text,
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "parse_mode": parse_mode,
+                "reply_markup": reply_markup,
+            }
+        )
         return True
 
     async def answer_callback_query(
@@ -86,11 +89,13 @@ class MockTelegramClient(TelegramClient):
         text: str | None = None,
         show_alert: bool = False,
     ) -> bool:
-        self.answered_callbacks.append({
-            "id": callback_query_id,
-            "text": text,
-            "show_alert": show_alert,
-        })
+        self.answered_callbacks.append(
+            {
+                "id": callback_query_id,
+                "text": text,
+                "show_alert": show_alert,
+            }
+        )
         return True
 
     async def get_updates(
@@ -121,8 +126,26 @@ def test_telegram_formatters():
     assert "+₹1,250.50" in menu_txt
 
     bots_data = [
-        {"name": "STE", "subaccount_id": "ALPHA_STE_01", "current_stage": "SCANNER", "wallet_balance": 35000.0, "available_balance": 30000.0, "open_positions": 1, "daily_pnl": 500.0, "win_rate_pct": 75.0},
-        {"name": "HDA", "subaccount_id": "ALPHA_HDA_01", "current_stage": "IDLE", "wallet_balance": 30000.0, "available_balance": 30000.0, "open_positions": 0, "daily_pnl": 0.0, "win_rate_pct": 80.0},
+        {
+            "name": "STE",
+            "subaccount_id": "ALPHA_STE_01",
+            "current_stage": "SCANNER",
+            "wallet_balance": 35000.0,
+            "available_balance": 30000.0,
+            "open_positions": 1,
+            "daily_pnl": 500.0,
+            "win_rate_pct": 75.0,
+        },
+        {
+            "name": "HDA",
+            "subaccount_id": "ALPHA_HDA_01",
+            "current_stage": "IDLE",
+            "wallet_balance": 30000.0,
+            "available_balance": 30000.0,
+            "open_positions": 0,
+            "daily_pnl": 0.0,
+            "win_rate_pct": 80.0,
+        },
     ]
     bots_txt = format_telegram_bot_fleet(bots_data)
     assert "BOT FLEET" in bots_txt
@@ -130,8 +153,20 @@ def test_telegram_formatters():
     assert "HDA" in bots_txt
 
     stages_data = [
-        {"number": 1, "name": "Market Data", "status": "ACTIVE", "processed_count": 100, "rejected_count": 0},
-        {"number": 2, "name": "5-Layer Confluence Scanner", "status": "ACTIVE", "processed_count": 100, "rejected_count": 98},
+        {
+            "number": 1,
+            "name": "Market Data",
+            "status": "ACTIVE",
+            "processed_count": 100,
+            "rejected_count": 0,
+        },
+        {
+            "number": 2,
+            "name": "5-Layer Confluence Scanner",
+            "status": "ACTIVE",
+            "processed_count": 100,
+            "rejected_count": 98,
+        },
     ]
     stages_txt = format_telegram_pipeline_stages(stages_data)
     assert "11-STAGE AUTONOMOUS PIPELINE" in stages_txt
@@ -151,7 +186,16 @@ def test_telegram_formatters():
     assert "₹80,000.00" in port_txt
 
     positions_data = [
-        {"coin": "BTC", "bot": "STE", "qty": 0.05, "entry_price": 5000000.0, "current_price": 5100000.0, "unrealised_pnl": 5000.0, "stop_loss": 4900000.0, "take_profit": 5230000.0},
+        {
+            "coin": "BTC",
+            "bot": "STE",
+            "qty": 0.05,
+            "entry_price": 5000000.0,
+            "current_price": 5100000.0,
+            "unrealised_pnl": 5000.0,
+            "stop_loss": 4900000.0,
+            "take_profit": 5230000.0,
+        },
     ]
     pos_txt = format_telegram_positions(positions_data)
     assert "BTC/INR" in pos_txt
@@ -217,22 +261,30 @@ async def test_telegram_command_routing(tmp_path):
         )
 
         # 1. Test /start
-        await tg_iface._handle_incoming_message({"chat": {"id": 12345}, "text": "/start"})
+        await tg_iface._handle_incoming_message(
+            {"chat": {"id": 12345}, "text": "/start"}
+        )
         assert len(mock_client.sent_messages) == 1
         assert "PROJECT-ALPHA V2" in mock_client.sent_messages[-1]["text"]
         assert mock_client.sent_messages[-1]["reply_markup"] is not None
 
         # 2. Test /bots
-        await tg_iface._handle_incoming_message({"chat": {"id": 12345}, "text": "/bots"})
+        await tg_iface._handle_incoming_message(
+            {"chat": {"id": 12345}, "text": "/bots"}
+        )
         assert "BOT FLEET" in mock_client.sent_messages[-1]["text"]
         assert "STE" in mock_client.sent_messages[-1]["text"]
 
         # 3. Test /stages
-        await tg_iface._handle_incoming_message({"chat": {"id": 12345}, "text": "/stages"})
+        await tg_iface._handle_incoming_message(
+            {"chat": {"id": 12345}, "text": "/stages"}
+        )
         assert "11-STAGE AUTONOMOUS PIPELINE" in mock_client.sent_messages[-1]["text"]
 
         # 4. Test /positions (empty)
-        await tg_iface._handle_incoming_message({"chat": {"id": 12345}, "text": "/positions"})
+        await tg_iface._handle_incoming_message(
+            {"chat": {"id": 12345}, "text": "/positions"}
+        )
         assert "No active open positions" in mock_client.sent_messages[-1]["text"]
 
         # 5. Insert position and test /positions again
@@ -252,17 +304,26 @@ async def test_telegram_command_routing(tmp_path):
             take_profit=16000.0,
         )
         await pos_repo.insert(pos)
-        await tg_iface._handle_incoming_message({"chat": {"id": 12345}, "text": "/positions"})
+        await tg_iface._handle_incoming_message(
+            {"chat": {"id": 12345}, "text": "/positions"}
+        )
         assert "SOL/INR" in mock_client.sent_messages[-1]["text"]
         assert "1250.00" in mock_client.sent_messages[-1]["text"]
 
         # 6. Test /help
-        await tg_iface._handle_incoming_message({"chat": {"id": 12345}, "text": "/help"})
+        await tg_iface._handle_incoming_message(
+            {"chat": {"id": 12345}, "text": "/help"}
+        )
         assert "Commands" in mock_client.sent_messages[-1]["text"]
 
         # 7. Test unauthorized sender gets rejected
-        await tg_iface._handle_incoming_message({"chat": {"id": 99999}, "text": "/start"})
-        assert "Unauthorized." in mock_client.sent_messages[-1]["text"] or "Access Denied" in mock_client.sent_messages[-1]["text"]
+        await tg_iface._handle_incoming_message(
+            {"chat": {"id": 99999}, "text": "/start"}
+        )
+        assert (
+            "Unauthorized." in mock_client.sent_messages[-1]["text"]
+            or "Access Denied" in mock_client.sent_messages[-1]["text"]
+        )
     finally:
         await db.close()
 
@@ -298,31 +359,51 @@ async def test_telegram_callback_queries(tmp_path):
         )
 
         # 1. Tap Bot Fleet button (cb:bots)
-        cb_bots = {"id": "cb_01", "data": "cb:bots", "message": {"chat": {"id": 12345}, "message_id": 101}}
+        cb_bots = {
+            "id": "cb_01",
+            "data": "cb:bots",
+            "message": {"chat": {"id": 12345}, "message_id": 101},
+        }
         await tg_iface._handle_callback_query(cb_bots)
         assert len(mock_client.edited_messages) == 1
         assert "BOT FLEET" in mock_client.edited_messages[-1]["text"]
         assert len(mock_client.answered_callbacks) == 1
 
         # 2. Tap 11 Stages button (cb:stages)
-        cb_stages = {"id": "cb_02", "data": "cb:stages", "message": {"chat": {"id": 12345}, "message_id": 101}}
+        cb_stages = {
+            "id": "cb_02",
+            "data": "cb:stages",
+            "message": {"chat": {"id": 12345}, "message_id": 101},
+        }
         await tg_iface._handle_callback_query(cb_stages)
         assert "11-STAGE AUTONOMOUS PIPELINE" in mock_client.edited_messages[-1]["text"]
 
         # 3. Tap Emergency Stop (cb:stop)
-        cb_stop = {"id": "cb_03", "data": "cb:stop", "message": {"chat": {"id": 12345}, "message_id": 101}}
+        cb_stop = {
+            "id": "cb_03",
+            "data": "cb:stop",
+            "message": {"chat": {"id": 12345}, "message_id": 101},
+        }
         await tg_iface._handle_callback_query(cb_stop)
         assert "EMERGENCY STOP CONFIRMATION" in mock_client.edited_messages[-1]["text"]
 
         # 4. Confirm Emergency Stop (cb:confirm_stop)
-        cb_confirm = {"id": "cb_04", "data": "cb:confirm_stop", "message": {"chat": {"id": 12345}, "message_id": 101}}
+        cb_confirm = {
+            "id": "cb_04",
+            "data": "cb:confirm_stop",
+            "message": {"chat": {"id": 12345}, "message_id": 101},
+        }
         await tg_iface._handle_callback_query(cb_confirm)
         assert "EMERGENCY STOP" in mock_client.edited_messages[-1]["text"]
         risk_state = await risk_svc.get_state()
         assert risk_state.circuit_breaker_open is True
 
         # 5. Resume Trading (cb:resume)
-        cb_resume = {"id": "cb_05", "data": "cb:resume", "message": {"chat": {"id": 12345}, "message_id": 101}}
+        cb_resume = {
+            "id": "cb_05",
+            "data": "cb:resume",
+            "message": {"chat": {"id": 12345}, "message_id": 101},
+        }
         await tg_iface._handle_callback_query(cb_resume)
         assert "TRADING EXECUTION RESUMED" in mock_client.edited_messages[-1]["text"]
         risk_state_resumed = await risk_svc.get_state()

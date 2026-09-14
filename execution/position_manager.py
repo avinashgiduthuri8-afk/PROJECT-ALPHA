@@ -12,16 +12,13 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
 from core.logging import get_logger
-from core.types import (
-    BotMode, BotName, ExitReason, Position, PositionStatus, Trade
-)
 from core.repository.position_repo import PositionRepository
 from core.repository.trade_repo import TradeRepository
+from core.types import BotMode, BotName, ExitReason, Position, PositionStatus, Trade
 from execution.trading.precision_rules import (
     normalize_price,
     normalize_qty,
@@ -37,9 +34,9 @@ STATUTORY_ROUND_TRIP_DRAG_RATE = 0.01572
 
 class PositionState(str, Enum):
     PENDING_ENTRY = "PENDING_ENTRY"
-    OPEN          = "OPEN"
-    PENDING_EXIT  = "PENDING_EXIT"
-    CLOSED        = "CLOSED"
+    OPEN = "OPEN"
+    PENDING_EXIT = "PENDING_EXIT"
+    CLOSED = "CLOSED"
 
 
 class PositionManager:
@@ -52,18 +49,20 @@ class PositionManager:
     def __init__(
         self,
         position_repo: PositionRepository,
-        trade_repo: Optional[TradeRepository] = None,
-        bus: Optional[EventBus] = None,
-        subaccount_manager: Optional[Any] = None,
+        trade_repo: TradeRepository | None = None,
+        bus: EventBus | None = None,
+        subaccount_manager: Any | None = None,
     ) -> None:
         self._position_repo = position_repo
         self._trade_repo = trade_repo
         self._bus = bus
         self._subaccount_manager = subaccount_manager
-        self._peak_prices: Dict[str, float] = {}
-        self._trailing_stops: Dict[str, float] = {}
+        self._peak_prices: dict[str, float] = {}
+        self._trailing_stops: dict[str, float] = {}
 
-    def compute_statutory_drag(self, entry_price: float, exit_price: float, qty: float) -> float:
+    def compute_statutory_drag(
+        self, entry_price: float, exit_price: float, qty: float
+    ) -> float:
         """
         Compute statutory 1.572% round-trip drag friction.
         Friction is calculated on the total traded value (entry notional + exit notional).
@@ -81,12 +80,12 @@ class PositionManager:
         pair: str,
         entry_price: float,
         qty: float,
-        stop_loss: Optional[float] = None,
-        take_profit: Optional[float] = None,
+        stop_loss: float | None = None,
+        take_profit: float | None = None,
         mode: BotMode = BotMode.PAPER,
-        signal_id: Optional[str] = None,
+        signal_id: str | None = None,
         initial_status: PositionState = PositionState.OPEN,
-        current_price: Optional[float] = None,
+        current_price: float | None = None,
     ) -> Position:
         """
         Register a new position and persist it to SQLite with strict numeric validation
@@ -104,9 +103,15 @@ class PositionManager:
             if ratio > 10.0 or ratio < 0.1:
                 logger.error(
                     "register_position rejected for %s (%s): abnormal price ratio %.2fx (entry: %.8f, current: %.8f)",
-                    coin, pair, ratio, norm_entry, norm_current,
+                    coin,
+                    pair,
+                    ratio,
+                    norm_entry,
+                    norm_current,
                 )
-                raise ValueError(f"Abnormal price ratio {ratio:.2f}x between current_price {norm_current} and entry_price {norm_entry}")
+                raise ValueError(
+                    f"Abnormal price ratio {ratio:.2f}x between current_price {norm_current} and entry_price {norm_entry}"
+                )
         else:
             norm_current = norm_entry
 
@@ -125,7 +130,11 @@ class PositionManager:
 
         pos_id = str(uuid.uuid4())
         now = datetime.now(timezone.utc)
-        status_enum = PositionStatus.OPEN if initial_status in (PositionState.OPEN, PositionState.PENDING_ENTRY) else PositionStatus.CLOSED
+        status_enum = (
+            PositionStatus.OPEN
+            if initial_status in (PositionState.OPEN, PositionState.PENDING_ENTRY)
+            else PositionStatus.CLOSED
+        )
 
         pos = Position(
             id=pos_id,
@@ -164,7 +173,13 @@ class PositionManager:
 
         logger.info(
             "[%s] Registered position %s for %s (%s) @ entry=%.8f (Qty: %s, Notional: %.2f)",
-            bot.value, pos_id, pos.coin, pos.pair, norm_entry, norm_qty, norm_entry * norm_qty,
+            bot.value,
+            pos_id,
+            pos.coin,
+            pos.pair,
+            norm_entry,
+            norm_qty,
+            norm_entry * norm_qty,
         )
         return pos
 
@@ -172,13 +187,19 @@ class PositionManager:
         self, position_id: str, new_state: PositionState
     ) -> None:
         """Transition position lifecycle state."""
-        status_val = PositionStatus.OPEN if new_state != PositionState.CLOSED else PositionStatus.CLOSED
+        status_val = (
+            PositionStatus.OPEN
+            if new_state != PositionState.CLOSED
+            else PositionStatus.CLOSED
+        )
         await self._position_repo.update_status(position_id, status_val)
-        logger.info("Position %s transitioned to state %s", position_id, new_state.value)
+        logger.info(
+            "Position %s transitioned to state %s", position_id, new_state.value
+        )
 
     async def update_trailing_stop(
         self, position_id: str, current_price: float, trailing_pct: float = 0.03
-    ) -> Optional[float]:
+    ) -> float | None:
         """
         Update dynamic trailing stop trigger level as peak price moves up.
         """
@@ -216,7 +237,9 @@ class PositionManager:
         try:
             norm_price = normalize_price(current_price)
         except ValueError as e:
-            logger.warning("Invalid mark price for position %s (%s): %s", pos.id, pos.coin, e)
+            logger.warning(
+                "Invalid mark price for position %s (%s): %s", pos.id, pos.coin, e
+            )
             return float(pos.unrealised_pnl or 0.0)
 
         # Price ratio jump sanity check (protect against 100x cross-quote contamination)
@@ -225,7 +248,11 @@ class PositionManager:
             if ratio > 10.0 or ratio < 0.1:
                 logger.error(
                     "Abnormal mark price jump for position %s %s (entry: %.8f, current: %.8f, ratio: %.2fx). Skipping mark update to protect P&L.",
-                    pos.id, pos.pair, pos.entry_price, norm_price, ratio,
+                    pos.id,
+                    pos.pair,
+                    pos.entry_price,
+                    norm_price,
+                    ratio,
                 )
                 return float(pos.unrealised_pnl or 0.0)
 
@@ -274,19 +301,23 @@ class PositionManager:
                     await sub_client.cancel_order(sl_id)
                     logger.info(
                         "Cancelled resting stop-loss order %s for position %s (%s)",
-                        sl_id, pos.id, pos.coin,
+                        sl_id,
+                        pos.id,
+                        pos.coin,
                     )
                 except Exception as e:
                     logger.warning(
                         "Failed to cancel resting stop loss order %s for position %s: %s",
-                        sl_id, pos.id, e,
+                        sl_id,
+                        pos.id,
+                        e,
                     )
             await self._position_repo.update_stop_loss_order_id(pos.id, None)
             pos.stop_loss_order_id = None
 
     async def evaluate_brackets(
         self, pair: str, current_price: float
-    ) -> List[Tuple[Position, ExitReason, float]]:
+    ) -> list[tuple[Position, ExitReason, float]]:
         """
         Evaluate all active positions for a pair against current price for Stop Loss,
         Take Profit, or Trailing Stop breaches.
@@ -298,7 +329,7 @@ class PositionManager:
             return []
 
         open_positions = await self._position_repo.get_active_positions()
-        triggers: List[Tuple[Position, ExitReason, float]] = []
+        triggers: list[tuple[Position, ExitReason, float]] = []
 
         target_pair = pair.upper().replace("_", "/")
 
@@ -334,13 +365,16 @@ class PositionManager:
         position_id: str,
         exit_price: float,
         exit_reason: ExitReason = ExitReason.TAKE_PROFIT,
-    ) -> Tuple[Optional[Position], Optional[Trade]]:
+    ) -> tuple[Position | None, Trade | None]:
         """
         Close a position, deduct statutory 1.572% friction, and persist trade record to SQLite.
         """
         pos = await self._position_repo.get_by_id(position_id)
         if not pos or pos.status == PositionStatus.CLOSED:
-            logger.warning("Attempted to close non-existent or already CLOSED position %s", position_id)
+            logger.warning(
+                "Attempted to close non-existent or already CLOSED position %s",
+                position_id,
+            )
             return None, None
 
         # Cancel resting stop-loss order if present before finalizing close
@@ -349,11 +383,21 @@ class PositionManager:
         try:
             norm_exit = normalize_price(exit_price)
         except ValueError as e:
-            logger.error("Close position rejected for %s: invalid exit price '%s': %s", position_id, exit_price, e)
+            logger.error(
+                "Close position rejected for %s: invalid exit price '%s': %s",
+                position_id,
+                exit_price,
+                e,
+            )
             return None, None
 
         if pos.entry_price <= 0.0 or pos.qty <= 0.0:
-            logger.error("Close position rejected for %s: corrupted entry_price (%.8f) or qty (%.6f)", position_id, pos.entry_price, pos.qty)
+            logger.error(
+                "Close position rejected for %s: corrupted entry_price (%.8f) or qty (%.6f)",
+                position_id,
+                pos.entry_price,
+                pos.qty,
+            )
             return None, None
 
         # Price ratio jump protection (never allow corrupted 100x cross-quote jump to record realized P&L)
@@ -361,7 +405,11 @@ class PositionManager:
         if ratio > 10.0 or ratio < 0.1:
             logger.error(
                 "Position close rejected for %s (%s): extreme price ratio %.2fx (entry: %.8f, exit: %.8f)",
-                pos.id, pos.pair, ratio, pos.entry_price, norm_exit,
+                pos.id,
+                pos.pair,
+                ratio,
+                pos.entry_price,
+                norm_exit,
             )
             return None, None
 
@@ -371,7 +419,9 @@ class PositionManager:
         # Deduct statutory 1.572% round-trip drag friction
         fee_drag = self.compute_statutory_drag(pos.entry_price, norm_exit, pos.qty)
         net_realized_pnl = round(gross_pnl - fee_drag, 2)
-        net_pnl_pct = round(((net_realized_pnl) / (pos.entry_price * pos.qty)) * 100.0, 2)
+        net_pnl_pct = round(
+            ((net_realized_pnl) / (pos.entry_price * pos.qty)) * 100.0, 2
+        )
 
         now = datetime.now(timezone.utc)
 
@@ -422,7 +472,11 @@ class PositionManager:
                 "statutory_fee_drag": round(fee_drag, 2),
                 "net_pnl": net_realized_pnl,
                 "pnl_pct": net_pnl_pct,
-                "exit_reason": exit_reason.value if hasattr(exit_reason, "value") else str(exit_reason),
+                "exit_reason": (
+                    exit_reason.value
+                    if hasattr(exit_reason, "value")
+                    else str(exit_reason)
+                ),
                 "closed_at": now.isoformat(),
             }
             await self._bus.publish(EventType.POSITION_CLOSED, payload)
@@ -430,7 +484,17 @@ class PositionManager:
 
         logger.info(
             "[%s] Position %s CLOSED via %s: entry=%.8f exit=%.8f qty=%.6f gross_pnl=%.4f (%.2f%%) fee_drag=%.2f net_pnl=%.2f (%.2f%%)",
-            pos.bot.value, pos.id, exit_reason.value, pos.entry_price, norm_exit, pos.qty, gross_pnl, gross_pnl_pct, fee_drag, net_realized_pnl, net_pnl_pct,
+            pos.bot.value,
+            pos.id,
+            exit_reason.value,
+            pos.entry_price,
+            norm_exit,
+            pos.qty,
+            gross_pnl,
+            gross_pnl_pct,
+            fee_drag,
+            net_realized_pnl,
+            net_pnl_pct,
         )
 
         return pos, trade

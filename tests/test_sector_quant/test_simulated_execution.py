@@ -3,6 +3,7 @@ Tests for sector_quant.execution.simulated
 """
 
 from queue import Queue
+
 import pytest
 
 from sector_quant.events import FillEvent, OrderEvent

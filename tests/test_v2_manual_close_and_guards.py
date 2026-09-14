@@ -4,18 +4,19 @@ V2 Manual Live Position Close, Execution Safety Guards, and Production Security 
 
 import uuid
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
+
 import pytest
 
 from core.bus.event_bus import EventBus
-from core.config import V2Config, get_config
+from core.config import V2Config
 from core.exceptions import SecurityConfigError
-from core.types import BotMode, BotName, OrderState, Position, PositionStatus
 from core.repository.db import Database
 from core.repository.event_log_repo import EventLogRepository
 from core.repository.order_repo import OrderRepository
 from core.repository.position_repo import PositionRepository
 from core.repository.trade_repo import TradeRepository
+from core.types import BotMode, BotName, Position, PositionStatus
 from execution.service import TradingService
 from execution.trading.execution_guards import ExecutionSafetyGuards
 from execution.trading.subaccount_manager import CoinDCXSubAccountManager
@@ -44,6 +45,7 @@ async def db_env():
 
 # ── P0-03: Manual Live Position Close Tests ───────────────────────────────────
 
+
 @pytest.mark.anyio
 async def test_manual_close_full_fill_closes_position(db_env):
     """P0-03: Confirmed full fill on manual SELL closes position record in SQLite."""
@@ -71,14 +73,16 @@ async def test_manual_close_full_fill_closes_position(db_env):
 
     mgr = CoinDCXSubAccountManager()
     client = mgr.get_client(BotName.STE)
-    client.place_live_order = AsyncMock(return_value={
-        "success": True,
-        "exchange_order_id": "EX-SELL-1",
-        "status": "FILLED",
-        "is_filled": True,
-        "filled_qty": 1.0,
-        "price": 310000.0,
-    })
+    client.place_live_order = AsyncMock(
+        return_value={
+            "success": True,
+            "exchange_order_id": "EX-SELL-1",
+            "status": "FILLED",
+            "is_filled": True,
+            "filled_qty": 1.0,
+            "price": 310000.0,
+        }
+    )
 
     service = TradingService(
         bus=bus,
@@ -124,14 +128,16 @@ async def test_manual_close_partial_fill_keeps_position_open(db_env):
 
     mgr = CoinDCXSubAccountManager()
     client = mgr.get_client(BotName.STE)
-    client.place_live_order = AsyncMock(return_value={
-        "success": True,
-        "exchange_order_id": "EX-SELL-2",
-        "status": "PARTIALLY_FILLED",
-        "is_filled": False,
-        "filled_qty": 4.0,
-        "price": 15500.0,
-    })
+    client.place_live_order = AsyncMock(
+        return_value={
+            "success": True,
+            "exchange_order_id": "EX-SELL-2",
+            "status": "PARTIALLY_FILLED",
+            "is_filled": False,
+            "filled_qty": 4.0,
+            "price": 15500.0,
+        }
+    )
 
     service = TradingService(
         bus=bus,
@@ -180,11 +186,13 @@ async def test_manual_close_exchange_rejection_keeps_position_open(db_env):
 
     mgr = CoinDCXSubAccountManager()
     client = mgr.get_client(BotName.STE)
-    client.place_live_order = AsyncMock(return_value={
-        "success": False,
-        "error": "INSUFFICIENT_BALANCE",
-        "message": "Exchange balance insufficient for sell order",
-    })
+    client.place_live_order = AsyncMock(
+        return_value={
+            "success": False,
+            "error": "INSUFFICIENT_BALANCE",
+            "message": "Exchange balance insufficient for sell order",
+        }
+    )
 
     service = TradingService(
         bus=bus,
@@ -206,6 +214,7 @@ async def test_manual_close_exchange_rejection_keeps_position_open(db_env):
 
 
 # ── P0-04: LIVE Execution Safety Guards Tests ────────────────────────────────
+
 
 def test_stale_data_guard_normal_vs_emergency_exit():
     """P0-04: Stale market data guard rejects old data for normal orders but passes for emergency exits."""
@@ -232,7 +241,9 @@ def test_slippage_guard_normal_vs_emergency_exit():
     order_px = 105.0
     ticker_px = 100.0
 
-    normal_res = guards.check_slippage_guard(order_px, ticker_px, is_emergency_exit=False)
+    normal_res = guards.check_slippage_guard(
+        order_px, ticker_px, is_emergency_exit=False
+    )
     assert normal_res.passed is False
     assert normal_res.code == "SLIPPAGE_REJECTED"
 
@@ -255,16 +266,21 @@ def test_liquidity_and_duplicate_order_guards():
     assert liq_pass.passed is True
 
     # Active coin duplicate order -> Rejected
-    dup_res = guards.check_duplicate_order_guard("SOL", active_coins=["SOL/INR", "BTC/INR"])
+    dup_res = guards.check_duplicate_order_guard(
+        "SOL", active_coins=["SOL/INR", "BTC/INR"]
+    )
     assert dup_res.passed is False
     assert dup_res.code == "DUPLICATE_POSITION_EXISTS"
 
     # Non-duplicate coin -> Passed
-    dup_pass = guards.check_duplicate_order_guard("ETH", active_coins=["SOL/INR", "BTC/INR"])
+    dup_pass = guards.check_duplicate_order_guard(
+        "ETH", active_coins=["SOL/INR", "BTC/INR"]
+    )
     assert dup_pass.passed is True
 
 
 # ── P0-05: Production Security Hardening Tests ───────────────────────────────
+
 
 def test_validate_live_security_fails_fast_on_dummy_credentials():
     """P0-05: validate_live_security raises SecurityConfigError when LIVE mode is active with dummy credentials."""
@@ -318,14 +334,16 @@ async def test_manual_close_zero_fill_keeps_position_open(db_env):
 
     mgr = CoinDCXSubAccountManager()
     client = mgr.get_client(BotName.STE)
-    client.place_live_order = AsyncMock(return_value={
-        "success": True,
-        "exchange_order_id": "EX-SELL-4",
-        "status": "OPEN",
-        "is_filled": False,
-        "filled_qty": 0.0,
-        "price": 2100.0,
-    })
+    client.place_live_order = AsyncMock(
+        return_value={
+            "success": True,
+            "exchange_order_id": "EX-SELL-4",
+            "status": "OPEN",
+            "is_filled": False,
+            "filled_qty": 0.0,
+            "price": 2100.0,
+        }
+    )
 
     service = TradingService(
         bus=bus,
@@ -355,7 +373,11 @@ async def test_trading_service_enforces_execution_guards(db_env):
     event_log_repo = db_env["event_log_repo"]
 
     bus = EventBus()
-    cfg = V2Config(v2_trading_enabled=True, v2_deployment_mode="LIVE_MICROCASH", scanner_min_24h_volume=50000.0)
+    cfg = V2Config(
+        v2_trading_enabled=True,
+        v2_deployment_mode="LIVE_MICROCASH",
+        scanner_min_24h_volume=50000.0,
+    )
 
     mgr = CoinDCXSubAccountManager()
     client = mgr.get_client(BotName.STE)
@@ -389,6 +411,6 @@ async def test_trading_service_enforces_execution_guards(db_env):
     }
 
     from core.bus.event_types import EventType
+
     await service.on_trade_approved(EventType.TRADE_APPROVED, payload)
     client.place_live_order.assert_not_called()
-

@@ -18,63 +18,57 @@ Total Tests: 137 tests.
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone, timedelta
-import json
-from pathlib import Path
 import re
-from typing import Any, Dict, List, Optional
-from unittest.mock import MagicMock
 import uuid
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app import app, templates
+from background.ai.circuit_breaker import CircuitBreaker, CircuitState
+from background.ai.service import AIIntelligenceService
+from background.portfolio.aggregator import PortfolioAggregator
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
 from core.config import V2Config, get_config, invalidate_config
+from core.repository.candle_repo import CandleRepository
+from core.repository.db import Database
+from core.repository.position_repo import PositionRepository
+from core.repository.trade_repo import TradeRepository
 from core.types import (
     BotMode,
     BotName,
     ExitReason,
+    MarketState,
+    OppType,
     Position,
     PositionStatus,
-    Trade,
-    PortfolioSnapshot,
-    Signal,
-    OppType,
     Priority,
     RiskLevel,
-    MarketState,
+    Signal,
+    Trade,
 )
-from core.repository.db import Database
-from core.repository.position_repo import PositionRepository
-from core.repository.trade_repo import TradeRepository
-from core.repository.candle_repo import CandleRepository
-from core.repository.signal_repo import SignalRepository
-from dashboard.bot_pipeline import BotPipelineTracker, BotState, STAGE_ORDER
 from dashboard.aggregator import DashboardAggregator
-from dashboard.service import DashboardService
-from background.portfolio.aggregator import PortfolioAggregator
-from background.portfolio.service import PortfolioService
-from background.ai.service import AIIntelligenceService
-from background.ai.circuit_breaker import CircuitBreaker, CircuitState
-from dashboard.api.router import init_router, router as api_router
-from dashboard.api.dashboard_routes import router as dashboard_router, init_dashboard_routes
+from dashboard.api.dashboard_routes import init_dashboard_routes
+from dashboard.api.dashboard_routes import router as dashboard_router
 from dashboard.api.production_routes import init_production_router
+from dashboard.api.router import init_router
+from dashboard.api.router import router as api_router
 from dashboard.api.schemas import (
-    PositionSchema,
     DashboardOverviewSchema,
     ScannedCoinSchema,
-    SetModeRequestSchema,
 )
+from dashboard.bot_pipeline import BotPipelineTracker, BotState
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 _TEMPLATE_PATH = _PROJECT_ROOT / "dashboard" / "templates" / "dashboard.html"
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def test_api_key():
@@ -222,6 +216,7 @@ def configured_test_client(test_db_path, test_api_key):
 # TIER 1: PRIMARY FEATURE COVERAGE (60 Tests: 5 Tests x 12 Features)
 # ==============================================================================
 
+
 class TestTier1Feature1Hydration:
     """F1: SQLite Active Position Startup Hydration into BotPipelineTracker."""
 
@@ -244,7 +239,9 @@ class TestTier1Feature1Hydration:
         assert detail["capital_deployed"] == pytest.approx(300000.0, rel=1e-3)
 
     @pytest.mark.asyncio
-    async def test_t1_3_hydration_advances_stage_to_position_manager(self, sample_positions):
+    async def test_t1_3_hydration_advances_stage_to_position_manager(
+        self, sample_positions
+    ):
         tracker = BotPipelineTracker()
         await tracker.sync_from_repository(sample_positions)
         detail = tracker.get_bot_detail("HDA")
@@ -273,7 +270,11 @@ class TestTier1Feature1Hydration:
             status=PositionStatus.CLOSED,
         )
         tracker = BotPipelineTracker()
-        active_only = [p for p in sample_positions + [closed_pos] if p.status != PositionStatus.CLOSED]
+        active_only = [
+            p
+            for p in sample_positions + [closed_pos]
+            if p.status != PositionStatus.CLOSED
+        ]
         await tracker.sync_from_repository(active_only)
         detail = tracker.get_bot_detail("STE")
         assert detail["open_positions"] == 1
@@ -286,6 +287,7 @@ class TestTier1Feature2DashboardMount:
         aggregator = DashboardAggregator()
         init_dashboard_routes(aggregator)
         from dashboard.api.dashboard_routes import get_aggregator
+
         assert get_aggregator() is aggregator
 
     @pytest.mark.asyncio
@@ -327,7 +329,9 @@ class TestTier1Feature3OpenPositionsEndpoint:
     """F3: /positions/open Non-Closed Status Filter."""
 
     @pytest.mark.asyncio
-    async def test_t1_11_position_repo_get_active_positions(self, test_db_path, sample_positions):
+    async def test_t1_11_position_repo_get_active_positions(
+        self, test_db_path, sample_positions
+    ):
         db = await open_test_database(test_db_path)
         try:
             repo = PositionRepository(db.connection)
@@ -341,7 +345,9 @@ class TestTier1Feature3OpenPositionsEndpoint:
             await db.close()
 
     @pytest.mark.asyncio
-    async def test_t1_12_get_active_positions_excludes_closed(self, test_db_path, sample_positions):
+    async def test_t1_12_get_active_positions_excludes_closed(
+        self, test_db_path, sample_positions
+    ):
         db = await open_test_database(test_db_path)
         try:
             repo = PositionRepository(db.connection)
@@ -391,8 +397,12 @@ class TestTier1Feature3OpenPositionsEndpoint:
         resp = configured_test_client.get("/api/v2/positions/open")
         assert resp.status_code in (401, 403)
 
-    def test_t1_15_positions_open_endpoint_schema_contract(self, configured_test_client, auth_headers):
-        resp = configured_test_client.get("/api/v2/positions/open", headers=auth_headers)
+    def test_t1_15_positions_open_endpoint_schema_contract(
+        self, configured_test_client, auth_headers
+    ):
+        resp = configured_test_client.get(
+            "/api/v2/positions/open", headers=auth_headers
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert isinstance(data, list)
@@ -432,15 +442,21 @@ class TestTier1Feature4DashboardOverviewPositions:
         snapshot = await aggregator.get_overview_snapshot()
         assert snapshot["system_status"] == "EMERGENCY_STOP"
 
-    def test_t1_20_dashboard_overview_api_route(self, configured_test_client, auth_headers):
-        resp = configured_test_client.get("/api/v2/dashboard/overview", headers=auth_headers)
+    def test_t1_20_dashboard_overview_api_route(
+        self, configured_test_client, auth_headers
+    ):
+        resp = configured_test_client.get(
+            "/api/v2/dashboard/overview", headers=auth_headers
+        )
         assert resp.status_code == 200
 
 
 class TestTier1Feature5DynamicEquityCalculation:
     """F5: Dynamic Total Equity (Cash + MTM - Friction)."""
 
-    def test_t1_21_portfolio_aggregator_combines_cash_deployed_unrealized(self, sample_positions):
+    def test_t1_21_portfolio_aggregator_combines_cash_deployed_unrealized(
+        self, sample_positions
+    ):
         snapshot = PortfolioAggregator.aggregate(
             positions=sample_positions,
             closed_trades=[],
@@ -469,21 +485,29 @@ class TestTier1Feature5DynamicEquityCalculation:
                 mode=BotMode.PAPER,
             )
         ]
-        snapshot = PortfolioAggregator.aggregate(positions=[], closed_trades=closed, base_cash=100000.0)
+        snapshot = PortfolioAggregator.aggregate(
+            positions=[], closed_trades=closed, base_cash=100000.0
+        )
         assert snapshot.total_realised_pnl == 500.0
         assert snapshot.total_cash == 100500.0
 
     def test_t1_23_capital_utilisation_percentage(self, sample_positions):
-        snapshot = PortfolioAggregator.aggregate(positions=sample_positions, closed_trades=[], base_cash=500000.0)
+        snapshot = PortfolioAggregator.aggregate(
+            positions=sample_positions, closed_trades=[], base_cash=500000.0
+        )
         expected_util = round((snapshot.total_deployed / snapshot.total_aum) * 100.0, 2)
         assert snapshot.capital_utilisation == expected_util
 
     def test_t1_24_daily_pnl_aggregates_realized_and_unrealized(self, sample_positions):
-        snapshot = PortfolioAggregator.aggregate(positions=sample_positions, closed_trades=[], base_cash=100000.0)
+        snapshot = PortfolioAggregator.aggregate(
+            positions=sample_positions, closed_trades=[], base_cash=100000.0
+        )
         assert snapshot.daily_pnl == snapshot.total_unrealised_pnl
 
     def test_t1_25_positions_grouped_by_bot(self, sample_positions):
-        snapshot = PortfolioAggregator.aggregate(positions=sample_positions, closed_trades=[], base_cash=100000.0)
+        snapshot = PortfolioAggregator.aggregate(
+            positions=sample_positions, closed_trades=[], base_cash=100000.0
+        )
         for bot in ("STE", "HDA", "VCP", "BBS"):
             assert bot in snapshot.positions_by_bot
             assert len(snapshot.positions_by_bot[bot]) == 1
@@ -504,13 +528,27 @@ class TestTier1Feature6FrontendScriptSyntax:
         assert 'id="positionActionModal"' in template_html
 
     def test_t1_29_no_duplicate_tbody_variable_declarations(self, template_html):
-        home_decl_count = len(re.findall(r"(?:const|let|var)\s+homeTbody\s*=", template_html))
-        open_decl_count = len(re.findall(r"(?:const|let|var)\s+openTbody\s*=", template_html))
-        assert home_decl_count <= 1, f"Duplicate declaration of homeTbody found ({home_decl_count})"
-        assert open_decl_count <= 1, f"Duplicate declaration of openTbody found ({open_decl_count})"
+        home_decl_count = len(
+            re.findall(r"(?:const|let|var)\s+homeTbody\s*=", template_html)
+        )
+        open_decl_count = len(
+            re.findall(r"(?:const|let|var)\s+openTbody\s*=", template_html)
+        )
+        assert (
+            home_decl_count <= 1
+        ), f"Duplicate declaration of homeTbody found ({home_decl_count})"
+        assert (
+            open_decl_count <= 1
+        ), f"Duplicate declaration of openTbody found ({open_decl_count})"
 
-    def test_t1_30_auth_verify_password_endpoint(self, configured_test_client, auth_headers):
-        resp = configured_test_client.post("/api/v2/auth/verify-password", json={"password": "110299"}, headers=auth_headers)
+    def test_t1_30_auth_verify_password_endpoint(
+        self, configured_test_client, auth_headers
+    ):
+        resp = configured_test_client.post(
+            "/api/v2/auth/verify-password",
+            json={"password": "110299"},
+            headers=auth_headers,
+        )
         assert resp.status_code == 200
         assert resp.json()["authorized"] is True
 
@@ -603,7 +641,9 @@ class TestTier1Feature10AITelemetryBinding:
     def test_t1_46_ai_service_initialization(self):
         bus = EventBus()
         cfg = V2Config()
-        ai = AIIntelligenceService(bus=bus, ai_repo=MagicMock(), event_log_repo=MagicMock(), config=cfg)
+        ai = AIIntelligenceService(
+            bus=bus, ai_repo=MagicMock(), event_log_repo=MagicMock(), config=cfg
+        )
         assert ai is not None
 
     def test_t1_47_ai_market_regime_types(self):
@@ -615,8 +655,13 @@ class TestTier1Feature10AITelemetryBinding:
     async def test_t1_48_ai_bus_event_subscription(self):
         bus = EventBus()
         tracker = BotPipelineTracker()
-        bus.subscribe(EventType.SIGNAL_AI_CONFIRMED, lambda e, p: tracker.handle_bus_event(e, p))
-        await bus.publish(EventType.SIGNAL_AI_CONFIRMED, {"bot": "STE", "coin": "BTC", "confidence": 92.0})
+        bus.subscribe(
+            EventType.SIGNAL_AI_CONFIRMED, lambda e, p: tracker.handle_bus_event(e, p)
+        )
+        await bus.publish(
+            EventType.SIGNAL_AI_CONFIRMED,
+            {"bot": "STE", "coin": "BTC", "confidence": 92.0},
+        )
         detail = tracker.get_bot_detail("STE")
         assert detail["current_stage"] == "ai_intelligence"
         assert detail["stage_status"] == "AI_EVALUATING"
@@ -624,7 +669,9 @@ class TestTier1Feature10AITelemetryBinding:
     @pytest.mark.asyncio
     async def test_t1_49_ai_rejection_increments_counter(self):
         tracker = BotPipelineTracker()
-        tracker.handle_bus_event(EventType.SIGNAL_AI_REJECTED, {"bot": "STE", "coin": "XRP"})
+        tracker.handle_bus_event(
+            EventType.SIGNAL_AI_REJECTED, {"bot": "STE", "coin": "XRP"}
+        )
         detail = tracker.get_bot_detail("STE")
         assert detail["telemetry"]["ai_rejected"] == 1
 
@@ -667,7 +714,16 @@ class TestTier1Feature11OHLCVCandlesFeed:
             await db.close()
 
     def test_t1_54_candle_data_structure(self):
-        candle_fields = {"pair", "timeframe", "timestamp", "open", "high", "low", "close", "volume"}
+        candle_fields = {
+            "pair",
+            "timeframe",
+            "timestamp",
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
+        }
         sample = {
             "pair": "BTC/INR",
             "timeframe": "1h",
@@ -690,7 +746,10 @@ class TestTier1Feature12InteractiveTradeChartWidget:
     """F12: Interactive Trade Chart Plotting Widget & Overlays."""
 
     def test_t1_56_chart_library_included_in_template(self, template_html):
-        assert "chart.js" in template_html.lower() or "lightweight-charts" in template_html.lower()
+        assert (
+            "chart.js" in template_html.lower()
+            or "lightweight-charts" in template_html.lower()
+        )
 
     def test_t1_57_canvas_chart_containers_exist(self, template_html):
         assert "homePieChart" in template_html
@@ -717,6 +776,7 @@ class TestTier1Feature12InteractiveTradeChartWidget:
 # ==============================================================================
 # TIER 2: BOUNDARY & CORNER CASES (60 Tests: 5 Tests x 12 Features)
 # ==============================================================================
+
 
 class TestTier2BoundaryHydration:
     """F1 Boundary: Startup Hydration corner conditions."""
@@ -803,11 +863,13 @@ class TestTier2BoundaryDashboardMount:
         aggregator = DashboardAggregator()
         with pytest.raises(Exception):
             from dashboard.api.dashboard_routes import pause_fleet_bot
+
             asyncio.run(pause_fleet_bot(bot_name="NON_EXISTENT"))
 
     def test_t2_7_dashboard_overview_when_uninitialized(self):
         import dashboard.api.dashboard_routes as d_routes
         from dashboard.api.dashboard_routes import get_aggregator
+
         original = d_routes._dashboard_aggregator
         d_routes._dashboard_aggregator = None
         try:
@@ -857,17 +919,19 @@ class TestTier2BoundaryPositionsOpen:
         try:
             repo = PositionRepository(db.connection)
             for i in range(5):
-                await repo.insert(Position(
-                    id=f"closed-{i}",
-                    bot=BotName.STE,
-                    coin="BTC",
-                    pair="BTC/INR",
-                    qty=0.01,
-                    entry_price=50000.0,
-                    entry_time=datetime.now(timezone.utc),
-                    mode=BotMode.PAPER,
-                    status=PositionStatus.CLOSED,
-                ))
+                await repo.insert(
+                    Position(
+                        id=f"closed-{i}",
+                        bot=BotName.STE,
+                        coin="BTC",
+                        pair="BTC/INR",
+                        qty=0.01,
+                        entry_price=50000.0,
+                        entry_time=datetime.now(timezone.utc),
+                        mode=BotMode.PAPER,
+                        status=PositionStatus.CLOSED,
+                    )
+                )
             active = await repo.get_active_positions()
             assert active == []
         finally:
@@ -984,12 +1048,16 @@ class TestTier2BoundaryDynamicEquity:
     """F5 Boundary: Dynamic Equity corner conditions."""
 
     def test_t2_21_zero_base_cash_clamps_to_zero(self):
-        snapshot = PortfolioAggregator.aggregate(positions=[], closed_trades=[], base_cash=0.0)
+        snapshot = PortfolioAggregator.aggregate(
+            positions=[], closed_trades=[], base_cash=0.0
+        )
         assert snapshot.total_cash == 0.0
         assert snapshot.total_aum == 0.0
 
     def test_t2_22_zero_aum_zero_division_guard(self):
-        snapshot = PortfolioAggregator.aggregate(positions=[], closed_trades=[], base_cash=0.0)
+        snapshot = PortfolioAggregator.aggregate(
+            positions=[], closed_trades=[], base_cash=0.0
+        )
         assert snapshot.capital_utilisation == 0.0
 
     def test_t2_23_negative_realized_loss_exceeding_base_cash(self):
@@ -1011,7 +1079,9 @@ class TestTier2BoundaryDynamicEquity:
                 mode=BotMode.PAPER,
             )
         ]
-        snapshot = PortfolioAggregator.aggregate(positions=[], closed_trades=big_loss, base_cash=50000.0)
+        snapshot = PortfolioAggregator.aggregate(
+            positions=[], closed_trades=big_loss, base_cash=50000.0
+        )
         assert snapshot.total_cash == 0.0
 
     def test_t2_24_micro_quantities_floating_precision(self):
@@ -1030,7 +1100,9 @@ class TestTier2BoundaryDynamicEquity:
                 unrealised_pnl=0.005,
             )
         ]
-        snapshot = PortfolioAggregator.aggregate(positions=micro_pos, closed_trades=[], base_cash=100000.0)
+        snapshot = PortfolioAggregator.aggregate(
+            positions=micro_pos, closed_trades=[], base_cash=100000.0
+        )
         assert snapshot.total_deployed == pytest.approx(0.30, rel=1e-2)
 
     def test_t2_25_extreme_unrealized_profit(self):
@@ -1049,7 +1121,9 @@ class TestTier2BoundaryDynamicEquity:
                 unrealised_pnl=40000000.0,
             )
         ]
-        snapshot = PortfolioAggregator.aggregate(positions=mega_pos, closed_trades=[], base_cash=100000.0)
+        snapshot = PortfolioAggregator.aggregate(
+            positions=mega_pos, closed_trades=[], base_cash=100000.0
+        )
         assert snapshot.total_unrealised_pnl == 40000000.0
         assert snapshot.total_aum > 40000000.0
 
@@ -1057,16 +1131,32 @@ class TestTier2BoundaryDynamicEquity:
 class TestTier2BoundaryFrontendScript:
     """F6 Boundary: Script and auth security boundaries."""
 
-    def test_t2_26_wrong_security_password_fails(self, configured_test_client, auth_headers):
-        resp = configured_test_client.post("/api/v2/auth/verify-password", json={"password": "wrong-pin"}, headers=auth_headers)
+    def test_t2_26_wrong_security_password_fails(
+        self, configured_test_client, auth_headers
+    ):
+        resp = configured_test_client.post(
+            "/api/v2/auth/verify-password",
+            json={"password": "wrong-pin"},
+            headers=auth_headers,
+        )
         assert resp.status_code == 401
 
-    def test_t2_27_missing_password_fails_mode_switch(self, configured_test_client, auth_headers):
-        resp = configured_test_client.post("/api/v2/production/set-mode", json={"mode": "LIVE_MICROCASH"}, headers=auth_headers)
+    def test_t2_27_missing_password_fails_mode_switch(
+        self, configured_test_client, auth_headers
+    ):
+        resp = configured_test_client.post(
+            "/api/v2/production/set-mode",
+            json={"mode": "LIVE_MICROCASH"},
+            headers=auth_headers,
+        )
         assert resp.status_code == 403
 
-    def test_t2_28_paper_mode_switch_does_not_require_pin(self, configured_test_client, auth_headers):
-        resp = configured_test_client.post("/api/v2/production/set-mode", json={"mode": "PAPER"}, headers=auth_headers)
+    def test_t2_28_paper_mode_switch_does_not_require_pin(
+        self, configured_test_client, auth_headers
+    ):
+        resp = configured_test_client.post(
+            "/api/v2/production/set-mode", json={"mode": "PAPER"}, headers=auth_headers
+        )
         assert resp.status_code == 200
         assert resp.json()["mode"] == "PAPER"
 
@@ -1074,7 +1164,9 @@ class TestTier2BoundaryFrontendScript:
         assert "110299" not in template_html
 
     def test_t2_30_empty_password_fails(self, configured_test_client, auth_headers):
-        resp = configured_test_client.post("/api/v2/auth/verify-password", json={"password": ""}, headers=auth_headers)
+        resp = configured_test_client.post(
+            "/api/v2/auth/verify-password", json={"password": ""}, headers=auth_headers
+        )
         assert resp.status_code == 401
 
 
@@ -1082,7 +1174,7 @@ class TestTier2BoundaryTelemetryDOM:
     """F7 Boundary: DOM Telemetry sync edge conditions."""
 
     def test_t2_31_empty_positions_renders_zero_in_subtext(self, template_html):
-        assert '0 active positions' in template_html
+        assert "0 active positions" in template_html
 
     def test_t2_32_no_active_open_positions_table_message(self, template_html):
         assert "No active open positions" in template_html
@@ -1133,7 +1225,9 @@ class TestTier2BoundaryWatchlistScanner:
         assert "vol > 0" in template_html
 
     def test_t2_44_missing_strategy_fallback(self, template_html):
-        assert "CONFLUENCE_SCAN" in template_html or "CONFLUENCE MOMENTUM" in template_html
+        assert (
+            "CONFLUENCE_SCAN" in template_html or "CONFLUENCE MOMENTUM" in template_html
+        )
 
     def test_t2_45_scanner_table_formatting_pair_names(self, template_html):
         assert "formatPriceForPair" in template_html
@@ -1220,7 +1314,9 @@ class TestTier2BoundaryCandlesFeed:
         db = await open_test_database(test_db_path)
         try:
             repo = CandleRepository(db.connection)
-            candles = await repo.get_candles_range("BTC/INR", "1h", start_time=2000000000, end_time=1000000000)
+            candles = await repo.get_candles_range(
+                "BTC/INR", "1h", start_time=2000000000, end_time=1000000000
+            )
             assert candles == []
         finally:
             await db.close()
@@ -1279,11 +1375,14 @@ class TestTier2BoundaryTradeChart:
 # TIER 3: PAIRWISE CROSS-FEATURE INTERACTIONS (12 Tests)
 # ==============================================================================
 
+
 class TestTier3PairwiseInteractions:
     """Pairwise cross-feature combinatorial interactions."""
 
     @pytest.mark.asyncio
-    async def test_t3_1_hydration_and_positions_open_alignment(self, test_db_path, sample_positions):
+    async def test_t3_1_hydration_and_positions_open_alignment(
+        self, test_db_path, sample_positions
+    ):
         """F1 + F3: Hydration from SQLite matches get_active_positions exactly."""
         db = await open_test_database(test_db_path)
         try:
@@ -1295,7 +1394,9 @@ class TestTier3PairwiseInteractions:
             tracker = BotPipelineTracker()
             await tracker.sync_from_repository(active_db)
 
-            total_hydrated_positions = sum(b["open_positions"] for b in tracker.get_all_bots())
+            total_hydrated_positions = sum(
+                b["open_positions"] for b in tracker.get_all_bots()
+            )
             assert total_hydrated_positions == len(active_db)
         finally:
             await db.close()
@@ -1318,8 +1419,12 @@ class TestTier3PairwiseInteractions:
         await tracker.sync_from_repository(sample_positions)
         tracker_deployed = sum(b["capital_deployed"] for b in tracker.get_all_bots())
 
-        portfolio_snap = PortfolioAggregator.aggregate(positions=sample_positions, closed_trades=[], base_cash=100000.0)
-        assert tracker_deployed == pytest.approx(portfolio_snap.total_deployed, rel=1e-3)
+        portfolio_snap = PortfolioAggregator.aggregate(
+            positions=sample_positions, closed_trades=[], base_cash=100000.0
+        )
+        assert tracker_deployed == pytest.approx(
+            portfolio_snap.total_deployed, rel=1e-3
+        )
 
     @pytest.mark.asyncio
     async def test_t3_4_hydration_and_fleet_capacity_boundaries(self, sample_positions):
@@ -1334,7 +1439,9 @@ class TestTier3PairwiseInteractions:
 
     def test_t3_5_position_status_transition_and_equity(self, sample_positions):
         """F3 + F5: Closing an active position shifts capital from deployed to cash."""
-        initial_snap = PortfolioAggregator.aggregate(positions=sample_positions, closed_trades=[], base_cash=100000.0)
+        initial_snap = PortfolioAggregator.aggregate(
+            positions=sample_positions, closed_trades=[], base_cash=100000.0
+        )
 
         remaining = sample_positions[1:]
         closed_trade = Trade(
@@ -1354,7 +1461,9 @@ class TestTier3PairwiseInteractions:
             mode=BotMode.PAPER,
         )
 
-        new_snap = PortfolioAggregator.aggregate(positions=remaining, closed_trades=[closed_trade], base_cash=100000.0)
+        new_snap = PortfolioAggregator.aggregate(
+            positions=remaining, closed_trades=[closed_trade], base_cash=100000.0
+        )
         assert new_snap.total_deployed < initial_snap.total_deployed
         assert new_snap.total_realised_pnl == 500.0
 
@@ -1368,13 +1477,22 @@ class TestTier3PairwiseInteractions:
 
     def test_t3_7_overview_payload_and_dom_element_contract(self, template_html):
         """F4 + F7: Overview payload keys have corresponding DOM elements."""
-        required_dom_ids = ["kpi-aum", "kpi-capital", "kpi-openpos", "home-positions-tbody"]
+        required_dom_ids = [
+            "kpi-aum",
+            "kpi-capital",
+            "kpi-openpos",
+            "home-positions-tbody",
+        ]
         for dom_id in required_dom_ids:
             assert f'id="{dom_id}"' in template_html
 
-    def test_t3_8_mode_change_security_and_fleet(self, configured_test_client, auth_headers):
+    def test_t3_8_mode_change_security_and_fleet(
+        self, configured_test_client, auth_headers
+    ):
         """F6 + F2: Mode switch to PAPER retains execution fleet active."""
-        resp = configured_test_client.post("/api/v2/production/set-mode", json={"mode": "PAPER"}, headers=auth_headers)
+        resp = configured_test_client.post(
+            "/api/v2/production/set-mode", json={"mode": "PAPER"}, headers=auth_headers
+        )
         assert resp.status_code == 200
         assert resp.json()["mode"] == "PAPER"
 
@@ -1415,11 +1533,14 @@ class TestTier3PairwiseInteractions:
 # TIER 4: REAL-WORLD WORKLOAD SCENARIOS (5 High-Complexity Scenarios)
 # ==============================================================================
 
+
 class TestTier4RealWorldScenarios:
     """End-to-End Real-World Application Workloads."""
 
     @pytest.mark.asyncio
-    async def test_t4_1_scenario1_server_cold_restart_with_active_positions(self, test_db_path, sample_positions):
+    async def test_t4_1_scenario1_server_cold_restart_with_active_positions(
+        self, test_db_path, sample_positions
+    ):
         """
         Scenario 1: Cold Server Restart with Active Positions (F1, F3, F4, F7, F8).
         Simulates existing SQLite positions in database before server boots up.
@@ -1469,7 +1590,9 @@ class TestTier4RealWorldScenarios:
         try:
             # Ensure schema compatibility for realized_pnl if migration 007 was a no-op
             try:
-                await db.connection.execute("ALTER TABLE positions ADD COLUMN realized_pnl REAL DEFAULT 0.0")
+                await db.connection.execute(
+                    "ALTER TABLE positions ADD COLUMN realized_pnl REAL DEFAULT 0.0"
+                )
                 await db.connection.commit()
             except Exception:
                 pass
@@ -1544,7 +1667,11 @@ class TestTier4RealWorldScenarios:
         expected_cash = max(0.0, base_cash + 4000.0 - snapshot.total_deployed)
         assert snapshot.total_cash == pytest.approx(expected_cash, rel=1e-2)
 
-        expected_aum = snapshot.total_cash + snapshot.total_deployed + snapshot.total_unrealised_pnl
+        expected_aum = (
+            snapshot.total_cash
+            + snapshot.total_deployed
+            + snapshot.total_unrealised_pnl
+        )
         assert snapshot.total_aum == pytest.approx(expected_aum, rel=1e-2)
 
     def test_t4_4_scenario4_live_scanner_to_watchlist_feed(self, template_html):
@@ -1562,7 +1689,9 @@ class TestTier4RealWorldScenarios:
         assert "scanner-center-tbody" in template_html
 
     @pytest.mark.asyncio
-    async def test_t4_5_scenario5_research_candlestick_and_marker_charting(self, test_db_path):
+    async def test_t4_5_scenario5_research_candlestick_and_marker_charting(
+        self, test_db_path
+    ):
         """
         Scenario 5: Research Candlestick & Marker Charting Workflow (F11, F12).
         Verifies:

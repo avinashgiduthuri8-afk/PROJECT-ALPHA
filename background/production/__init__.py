@@ -2,13 +2,13 @@
 PROJECT-ALPHA — Production Supervision & Watchdog Package.
 """
 
+from .controller import DeploymentMode, ProductionController
 from .service import ProductionService
-from .controller import ProductionController, DeploymentMode
 from .watchdog import ProductionWatchdog
 
 __all__ = [
-    "ProductionService",
-    "ProductionController",
-    "ProductionWatchdog",
     "DeploymentMode",
+    "ProductionController",
+    "ProductionService",
+    "ProductionWatchdog",
 ]

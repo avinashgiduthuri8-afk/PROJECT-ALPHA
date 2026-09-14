@@ -18,7 +18,8 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections import defaultdict
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from .event_types import EventType
 
@@ -102,7 +103,9 @@ class EventBus:
                     await res
             except Exception:
                 logger.exception(
-                    "Handler %s raised on event %s", getattr(h, "__name__", str(h)), event_type
+                    "Handler %s raised on event %s",
+                    getattr(h, "__name__", str(h)),
+                    event_type,
                 )
 
         await asyncio.gather(*(_safe_call(h) for h in handlers))

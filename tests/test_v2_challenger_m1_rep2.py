@@ -10,52 +10,42 @@ Covers:
 
 from __future__ import annotations
 
-import asyncio
-import concurrent.futures
-from datetime import datetime, timezone
-import math
-import os
 import threading
 import uuid
+from datetime import datetime, timezone
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from background.portfolio.aggregator import PortfolioAggregator
 from core.bus.event_bus import EventBus
 from core.config import V2Config, invalidate_config
-from core.types import (
-    BotName,
-    BotMode,
-    Position,
-    PositionStatus,
-    Trade,
-    ExitReason,
-)
 from core.repository.db import Database
 from core.repository.position_repo import PositionRepository
 from core.repository.trade_repo import TradeRepository
-from background.portfolio.aggregator import PortfolioAggregator
-from dashboard.bot_pipeline import BotPipelineTracker
-from dashboard.aggregator import DashboardAggregator
-from dashboard.service import DashboardService
-from execution.trading.subaccount_manager import CoinDCXSubAccountManager, SubAccountConfig
-from execution.auto_trader import AutoTradeRouter
-from execution.trading.precision_rules import (
-    validate_order_notional,
-    round_price,
-    round_qty,
-    round_qty_up,
-    PRECISION_TABLE,
+from core.types import (
+    BotMode,
+    BotName,
+    ExitReason,
+    Position,
+    PositionStatus,
+    Trade,
 )
-from background.backtest.friction import CoinDCXFrictionModel
-from dashboard.api.router import router as main_router, init_router
-from dashboard.api.dashboard_routes import router as dashboard_router, init_dashboard_routes
-from dashboard.api.production_routes import router as production_router, init_production_routes
-
+from dashboard.api.dashboard_routes import init_dashboard_routes
+from dashboard.api.production_routes import init_production_routes
+from dashboard.api.router import init_router
+from dashboard.api.router import router as main_router
+from dashboard.bot_pipeline import BotPipelineTracker
+from dashboard.service import DashboardService
+from execution.trading.subaccount_manager import (
+    CoinDCXSubAccountManager,
+)
 
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 async def test_db_env(tmp_path):
@@ -85,6 +75,7 @@ async def test_db_env(tmp_path):
 # =============================================================================
 # 1. Dynamic Equity & Mark-to-Market Stress Testing
 # =============================================================================
+
 
 class TestDynamicEquityAndMTMValuationsRep2:
 
@@ -247,6 +238,7 @@ class TestDynamicEquityAndMTMValuationsRep2:
 # 2. Shared Capital Pool Concurrency & Constraints
 # =============================================================================
 
+
 class TestSharedCapitalPoolConcurrencyRep2:
 
     def test_concurrent_multi_threaded_order_race_condition(self):
@@ -288,7 +280,9 @@ class TestSharedCapitalPoolConcurrencyRep2:
         successes = [r for r in results if r.get("success") is True]
         failures = [r for r in results if r.get("success") is False]
 
-        assert len(successes) == 2, f"Expected exactly 2 successes, got {len(successes)}"
+        assert (
+            len(successes) == 2
+        ), f"Expected exactly 2 successes, got {len(successes)}"
         assert len(failures) == 18, f"Expected 18 failures, got {len(failures)}"
 
         for f in failures:
@@ -327,7 +321,9 @@ class TestSharedCapitalPoolConcurrencyRep2:
 
         # Place 4 orders of ₹200 = ₹800 deployed
         for i in range(4):
-            res = client.place_order(pair="SOL/INR", side="BUY", price=10000.0, qty=0.02)  # ₹200
+            res = client.place_order(
+                pair="SOL/INR", side="BUY", price=10000.0, qty=0.02
+            )  # ₹200
             assert res["success"] is True
 
         assert client.available_balance_inr == 200.0
@@ -358,6 +354,7 @@ class TestSharedCapitalPoolConcurrencyRep2:
 # 3. Startup Hydration Idempotency & Lifecycle Stress
 # =============================================================================
 
+
 class TestStartupHydrationIdempotencyRep2:
 
     @pytest.mark.anyio
@@ -371,18 +368,45 @@ class TestStartupHydrationIdempotencyRep2:
         now = datetime.now(timezone.utc)
 
         # 2 STE positions (500 + 500 = 1000), 1 BBS position (2000)
-        await pos_repo.insert(Position(
-            id="p-ste-1", bot=BotName.STE, coin="BTC", pair="BTC/INR", qty=0.0001, entry_price=5000000.0,
-            entry_time=now, mode=BotMode.PAPER, status=PositionStatus.OPEN,
-        ))
-        await pos_repo.insert(Position(
-            id="p-ste-2", bot=BotName.STE, coin="ETH", pair="ETH/INR", qty=0.002, entry_price=250000.0,
-            entry_time=now, mode=BotMode.PAPER, status=PositionStatus.OPEN,
-        ))
-        await pos_repo.insert(Position(
-            id="p-bbs-1", bot=BotName.BBS, coin="SOL", pair="SOL/INR", qty=0.2, entry_price=10000.0,
-            entry_time=now, mode=BotMode.PAPER, status=PositionStatus.OPEN,
-        ))
+        await pos_repo.insert(
+            Position(
+                id="p-ste-1",
+                bot=BotName.STE,
+                coin="BTC",
+                pair="BTC/INR",
+                qty=0.0001,
+                entry_price=5000000.0,
+                entry_time=now,
+                mode=BotMode.PAPER,
+                status=PositionStatus.OPEN,
+            )
+        )
+        await pos_repo.insert(
+            Position(
+                id="p-ste-2",
+                bot=BotName.STE,
+                coin="ETH",
+                pair="ETH/INR",
+                qty=0.002,
+                entry_price=250000.0,
+                entry_time=now,
+                mode=BotMode.PAPER,
+                status=PositionStatus.OPEN,
+            )
+        )
+        await pos_repo.insert(
+            Position(
+                id="p-bbs-1",
+                bot=BotName.BBS,
+                coin="SOL",
+                pair="SOL/INR",
+                qty=0.2,
+                entry_price=10000.0,
+                entry_time=now,
+                mode=BotMode.PAPER,
+                status=PositionStatus.OPEN,
+            )
+        )
 
         tracker = BotPipelineTracker()
 
@@ -421,8 +445,15 @@ class TestStartupHydrationIdempotencyRep2:
 
         # Step 1: 1 position
         p1 = Position(
-            id="pos-step-1", bot=BotName.HDA, coin="SOL", pair="SOL/INR",
-            qty=0.1, entry_price=10000.0, entry_time=now, mode=BotMode.PAPER, status=PositionStatus.OPEN,
+            id="pos-step-1",
+            bot=BotName.HDA,
+            coin="SOL",
+            pair="SOL/INR",
+            qty=0.1,
+            entry_price=10000.0,
+            entry_time=now,
+            mode=BotMode.PAPER,
+            status=PositionStatus.OPEN,
         )
         await pos_repo.insert(p1)
         await tracker.sync_from_repository(pos_repo)
@@ -432,7 +463,9 @@ class TestStartupHydrationIdempotencyRep2:
         assert hda["capital_deployed"] == 1000.0
 
         # Step 2: Position is closed in SQLite
-        await pos_repo.close_position("pos-step-1", exit_price=11000.0, exit_reason=ExitReason.TAKE_PROFIT)
+        await pos_repo.close_position(
+            "pos-step-1", exit_price=11000.0, exit_reason=ExitReason.TAKE_PROFIT
+        )
 
         # Re-hydrate
         await tracker.sync_from_repository(pos_repo)
@@ -443,7 +476,9 @@ class TestStartupHydrationIdempotencyRep2:
         assert hda_closed["stage_status"] == "IDLE"
 
     @pytest.mark.anyio
-    async def test_e2e_dashboard_overview_positions_sync_and_restart(self, test_db_env, monkeypatch):
+    async def test_e2e_dashboard_overview_positions_sync_and_restart(
+        self, test_db_env, monkeypatch
+    ):
         """
         E2E API test for /dashboard/overview:
         Verifies open_positions and open_positions_count match SQLite active positions,
@@ -457,14 +492,32 @@ class TestStartupHydrationIdempotencyRep2:
         invalidate_config()
 
         # Insert 2 active positions
-        await pos_repo.insert(Position(
-            id="dash-pos-1", bot=BotName.STE, coin="BTC", pair="BTC/INR",
-            qty=0.001, entry_price=5000000.0, entry_time=now, mode=BotMode.PAPER, status=PositionStatus.OPEN,
-        ))
-        await pos_repo.insert(Position(
-            id="dash-pos-2", bot=BotName.VCP, coin="SOL", pair="SOL/INR",
-            qty=0.5, entry_price=10000.0, entry_time=now, mode=BotMode.PAPER, status=PositionStatus.CLOSING,
-        ))
+        await pos_repo.insert(
+            Position(
+                id="dash-pos-1",
+                bot=BotName.STE,
+                coin="BTC",
+                pair="BTC/INR",
+                qty=0.001,
+                entry_price=5000000.0,
+                entry_time=now,
+                mode=BotMode.PAPER,
+                status=PositionStatus.OPEN,
+            )
+        )
+        await pos_repo.insert(
+            Position(
+                id="dash-pos-2",
+                bot=BotName.VCP,
+                coin="SOL",
+                pair="SOL/INR",
+                qty=0.5,
+                entry_price=10000.0,
+                entry_time=now,
+                mode=BotMode.PAPER,
+                status=PositionStatus.CLOSING,
+            )
+        )
 
         bus = env["bus"]
         cfg = env["cfg"]
@@ -472,8 +525,12 @@ class TestStartupHydrationIdempotencyRep2:
         bot_tracker = dash_service.bot_tracker
         dash_agg = dash_service.aggregator
 
-        init_dashboard_routes(aggregator=dash_agg, dashboard_service=dash_service, bot_tracker=bot_tracker)
-        init_production_routes(controller=None, watchdog=None, config=None, position_repo=pos_repo)
+        init_dashboard_routes(
+            aggregator=dash_agg, dashboard_service=dash_service, bot_tracker=bot_tracker
+        )
+        init_production_routes(
+            controller=None, watchdog=None, config=None, position_repo=pos_repo
+        )
         init_router(position_repo=pos_repo, dashboard_service=dash_service)
 
         test_app = FastAPI()

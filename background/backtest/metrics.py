@@ -14,7 +14,8 @@ Computes:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List
+from typing import Any
+
 import numpy as np
 
 
@@ -37,7 +38,7 @@ class PerformanceMetrics:
 
 def calculate_trade_metrics(
     strategy_name: str,
-    trades: List[Dict[str, Any]],
+    trades: list[dict[str, Any]],
     initial_capital: float = 10000.0,
 ) -> PerformanceMetrics:
     """
@@ -77,12 +78,20 @@ def calculate_trade_metrics(
     # Gross Profit Factor
     total_gross_gain = sum(gross_wins)
     total_gross_loss = abs(sum(gross_losses))
-    gross_pf = round(total_gross_gain / total_gross_loss, 2) if total_gross_loss > 0 else (99.0 if total_gross_gain > 0 else 0.0)
+    gross_pf = (
+        round(total_gross_gain / total_gross_loss, 2)
+        if total_gross_loss > 0
+        else (99.0 if total_gross_gain > 0 else 0.0)
+    )
 
     # Net Profit Factor (After Friction)
     total_net_gain = sum(wins)
     total_net_loss = abs(sum(losses))
-    net_pf = round(total_net_gain / total_net_loss, 2) if total_net_loss > 0 else (99.0 if total_net_gain > 0 else 0.0)
+    net_pf = (
+        round(total_net_gain / total_net_loss, 2)
+        if total_net_loss > 0
+        else (99.0 if total_net_gain > 0 else 0.0)
+    )
 
     # Net PnL
     net_realized_pnl_dollars = round(sum(net_pnls), 2)
@@ -103,11 +112,9 @@ def calculate_trade_metrics(
     peak = equity_curve[0]
     max_dd = 0.0
     for val in equity_curve:
-        if val > peak:
-            peak = val
+        peak = max(peak, val)
         dd = (peak - val) / peak * 100.0 if peak > 0 else 0.0
-        if dd > max_dd:
-            max_dd = dd
+        max_dd = max(max_dd, dd)
 
     max_drawdown_pct = round(max_dd, 2)
 
@@ -115,7 +122,9 @@ def calculate_trade_metrics(
     # Expectancy = (Win_Rate * Avg_Win) - (Loss_Rate * Avg_Loss)
     win_rate_decimal = winning_trades / total_trades
     loss_rate_decimal = 1.0 - win_rate_decimal
-    expectancy_per_trade = round((win_rate_decimal * avg_win) - (loss_rate_decimal * avg_loss), 2)
+    expectancy_per_trade = round(
+        (win_rate_decimal * avg_win) - (loss_rate_decimal * avg_loss), 2
+    )
 
     survives_friction = net_realized_pnl_dollars > 0 and net_pf >= 1.0
 

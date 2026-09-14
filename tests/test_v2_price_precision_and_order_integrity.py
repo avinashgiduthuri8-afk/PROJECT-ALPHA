@@ -8,37 +8,36 @@ from __future__ import annotations
 
 import math
 import uuid
-import pytest
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
+
+import pytest
 
 from core.bus.event_bus import EventBus
-from core.types import BotMode, BotName, ExitReason, Position, PositionStatus, Trade
 from core.repository.db import Database
 from core.repository.event_log_repo import EventLogRepository
 from core.repository.position_repo import PositionRepository
 from core.repository.trade_repo import TradeRepository
+from core.types import BotMode, BotName, ExitReason, Position, PositionStatus, Trade
+from execution.auto_trader import AutoTradeRouter
+from execution.position_manager import PositionManager
+from execution.service import TradingService
 from execution.trading.precision_rules import (
-    extract_base_coin,
-    get_pair_spec,
-    infer_lot_decimals,
     infer_price_decimals,
     normalize_price,
     normalize_qty,
     round_price,
-    round_qty,
     round_qty_up,
     validate_order_notional,
     validate_trade_parameters,
 )
-from execution.trading.subaccount_manager import CoinDCXSubAccountClient, SubAccountConfig
-from execution.adapters import StrategyAdapterFactory
-from execution.auto_trader import AutoTradeRouter
-from execution.position_manager import PositionManager
-from execution.service import TradingService
-
+from execution.trading.subaccount_manager import (
+    CoinDCXSubAccountClient,
+    SubAccountConfig,
+)
 
 # ── 1. Canonical Normalization Tests ──────────────────────────────────────────
+
 
 def test_canonical_price_normalization():
     """Verify normalize_price accepts valid representations and strictly rejects invalid values."""
@@ -96,17 +95,18 @@ def test_canonical_quantity_normalization():
 
 # ── 2. Price Precision & Non-Zero Rounding Tests ──────────────────────────────
 
+
 def test_dynamic_precision_inference():
     """Verify precision scaling for standard, fractional, and sub-₹1 assets."""
     assert infer_price_decimals(8200000.0) == 2  # BTC
-    assert infer_price_decimals(12500.0) == 2    # SOL
-    assert infer_price_decimals(16.50) == 4      # DOGE
-    assert infer_price_decimals(0.82) == 6       # SUI
-    assert infer_price_decimals(0.16) == 6       # ENA
-    assert infer_price_decimals(0.0034) == 8     # BONK
-    assert infer_price_decimals(0.001845) == 8   # SHIB
+    assert infer_price_decimals(12500.0) == 2  # SOL
+    assert infer_price_decimals(16.50) == 4  # DOGE
+    assert infer_price_decimals(0.82) == 6  # SUI
+    assert infer_price_decimals(0.16) == 6  # ENA
+    assert infer_price_decimals(0.0034) == 8  # BONK
+    assert infer_price_decimals(0.001845) == 8  # SHIB
     assert infer_price_decimals(0.000008) == 10  # PEPE
-    assert infer_price_decimals(0.0000005) == 12 # Extreme micro-asset
+    assert infer_price_decimals(0.0000005) == 12  # Extreme micro-asset
 
 
 def test_positive_prices_never_round_to_zero():
@@ -169,6 +169,7 @@ def test_pepe_sub_1_rupee_regression():
 
 # ── 3. Pre-Execution Parameter Validation ──────────────────────────────────────
 
+
 def test_validate_trade_parameters():
     """Test validate_trade_parameters gates on price, qty, notional, and SL/TP bounds."""
     pair = "BTC/INR"
@@ -177,7 +178,12 @@ def test_validate_trade_parameters():
 
     # Valid parameters
     valid, err = validate_trade_parameters(
-        pair=pair, price=price, qty=qty, stop_loss=8000000.0, take_profit=8500000.0, min_notional=200.0
+        pair=pair,
+        price=price,
+        qty=qty,
+        stop_loss=8000000.0,
+        take_profit=8500000.0,
+        min_notional=200.0,
     )
     assert valid is True
     assert err is None
@@ -195,25 +201,36 @@ def test_validate_trade_parameters():
     assert v is False and "Invalid quantity" in e
 
     # Notional below minimum (e.g. ₹50 < ₹200)
-    v, e = validate_trade_parameters(pair=pair, price=price, qty=0.000005, min_notional=200.0)
+    v, e = validate_trade_parameters(
+        pair=pair, price=price, qty=0.000005, min_notional=200.0
+    )
     assert v is False and "below minimum" in e
 
     # Inverted Long SL (SL >= entry)
-    v, e = validate_trade_parameters(pair=pair, price=price, qty=qty, stop_loss=8300000.0, take_profit=8500000.0)
+    v, e = validate_trade_parameters(
+        pair=pair, price=price, qty=qty, stop_loss=8300000.0, take_profit=8500000.0
+    )
     assert v is False and "strictly below" in e
 
     # Inverted Long TP (TP <= entry)
-    v, e = validate_trade_parameters(pair=pair, price=price, qty=qty, stop_loss=8000000.0, take_profit=8100000.0)
+    v, e = validate_trade_parameters(
+        pair=pair, price=price, qty=qty, stop_loss=8000000.0, take_profit=8100000.0
+    )
     assert v is False and "strictly above" in e
 
     # Extreme SL/TP ratio bounds (e.g. SL at 10x or 0.01x entry)
-    v, e = validate_trade_parameters(pair=pair, price=100.0, qty=3.0, stop_loss=5.0, take_profit=110.0)
+    v, e = validate_trade_parameters(
+        pair=pair, price=100.0, qty=3.0, stop_loss=5.0, take_profit=110.0
+    )
     assert v is False and "magnitude is inconsistent" in e
-    v, e = validate_trade_parameters(pair=pair, price=100.0, qty=3.0, stop_loss=95.0, take_profit=600.0)
+    v, e = validate_trade_parameters(
+        pair=pair, price=100.0, qty=3.0, stop_loss=95.0, take_profit=600.0
+    )
     assert v is False and "magnitude is inconsistent" in e
 
 
 # ── 4. Quote-Currency Isolation & Cross-Quote Protection ───────────────────────
+
 
 @pytest.mark.asyncio
 async def test_ena_inr_vs_ena_usdt_quote_isolation():
@@ -368,6 +385,7 @@ async def test_sui_inr_vs_sui_usdt_quote_isolation():
 
 # ── 5. Runtime Price-Jump Guard (100x Jump & 0.01x Collapse Protection) ───────
 
+
 @pytest.mark.asyncio
 async def test_runtime_price_jump_guard():
     """
@@ -444,6 +462,7 @@ async def test_runtime_price_jump_guard():
 
 # ── 6. Order Rejection Before Dispatch (Silent Fallback Elimination) ──────────
 
+
 @pytest.mark.asyncio
 async def test_order_rejection_before_dispatch_in_auto_trader():
     """Verify AutoTradeRouter rejects signals with missing/zero/invalid prices without dispatching."""
@@ -455,21 +474,29 @@ async def test_order_rejection_before_dispatch_in_auto_trader():
     router = AutoTradeRouter(bus=bus, subaccount_manager=sub_mgr, dry_run=True)
 
     # Missing price
-    res_none = await router.handle_signal({"coin": "BTC", "pair": "BTC/INR", "price": None})
+    res_none = await router.handle_signal(
+        {"coin": "BTC", "pair": "BTC/INR", "price": None}
+    )
     assert res_none["success"] is False
     assert "invalid price" in res_none["message"].lower()
 
     # Zero price
-    res_zero = await router.handle_signal({"coin": "BONK", "pair": "BONK/INR", "price": 0.0})
+    res_zero = await router.handle_signal(
+        {"coin": "BONK", "pair": "BONK/INR", "price": 0.0}
+    )
     assert res_zero["success"] is False
     assert "invalid price" in res_zero["message"].lower()
 
     # Negative price
-    res_neg = await router.handle_signal({"coin": "ETH", "pair": "ETH/INR", "price": -50.0})
+    res_neg = await router.handle_signal(
+        {"coin": "ETH", "pair": "ETH/INR", "price": -50.0}
+    )
     assert res_neg["success"] is False
 
     # NaN price
-    res_nan = await router.handle_signal({"coin": "ETH", "pair": "ETH/INR", "price": float("nan")})
+    res_nan = await router.handle_signal(
+        {"coin": "ETH", "pair": "ETH/INR", "price": float("nan")}
+    )
     assert res_nan["success"] is False
 
     # Mock client must NEVER have been called to place an order
@@ -499,7 +526,9 @@ def test_subaccount_manager_order_layer_normalization():
     assert res_qty["error"] == "INVALID_PRICE_OR_QUANTITY"
 
     # 3. Valid micro-order with dynamic precision
-    res_valid = client.place_order(pair="BONK/INR", side="BUY", price=0.0034, qty=60000.0)
+    res_valid = client.place_order(
+        pair="BONK/INR", side="BUY", price=0.0034, qty=60000.0
+    )
     assert res_valid["success"] is True
     assert res_valid["order"]["price"] == 0.0034
     assert res_valid["order"]["qty"] == 60000.0
@@ -507,6 +536,7 @@ def test_subaccount_manager_order_layer_normalization():
 
 
 # ── 7. Read-Only Historical Contamination Diagnostic ──────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_historical_contamination_diagnostic_read_only():

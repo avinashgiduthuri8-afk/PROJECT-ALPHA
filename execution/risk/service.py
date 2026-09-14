@@ -8,21 +8,20 @@ for the 4 production bots (STE, HDA, VCP, BBS) before any live or shadow order e
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Optional
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
 from core.config import AppConfig
-from core.types import (
-    BotName,
-    OppType,
-    RiskDecision,
-    RiskState,
-)
 from core.logging import get_logger
 from core.repository.event_log_repo import EventLogRepository
 from core.repository.position_repo import PositionRepository
 from core.repository.trade_repo import TradeRepository
+from core.types import (
+    BotName,
+    RiskDecision,
+    RiskState,
+)
+
 from .capital_guard import CapitalGuard
 from .circuit_breaker import CircuitBreaker
 
@@ -72,7 +71,9 @@ class RiskService:
 
     async def stop(self) -> None:
         self._started = False
-        self._bus.unsubscribe(EventType.SIGNAL_AI_CONFIRMED, self.on_signal_ai_confirmed)
+        self._bus.unsubscribe(
+            EventType.SIGNAL_AI_CONFIRMED, self.on_signal_ai_confirmed
+        )
         self._bus.unsubscribe(EventType.POSITION_CLOSED, self.on_position_closed)
         logger.info("RiskService stopped")
 
@@ -85,9 +86,9 @@ class RiskService:
         self,
         bot: BotName,
         requested_amount: float,
-        coin: Optional[str] = None,
-        pair: Optional[str] = None,
-        available_capital: Optional[float] = None,
+        coin: str | None = None,
+        pair: str | None = None,
+        available_capital: float | None = None,
     ) -> RiskDecision:
         """Run complete risk evaluation (CircuitBreaker + CapitalGuard + Live Balance) against live state."""
         # 1. Circuit breaker check
@@ -99,7 +100,11 @@ class RiskService:
         deployment_mode = getattr(self._config, "deployment_mode", "SHADOW").upper()
         if deployment_mode == "LIVE_MICROCASH":
             live_cap = available_capital
-            if live_cap is None and hasattr(self, "_trading_service") and self._trading_service:
+            if (
+                live_cap is None
+                and hasattr(self, "_trading_service")
+                and self._trading_service
+            ):
                 sub_mgr = getattr(self._trading_service, "subaccount_manager", None)
                 if sub_mgr:
                     bal_res = await sub_mgr.check_account_connectivity()
@@ -148,7 +153,9 @@ class RiskService:
 
     # ── Event Handlers ────────────────────────────────────────────────────────
 
-    async def on_signal_ai_confirmed(self, event_type: EventType, payload: dict) -> None:
+    async def on_signal_ai_confirmed(
+        self, event_type: EventType, payload: dict
+    ) -> None:
         """Evaluate trade feasibility for an AI-confirmed candidate signal."""
         try:
             signal_id = payload.get("signal_id")
@@ -160,14 +167,20 @@ class RiskService:
             bot = self._select_bot_for_signal(payload)
             # Dynamic amount flow: check explicit amount or use dynamically configured order_size_inr (minimum ₹200.00)
             configured_default = self._get_default_amount_for_bot(bot)
-            raw_req = float(payload.get("amount") or payload.get("order_size_inr") or configured_default)
+            raw_req = float(
+                payload.get("amount")
+                or payload.get("order_size_inr")
+                or configured_default
+            )
             requested_base = max(200.0, raw_req)
 
             # Apply AI position size scaling multiplier
             size_multiplier = float(ai_adjustments.get("size_multiplier", 1.0))
             scaled_amount = max(200.0, requested_base * size_multiplier)
 
-            decision = await self.check_trade_allowed(bot, scaled_amount, coin=coin, pair=pair)
+            decision = await self.check_trade_allowed(
+                bot, scaled_amount, coin=coin, pair=pair
+            )
 
             if decision.allowed:
                 approved_payload = {
@@ -187,7 +200,14 @@ class RiskService:
                     entity_id=signal_id or "",
                     payload=approved_payload,
                 )
-                logger.info("Trade APPROVED by RiskService", extra={"coin": coin, "bot": bot.value, "amount": decision.adjusted_amount})
+                logger.info(
+                    "Trade APPROVED by RiskService",
+                    extra={
+                        "coin": coin,
+                        "bot": bot.value,
+                        "amount": decision.adjusted_amount,
+                    },
+                )
             else:
                 denied_payload = {
                     "signal_id": signal_id,
@@ -206,9 +226,12 @@ class RiskService:
                     entity_id=signal_id or "",
                     payload=denied_payload,
                 )
-                logger.warning("Trade DENIED by RiskService", extra={"coin": coin, "bot": bot.value, "reason": decision.reason})
+                logger.warning(
+                    "Trade DENIED by RiskService",
+                    extra={"coin": coin, "bot": bot.value, "reason": decision.reason},
+                )
 
-        except Exception as exc:
+        except Exception:
             logger.error("Error evaluating trade in RiskService", exc_info=True)
 
     async def on_position_closed(self, event_type: EventType, payload: dict) -> None:
@@ -216,7 +239,13 @@ class RiskService:
         try:
             bot_str = payload.get("bot", "")
             pnl = float(payload.get("pnl", 0.0))
-            coin = (payload.get("coin") or "").upper().replace("/INR", "").replace("/USDT", "").replace("B-", "")
+            coin = (
+                (payload.get("coin") or "")
+                .upper()
+                .replace("/INR", "")
+                .replace("/USDT", "")
+                .replace("B-", "")
+            )
             if coin:
                 self._cooldowns[coin] = {
                     "exit_time": datetime.now(timezone.utc),
@@ -228,7 +257,10 @@ class RiskService:
             except ValueError:
                 pass
         except Exception as exc:
-            logger.warning("Error processing position close in RiskService", extra={"error": str(exc)})
+            logger.warning(
+                "Error processing position close in RiskService",
+                extra={"error": str(exc)},
+            )
 
     # ── Helpers & State Queries ───────────────────────────────────────────────
 
@@ -240,7 +272,9 @@ class RiskService:
             except ValueError:
                 pass
 
-        opp_type = str(payload.get("opportunity_type") or payload.get("market_state") or "").lower()
+        opp_type = str(
+            payload.get("opportunity_type") or payload.get("market_state") or ""
+        ).lower()
         if any(w in opp_type for w in ("volume", "absorption", "cvd", "delivery")):
             return BotName.HDA
         if any(w in opp_type for w in ("contraction", "vcp", "minervini")):
@@ -274,15 +308,27 @@ class RiskService:
         # 1. Check consecutive loss limits
         for bot_name, losses in self._circuit_breaker._consecutive_losses.items():
             if losses >= self._config.max_consecutive_losses:
-                return False, f"Strategy {bot_name} exceeded max consecutive losses ({losses}/{self._config.max_consecutive_losses})"
+                return (
+                    False,
+                    f"Strategy {bot_name} exceeded max consecutive losses ({losses}/{self._config.max_consecutive_losses})",
+                )
 
         # 2. Check if circuit breaker was tripped by a risk breach / loss event
         cb_reason = (self._circuit_breaker.reason or "").lower()
         if self._circuit_breaker.is_open:
-            if any(w in cb_reason for w in ("drawdown", "consecutive", "loss", "breach", "threshold")):
-                return False, f"Risk Engine threshold breach active: {self._circuit_breaker.reason}"
+            if any(
+                w in cb_reason
+                for w in ("drawdown", "consecutive", "loss", "breach", "threshold")
+            ):
+                return (
+                    False,
+                    f"Risk Engine threshold breach active: {self._circuit_breaker.reason}",
+                )
             if not self._circuit_breaker.emergency_stop:
-                return False, f"Circuit breaker is open: {self._circuit_breaker.reason or 'Risk limit exceeded'}"
+                return (
+                    False,
+                    f"Circuit breaker is open: {self._circuit_breaker.reason or 'Risk limit exceeded'}",
+                )
 
         # 3. Dynamic capital & exchange safety in LIVE mode
         deployment_mode = getattr(self._config, "deployment_mode", "SHADOW").upper()
@@ -294,10 +340,16 @@ class RiskService:
                 if sub_mgr:
                     bal_res = await sub_mgr.check_account_connectivity()
                     if not bal_res.get("success"):
-                        return False, f"CoinDCX connectivity check failed: {bal_res.get('error') or bal_res.get('message')}"
+                        return (
+                            False,
+                            f"CoinDCX connectivity check failed: {bal_res.get('error') or bal_res.get('message')}",
+                        )
                     inr_bal = float(bal_res.get("inr_balance", 0.0))
                     if inr_bal <= 0.0:
-                        return False, f"CoinDCX available INR balance is insufficient (₹{inr_bal:.2f})"
+                        return (
+                            False,
+                            f"CoinDCX available INR balance is insufficient (₹{inr_bal:.2f})",
+                        )
 
         return True, "Safe to resume operations"
 

@@ -5,6 +5,7 @@ Tests for PROJECT-ALPHA V2 14-Stage Autonomous Trading Pipeline & Dashboard Insp
 from __future__ import annotations
 
 import uuid
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -154,7 +155,9 @@ def test_pipeline_api_endpoints():
         assert "output_contract" in at_data
 
         # 3. GET /api/v2/pipeline/stages/unknown (404)
-        res_404 = client.get("/api/v2/pipeline/stages/non_existent_stage", headers=headers)
+        res_404 = client.get(
+            "/api/v2/pipeline/stages/non_existent_stage", headers=headers
+        )
         assert res_404.status_code == 404
 
         # 4. GET /api/v2/dashboard/overview includes pipeline_stages
@@ -170,4 +173,3 @@ def test_pipeline_api_endpoints():
         assert "ALPHA 13-Stage" in res_html.text
         assert "beta-flowchart-grid" in res_html.text
         assert "homePieChart" in res_html.text
-

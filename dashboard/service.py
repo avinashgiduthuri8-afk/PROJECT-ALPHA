@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
@@ -49,7 +49,7 @@ class DashboardAnalyticsService:
             logger.debug("Failed reading %s: %s", filename, exc)
             return None
 
-    def get_win_rates(self) -> Dict[str, Any]:
+    def get_win_rates(self) -> dict[str, Any]:
         tier_data = self._read_json("tier_accuracy.json") or {}
         history = self._read_json("signal_history.json") or []
 
@@ -80,7 +80,9 @@ class DashboardAnalyticsService:
                     if ts.tzinfo is None:
                         ts = ts.replace(tzinfo=timezone.utc)
                     age = now - ts
-                    is_win = (sig.get("outcome") == "win") or (float(sig.get("return_pct", 0.0) or 0.0) > 0)
+                    is_win = (sig.get("outcome") == "win") or (
+                        float(sig.get("return_pct", 0.0) or 0.0) > 0
+                    )
                     for h_key, max_age in time_limits.items():
                         if age <= max_age:
                             horizons[h_key]["total"] += 1
@@ -114,7 +116,9 @@ class DashboardAnalyticsService:
                     }
 
         elite_wr = tier_results.get("ELITE", {}).get("win_rate_pct")
-        overall = elite_wr if elite_wr is not None else horizon_results["7d"]["win_rate_pct"]
+        overall = (
+            elite_wr if elite_wr is not None else horizon_results["7d"]["win_rate_pct"]
+        )
 
         return {
             "time_horizons": horizon_results,
@@ -122,26 +126,34 @@ class DashboardAnalyticsService:
             "overall_win_rate": overall,
         }
 
-    def get_coin_performance(self) -> Dict[str, Any]:
+    def get_coin_performance(self) -> dict[str, Any]:
         data = self._read_json("coin_performance.json") or {}
         coins = []
         if isinstance(data, dict):
             for coin, info in data.items():
                 if isinstance(info, dict):
-                    coins.append({
-                        "coin": coin,
-                        "total_signals": int(info.get("total_signals", 0)),
-                        "winning_signals": int(info.get("winning_signals", 0)),
-                        "losing_signals": int(info.get("losing_signals", 0)),
-                        "win_rate_pct": float(info.get("win_rate_pct", 0.0)),
-                        "avg_return_pct": float(info.get("avg_return_pct", 0.0)),
-                        "best_return_pct": float(info.get("best_return_pct", 0.0)),
-                        "worst_return_pct": float(info.get("worst_return_pct", 0.0)),
-                    })
+                    coins.append(
+                        {
+                            "coin": coin,
+                            "total_signals": int(info.get("total_signals", 0)),
+                            "winning_signals": int(info.get("winning_signals", 0)),
+                            "losing_signals": int(info.get("losing_signals", 0)),
+                            "win_rate_pct": float(info.get("win_rate_pct", 0.0)),
+                            "avg_return_pct": float(info.get("avg_return_pct", 0.0)),
+                            "best_return_pct": float(info.get("best_return_pct", 0.0)),
+                            "worst_return_pct": float(
+                                info.get("worst_return_pct", 0.0)
+                            ),
+                        }
+                    )
 
-        coins_sorted = sorted(coins, key=lambda c: (c["win_rate_pct"], c["total_signals"]), reverse=True)
+        coins_sorted = sorted(
+            coins, key=lambda c: (c["win_rate_pct"], c["total_signals"]), reverse=True
+        )
         best = coins_sorted[:5]
-        worst = sorted(coins, key=lambda c: (c["win_rate_pct"], -c["total_signals"]))[:5]
+        worst = sorted(coins, key=lambda c: (c["win_rate_pct"], -c["total_signals"]))[
+            :5
+        ]
 
         return {
             "total_coins": len(coins),
@@ -150,13 +162,38 @@ class DashboardAnalyticsService:
             "worst_performing": worst,
         }
 
-    def get_funnel_metrics(self) -> Dict[str, Any]:
+    def get_funnel_metrics(self) -> dict[str, Any]:
         stages = [
-            {"layer": 1, "name": "Total Scanned", "count": 120, "conversion_pct": 100.0},
-            {"layer": 2, "name": "V1 Technical Gates", "count": 28, "conversion_pct": 23.3},
-            {"layer": 3, "name": "Indicator & MTF Alignment", "count": 12, "conversion_pct": 10.0},
-            {"layer": 4, "name": "Sentiment & News Clean", "count": 6, "conversion_pct": 5.0},
-            {"layer": 5, "name": "Confluence Threshold Gate (>=85)", "count": 2, "conversion_pct": 1.7},
+            {
+                "layer": 1,
+                "name": "Total Scanned",
+                "count": 120,
+                "conversion_pct": 100.0,
+            },
+            {
+                "layer": 2,
+                "name": "V1 Technical Gates",
+                "count": 28,
+                "conversion_pct": 23.3,
+            },
+            {
+                "layer": 3,
+                "name": "Indicator & MTF Alignment",
+                "count": 12,
+                "conversion_pct": 10.0,
+            },
+            {
+                "layer": 4,
+                "name": "Sentiment & News Clean",
+                "count": 6,
+                "conversion_pct": 5.0,
+            },
+            {
+                "layer": 5,
+                "name": "Confluence Threshold Gate (>=85)",
+                "count": 2,
+                "conversion_pct": 1.7,
+            },
         ]
         return {
             "layers": stages,
@@ -172,15 +209,15 @@ class DashboardService:
         self,
         bus: EventBus,
         config: AppConfig,
-        ws_manager: Optional[WebSocketManager] = None,
-        scanner_service: Optional[Any] = None,
-        ai_service: Optional[Any] = None,
-        risk_service: Optional[Any] = None,
-        portfolio_service: Optional[Any] = None,
-        trading_service: Optional[Any] = None,
-        shadow_service: Optional[Any] = None,
-        scheduler: Optional[Any] = None,
-        position_repo: Optional[Any] = None,
+        ws_manager: WebSocketManager | None = None,
+        scanner_service: Any | None = None,
+        ai_service: Any | None = None,
+        risk_service: Any | None = None,
+        portfolio_service: Any | None = None,
+        trading_service: Any | None = None,
+        shadow_service: Any | None = None,
+        scheduler: Any | None = None,
+        position_repo: Any | None = None,
     ) -> None:
         self._bus = bus
         self._config = config
@@ -220,7 +257,7 @@ class DashboardService:
     def ws_gateway(self) -> WebSocketTelemetryGateway:
         return self._ws_gateway
 
-    async def get_telemetry_snapshot(self) -> Dict[str, Any]:
+    async def get_telemetry_snapshot(self) -> dict[str, Any]:
         """Return unified overview telemetry snapshot."""
         return await self._aggregator.get_overview_snapshot()
 
@@ -268,22 +305,36 @@ class DashboardService:
         ]:
             self._bus.subscribe(et, self._on_event_broadcast)
 
-        await self._bus.publish(EventType.SYSTEM_STARTUP, {"service": "dashboard_service"})
+        await self._bus.publish(
+            EventType.SYSTEM_STARTUP, {"service": "dashboard_service"}
+        )
 
         # Hydrate bot pipeline tracker from position repository on startup
         pos_repo = self._position_repo
-        if pos_repo is None and self._trading_service and hasattr(self._trading_service, "_position_repo"):
+        if (
+            pos_repo is None
+            and self._trading_service
+            and hasattr(self._trading_service, "_position_repo")
+        ):
             pos_repo = self._trading_service._position_repo
-        if pos_repo is None and self._portfolio_service and hasattr(self._portfolio_service, "_position_repo"):
+        if (
+            pos_repo is None
+            and self._portfolio_service
+            and hasattr(self._portfolio_service, "_position_repo")
+        ):
             pos_repo = self._portfolio_service._position_repo
 
         if pos_repo is not None and hasattr(self._bot_tracker, "sync_from_repository"):
             try:
                 await self._bot_tracker.sync_from_repository(pos_repo)
             except Exception as exc:
-                logger.warning("Failed to sync bot tracker from repository on startup: %s", exc)
+                logger.warning(
+                    "Failed to sync bot tracker from repository on startup: %s", exc
+                )
 
-        logger.info("DashboardService started with real-time push and pipeline telemetry enabled")
+        logger.info(
+            "DashboardService started with real-time push and pipeline telemetry enabled"
+        )
 
     async def stop(self) -> None:
         self._started = False
@@ -313,7 +364,9 @@ class DashboardService:
     async def _on_event_broadcast(self, event_type: EventType, payload: dict) -> None:
         """Forward any bus event to connected WebSocket clients and update pipeline telemetry."""
         try:
-            et_str = event_type.value if hasattr(event_type, "value") else str(event_type)
+            et_str = (
+                event_type.value if hasattr(event_type, "value") else str(event_type)
+            )
 
             # Update live pipeline collector state
             self._pipeline_collector.handle_bus_event(et_str, payload)
@@ -327,60 +380,72 @@ class DashboardService:
                 payload=payload,
             )
         except Exception as exc:
-            logger.warning("Error broadcasting event over WebSocket", extra={"error": str(exc)})
+            logger.warning(
+                "Error broadcasting event over WebSocket", extra={"error": str(exc)}
+            )
 
     # ── Pipeline Stages API ───────────────────────────────────────────────────
 
-    def get_pipeline_stages(self) -> List[dict[str, Any]]:
+    def get_pipeline_stages(self) -> list[dict[str, Any]]:
         """Return structured summary for all 14 pipeline stages."""
         return self._pipeline_collector.get_all_stages()
 
-    def get_stage_detail(self, stage_id: str) -> Optional[dict[str, Any]]:
+    def get_stage_detail(self, stage_id: str) -> dict[str, Any] | None:
         """Return deep telemetry and contracts for a specific pipeline stage."""
         return self._pipeline_collector.get_stage_detail(stage_id)
 
     # ── Bot Status API ────────────────────────────────────────────────────────
 
-    def get_bot_statuses(self) -> List[dict[str, Any]]:
+    def get_bot_statuses(self) -> list[dict[str, Any]]:
         """Return current pipeline stage, status, and live metrics for all bots."""
         return self._bot_tracker.get_all_bots()
 
-    def get_bot_detail(self, bot_name: str) -> Optional[dict[str, Any]]:
+    def get_bot_detail(self, bot_name: str) -> dict[str, Any] | None:
         """Return full detail snapshot for one bot (STE / HDA / VCP / BBS, case-insensitive)."""
         return self._bot_tracker.get_bot_detail(bot_name)
 
     # ── Analytics API ─────────────────────────────────────────────────────────
 
-    def get_win_rates_analytics(self) -> Dict[str, Any]:
+    def get_win_rates_analytics(self) -> dict[str, Any]:
         """Aggregate win-rate analytics across time horizons and priority tiers."""
         return self._analytics.get_win_rates()
 
-    def get_coins_analytics(self) -> Dict[str, Any]:
+    def get_coins_analytics(self) -> dict[str, Any]:
         """Aggregate coin performance stats and best/worst rankings."""
         return self._analytics.get_coin_performance()
 
-    def get_funnel_analytics(self) -> Dict[str, Any]:
+    def get_funnel_analytics(self) -> dict[str, Any]:
         """Return 5-layer historical conversion funnel metrics."""
         return self._analytics.get_funnel_metrics()
 
     # ── Telemetry Snapshot ────────────────────────────────────────────────────
 
-    def get_telemetry_snapshot(self) -> Dict[str, Any]:
+    def get_telemetry_snapshot(self) -> dict[str, Any]:
         """Aggregate real-time WebSocket telemetry packet."""
         sentiment = {}
-        if self._scanner_service and hasattr(self._scanner_service, "market_context_service"):
-            sentiment = self._scanner_service.market_context_service.get_current_sentiment()
+        if self._scanner_service and hasattr(
+            self._scanner_service, "market_context_service"
+        ):
+            sentiment = (
+                self._scanner_service.market_context_service.get_current_sentiment()
+            )
 
         fleet = self.get_bot_statuses()
-        live_sigs = self._scanner_service.get_live_signals() if self._scanner_service else []
-        scanned_coins = self._scanner_service.get_scanned_coins() if self._scanner_service else []
+        live_sigs = (
+            self._scanner_service.get_live_signals() if self._scanner_service else []
+        )
+        scanned_coins = (
+            self._scanner_service.get_scanned_coins() if self._scanner_service else []
+        )
 
         return {
             "funnel_metrics": {
                 "total_scanned": len(scanned_coins) if scanned_coins else 12,
                 "passed_initial_gates": len(scanned_coins),
                 "passed_v1_gates": len(scanned_coins),
-                "passed_confluence": len([c for c in scanned_coins if c.get("status") == "PASSED"]),
+                "passed_confluence": len(
+                    [c for c in scanned_coins if c.get("status") == "PASSED"]
+                ),
                 "dispatched_signals": len(live_sigs),
             },
             "market_regime": {
@@ -392,9 +457,13 @@ class DashboardService:
             "fleet_telemetry": fleet,
             "watchlist_summary": {
                 "total_evaluated": len(scanned_coins),
-                "passed_confluence_count": len([c for c in scanned_coins if c.get("status") == "PASSED"]),
+                "passed_confluence_count": len(
+                    [c for c in scanned_coins if c.get("status") == "PASSED"]
+                ),
                 "top_candidates": scanned_coins[:5],
-                "last_scan_at": scanned_coins[0]["evaluated_at"] if scanned_coins else None,
+                "last_scan_at": (
+                    scanned_coins[0]["evaluated_at"] if scanned_coins else None
+                ),
             },
             "system_health": {
                 "candle_cache_ready": True,
@@ -408,17 +477,35 @@ class DashboardService:
 
     async def get_overview(self) -> dict[str, Any]:
         """Aggregate the full platform state in a single call for dashboard initial load."""
-        portfolio = await self._portfolio_service.get_snapshot() if self._portfolio_service else None
-        risk_state = await self._risk_service.get_state() if self._risk_service else None
-        shadow_summary = await self._shadow_service.get_summary() if self._shadow_service else {}
-        scanned_coins = self._scanner_service.get_scanned_coins() if self._scanner_service else []
+        portfolio = (
+            await self._portfolio_service.get_snapshot()
+            if self._portfolio_service
+            else None
+        )
+        risk_state = (
+            await self._risk_service.get_state() if self._risk_service else None
+        )
+        shadow_summary = (
+            await self._shadow_service.get_summary() if self._shadow_service else {}
+        )
+        scanned_coins = (
+            self._scanner_service.get_scanned_coins() if self._scanner_service else []
+        )
 
         # Fetch active positions directly from PositionRepository
-        active_positions_list: List[Dict[str, Any]] = []
+        active_positions_list: list[dict[str, Any]] = []
         pos_repo = getattr(self, "_position_repo", None)
-        if pos_repo is None and self._trading_service and hasattr(self._trading_service, "_position_repo"):
+        if (
+            pos_repo is None
+            and self._trading_service
+            and hasattr(self._trading_service, "_position_repo")
+        ):
             pos_repo = self._trading_service._position_repo
-        if pos_repo is None and self._portfolio_service and hasattr(self._portfolio_service, "_position_repo"):
+        if (
+            pos_repo is None
+            and self._portfolio_service
+            and hasattr(self._portfolio_service, "_position_repo")
+        ):
             pos_repo = self._portfolio_service._position_repo
 
         if pos_repo is not None:
@@ -429,34 +516,73 @@ class DashboardService:
                     raw_positions = await pos_repo.get_open()
 
                 for p in raw_positions:
-                    active_positions_list.append({
-                        "id": getattr(p, "id", ""),
-                        "position_id": getattr(p, "id", ""),
-                        "bot": p.bot.value if hasattr(getattr(p, "bot", None), "value") else str(getattr(p, "bot", "STE")),
-                        "bot_name": p.bot.value if hasattr(getattr(p, "bot", None), "value") else str(getattr(p, "bot", "STE")),
-                        "coin": getattr(p, "coin", ""),
-                        "pair": getattr(p, "pair", ""),
-                        "qty": float(getattr(p, "qty", 0.0) or 0.0),
-                        "quantity": float(getattr(p, "qty", 0.0) or 0.0),
-                        "entry_price": float(getattr(p, "entry_price", 0.0) or 0.0),
-                        "entry_time": p.entry_time.isoformat() if hasattr(getattr(p, "entry_time", None), "isoformat") else str(getattr(p, "entry_time", "")),
-                        "current_price": float(getattr(p, "current_price", 0.0) or getattr(p, "entry_price", 0.0) or 0.0),
-                        "current_mark_price": float(getattr(p, "current_price", 0.0) or getattr(p, "entry_price", 0.0) or 0.0),
-                        "unrealised_pnl": float(getattr(p, "unrealised_pnl", 0.0) or 0.0),
-                        "unrealized_pnl": float(getattr(p, "unrealised_pnl", 0.0) or 0.0),
-                        "stop_loss": float(getattr(p, "stop_loss", 0.0) or 0.0),
-                        "take_profit": float(getattr(p, "take_profit", 0.0) or 0.0),
-                        "mode": p.mode.value if hasattr(getattr(p, "mode", None), "value") else str(getattr(p, "mode", "PAPER")),
-                        "status": p.status.value if hasattr(getattr(p, "status", None), "value") else str(getattr(p, "status", "OPEN")),
-                        "signal_id": getattr(p, "signal_id", None),
-                    })
+                    active_positions_list.append(
+                        {
+                            "id": getattr(p, "id", ""),
+                            "position_id": getattr(p, "id", ""),
+                            "bot": (
+                                p.bot.value
+                                if hasattr(getattr(p, "bot", None), "value")
+                                else str(getattr(p, "bot", "STE"))
+                            ),
+                            "bot_name": (
+                                p.bot.value
+                                if hasattr(getattr(p, "bot", None), "value")
+                                else str(getattr(p, "bot", "STE"))
+                            ),
+                            "coin": getattr(p, "coin", ""),
+                            "pair": getattr(p, "pair", ""),
+                            "qty": float(getattr(p, "qty", 0.0) or 0.0),
+                            "quantity": float(getattr(p, "qty", 0.0) or 0.0),
+                            "entry_price": float(getattr(p, "entry_price", 0.0) or 0.0),
+                            "entry_time": (
+                                p.entry_time.isoformat()
+                                if hasattr(getattr(p, "entry_time", None), "isoformat")
+                                else str(getattr(p, "entry_time", ""))
+                            ),
+                            "current_price": float(
+                                getattr(p, "current_price", 0.0)
+                                or getattr(p, "entry_price", 0.0)
+                                or 0.0
+                            ),
+                            "current_mark_price": float(
+                                getattr(p, "current_price", 0.0)
+                                or getattr(p, "entry_price", 0.0)
+                                or 0.0
+                            ),
+                            "unrealised_pnl": float(
+                                getattr(p, "unrealised_pnl", 0.0) or 0.0
+                            ),
+                            "unrealized_pnl": float(
+                                getattr(p, "unrealised_pnl", 0.0) or 0.0
+                            ),
+                            "stop_loss": float(getattr(p, "stop_loss", 0.0) or 0.0),
+                            "take_profit": float(getattr(p, "take_profit", 0.0) or 0.0),
+                            "mode": (
+                                p.mode.value
+                                if hasattr(getattr(p, "mode", None), "value")
+                                else str(getattr(p, "mode", "PAPER"))
+                            ),
+                            "status": (
+                                p.status.value
+                                if hasattr(getattr(p, "status", None), "value")
+                                else str(getattr(p, "status", "OPEN"))
+                            ),
+                            "signal_id": getattr(p, "signal_id", None),
+                        }
+                    )
             except Exception as exc:
-                logger.warning("Error fetching active positions in get_overview: %s", exc)
+                logger.warning(
+                    "Error fetching active positions in get_overview: %s", exc
+                )
 
         bot_statuses = self.get_bot_statuses()
         fleet_data = {b["bot_name"]: b for b in bot_statuses}
 
-        is_emergency = bool(risk_state and (risk_state.circuit_breaker_open or risk_state.emergency_stop))
+        is_emergency = bool(
+            risk_state
+            and (risk_state.circuit_breaker_open or risk_state.emergency_stop)
+        )
 
         telemetry_snap = self.get_telemetry_snapshot()
 
@@ -464,24 +590,54 @@ class DashboardService:
             "status": "ok",
             "system_status": "OPERATIONAL" if not is_emergency else "EMERGENCY_STOP",
             "active_ws_clients": self._ws_manager.active_count,
-            "portfolio": {
-                "total_aum": portfolio.total_aum if portfolio else 0.0,
-                "total_deployed": portfolio.total_deployed if portfolio else 0.0,
-                "total_cash": portfolio.total_cash if portfolio else 0.0,
-                "daily_pnl": portfolio.daily_pnl if portfolio else 0.0,
-                "capital_utilisation": portfolio.capital_utilisation if portfolio else 0.0,
-            } if portfolio else None,
-            "risk": {
-                "trading_enabled": risk_state.trading_enabled if risk_state else False,
-                "circuit_breaker_open": risk_state.circuit_breaker_open if risk_state else False,
-                "emergency_stop": risk_state.emergency_stop if risk_state else False,
-                "per_bot_deployed": risk_state.per_bot_deployed if risk_state else {},
-            } if risk_state else None,
+            "portfolio": (
+                {
+                    "total_aum": portfolio.total_aum if portfolio else 0.0,
+                    "total_deployed": portfolio.total_deployed if portfolio else 0.0,
+                    "total_cash": portfolio.total_cash if portfolio else 0.0,
+                    "daily_pnl": portfolio.daily_pnl if portfolio else 0.0,
+                    "capital_utilisation": (
+                        portfolio.capital_utilisation if portfolio else 0.0
+                    ),
+                }
+                if portfolio
+                else None
+            ),
+            "risk": (
+                {
+                    "trading_enabled": (
+                        risk_state.trading_enabled if risk_state else False
+                    ),
+                    "circuit_breaker_open": (
+                        risk_state.circuit_breaker_open if risk_state else False
+                    ),
+                    "emergency_stop": (
+                        risk_state.emergency_stop if risk_state else False
+                    ),
+                    "per_bot_deployed": (
+                        risk_state.per_bot_deployed if risk_state else {}
+                    ),
+                }
+                if risk_state
+                else None
+            ),
             "shadow": shadow_summary,
             "subsystems": {
-                "scanner": self._scanner_service.get_health() if self._scanner_service else {"healthy": False},
-                "ai": self._ai_service.get_health() if self._ai_service else {"healthy": False},
-                "trading": self._trading_service.get_health() if self._trading_service else {"healthy": False},
+                "scanner": (
+                    self._scanner_service.get_health()
+                    if self._scanner_service
+                    else {"healthy": False}
+                ),
+                "ai": (
+                    self._ai_service.get_health()
+                    if self._ai_service
+                    else {"healthy": False}
+                ),
+                "trading": (
+                    self._trading_service.get_health()
+                    if self._trading_service
+                    else {"healthy": False}
+                ),
             },
             "pipeline_stages": self.get_pipeline_stages(),
             "bots": bot_statuses,
@@ -492,9 +648,13 @@ class DashboardService:
             "scanned_coins": scanned_coins,
             "watchlist_summary": {
                 "total_evaluated": len(scanned_coins),
-                "passed_confluence_count": len([c for c in scanned_coins if c.get("status") == "PASSED"]),
+                "passed_confluence_count": len(
+                    [c for c in scanned_coins if c.get("status") == "PASSED"]
+                ),
                 "top_candidates": scanned_coins[:5],
-                "last_scan_at": scanned_coins[0]["evaluated_at"] if scanned_coins else None,
+                "last_scan_at": (
+                    scanned_coins[0]["evaluated_at"] if scanned_coins else None
+                ),
             },
             "telemetry": telemetry_snap,
         }

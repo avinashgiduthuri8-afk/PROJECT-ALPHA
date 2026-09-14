@@ -7,8 +7,8 @@ reports for Indian crypto tax regulation and financial year reporting.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import datetime
+from typing import Any
 
 from core.logging import get_logger
 from core.repository.journal_repo import JournalRepository
@@ -24,15 +24,17 @@ class TaxLedgerService:
 
     async def get_tax_summary(
         self,
-        start_iso: Optional[str] = None,
-        end_iso: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        start_iso: str | None = None,
+        end_iso: str | None = None,
+    ) -> dict[str, Any]:
         """
         Generate statutory tax and compliance ledger summary over given date range.
         If start_iso/end_iso are omitted, fetches all recorded trade journal entries.
         """
         if start_iso and end_iso:
-            entries = await self._journal_repo.get_entries_by_timerange(start_iso, end_iso)
+            entries = await self._journal_repo.get_entries_by_timerange(
+                start_iso, end_iso
+            )
         else:
             entries = await self._journal_repo.get_all_journal_entries()
 
@@ -53,7 +55,7 @@ class TaxLedgerService:
 
             buy_notional = entry_price * qty
             sell_notional = exit_price * qty
-            gross_trading_value += (buy_notional + sell_notional)
+            gross_trading_value += buy_notional + sell_notional
 
             total_exchange_fees += float(e.get("exchange_fee", 0.0))
             total_gst += float(e.get("gst_tax", 0.0))
@@ -88,7 +90,9 @@ class TaxLedgerService:
             ],
         }
 
-    def _compute_quarterly_breakdown(self, entries: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    def _compute_quarterly_breakdown(
+        self, entries: list[dict[str, Any]]
+    ) -> dict[str, dict[str, Any]]:
         """
         Group entries into Indian Financial Year Quarters:
           Q1: Apr-Jun
@@ -96,7 +100,7 @@ class TaxLedgerService:
           Q3: Oct-Dec
           Q4: Jan-Mar
         """
-        q_map: Dict[str, Dict[str, float]] = {
+        q_map: dict[str, dict[str, float]] = {
             "Q1_Apr_Jun": {"trades": 0, "tds_194s": 0.0, "gst": 0.0, "net_pnl": 0.0},
             "Q2_Jul_Sep": {"trades": 0, "tds_194s": 0.0, "gst": 0.0, "net_pnl": 0.0},
             "Q3_Oct_Dec": {"trades": 0, "tds_194s": 0.0, "gst": 0.0, "net_pnl": 0.0},

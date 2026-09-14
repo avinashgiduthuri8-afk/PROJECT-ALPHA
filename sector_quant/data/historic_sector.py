@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from queue import Queue
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from sector_quant.data.base import DataHandler
 from sector_quant.events import MarketEvent
@@ -21,16 +21,16 @@ class HistoricSectorDataHandler(DataHandler):
     def __init__(
         self,
         events_queue: Queue,
-        symbol_list: List[str],
-        data_feed: Dict[str, List[Dict[str, Any]]],
+        symbol_list: list[str],
+        data_feed: dict[str, list[dict[str, Any]]],
     ) -> None:
         super().__init__(events_queue)
         self.symbol_list = [s.upper() for s in symbol_list]
-        self._raw_data: Dict[str, List[Dict[str, Any]]] = {
+        self._raw_data: dict[str, list[dict[str, Any]]] = {
             s.upper(): sorted(data_feed.get(s, []), key=lambda b: b["price_date"])
             for s in self.symbol_list
         }
-        self.latest_symbol_data: Dict[str, List[Dict[str, Any]]] = {
+        self.latest_symbol_data: dict[str, list[dict[str, Any]]] = {
             s: [] for s in self.symbol_list
         }
 
@@ -40,21 +40,21 @@ class HistoricSectorDataHandler(DataHandler):
             for b in sym_bars:
                 all_timestamps.add(b["price_date"])
 
-        self._timeline: List[str] = sorted(list(all_timestamps))
+        self._timeline: list[str] = sorted(list(all_timestamps))
         self._timeline_idx: int = 0
-        self._symbol_indices: Dict[str, int] = {s: 0 for s in self.symbol_list}
+        self._symbol_indices: dict[str, int] = {s: 0 for s in self.symbol_list}
 
-    def get_latest_bar(self, symbol: str) -> Optional[Dict[str, Any]]:
+    def get_latest_bar(self, symbol: str) -> dict[str, Any] | None:
         sym = symbol.upper()
         bars = self.latest_symbol_data.get(sym, [])
         return bars[-1] if bars else None
 
-    def get_latest_bars(self, symbol: str, N: int = 1) -> List[Dict[str, Any]]:
+    def get_latest_bars(self, symbol: str, N: int = 1) -> list[dict[str, Any]]:
         sym = symbol.upper()
         bars = self.latest_symbol_data.get(sym, [])
         return bars[-N:] if bars else []
 
-    def get_latest_bar_datetime(self, symbol: str) -> Optional[datetime]:
+    def get_latest_bar_datetime(self, symbol: str) -> datetime | None:
         bar = self.get_latest_bar(symbol)
         if not bar:
             return None
@@ -64,13 +64,15 @@ class HistoricSectorDataHandler(DataHandler):
         except Exception:
             return None
 
-    def get_latest_bar_value(self, symbol: str, val_type: str) -> Optional[float]:
+    def get_latest_bar_value(self, symbol: str, val_type: str) -> float | None:
         bar = self.get_latest_bar(symbol)
         if not bar:
             return None
         return float(bar.get(val_type.lower(), 0.0))
 
-    def get_latest_bars_values(self, symbol: str, val_type: str, N: int = 1) -> List[float]:
+    def get_latest_bars_values(
+        self, symbol: str, val_type: str, N: int = 1
+    ) -> list[float]:
         bars = self.get_latest_bars(symbol, N)
         return [float(b.get(val_type.lower(), 0.0)) for b in bars]
 

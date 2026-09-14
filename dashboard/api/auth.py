@@ -9,7 +9,6 @@ deployment gap is immediately visible.
 from __future__ import annotations
 
 import hmac
-from typing import Optional
 
 from fastapi import Header, HTTPException, Query, status
 
@@ -17,8 +16,8 @@ from core.config import get_config
 
 
 async def require_api_key(
-    x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
-    api_key: Optional[str] = Query(default=None, alias="api_key"),
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    api_key: str | None = Query(default=None, alias="api_key"),
 ) -> None:
     """
     FastAPI dependency — inject into any route that requires auth.
@@ -29,10 +28,18 @@ async def require_api_key(
     """
     cfg = get_config()
     expected = cfg.dashboard_api_key
-    deployment_mode = (getattr(cfg, "deployment_mode", None) or getattr(cfg, "v2_deployment_mode", "")).upper()
-    trading_enabled = getattr(cfg, "trading_enabled", getattr(cfg, "v2_trading_enabled", False))
+    deployment_mode = (
+        getattr(cfg, "deployment_mode", None) or getattr(cfg, "v2_deployment_mode", "")
+    ).upper()
+    trading_enabled = getattr(
+        cfg, "trading_enabled", getattr(cfg, "v2_trading_enabled", False)
+    )
 
-    if not expected or (deployment_mode == "LIVE_MICROCASH" and trading_enabled and expected in ("alpha-prod-key", "DUMMY_KEY", "12345")):
+    if not expected or (
+        deployment_mode == "LIVE_MICROCASH"
+        and trading_enabled
+        and expected in ("alpha-prod-key", "DUMMY_KEY", "12345")
+    ):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="DASHBOARD_API_KEY is not securely configured on this server for LIVE mode.",

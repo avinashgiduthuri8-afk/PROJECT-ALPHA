@@ -8,9 +8,8 @@ crypto signal confirmation.
 from __future__ import annotations
 
 import json
-from typing import Any
-from core.types import Signal
 
+from core.types import Signal
 
 AI_EVALUATION_SCHEMA = {
     "type": "object",
@@ -116,7 +115,7 @@ Core Principles:
 def build_signal_prompt(signal: Signal) -> str:
     """Build a structured analysis prompt from a domain Signal."""
     raw = signal.raw_payload or {}
-    
+
     context = {
         "signal_id": signal.id,
         "coin": signal.coin,
@@ -133,7 +132,8 @@ def build_signal_prompt(signal: Signal) -> str:
             "price": raw.get("price") or raw.get("close"),
             "change_24h_pct": raw.get("change_24h_pct") or raw.get("pct_change_24h"),
             "volume_24h": raw.get("volume_24h") or raw.get("volume"),
-            "volume_spike_ratio": raw.get("volume_spike_ratio") or raw.get("volume_spike"),
+            "volume_spike_ratio": raw.get("volume_spike_ratio")
+            or raw.get("volume_spike"),
             "rsi_14": raw.get("rsi") or raw.get("rsi_14"),
             "macd": raw.get("macd"),
             "macd_signal": raw.get("macd_signal"),
@@ -144,7 +144,9 @@ def build_signal_prompt(signal: Signal) -> str:
             "timeframe_4h": raw.get("tf_4h") or raw.get("4h"),
             "timeframe_24h": raw.get("tf_24h") or raw.get("24h"),
         },
-        "raw_metadata": {k: v for k, v in raw.items() if k not in ("indicators", "candles")},
+        "raw_metadata": {
+            k: v for k, v in raw.items() if k not in ("indicators", "candles")
+        },
     }
 
     return f"""

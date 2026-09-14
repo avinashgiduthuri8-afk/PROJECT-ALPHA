@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.bus.event_types import EventType
 from core.config import AppConfig
@@ -40,21 +40,21 @@ STAGE_ORDER = [
     "autonomous_loop",
 ]
 
-STAGE_LABELS: Dict[str, str] = {
-    "market_data":       "Market Data",
-    "scanner":           "Scanner",
-    "signal_engine":     "Signal Engine",
-    "ai_intelligence":   "AI Intelligence",
+STAGE_LABELS: dict[str, str] = {
+    "market_data": "Market Data",
+    "scanner": "Scanner",
+    "signal_engine": "Signal Engine",
+    "ai_intelligence": "AI Intelligence",
     "trade_constructor": "Trade Constructor",
-    "risk_engine":       "Risk Engine",
-    "auto_trade":        "Auto Trade",
-    "position_manager":  "Position Manager",
-    "trade_journal":     "Trade Journal",
-    "analytics":         "Analytics",
-    "learning_engine":   "Learning Engine",
-    "backtest_test":     "Backtest / Test",
+    "risk_engine": "Risk Engine",
+    "auto_trade": "Auto Trade",
+    "position_manager": "Position Manager",
+    "trade_journal": "Trade Journal",
+    "analytics": "Analytics",
+    "learning_engine": "Learning Engine",
+    "backtest_test": "Backtest / Test",
     "improved_strategy": "Improved Strategy",
-    "autonomous_loop":   "Recursive Loop ↺",
+    "autonomous_loop": "Recursive Loop ↺",
 }
 
 
@@ -62,66 +62,87 @@ class BotState:
     """Live state snapshot for a single trading bot."""
 
     # Strategy parameters per bot (static, from production adapters)
-    _STRATEGY_PARAMS: Dict[str, Dict[str, Any]] = {
+    _STRATEGY_PARAMS: dict[str, dict[str, Any]] = {
         "STE": {
-            "strategy":               "SuperTrend ATR Range Expansion",
-            "description":            "Captures ATR explosive expansion moves with SuperTrend flip & 50 EMA trend alignment.",
-            "subaccount_id":          "ALPHA_STE_01",
-            "stop_loss_pct":          2.0,
-            "take_profit_pct":        4.6,
+            "strategy": "SuperTrend ATR Range Expansion",
+            "description": "Captures ATR explosive expansion moves with SuperTrend flip & 50 EMA trend alignment.",
+            "subaccount_id": "ALPHA_STE_01",
+            "stop_loss_pct": 2.0,
+            "take_profit_pct": 4.6,
             "stop_loss_tightened_pct": 1.2,
-            "max_positions":          3,
-            "default_trade_amount":   500.0,
-            "allocated_wallet_inr":   35000.0,
-            "icon":                   "📈",
-            "color":                  "#4ade80",  # green
-            "scan_pairs":             ["BTC/INR", "ETH/INR", "SOL/INR", "AVAX/INR", "LINK/INR", "BNB/INR"],
+            "max_positions": 3,
+            "default_trade_amount": 500.0,
+            "allocated_wallet_inr": 35000.0,
+            "icon": "📈",
+            "color": "#4ade80",  # green
+            "scan_pairs": [
+                "BTC/INR",
+                "ETH/INR",
+                "SOL/INR",
+                "AVAX/INR",
+                "LINK/INR",
+                "BNB/INR",
+            ],
         },
         "HDA": {
-            "strategy":               "High Delivery & CVD Absorption",
-            "description":            "Institutional CVD volume accumulation and local breakout absorption trades.",
-            "subaccount_id":          "ALPHA_HDA_01",
-            "stop_loss_pct":          2.2,
-            "take_profit_pct":        5.28,
+            "strategy": "High Delivery & CVD Absorption",
+            "description": "Institutional CVD volume accumulation and local breakout absorption trades.",
+            "subaccount_id": "ALPHA_HDA_01",
+            "stop_loss_pct": 2.2,
+            "take_profit_pct": 5.28,
             "stop_loss_tightened_pct": 1.4,
-            "max_positions":          3,
-            "default_trade_amount":   500.0,
-            "allocated_wallet_inr":   30000.0,
-            "icon":                   "💧",
-            "color":                  "#06b6d4",  # cyan
-            "scan_pairs":             ["BTC/INR", "ETH/INR", "SOL/INR", "MATIC/INR", "XRP/INR", "ADA/INR"],
+            "max_positions": 3,
+            "default_trade_amount": 500.0,
+            "allocated_wallet_inr": 30000.0,
+            "icon": "💧",
+            "color": "#06b6d4",  # cyan
+            "scan_pairs": [
+                "BTC/INR",
+                "ETH/INR",
+                "SOL/INR",
+                "MATIC/INR",
+                "XRP/INR",
+                "ADA/INR",
+            ],
         },
         "VCP": {
-            "strategy":               "Volatility Contraction Pattern",
-            "description":            "Minervini 3-wave progressive volatility contraction (T1 >= T2 >= T3) pivot breakouts.",
-            "subaccount_id":          "ALPHA_VCP_01",
-            "stop_loss_pct":          2.0,
-            "take_profit_pct":        5.0,
+            "strategy": "Volatility Contraction Pattern",
+            "description": "Minervini 3-wave progressive volatility contraction (T1 >= T2 >= T3) pivot breakouts.",
+            "subaccount_id": "ALPHA_VCP_01",
+            "stop_loss_pct": 2.0,
+            "take_profit_pct": 5.0,
             "stop_loss_tightened_pct": 1.2,
-            "max_positions":          2,
-            "default_trade_amount":   500.0,
-            "allocated_wallet_inr":   15000.0,
-            "icon":                   "🎯",
-            "color":                  "#a855f7",  # purple
-            "scan_pairs":             ["SOL/INR", "AVAX/INR", "LINK/INR", "ADA/INR", "MATIC/INR"],
+            "max_positions": 2,
+            "default_trade_amount": 500.0,
+            "allocated_wallet_inr": 15000.0,
+            "icon": "🎯",
+            "color": "#a855f7",  # purple
+            "scan_pairs": ["SOL/INR", "AVAX/INR", "LINK/INR", "ADA/INR", "MATIC/INR"],
         },
         "BBS": {
-            "strategy":               "Bollinger Band Squeeze Breakout",
-            "description":            "Explosive volatility expansion upon Bollinger Bands compression inside Keltner Channels.",
-            "subaccount_id":          "ALPHA_BBS_01",
-            "stop_loss_pct":          2.5,
-            "take_profit_pct":        6.0,
+            "strategy": "Bollinger Band Squeeze Breakout",
+            "description": "Explosive volatility expansion upon Bollinger Bands compression inside Keltner Channels.",
+            "subaccount_id": "ALPHA_BBS_01",
+            "stop_loss_pct": 2.5,
+            "take_profit_pct": 6.0,
             "stop_loss_tightened_pct": 1.5,
-            "max_positions":          4,
-            "default_trade_amount":   400.0,
-            "allocated_wallet_inr":   20000.0,
-            "icon":                   "⚡",
-            "color":                  "#f59e0b",  # amber
-            "scan_pairs":             ["BTC/INR", "ETH/INR", "SOL/INR", "DOGE/INR", "TRX/INR", "SHIB/INR"],
+            "max_positions": 4,
+            "default_trade_amount": 400.0,
+            "allocated_wallet_inr": 20000.0,
+            "icon": "⚡",
+            "color": "#f59e0b",  # amber
+            "scan_pairs": [
+                "BTC/INR",
+                "ETH/INR",
+                "SOL/INR",
+                "DOGE/INR",
+                "TRX/INR",
+                "SHIB/INR",
+            ],
         },
     }
 
-    def __init__(self, bot_name: str, config: Optional[AppConfig] = None) -> None:
+    def __init__(self, bot_name: str, config: AppConfig | None = None) -> None:
         self.bot_name = bot_name
         self._config = config
 
@@ -142,9 +163,9 @@ class BotState:
         self.daily_pnl = 0.0
         self.open_positions = 0
         self.capital_deployed = 0.0
-        self.last_action: Optional[str] = None
-        self.last_action_time: Optional[str] = None
-        self.last_coin: Optional[str] = None
+        self.last_action: str | None = None
+        self.last_action_time: str | None = None
+        self.last_coin: str | None = None
 
         # Strategy params (static)
         self._params = self._STRATEGY_PARAMS.get(bot_name, self._STRATEGY_PARAMS["STE"])
@@ -159,7 +180,12 @@ class BotState:
             }
             self.capital_limit = limit_map.get(bot_name, 25000.0)
         else:
-            default_map = {"STE": 35000.0, "HDA": 30000.0, "VCP": 15000.0, "BBS": 20000.0}
+            default_map = {
+                "STE": 35000.0,
+                "HDA": 30000.0,
+                "VCP": 15000.0,
+                "BBS": 20000.0,
+            }
             self.capital_limit = default_map.get(bot_name, 25000.0)
 
     @property
@@ -175,66 +201,78 @@ class BotState:
         except ValueError:
             return 0
 
-    def to_summary(self) -> Dict[str, Any]:
+    def to_summary(self) -> dict[str, Any]:
         """Compact dict for multi-bot comparison view."""
         return {
-            "bot":                 self.bot_name,
-            "bot_name":            self.bot_name,
-            "name":                self.bot_name,
-            "strategy":            self._params.get("strategy", self.bot_name),
-            "subaccount_id":       self._params.get("subaccount_id", f"ALPHA_{self.bot_name}_01"),
-            "icon":                self._params.get("icon", "🤖"),
-            "color":               self._params.get("color", "#94a3b8"),
-            "current_stage":       self.current_stage,
-            "current_stage_label": STAGE_LABELS.get(self.current_stage, self.current_stage),
-            "stage_label":         STAGE_LABELS.get(self.current_stage, self.current_stage),
-            "stage":               self.current_stage,
-            "stage_index":         self.stage_index,
-            "total_stages":        len(STAGE_ORDER),
-            "stage_status":        self.stage_status,
-            "status":              self.stage_status,
-            "status_text":         self.last_action or "Monitoring market...",
-            "signals":             self.signals_generated,
-            "signals_count":       self.signals_generated,
-            "signals_generated":   self.signals_generated,
-            "open_pos":            self.open_positions,
-            "open_positions":      self.open_positions,
-            "max_positions":       self._params.get("max_positions", 3),
-            "capital_deployed":    round(self.capital_deployed, 2),
-            "capital_limit":       self.capital_limit,
-            "daily_pnl":           round(self.daily_pnl, 2),
-            "total_pnl":           round(self.total_pnl, 2),
-            "win_rate":            f"{self.win_rate_pct:.1f}%",
-            "win_rate_pct":        self.win_rate_pct,
-            "day_pnl":             f"+₹{self.daily_pnl:.2f}" if self.daily_pnl >= 0 else f"-₹{abs(self.daily_pnl):.2f}",
-            "trades_executed":     self.trades_executed,
-            "last_action":         self.last_action or "Awaiting signals...",
-            "last_action_time":    self.last_action_time,
-            "last_coin":           self.last_coin,
+            "bot": self.bot_name,
+            "bot_name": self.bot_name,
+            "name": self.bot_name,
+            "strategy": self._params.get("strategy", self.bot_name),
+            "subaccount_id": self._params.get(
+                "subaccount_id", f"ALPHA_{self.bot_name}_01"
+            ),
+            "icon": self._params.get("icon", "🤖"),
+            "color": self._params.get("color", "#94a3b8"),
+            "current_stage": self.current_stage,
+            "current_stage_label": STAGE_LABELS.get(
+                self.current_stage, self.current_stage
+            ),
+            "stage_label": STAGE_LABELS.get(self.current_stage, self.current_stage),
+            "stage": self.current_stage,
+            "stage_index": self.stage_index,
+            "total_stages": len(STAGE_ORDER),
+            "stage_status": self.stage_status,
+            "status": self.stage_status,
+            "status_text": self.last_action or "Monitoring market...",
+            "signals": self.signals_generated,
+            "signals_count": self.signals_generated,
+            "signals_generated": self.signals_generated,
+            "open_pos": self.open_positions,
+            "open_positions": self.open_positions,
+            "max_positions": self._params.get("max_positions", 3),
+            "capital_deployed": round(self.capital_deployed, 2),
+            "capital_limit": self.capital_limit,
+            "daily_pnl": round(self.daily_pnl, 2),
+            "total_pnl": round(self.total_pnl, 2),
+            "win_rate": f"{self.win_rate_pct:.1f}%",
+            "win_rate_pct": self.win_rate_pct,
+            "day_pnl": (
+                f"+₹{self.daily_pnl:.2f}"
+                if self.daily_pnl >= 0
+                else f"-₹{abs(self.daily_pnl):.2f}"
+            ),
+            "trades_executed": self.trades_executed,
+            "last_action": self.last_action or "Awaiting signals...",
+            "last_action_time": self.last_action_time,
+            "last_coin": self.last_coin,
         }
 
-    def to_detail(self) -> Dict[str, Any]:
+    def to_detail(self) -> dict[str, Any]:
         """Full dict with strategy params and detailed telemetry."""
         summary = self.to_summary()
-        summary.update({
-            "description":             self._params.get("description", ""),
-            "stop_loss_pct":           self._params.get("stop_loss_pct", 2.0),
-            "take_profit_pct":         self._params.get("take_profit_pct", 4.0),
-            "stop_loss_tightened_pct": self._params.get("stop_loss_tightened_pct", 1.2),
-            "default_trade_amount":    self._params.get("default_trade_amount", 500.0),
-            "scan_pairs":              self._params.get("scan_pairs", []),
-            "stage_order":             STAGE_ORDER,
-            "stage_labels":            STAGE_LABELS,
-            "telemetry": {
-                "signals_generated":   self.signals_generated,
-                "ai_evaluations":      self.ai_evaluations,
-                "ai_approved":         self.ai_approved,
-                "ai_rejected":         self.ai_rejected,
-                "trades_closed":       self.trades_closed,
-                "wins":                self.wins,
-                "losses":              self.losses,
-            },
-        })
+        summary.update(
+            {
+                "description": self._params.get("description", ""),
+                "stop_loss_pct": self._params.get("stop_loss_pct", 2.0),
+                "take_profit_pct": self._params.get("take_profit_pct", 4.0),
+                "stop_loss_tightened_pct": self._params.get(
+                    "stop_loss_tightened_pct", 1.2
+                ),
+                "default_trade_amount": self._params.get("default_trade_amount", 500.0),
+                "scan_pairs": self._params.get("scan_pairs", []),
+                "stage_order": STAGE_ORDER,
+                "stage_labels": STAGE_LABELS,
+                "telemetry": {
+                    "signals_generated": self.signals_generated,
+                    "ai_evaluations": self.ai_evaluations,
+                    "ai_approved": self.ai_approved,
+                    "ai_rejected": self.ai_rejected,
+                    "trades_closed": self.trades_closed,
+                    "wins": self.wins,
+                    "losses": self.losses,
+                },
+            }
+        )
         return summary
 
 
@@ -244,9 +282,9 @@ class BotPipelineTracker:
     for all 4 production trading bots (STE, HDA, VCP, BBS) in real time.
     """
 
-    def __init__(self, config: Optional[AppConfig] = None) -> None:
+    def __init__(self, config: AppConfig | None = None) -> None:
         self._config = config
-        self._bots: Dict[str, BotState] = {
+        self._bots: dict[str, BotState] = {
             BotName.STE.value: BotState("STE", config),
             BotName.HDA.value: BotState("HDA", config),
             BotName.VCP.value: BotState("VCP", config),
@@ -255,11 +293,11 @@ class BotPipelineTracker:
 
     # ── Accessors ─────────────────────────────────────────────────────────────
 
-    def get_all_bots(self) -> List[Dict[str, Any]]:
+    def get_all_bots(self) -> list[dict[str, Any]]:
         """Return summary snapshots for all 4 production bots."""
         return [state.to_summary() for state in self._bots.values()]
 
-    def get_bot_detail(self, bot_name: str) -> Optional[Dict[str, Any]]:
+    def get_bot_detail(self, bot_name: str) -> dict[str, Any] | None:
         """Return full detail for one bot (case-insensitive). Returns None if unknown."""
         state = self._bots.get(bot_name.upper())
         return state.to_detail() if state else None
@@ -278,7 +316,10 @@ class BotPipelineTracker:
         elif isinstance(repository_or_positions, list):
             active_positions = repository_or_positions
         else:
-            logger.warning("sync_from_repository received unsupported source: %s", type(repository_or_positions))
+            logger.warning(
+                "sync_from_repository received unsupported source: %s",
+                type(repository_or_positions),
+            )
             return
 
         # Reset in-memory counters prior to hydration
@@ -291,7 +332,9 @@ class BotPipelineTracker:
 
         for pos in active_positions:
             bot_raw = getattr(pos, "bot", "")
-            bot_key = bot_raw.value if hasattr(bot_raw, "value") else str(bot_raw).upper()
+            bot_key = (
+                bot_raw.value if hasattr(bot_raw, "value") else str(bot_raw).upper()
+            )
 
             if bot_key in self._bots:
                 s = self._bots[bot_key]
@@ -303,7 +346,7 @@ class BotPipelineTracker:
                 if deployed is not None:
                     s.capital_deployed += float(deployed)
                 else:
-                    s.capital_deployed += (qty * entry_price)
+                    s.capital_deployed += qty * entry_price
 
                 # Advance pipeline stage to reflect active position
                 s.current_stage = "position_manager"
@@ -313,11 +356,18 @@ class BotPipelineTracker:
                 s.last_action = f"Tracking active position: {coin}"
                 entry_time = getattr(pos, "entry_time", None)
                 if entry_time:
-                    s.last_action_time = entry_time.strftime("%H:%M:%S UTC") if hasattr(entry_time, "strftime") else str(entry_time)
+                    s.last_action_time = (
+                        entry_time.strftime("%H:%M:%S UTC")
+                        if hasattr(entry_time, "strftime")
+                        else str(entry_time)
+                    )
 
         logger.info(
             "BotPipelineTracker hydrated from repository: %s",
-            {b: f"{s.open_positions} pos, ₹{s.capital_deployed:.2f}" for b, s in self._bots.items()}
+            {
+                b: f"{s.open_positions} pos, ₹{s.capital_deployed:.2f}"
+                for b, s in self._bots.items()
+            },
         )
 
     # ── EventBus Handler ──────────────────────────────────────────────────────
@@ -334,19 +384,29 @@ class BotPipelineTracker:
 
         # ── SIGNAL_GENERATED ───────────────────────────────────────────────
         if event_str == EventType.SIGNAL_GENERATED.value:
-            targets = [bot_raw.upper()] if bot_raw.upper() in self._bots else list(self._bots.keys())
+            targets = (
+                [bot_raw.upper()]
+                if bot_raw.upper() in self._bots
+                else list(self._bots.keys())
+            )
             for bn in targets:
                 s = self._bots[bn]
                 s.signals_generated += 1
                 s.current_stage = "signal_engine"
                 s.stage_status = "SCANNING"
-                s.last_action = f"Signal generated: {coin}" if coin else "Signal generated"
+                s.last_action = (
+                    f"Signal generated: {coin}" if coin else "Signal generated"
+                )
                 s.last_action_time = now_str
                 s.last_coin = coin or s.last_coin
 
         # ── SIGNAL_AI_CONFIRMED ────────────────────────────────────────────
         elif event_str == EventType.SIGNAL_AI_CONFIRMED.value:
-            targets = [bot_raw.upper()] if bot_raw.upper() in self._bots else list(self._bots.keys())
+            targets = (
+                [bot_raw.upper()]
+                if bot_raw.upper() in self._bots
+                else list(self._bots.keys())
+            )
             for bn in targets:
                 s = self._bots[bn]
                 s.ai_evaluations += 1
@@ -360,7 +420,11 @@ class BotPipelineTracker:
 
         # ── SIGNAL_AI_REJECTED ─────────────────────────────────────────────
         elif event_str == EventType.SIGNAL_AI_REJECTED.value:
-            targets = [bot_raw.upper()] if bot_raw.upper() in self._bots else list(self._bots.keys())
+            targets = (
+                [bot_raw.upper()]
+                if bot_raw.upper() in self._bots
+                else list(self._bots.keys())
+            )
             for bn in targets:
                 s = self._bots[bn]
                 s.ai_evaluations += 1
@@ -495,19 +559,23 @@ class BotPipelineTracker:
                 else:
                     entry_price = float(getattr(pos, "entry_price", 0.0) or 0.0)
                     qty = float(getattr(pos, "qty", 0.0) or 0.0)
-                    bot_state.capital_deployed += (entry_price * qty)
+                    bot_state.capital_deployed += entry_price * qty
 
                 bot_state.current_stage = "position_manager"
                 bot_state.stage_status = "IN_POSITION"
                 bot_state.last_action = f"Tracking active position: {getattr(pos, 'coin', '') or getattr(pos, 'pair', '')}"
-                bot_state.last_coin = getattr(pos, "coin", "") or getattr(pos, "pair", "")
+                bot_state.last_coin = getattr(pos, "coin", "") or getattr(
+                    pos, "pair", ""
+                )
 
-        logger.info("BotPipelineTracker hydrated %d active positions from SQLite", len(active_positions))
+        logger.info(
+            "BotPipelineTracker hydrated %d active positions from SQLite",
+            len(active_positions),
+        )
 
-    def get_health(self) -> Dict[str, Any]:
+    def get_health(self) -> dict[str, Any]:
         return {
             "healthy": True,
             "bots_tracked": len(self._bots),
             "bot_names": list(self._bots.keys()),
         }
-

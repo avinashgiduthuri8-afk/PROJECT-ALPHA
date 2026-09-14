@@ -11,18 +11,17 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Dict, Optional
 
 
 @dataclass(frozen=True)
 class PairPrecisionSpec:
     pair: str
     base_price: float
-    price_decimals: int    # Decimal places for price rounding (tick size)
-    lot_step_decimals: int # Decimal places for quantity step rounding (roundp)
-    min_lot_qty: float     # Minimum tradeable quantity
+    price_decimals: int  # Decimal places for price rounding (tick size)
+    lot_step_decimals: int  # Decimal places for quantity step rounding (roundp)
+    min_lot_qty: float  # Minimum tradeable quantity
     min_notional_inr: float = 200.0  # CoinDCX minimum order value in INR
-    min_notional_usdt: float = 1.0   # CoinDCX minimum order value in USDT
+    min_notional_usdt: float = 1.0  # CoinDCX minimum order value in USDT
     quote_currency: str = "INR"
 
     @property
@@ -37,106 +36,103 @@ class PairPrecisionSpec:
         raise KeyError(item)
 
 
-
 # ── Canonical 12 CoinDCX INR Trading Pairs Precision Table ──────────────────
-PRECISION_TABLE: Dict[str, PairPrecisionSpec] = {
+PRECISION_TABLE: dict[str, PairPrecisionSpec] = {
     # ── Tier 1: Mega-Cap / High-Value ─────────────────────────────────────────
     "BTC/INR": PairPrecisionSpec(
         pair="BTC/INR",
         base_price=8200000.0,
-        price_decimals=2,      # Tick: ₹0.01
-        lot_step_decimals=5,   # Step: 0.00001 BTC
+        price_decimals=2,  # Tick: ₹0.01
+        lot_step_decimals=5,  # Step: 0.00001 BTC
         min_lot_qty=0.00001,
         min_notional_inr=200.0,
     ),
     "ETH/INR": PairPrecisionSpec(
         pair="ETH/INR",
         base_price=260000.0,
-        price_decimals=2,      # Tick: ₹0.01
-        lot_step_decimals=4,   # Step: 0.0001 ETH
+        price_decimals=2,  # Tick: ₹0.01
+        lot_step_decimals=4,  # Step: 0.0001 ETH
         min_lot_qty=0.0001,
         min_notional_inr=200.0,
     ),
     "BNB/INR": PairPrecisionSpec(
         pair="BNB/INR",
         base_price=52000.0,
-        price_decimals=1,      # Tick: ₹0.10
-        lot_step_decimals=3,   # Step: 0.001 BNB
+        price_decimals=1,  # Tick: ₹0.10
+        lot_step_decimals=3,  # Step: 0.001 BNB
         min_lot_qty=0.001,
         min_notional_inr=200.0,
     ),
-
     # ── Tier 2: Mid-Cap Medium-Value ──────────────────────────────────────────
     "SOL/INR": PairPrecisionSpec(
         pair="SOL/INR",
         base_price=12500.0,
-        price_decimals=1,      # Tick: ₹0.10
-        lot_step_decimals=2,   # Step: 0.01 SOL
+        price_decimals=1,  # Tick: ₹0.10
+        lot_step_decimals=2,  # Step: 0.01 SOL
         min_lot_qty=0.01,
         min_notional_inr=200.0,
     ),
     "AVAX/INR": PairPrecisionSpec(
         pair="AVAX/INR",
         base_price=2800.0,
-        price_decimals=1,      # Tick: ₹0.10
-        lot_step_decimals=2,   # Step: 0.01 AVAX
+        price_decimals=1,  # Tick: ₹0.10
+        lot_step_decimals=2,  # Step: 0.01 AVAX
         min_lot_qty=0.01,
         min_notional_inr=200.0,
     ),
     "LINK/INR": PairPrecisionSpec(
         pair="LINK/INR",
         base_price=1400.0,
-        price_decimals=1,      # Tick: ₹0.10
-        lot_step_decimals=2,   # Step: 0.01 LINK
+        price_decimals=1,  # Tick: ₹0.10
+        lot_step_decimals=2,  # Step: 0.01 LINK
         min_lot_qty=0.01,
         min_notional_inr=200.0,
     ),
-
     # ── Tier 3: Low Price & Fractional Coins ──────────────────────────────────
     "XRP/INR": PairPrecisionSpec(
         pair="XRP/INR",
         base_price=110.0,
-        price_decimals=2,      # Tick: ₹0.01
-        lot_step_decimals=1,   # Step: 0.1 XRP
+        price_decimals=2,  # Tick: ₹0.01
+        lot_step_decimals=1,  # Step: 0.1 XRP
         min_lot_qty=0.1,
         min_notional_inr=200.0,
     ),
     "ADA/INR": PairPrecisionSpec(
         pair="ADA/INR",
         base_price=65.0,
-        price_decimals=2,      # Tick: ₹0.01
-        lot_step_decimals=1,   # Step: 0.1 ADA
+        price_decimals=2,  # Tick: ₹0.01
+        lot_step_decimals=1,  # Step: 0.1 ADA
         min_lot_qty=0.1,
         min_notional_inr=200.0,
     ),
     "MATIC/INR": PairPrecisionSpec(
         pair="MATIC/INR",
         base_price=48.0,
-        price_decimals=2,      # Tick: ₹0.01
-        lot_step_decimals=1,   # Step: 0.1 MATIC
+        price_decimals=2,  # Tick: ₹0.01
+        lot_step_decimals=1,  # Step: 0.1 MATIC
         min_lot_qty=0.1,
         min_notional_inr=200.0,
     ),
     "DOGE/INR": PairPrecisionSpec(
         pair="DOGE/INR",
         base_price=16.50,
-        price_decimals=3,      # Tick: ₹0.001
-        lot_step_decimals=0,   # Step: 1.0 DOGE
+        price_decimals=3,  # Tick: ₹0.001
+        lot_step_decimals=0,  # Step: 1.0 DOGE
         min_lot_qty=1.0,
         min_notional_inr=200.0,
     ),
     "TRX/INR": PairPrecisionSpec(
         pair="TRX/INR",
         base_price=18.00,
-        price_decimals=3,      # Tick: ₹0.001
-        lot_step_decimals=0,   # Step: 1.0 TRX
+        price_decimals=3,  # Tick: ₹0.001
+        lot_step_decimals=0,  # Step: 1.0 TRX
         min_lot_qty=1.0,
         min_notional_inr=200.0,
     ),
     "SHIB/INR": PairPrecisionSpec(
         pair="SHIB/INR",
         base_price=0.0018,
-        price_decimals=6,      # Tick: ₹0.000001
+        price_decimals=6,  # Tick: ₹0.000001
         lot_step_decimals=-3,  # Step: 1000 SHIB
         min_lot_qty=1000.0,
         min_notional_inr=200.0,
@@ -144,8 +140,8 @@ PRECISION_TABLE: Dict[str, PairPrecisionSpec] = {
     "ZEC/INR": PairPrecisionSpec(
         pair="ZEC/INR",
         base_price=3500.0,
-        price_decimals=1,      # Tick: ₹0.10
-        lot_step_decimals=4,   # Step: 0.0001 ZEC
+        price_decimals=1,  # Tick: ₹0.10
+        lot_step_decimals=4,  # Step: 0.0001 ZEC
         min_lot_qty=0.0001,
         min_notional_inr=200.0,
         min_notional_usdt=1.0,
@@ -159,13 +155,12 @@ PRECISION_TABLE: Dict[str, PairPrecisionSpec] = {
         min_notional_inr=200.0,
         min_notional_usdt=1.0,
     ),
-
     # ── USDT Direct Pairs ─────────────────────────────────────────────────────
     "BTC/USDT": PairPrecisionSpec(
         pair="BTC/USDT",
         base_price=90000.0,
-        price_decimals=2,      # Tick: $0.01
-        lot_step_decimals=5,   # Step: 0.00001 BTC
+        price_decimals=2,  # Tick: $0.01
+        lot_step_decimals=5,  # Step: 0.00001 BTC
         min_lot_qty=0.00001,
         min_notional_inr=200.0,
         min_notional_usdt=1.0,
@@ -174,8 +169,8 @@ PRECISION_TABLE: Dict[str, PairPrecisionSpec] = {
     "ETH/USDT": PairPrecisionSpec(
         pair="ETH/USDT",
         base_price=2700.0,
-        price_decimals=2,      # Tick: $0.01
-        lot_step_decimals=4,   # Step: 0.0001 ETH
+        price_decimals=2,  # Tick: $0.01
+        lot_step_decimals=4,  # Step: 0.0001 ETH
         min_lot_qty=0.0001,
         min_notional_inr=200.0,
         min_notional_usdt=1.0,
@@ -184,8 +179,8 @@ PRECISION_TABLE: Dict[str, PairPrecisionSpec] = {
     "SOL/USDT": PairPrecisionSpec(
         pair="SOL/USDT",
         base_price=135.0,
-        price_decimals=2,      # Tick: $0.01
-        lot_step_decimals=3,   # Step: 0.001 SOL
+        price_decimals=2,  # Tick: $0.01
+        lot_step_decimals=3,  # Step: 0.001 SOL
         min_lot_qty=0.001,
         min_notional_inr=200.0,
         min_notional_usdt=1.0,
@@ -304,9 +299,7 @@ def infer_price_decimals(price: float) -> int:
     Dynamically infer required decimal precision based on price magnitude so fractional
     and sub-₹1 assets (e.g. 0.0034, 0.000008, 0.16) never lose significant digits.
     """
-    if price >= 1000.0:
-        return 2
-    elif price >= 100.0:
+    if price >= 1000.0 or price >= 100.0:
         return 2
     elif price >= 1.0:
         return 4
@@ -335,10 +328,10 @@ def infer_lot_decimals(price: float) -> int:
         return 0
     elif price >= 0.0001:
         return -2  # Step size: 100 units
-    return -3      # Step size: 1000 units
+    return -3  # Step size: 1000 units
 
 
-def get_pair_spec(pair: str, reference_price: Optional[float] = None) -> PairPrecisionSpec:
+def get_pair_spec(pair: str, reference_price: float | None = None) -> PairPrecisionSpec:
     """
     Normalize and look up pair precision specifications.
     For unknown / dynamic pairs, precision is dynamically scaled to the reference price
@@ -353,7 +346,7 @@ def get_pair_spec(pair: str, reference_price: Optional[float] = None) -> PairPre
 
     base_coin = clean_pair.split("/")[0]
     quote = clean_pair.split("/")[1] if "/" in clean_pair else "INR"
-    is_usdt = (quote == "USDT")
+    is_usdt = quote == "USDT"
     pair_key = f"{base_coin}/{quote}"
 
     if pair_key in PRECISION_TABLE:
@@ -362,7 +355,11 @@ def get_pair_spec(pair: str, reference_price: Optional[float] = None) -> PairPre
     if reference_price is not None and reference_price > 0:
         p_dec = infer_price_decimals(reference_price)
         lot_dec = infer_lot_decimals(reference_price)
-        min_lot = 10 ** (-lot_dec) if lot_dec > 0 else (10 ** abs(lot_dec) if lot_dec < 0 else 1.0)
+        min_lot = (
+            10 ** (-lot_dec)
+            if lot_dec > 0
+            else (10 ** abs(lot_dec) if lot_dec < 0 else 1.0)
+        )
         return PairPrecisionSpec(
             pair=pair_key,
             base_price=reference_price,
@@ -434,7 +431,7 @@ def round_qty(pair: str, qty: float) -> float:
     elif spec.lot_step_decimals == 0:
         res = float(math.floor(qty))
     else:
-        factor = 10 ** spec.lot_step_decimals
+        factor = 10**spec.lot_step_decimals
         res = float(math.floor(qty * factor) / factor)
 
     # If step size floored a small positive micro-order to 0.0, preserve precision up to 8 decimals
@@ -462,7 +459,7 @@ def round_qty_up(pair: str, qty: float) -> float:
     elif spec.lot_step_decimals == 0:
         res = float(math.ceil(qty))
     else:
-        factor = 10 ** spec.lot_step_decimals
+        factor = 10**spec.lot_step_decimals
         res = float(math.ceil(qty * factor) / factor)
 
     if res == 0.0 and qty > 0:
@@ -477,19 +474,26 @@ def validate_order_notional(
     pair: str,
     price: float,
     qty: float,
-    min_notional: Optional[float] = None,
+    min_notional: float | None = None,
     usdt_inr_rate: float = 91.50,
 ) -> bool:
     """
     Validate that the order meets both minimum lot size and minimum order value (₹200 or USDT equivalent).
     """
-    if price <= 0.0 or qty <= 0.0 or math.isnan(price) or math.isnan(qty) or math.isinf(price) or math.isinf(qty):
+    if (
+        price <= 0.0
+        or qty <= 0.0
+        or math.isnan(price)
+        or math.isnan(qty)
+        or math.isinf(price)
+        or math.isinf(qty)
+    ):
         return False
 
     spec = get_pair_spec(pair, reference_price=price)
     notional = price * qty
     is_usdt = pair.upper().endswith("/USDT") or pair.upper().endswith("USDT")
-    
+
     if min_notional is not None:
         min_val = min_notional
     else:
@@ -499,19 +503,21 @@ def validate_order_notional(
     if is_usdt and min_val >= 50.0:
         min_val = min_val / usdt_inr_rate
 
-    return (qty >= spec.min_lot_qty - 1e-9) and (round(notional, 2) >= round(min_val, 2))
+    return (qty >= spec.min_lot_qty - 1e-9) and (
+        round(notional, 2) >= round(min_val, 2)
+    )
 
 
 def validate_trade_parameters(
     pair: str,
     price: float,
     qty: float,
-    stop_loss: Optional[float] = None,
-    take_profit: Optional[float] = None,
+    stop_loss: float | None = None,
+    take_profit: float | None = None,
     is_long: bool = True,
     min_notional: float = 200.0,
     usdt_inr_rate: float = 91.50,
-) -> tuple[bool, Optional[str]]:
+) -> tuple[bool, str | None]:
     """
     Hard pre-execution validation gate.
     Verifies price, quantity, notional, TP/SL integrity, and mathematical consistency.
@@ -527,7 +533,11 @@ def validate_trade_parameters(
     # 3. Notional validation
     notional = price * qty
     is_usdt = pair.upper().endswith("/USDT") or pair.upper().endswith("USDT")
-    min_val = (min_notional / usdt_inr_rate) if is_usdt and min_notional >= 50.0 else min_notional
+    min_val = (
+        (min_notional / usdt_inr_rate)
+        if is_usdt and min_notional >= 50.0
+        else min_notional
+    )
     if notional < min_val * 0.99:
         return False, f"Notional {notional:.4f} is below minimum {min_val:.2f}"
 
@@ -536,35 +546,52 @@ def validate_trade_parameters(
         if stop_loss <= 0.0 or math.isnan(stop_loss) or math.isinf(stop_loss):
             return False, f"Invalid stop loss: {stop_loss}"
         if is_long and stop_loss >= price:
-            return False, f"Long stop loss {stop_loss} must be strictly below entry price {price}"
+            return (
+                False,
+                f"Long stop loss {stop_loss} must be strictly below entry price {price}",
+            )
         if not is_long and stop_loss <= price:
-            return False, f"Short stop loss {stop_loss} must be strictly above entry price {price}"
+            return (
+                False,
+                f"Short stop loss {stop_loss} must be strictly above entry price {price}",
+            )
         ratio_sl = stop_loss / price
         if ratio_sl < 0.2 or ratio_sl > 5.0:
-            return False, f"Stop loss {stop_loss} magnitude is inconsistent with entry {price} (ratio: {ratio_sl:.2f})"
+            return (
+                False,
+                f"Stop loss {stop_loss} magnitude is inconsistent with entry {price} (ratio: {ratio_sl:.2f})",
+            )
 
     # 5. Take Profit validation
     if take_profit is not None:
         if take_profit <= 0.0 or math.isnan(take_profit) or math.isinf(take_profit):
             return False, f"Invalid take profit: {take_profit}"
         if is_long and take_profit <= price:
-            return False, f"Long take profit {take_profit} must be strictly above entry price {price}"
+            return (
+                False,
+                f"Long take profit {take_profit} must be strictly above entry price {price}",
+            )
         if not is_long and take_profit >= price:
-            return False, f"Short take profit {take_profit} must be strictly below entry price {price}"
+            return (
+                False,
+                f"Short take profit {take_profit} must be strictly below entry price {price}",
+            )
         ratio_tp = take_profit / price
         if ratio_tp < 0.2 or ratio_tp > 5.0:
-            return False, f"Take profit {take_profit} magnitude is inconsistent with entry {price} (ratio: {ratio_tp:.2f})"
+            return (
+                False,
+                f"Take profit {take_profit} magnitude is inconsistent with entry {price} (ratio: {ratio_tp:.2f})",
+            )
 
     return True, None
 
 
-def extract_base_coin(sym: Optional[str]) -> str:
+def extract_base_coin(sym: str | None) -> str:
     """Normalize any symbol, pair, or CoinDCX ticker (e.g. 'B-ETH_INR', 'ETH/INR', 'ETHUSDT', 'ETH') to base coin 'ETH'."""
     if not sym:
         return ""
     s = str(sym).upper().strip()
-    if s.startswith("B-"):
-        s = s[2:]
+    s = s.removeprefix("B-")
     if "/" in s:
         s = s.split("/")[0]
     elif "_" in s:
@@ -574,6 +601,3 @@ def extract_base_coin(sym: Optional[str]) -> str:
     elif s.endswith("USDT") and len(s) > 4:
         s = s[:-4]
     return s.strip()
-
-
-

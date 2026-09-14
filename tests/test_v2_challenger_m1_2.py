@@ -10,43 +10,40 @@ Covers:
 
 from __future__ import annotations
 
-import asyncio
-from datetime import datetime, timezone
 import uuid
+from datetime import datetime, timezone
+
 import pytest
 from fastapi.testclient import TestClient
 
+from background.backtest.friction import CoinDCXFrictionModel
+from background.portfolio.aggregator import PortfolioAggregator
 from core.bus.event_bus import EventBus
 from core.config import V2Config
-from core.types import (
-    BotName,
-    BotMode,
-    Position,
-    PositionStatus,
-    Trade,
-    ExitReason,
-)
 from core.repository.db import Database
 from core.repository.position_repo import PositionRepository
 from core.repository.trade_repo import TradeRepository
-from background.portfolio.aggregator import PortfolioAggregator
-from background.portfolio.service import PortfolioService
+from core.types import (
+    BotMode,
+    BotName,
+    ExitReason,
+    Position,
+    PositionStatus,
+    Trade,
+)
 from dashboard.bot_pipeline import BotPipelineTracker
-from dashboard.service import DashboardService
-from execution.trading.subaccount_manager import CoinDCXSubAccountManager, SubAccountConfig
 from execution.auto_trader import AutoTradeRouter
 from execution.trading.precision_rules import (
     validate_order_notional,
-    round_price,
-    round_qty,
-    round_qty_up,
 )
-from background.backtest.friction import CoinDCXFrictionModel
-
+from execution.trading.subaccount_manager import (
+    CoinDCXSubAccountManager,
+)
 
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 async def sqlite_env(tmp_path):
@@ -76,6 +73,7 @@ async def sqlite_env(tmp_path):
 # =============================================================================
 # 1. Dynamic Equity Formula & Mark-to-Market Valuations
 # =============================================================================
+
 
 class TestDynamicEquityAndMTMValuations:
 
@@ -388,7 +386,9 @@ class TestDynamicEquityAndMTMValuations:
 
         # Deployed = 500.0
         # Realised = pnl_data["net_pnl"] (post-friction, approx +67.07 INR rather than gross +100 INR)
-        assert snapshot.total_realised_pnl < 100.0  # Verifies friction is deducted from realised PnL
+        assert (
+            snapshot.total_realised_pnl < 100.0
+        )  # Verifies friction is deducted from realised PnL
         assert snapshot.total_cash == round(10000.0 + pnl_data["net_pnl"] - 500.0, 2)
         # Unrealised PnL on open position is gross MTM (+50.0)
         assert snapshot.total_unrealised_pnl == 50.0
@@ -397,6 +397,7 @@ class TestDynamicEquityAndMTMValuations:
 # =============================================================================
 # 2. Shared Capital Pool Constraints & Minimum ₹200 Notional
 # =============================================================================
+
 
 class TestSharedCapitalPoolAndMinNotional:
 
@@ -505,17 +506,30 @@ class TestSharedCapitalPoolAndMinNotional:
     def test_precision_rules_min_notional_boundary_cases(self):
         """Stress test validate_order_notional on boundary numbers."""
         # BTC/INR
-        assert validate_order_notional("BTC/INR", 5000000.0, 0.000039, min_notional=200.0) is False  # 195.0
-        assert validate_order_notional("BTC/INR", 5000000.0, 0.000040, min_notional=200.0) is True   # 200.0
+        assert (
+            validate_order_notional("BTC/INR", 5000000.0, 0.000039, min_notional=200.0)
+            is False
+        )  # 195.0
+        assert (
+            validate_order_notional("BTC/INR", 5000000.0, 0.000040, min_notional=200.0)
+            is True
+        )  # 200.0
 
         # PEPE/INR
-        assert validate_order_notional("PEPE/INR", 0.0008, 200000.0, min_notional=200.0) is False   # 160.0
-        assert validate_order_notional("PEPE/INR", 0.0008, 250000.0, min_notional=200.0) is True    # 200.0
+        assert (
+            validate_order_notional("PEPE/INR", 0.0008, 200000.0, min_notional=200.0)
+            is False
+        )  # 160.0
+        assert (
+            validate_order_notional("PEPE/INR", 0.0008, 250000.0, min_notional=200.0)
+            is True
+        )  # 200.0
 
 
 # =============================================================================
 # 3. Startup Hydration Idempotency
 # =============================================================================
+
 
 class TestStartupHydrationIdempotency:
 
@@ -654,7 +668,9 @@ class TestStartupHydrationIdempotency:
         assert ste_bot3["capital_deployed"] == 11000.0
 
     @pytest.mark.anyio
-    async def test_startup_hydration_handles_all_transitional_statuses(self, sqlite_env):
+    async def test_startup_hydration_handles_all_transitional_statuses(
+        self, sqlite_env
+    ):
         """Verify all valid non-CLOSED enum statuses (OPEN, CLOSING) are hydrated."""
         env = sqlite_env
         pos_repo: PositionRepository = env["pos_repo"]
@@ -688,7 +704,9 @@ class TestStartupHydrationIdempotency:
         assert ste["capital_deployed"] == 1000.0  # 2 * 500
 
     @pytest.mark.anyio
-    async def test_sqlite_unsupported_transitional_status_adversarial_finding(self, sqlite_env):
+    async def test_sqlite_unsupported_transitional_status_adversarial_finding(
+        self, sqlite_env
+    ):
         """
         Verify PENDING_ENTRY status in SQLite is parsed cleanly as PositionStatus.PENDING_ENTRY.
         """
@@ -703,7 +721,17 @@ class TestStartupHydrationIdempotency:
             INSERT INTO positions (id, bot, coin, pair, qty, entry_price, entry_time, mode, status)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            ("pos-raw-pending-entry", "STE", "BTC", "BTC/INR", 0.001, 5000000.0, now, "PAPER", "PENDING_ENTRY"),
+            (
+                "pos-raw-pending-entry",
+                "STE",
+                "BTC",
+                "BTC/INR",
+                0.001,
+                5000000.0,
+                now,
+                "PAPER",
+                "PENDING_ENTRY",
+            ),
         )
         await conn.commit()
 
@@ -734,7 +762,9 @@ class TestStartupHydrationIdempotency:
         assert ste["stage_status"] == "IDLE"
 
     @pytest.mark.anyio
-    async def test_startup_hydration_resilience_to_string_and_enum_bot_names(self, sqlite_env):
+    async def test_startup_hydration_resilience_to_string_and_enum_bot_names(
+        self, sqlite_env
+    ):
         """Verify sync_from_repository handles string 'ste', 'STE', and BotName.STE seamlessly."""
         env = sqlite_env
         pos_repo: PositionRepository = env["pos_repo"]
@@ -764,7 +794,9 @@ class TestStartupHydrationIdempotency:
         assert ste["capital_deployed"] == 4500.0
 
     @pytest.mark.anyio
-    async def test_e2e_api_endpoints_hydration_and_restarts(self, sqlite_env, monkeypatch):
+    async def test_e2e_api_endpoints_hydration_and_restarts(
+        self, sqlite_env, monkeypatch
+    ):
         """
         Full End-to-End API test verifying that:
         1. /positions/open returns all non-closed active positions.
@@ -772,10 +804,12 @@ class TestStartupHydrationIdempotency:
         3. Successive server restart / hydration preserves exact metrics without multiplication.
         """
         from fastapi import FastAPI
-        from dashboard.api.router import router as main_router, init_router
-        from dashboard.api.dashboard_routes import router as dashboard_router, init_dashboard_routes
-        from dashboard.api.production_routes import router as production_router, init_production_routes
+
         from dashboard.aggregator import DashboardAggregator
+        from dashboard.api.dashboard_routes import init_dashboard_routes
+        from dashboard.api.production_routes import init_production_routes
+        from dashboard.api.router import init_router
+        from dashboard.api.router import router as main_router
 
         env = sqlite_env
         pos_repo = env["pos_repo"]
@@ -783,6 +817,7 @@ class TestStartupHydrationIdempotency:
 
         monkeypatch.setenv("DASHBOARD_API_KEY", "test-challenger-key")
         from core.config import invalidate_config
+
         invalidate_config()
 
         # Insert 3 active positions across STE and HDA
@@ -842,7 +877,9 @@ class TestStartupHydrationIdempotency:
         bot_tracker = BotPipelineTracker()
         dash_agg = DashboardAggregator()
         init_dashboard_routes(aggregator=dash_agg, bot_tracker=bot_tracker)
-        init_production_routes(controller=None, watchdog=None, config=None, position_repo=pos_repo)
+        init_production_routes(
+            controller=None, watchdog=None, config=None, position_repo=pos_repo
+        )
         init_router(position_repo=pos_repo)
 
         test_app = FastAPI()

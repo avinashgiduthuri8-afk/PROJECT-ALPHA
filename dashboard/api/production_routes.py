@@ -7,19 +7,21 @@ and 24/7 watchdog supervisor telemetry. Guarded by require_api_key.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
 import hmac
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, status
+
+from core.logging import get_logger
 
 from .auth import require_api_key
 from .schemas import (
+    KillSwitchResponseSchema,
+    ProductionStatusSchema,
+    ResumeResponseSchema,
     SetModeRequestSchema,
     SetModeResponseSchema,
-    KillSwitchResponseSchema,
-    ResumeResponseSchema,
-    ProductionStatusSchema,
 )
-from core.logging import get_logger
 
 logger = get_logger("dashboard.api.production_routes")
 
@@ -89,7 +91,9 @@ async def get_production_status() -> ProductionStatusSchema:
         if cb.is_tripped or cb.emergency_stop:
             breaker_status = "TRIPPED"
 
-    cap_avail = round(max(0.0, cap_limit - deployed), 2) if cap_limit is not None else None
+    cap_avail = (
+        round(max(0.0, cap_limit - deployed), 2) if cap_limit is not None else None
+    )
 
     watchdog_status = None
     subsystems_healthy = None
@@ -100,9 +104,14 @@ async def get_production_status() -> ProductionStatusSchema:
             watchdog_status = "RUNNING" if telemetry.get("running") else "STOPPED"
             last_inspection = telemetry.get("last_inspection_at")
             probes = telemetry.get("probes", {})
-            subsystems_healthy = all(
-                p.get("status") in ("OK", "NORMAL", "HEALTHY") for p in probes.values()
-            ) if probes else True
+            subsystems_healthy = (
+                all(
+                    p.get("status") in ("OK", "NORMAL", "HEALTHY")
+                    for p in probes.values()
+                )
+                if probes
+                else True
+            )
         except Exception:
             pass
 
@@ -154,8 +163,10 @@ async def set_execution_mode(body: SetModeRequestSchema) -> SetModeResponseSchem
 
     if target in ("LIVE", "LIVE_MICROCASH"):
         expected_password = getattr(_config, "dashboard_security_password", None)
-        if not expected_password or not body.password or not hmac.compare_digest(
-            body.password.strip(), expected_password
+        if (
+            not expected_password
+            or not body.password
+            or not hmac.compare_digest(body.password.strip(), expected_password)
         ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -169,7 +180,9 @@ async def set_execution_mode(body: SetModeRequestSchema) -> SetModeResponseSchem
         except ValueError as val_err:
             raise HTTPException(status_code=400, detail=str(val_err))
         except Exception as exc:
-            raise HTTPException(status_code=500, detail=f"Mode transition failed: {exc}")
+            raise HTTPException(
+                status_code=500, detail=f"Mode transition failed: {exc}"
+            )
 
     # Fallback to direct config update if controller not wired
     if _config is None:
@@ -187,17 +200,19 @@ async def set_execution_mode(body: SetModeRequestSchema) -> SetModeResponseSchem
         _config.shadow_mode = False
         msg = "Switched to PAPER mode. Virtual paper positions track live prices and SL/TP exits."
 
-
     try:
         from core.config import AppConfig
-        AppConfig.save_runtime_overrides({
-            "deployment_mode": _config.deployment_mode,
-            "trading_enabled": _config.trading_enabled,
-            "shadow_mode": _config.shadow_mode,
-            "v2_deployment_mode": _config.deployment_mode,
-            "v2_trading_enabled": _config.trading_enabled,
-            "v2_shadow_mode": _config.shadow_mode,
-        })
+
+        AppConfig.save_runtime_overrides(
+            {
+                "deployment_mode": _config.deployment_mode,
+                "trading_enabled": _config.trading_enabled,
+                "shadow_mode": _config.shadow_mode,
+                "v2_deployment_mode": _config.deployment_mode,
+                "v2_trading_enabled": _config.trading_enabled,
+                "v2_shadow_mode": _config.shadow_mode,
+            }
+        )
     except Exception as exc:
         logger.warning("Could not persist runtime override: %s", exc)
 
@@ -223,11 +238,17 @@ async def trigger_emergency_kill_switch() -> KillSwitchResponseSchema:
     halts all outbound orders, and sets mode to SHADOW.
     """
     if _controller:
-        res = await _controller.kill_switch(reason="API Emergency Kill-Switch Request", operator="API")
+        res = await _controller.kill_switch(
+            reason="API Emergency Kill-Switch Request", operator="API"
+        )
         if hasattr(_controller, "trip_kill_switch"):
-            res = await _controller.trip_kill_switch(reason="API Emergency Kill-Switch Request")
+            res = await _controller.trip_kill_switch(
+                reason="API Emergency Kill-Switch Request"
+            )
         else:
-            res = await _controller.kill_switch(reason="API Emergency Kill-Switch Request", operator="API")
+            res = await _controller.kill_switch(
+                reason="API Emergency Kill-Switch Request", operator="API"
+            )
         return KillSwitchResponseSchema(
             ok=res.get("ok", True),
             circuit_breaker=res.get("circuit_breaker", "TRIPPED"),
@@ -315,7 +336,7 @@ async def resume_trading_operations() -> ResumeResponseSchema:
     dependencies=[Depends(require_api_key)],
     summary="Get detailed 24/7 Watchdog Supervisor telemetry and 9 subsystem probe results",
 )
-async def get_watchdog_telemetry() -> Dict[str, Any]:
+async def get_watchdog_telemetry() -> dict[str, Any]:
     """Return live watchdog inspection telemetry and subsystem health probes."""
     if _watchdog is None:
         raise HTTPException(
@@ -323,4 +344,3 @@ async def get_watchdog_telemetry() -> Dict[str, Any]:
             detail="Production watchdog supervisor not initialized",
         )
     return _watchdog.get_telemetry()
-

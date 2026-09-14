@@ -10,11 +10,11 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.logging import get_logger
-from core.types import BotName, ExitReason, PositionStatus
 from core.repository.position_repo import PositionRepository
+from core.types import BotName, ExitReason, PositionStatus
 from execution.trading.subaccount_manager import CoinDCXSubAccountManager
 
 logger = get_logger("execution.reconciliation")
@@ -29,17 +29,17 @@ class ReconciliationService:
     def __init__(
         self,
         position_repo: PositionRepository,
-        subaccount_manager: Optional[CoinDCXSubAccountManager] = None,
+        subaccount_manager: CoinDCXSubAccountManager | None = None,
         interval_seconds: int = 60,
-        event_bus: Optional[Any] = None,
+        event_bus: Any | None = None,
     ) -> None:
         self._position_repo = position_repo
         self._subaccount_manager = subaccount_manager or CoinDCXSubAccountManager()
         self.interval_seconds = interval_seconds
         self._event_bus = event_bus
         self._running = False
-        self._task: Optional[asyncio.Task] = None
-        self._last_reconciliation_result: Dict[str, Any] = {}
+        self._task: asyncio.Task | None = None
+        self._last_reconciliation_result: dict[str, Any] = {}
 
     async def start(self) -> None:
         """Start periodic background reconciliation loop."""
@@ -47,7 +47,10 @@ class ReconciliationService:
             return
         self._running = True
         self._task = asyncio.create_task(self._reconciliation_loop())
-        logger.info("ReconciliationService background worker started (interval: %ds)", self.interval_seconds)
+        logger.info(
+            "ReconciliationService background worker started (interval: %ds)",
+            self.interval_seconds,
+        )
 
     async def stop(self) -> None:
         """Stop background worker gracefully."""
@@ -69,7 +72,7 @@ class ReconciliationService:
                 logger.error("Error in reconciliation loop: %s", exc, exc_info=True)
             await asyncio.sleep(self.interval_seconds)
 
-    async def reconcile_positions(self) -> Dict[str, Any]:
+    async def reconcile_positions(self) -> dict[str, Any]:
         """
         Reconcile local SQLite open positions, order records, and balances
         against CoinDCX REST API sub-account state.
@@ -86,15 +89,15 @@ class ReconciliationService:
         now_str = datetime.now(timezone.utc).isoformat()
         active_positions = await self._position_repo.get_active_positions()
 
-        orphan_orders: List[Dict[str, Any]] = []
-        missing_orders: List[Dict[str, Any]] = []
-        partial_fills: List[Dict[str, Any]] = []
-        filled_orders: List[Dict[str, Any]] = []
-        cancelled_rejected_orders: List[Dict[str, Any]] = []
-        balance_mismatches: List[Dict[str, Any]] = []
-        position_mismatches: List[Dict[str, Any]] = []
-        discrepancies: List[Dict[str, Any]] = []
-        desynced_positions: List[Dict[str, Any]] = []
+        orphan_orders: list[dict[str, Any]] = []
+        missing_orders: list[dict[str, Any]] = []
+        partial_fills: list[dict[str, Any]] = []
+        filled_orders: list[dict[str, Any]] = []
+        cancelled_rejected_orders: list[dict[str, Any]] = []
+        balance_mismatches: list[dict[str, Any]] = []
+        position_mismatches: list[dict[str, Any]] = []
+        discrepancies: list[dict[str, Any]] = []
+        desynced_positions: list[dict[str, Any]] = []
 
         orders_checked = 0
         reconciled_count = 0
@@ -102,9 +105,9 @@ class ReconciliationService:
         unknown_orders_count = 0
 
         # Build lookup maps for SQLite open positions
-        pos_by_ex_id: Dict[str, Any] = {}
-        pos_by_client_id: Dict[str, Any] = {}
-        pos_qty_by_coin: Dict[str, float] = {}
+        pos_by_ex_id: dict[str, Any] = {}
+        pos_by_client_id: dict[str, Any] = {}
+        pos_qty_by_coin: dict[str, float] = {}
 
         for pos in active_positions:
             ex_id = getattr(pos, "exchange_order_id", None)
@@ -131,19 +134,35 @@ class ReconciliationService:
                     cl_ord_id = str(ex_ord.get("client_order_id") or "")
                     market = str(ex_ord.get("market") or ex_ord.get("pair") or "")
 
-                    matched_pos = pos_by_ex_id.get(ex_ord_id) or pos_by_client_id.get(cl_ord_id)
+                    matched_pos = pos_by_ex_id.get(ex_ord_id) or pos_by_client_id.get(
+                        cl_ord_id
+                    )
                     if not matched_pos:
                         action_msg = "FLAGGED_ORPHAN_ORDER"
                         if ex_ord_id:
                             try:
                                 cancel_res = await master_client.cancel_order(ex_ord_id)
-                                if isinstance(cancel_res, dict) and cancel_res.get("success") is True:
+                                if (
+                                    isinstance(cancel_res, dict)
+                                    and cancel_res.get("success") is True
+                                ):
                                     action_msg = "CANCELLED_ORPHAN_ORDER"
-                                    logger.info("Successfully cancelled orphan order %s on CoinDCX", ex_ord_id)
+                                    logger.info(
+                                        "Successfully cancelled orphan order %s on CoinDCX",
+                                        ex_ord_id,
+                                    )
                                 else:
-                                    logger.warning("Attempted to cancel orphan order %s but got: %s", ex_ord_id, cancel_res)
+                                    logger.warning(
+                                        "Attempted to cancel orphan order %s but got: %s",
+                                        ex_ord_id,
+                                        cancel_res,
+                                    )
                             except Exception as cancel_exc:
-                                logger.error("Failed to cancel orphan order %s: %s", ex_ord_id, cancel_exc)
+                                logger.error(
+                                    "Failed to cancel orphan order %s: %s",
+                                    ex_ord_id,
+                                    cancel_exc,
+                                )
 
                         orphan_item = {
                             "exchange_order_id": ex_ord_id or None,
@@ -151,8 +170,16 @@ class ReconciliationService:
                             "market": market,
                             "status": str(ex_ord.get("status", "OPEN")).upper(),
                             "side": str(ex_ord.get("side", "")).upper(),
-                            "price": float(ex_ord.get("price_per_unit") or ex_ord.get("price") or 0.0),
-                            "qty": float(ex_ord.get("total_quantity") or ex_ord.get("quantity") or 0.0),
+                            "price": float(
+                                ex_ord.get("price_per_unit")
+                                or ex_ord.get("price")
+                                or 0.0
+                            ),
+                            "qty": float(
+                                ex_ord.get("total_quantity")
+                                or ex_ord.get("quantity")
+                                or 0.0
+                            ),
                             "action": action_msg,
                             "message": f"Active order {ex_ord_id} on exchange has no corresponding active position in SQLite. Action: {action_msg}.",
                         }
@@ -174,7 +201,9 @@ class ReconciliationService:
                 missing_item = {
                     "position_id": pos.id,
                     "coin": pos.coin,
-                    "bot": bot_name.value if hasattr(bot_name, "value") else str(bot_name),
+                    "bot": (
+                        bot_name.value if hasattr(bot_name, "value") else str(bot_name)
+                    ),
                     "exchange_order_id": None,
                     "local_status": str(getattr(pos.status, "value", pos.status)),
                     "exchange_status": "MISSING_EXCHANGE_ORDER_ID",
@@ -196,7 +225,11 @@ class ReconciliationService:
                     missing_item = {
                         "position_id": pos.id,
                         "coin": pos.coin,
-                        "bot": bot_name.value if hasattr(bot_name, "value") else str(bot_name),
+                        "bot": (
+                            bot_name.value
+                            if hasattr(bot_name, "value")
+                            else str(bot_name)
+                        ),
                         "exchange_order_id": ex_id,
                         "local_status": str(getattr(pos.status, "value", pos.status)),
                         "exchange_status": "ORDER_NOT_FOUND_ON_EXCHANGE",
@@ -218,7 +251,11 @@ class ReconciliationService:
                     canc_item = {
                         "position_id": pos.id,
                         "coin": pos.coin,
-                        "bot": bot_name.value if hasattr(bot_name, "value") else str(bot_name),
+                        "bot": (
+                            bot_name.value
+                            if hasattr(bot_name, "value")
+                            else str(bot_name)
+                        ),
                         "exchange_order_id": ex_id,
                         "local_status": str(getattr(pos.status, "value", pos.status)),
                         "exchange_status": ex_status,
@@ -228,14 +265,29 @@ class ReconciliationService:
                     cancelled_rejected_orders.append(canc_item)
                     discrepancies.append(canc_item)
                     mismatches_count += 1
-                    await self._position_repo.update_status(pos.id, PositionStatus.CLOSED, exit_price=pos.entry_price, exit_reason=ExitReason.MANUAL)
+                    await self._position_repo.update_status(
+                        pos.id,
+                        PositionStatus.CLOSED,
+                        exit_price=pos.entry_price,
+                        exit_reason=ExitReason.MANUAL,
+                    )
                     pos.status = PositionStatus.CLOSED
 
                 # External Manual Exit on exchange
                 elif ex_status in ("CLOSED", "MANUALLY_CLOSED", "EXITED"):
-                    exit_price = float(status_res.get("avg_price") or status_res.get("price") or pos.entry_price)
+                    exit_price = float(
+                        status_res.get("avg_price")
+                        or status_res.get("price")
+                        or pos.entry_price
+                    )
                     pnl = round((exit_price - pos.entry_price) * pos.qty, 2)
-                    await self._position_repo.update_status(pos.id, PositionStatus.CLOSED, exit_price=exit_price, exit_reason=ExitReason.MANUAL, realized_pnl=pnl)
+                    await self._position_repo.update_status(
+                        pos.id,
+                        PositionStatus.CLOSED,
+                        exit_price=exit_price,
+                        exit_reason=ExitReason.MANUAL,
+                        realized_pnl=pnl,
+                    )
                     pos.status = PositionStatus.CLOSED
                     manual_item = {
                         "position_id": pos.id,
@@ -261,8 +313,13 @@ class ReconciliationService:
                         "action": "CONFIRMED_FILLED",
                     }
                     filled_orders.append(filled_item)
-                    if str(getattr(pos.status, "value", pos.status)).upper() == "PENDING_ENTRY":
-                        await self._position_repo.update_status(pos.id, PositionStatus.OPEN)
+                    if (
+                        str(getattr(pos.status, "value", pos.status)).upper()
+                        == "PENDING_ENTRY"
+                    ):
+                        await self._position_repo.update_status(
+                            pos.id, PositionStatus.OPEN
+                        )
                         pos.status = PositionStatus.OPEN
 
                     if ex_filled_qty > 0 and abs(ex_filled_qty - pos.qty) > 1e-6:
@@ -300,7 +357,9 @@ class ReconciliationService:
                         pos.qty = ex_filled_qty
 
             except Exception as e:
-                logger.error("Error reconciling position %s against exchange: %s", pos.id, e)
+                logger.error(
+                    "Error reconciling position %s against exchange: %s", pos.id, e
+                )
                 desynced_positions.append({"position_id": pos.id, "reason": str(e)})
 
         # 3. Check Account Balances & INR Mismatches
@@ -338,7 +397,9 @@ class ReconciliationService:
                     exchange_coin_qty = float(asset_balances.get(coin, 0.0))
                     qty_diff = abs(local_coin_qty - exchange_coin_qty)
 
-                    if qty_diff > 1e-6 and (local_coin_qty > 0 or exchange_coin_qty > 0):
+                    if qty_diff > 1e-6 and (
+                        local_coin_qty > 0 or exchange_coin_qty > 0
+                    ):
                         pos_mismatch_item = {
                             "coin": coin,
                             "local_qty": local_coin_qty,
@@ -353,16 +414,21 @@ class ReconciliationService:
 
                 # Check specifically for OPEN positions with 0.0 exchange balance (DESYNCED_MISSING_BALANCE)
                 for pos in active_positions:
-                    pos_status_str = str(getattr(pos.status, "value", pos.status)).upper()
+                    pos_status_str = str(
+                        getattr(pos.status, "value", pos.status)
+                    ).upper()
                     if pos_status_str == "OPEN":
                         coin = (getattr(pos, "coin", "") or "").upper()
                         exchange_asset_qty = float(asset_balances.get(coin, 0.0))
                         if exchange_asset_qty == 0.0:
-                            await self._position_repo.update_status(pos.id, PositionStatus.DESYNCED_MISSING_BALANCE)
+                            await self._position_repo.update_status(
+                                pos.id, PositionStatus.DESYNCED_MISSING_BALANCE
+                            )
                             pos.status = PositionStatus.DESYNCED_MISSING_BALANCE
                             logger.critical(
                                 "CRITICAL: Position %s (%s) is OPEN in SQLite but CoinDCX balance is 0.0! Transitioned to DESYNCED_MISSING_BALANCE.",
-                                pos.id, coin
+                                pos.id,
+                                coin,
                             )
                             desync_item = {
                                 "position_id": pos.id,
@@ -379,24 +445,33 @@ class ReconciliationService:
                             if self._event_bus:
                                 try:
                                     from core.bus.event_types import EventType
-                                    await self._event_bus.publish(EventType.ALERT_GENERATED, {
-                                        "level": "CRITICAL",
-                                        "title": "DESYNCED_MISSING_BALANCE",
-                                        "message": f"Critical desync: Position {pos.id} ({coin}) has 0.0 balance on CoinDCX.",
-                                    })
+
+                                    await self._event_bus.publish(
+                                        EventType.ALERT_GENERATED,
+                                        {
+                                            "level": "CRITICAL",
+                                            "title": "DESYNCED_MISSING_BALANCE",
+                                            "message": f"Critical desync: Position {pos.id} ({coin}) has 0.0 balance on CoinDCX.",
+                                        },
+                                    )
                                 except Exception as bus_err:
-                                    logger.error("Failed to publish DESYNCED_MISSING_BALANCE alert event: %s", bus_err)
+                                    logger.error(
+                                        "Failed to publish DESYNCED_MISSING_BALANCE alert event: %s",
+                                        bus_err,
+                                    )
         except Exception as exc:
-            logger.warning("Error performing balance & asset position reconciliation: %s", exc)
+            logger.warning(
+                "Error performing balance & asset position reconciliation: %s", exc
+            )
 
         is_clean = (
-            len(orphan_orders) == 0 and
-            len(missing_orders) == 0 and
-            len(partial_fills) == 0 and
-            len(cancelled_rejected_orders) == 0 and
-            len(balance_mismatches) == 0 and
-            len(position_mismatches) == 0 and
-            len(desynced_positions) == 0
+            len(orphan_orders) == 0
+            and len(missing_orders) == 0
+            and len(partial_fills) == 0
+            and len(cancelled_rejected_orders) == 0
+            and len(balance_mismatches) == 0
+            and len(position_mismatches) == 0
+            and len(desynced_positions) == 0
         )
 
         status_str = "IN_SYNC" if is_clean else "DISCREPANCIES_DETECTED"
@@ -428,15 +503,23 @@ class ReconciliationService:
         if not is_clean:
             logger.warning(
                 "CoinDCX Exchange Reconciliation flagged issues: %d mismatches (%d orphans, %d missing, %d partials, %d cancelled, %d bal_mismatch, %d pos_mismatch)",
-                mismatches_count, len(orphan_orders), len(missing_orders), len(partial_fills),
-                len(cancelled_rejected_orders), len(balance_mismatches), len(position_mismatches)
+                mismatches_count,
+                len(orphan_orders),
+                len(missing_orders),
+                len(partial_fills),
+                len(cancelled_rejected_orders),
+                len(balance_mismatches),
+                len(position_mismatches),
             )
         else:
-            logger.info("CoinDCX Exchange Reconciliation cleanly verified %d active positions and balances", len(active_positions))
+            logger.info(
+                "CoinDCX Exchange Reconciliation cleanly verified %d active positions and balances",
+                len(active_positions),
+            )
 
         return result
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         return {
             "running": self._running,
             "interval_seconds": self.interval_seconds,

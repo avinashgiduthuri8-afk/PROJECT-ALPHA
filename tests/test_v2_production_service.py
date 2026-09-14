@@ -8,24 +8,21 @@ Comprehensive Unit and Integration Tests for Phase 8 Production Deployment Engin
 
 from __future__ import annotations
 
-import asyncio
-from datetime import datetime, timezone
 import uuid
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import datetime, timezone
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app import app
-from core.bus.event_bus import EventBus
-from core.bus.event_types import EventType
-from core.config import V2Config, get_config, invalidate_config
-from core.types import BotMode
-from core.repository.db import Database
-from core.repository.production_state_repo import ProductionStateRepository
-from core.repository.event_log_repo import EventLogRepository
 from background.production.controller import ProductionController
 from background.production.watchdog import ProductionWatchdog
+from core.bus.event_bus import EventBus
+from core.config import get_config, invalidate_config
+from core.repository.db import Database
+from core.repository.event_log_repo import EventLogRepository
+from core.repository.production_state_repo import ProductionStateRepository
 
 
 @pytest.fixture(autouse=True)
@@ -40,6 +37,7 @@ def setup_test_env(tmp_path, monkeypatch):
 
 
 # ── 1. ProductionStateRepository Tests ──────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_production_state_repo_crud(tmp_path):
@@ -58,10 +56,13 @@ async def test_production_state_repo_crud(tmp_path):
         assert await repo.get("operator_note") == "Unit test execution"
 
         # Set many
-        await repo.set_many({
-            "breaker_tripped": "true",
-            "active_strategy": "VCP",
-        }, updated_by="TEST_RUNNER")
+        await repo.set_many(
+            {
+                "breaker_tripped": "true",
+                "active_strategy": "VCP",
+            },
+            updated_by="TEST_RUNNER",
+        )
         assert await repo.get("breaker_tripped") == "true"
         assert await repo.get("active_strategy") == "VCP"
 
@@ -79,6 +80,7 @@ async def test_production_state_repo_crud(tmp_path):
 
 
 # ── 2. ProductionController Tests ──────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_production_controller_mode_transition(tmp_path):
@@ -150,7 +152,9 @@ async def test_production_controller_kill_switch_and_resume(tmp_path):
         )
 
         # Engage kill switch
-        ks_res = await ctrl.kill_switch(reason="Test drill simulated emergency", operator="SAFETY_OFFICER")
+        ks_res = await ctrl.kill_switch(
+            reason="Test drill simulated emergency", operator="SAFETY_OFFICER"
+        )
         assert ks_res["ok"] is True
         assert ks_res["circuit_breaker"] == "TRIPPED"
         assert ks_res["mode"] == "PAPER"
@@ -159,10 +163,16 @@ async def test_production_controller_kill_switch_and_resume(tmp_path):
         assert await state_repo.get("v2_trading_enabled") == "false"
 
         mock_cb.trip.assert_called_once_with("Test drill simulated emergency")
-        mock_cb.set_emergency_stop.assert_called_once_with(True, "Test drill simulated emergency")
+        mock_cb.set_emergency_stop.assert_called_once_with(
+            True, "Test drill simulated emergency"
+        )
 
         # Resume operations
-        resume_res = await ctrl.resume(target_mode="PAPER", operator="RECOVERY_OPERATOR", reason="Test drill cleared")
+        resume_res = await ctrl.resume(
+            target_mode="PAPER",
+            operator="RECOVERY_OPERATOR",
+            reason="Test drill cleared",
+        )
         assert resume_res["ok"] is True
         assert resume_res["mode"] == "PAPER"
         assert resume_res["circuit_breaker"] == "NORMAL"
@@ -178,6 +188,7 @@ async def test_production_controller_kill_switch_and_resume(tmp_path):
 
 
 # ── 3. ProductionWatchdog Tests ────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_production_watchdog_probes(tmp_path):
@@ -247,6 +258,7 @@ async def test_production_watchdog_probes(tmp_path):
 
 # ── 4. FastAPI Production Routes Integration Tests ─────────────────────────────
 
+
 def test_production_api_routes():
     with TestClient(app) as client:
         unauth_resp = client.get("/api/v2/production/status")
@@ -260,7 +272,9 @@ def test_production_api_routes():
         data = resp.json()
         assert "mode" in data
         assert "capital_pool_limit" in data
-        assert data.get("capital_pool_limit") is None or isinstance(data.get("capital_pool_limit"), (int, float))
+        assert data.get("capital_pool_limit") is None or isinstance(
+            data.get("capital_pool_limit"), (int, float)
+        )
         assert "circuit_breaker_status" in data
         assert "watchdog_status" in data
 
@@ -268,7 +282,7 @@ def test_production_api_routes():
         set_mode_resp = client.post(
             "/api/v2/production/set-mode",
             headers=headers,
-            json={"mode": "PAPER", "reason": "API unit test switch"}
+            json={"mode": "PAPER", "reason": "API unit test switch"},
         )
         assert set_mode_resp.status_code == 200
         assert set_mode_resp.json()["mode"] == "PAPER"
@@ -277,7 +291,7 @@ def test_production_api_routes():
         bad_mode_resp = client.post(
             "/api/v2/production/set-mode",
             headers=headers,
-            json={"mode": "INVALID_MODE"}
+            json={"mode": "INVALID_MODE"},
         )
         assert bad_mode_resp.status_code == 400
 
@@ -285,7 +299,7 @@ def test_production_api_routes():
         ks_resp = client.post(
             "/api/v2/production/kill-switch",
             headers=headers,
-            json={"reason": "Testing endpoint kill switch"}
+            json={"reason": "Testing endpoint kill switch"},
         )
         assert ks_resp.status_code == 200
         ks_data = ks_resp.json()
@@ -297,7 +311,7 @@ def test_production_api_routes():
         resume_resp = client.post(
             "/api/v2/production/resume",
             headers=headers,
-            json={"target_mode": "PAPER", "reason": "Testing endpoint resume"}
+            json={"target_mode": "PAPER", "reason": "Testing endpoint resume"},
         )
         assert resume_resp.status_code == 200
         resume_data = resume_resp.json()
@@ -310,4 +324,8 @@ def test_production_api_routes():
         wd_resp = client.get("/api/v2/production/watchdog", headers=headers)
         assert wd_resp.status_code == 200
         wd_data = wd_resp.json()
-        assert "subsystems_healthy" in wd_data or "probes" in wd_data or "status" in wd_data
+        assert (
+            "subsystems_healthy" in wd_data
+            or "probes" in wd_data
+            or "status" in wd_data
+        )

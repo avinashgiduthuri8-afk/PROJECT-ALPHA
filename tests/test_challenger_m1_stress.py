@@ -11,30 +11,31 @@ Target Components:
 from __future__ import annotations
 
 import asyncio
-import os
 import uuid
-from datetime import datetime, timezone, timedelta
-from typing import Any, List, Optional
+from datetime import datetime, timezone
+from typing import Any
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from core.config import get_config
-from core.types import (
-    BotMode, BotName, ExitReason, Position, PositionStatus
-)
 from core.repository.db import Database
 from core.repository.position_repo import PositionRepository
 from core.repository.trade_repo import TradeRepository
-from dashboard.bot_pipeline import BotPipelineTracker, BotState
+from core.types import BotMode, BotName, Position, PositionStatus
 from dashboard.aggregator import DashboardAggregator
+from dashboard.api.dashboard_routes import init_dashboard_routes
+from dashboard.api.dashboard_routes import router as dashboard_router
+from dashboard.api.router import init_router
+from dashboard.api.router import router as api_router
+from dashboard.bot_pipeline import BotPipelineTracker
 from dashboard.service import DashboardService
-from dashboard.api.router import router as api_router, init_router
-from dashboard.api.dashboard_routes import router as dashboard_router, init_dashboard_routes
 
 
 class DummyPosition:
     """Mock position object with configurable attributes for stress-testing."""
+
     def __init__(
         self,
         bot: Any = "STE",
@@ -55,6 +56,7 @@ class DummyPosition:
 
 
 # ── SECTION 1: BotPipelineTracker.sync_from_repository() Stress Tests ─────────
+
 
 class TestBotPipelineTrackerSyncStress:
 
@@ -106,14 +108,22 @@ class TestBotPipelineTrackerSyncStress:
         tracker = BotPipelineTracker()
         positions = [
             DummyPosition(bot="HDA", coin="BTC", qty=-2.0, entry_price=100.0),  # -200
-            DummyPosition(bot="VCP", coin="ETH", qty=0.0, entry_price=500.0),   # 0
-            DummyPosition(bot="BBS", coin="SOL", qty=1.0, entry_price=100.0, deployed_capital=-500.0), # explicit -500
+            DummyPosition(bot="VCP", coin="ETH", qty=0.0, entry_price=500.0),  # 0
+            DummyPosition(
+                bot="BBS",
+                coin="SOL",
+                qty=1.0,
+                entry_price=100.0,
+                deployed_capital=-500.0,
+            ),  # explicit -500
         ]
         asyncio.run(tracker.sync_from_repository(positions))
 
         hda = tracker.get_bot_detail("HDA")
         assert hda["open_positions"] == 1
-        assert hda["capital_deployed"] == -200.0  # Empirical: negative values are accumulated as-is
+        assert (
+            hda["capital_deployed"] == -200.0
+        )  # Empirical: negative values are accumulated as-is
 
         vcp = tracker.get_bot_detail("VCP")
         assert vcp["open_positions"] == 1
@@ -130,9 +140,15 @@ class TestBotPipelineTrackerSyncStress:
         """
         tracker = BotPipelineTracker()
         positions = [
-            DummyPosition(bot="STE", coin="BTC", qty=1.0, entry_price=100.0, status="OPEN"),
-            DummyPosition(bot="STE", coin="ETH", qty=1.0, entry_price=200.0, status="CLOSED"),
-            DummyPosition(bot="STE", coin="SOL", qty=1.0, entry_price=300.0, status="CLOSING"),
+            DummyPosition(
+                bot="STE", coin="BTC", qty=1.0, entry_price=100.0, status="OPEN"
+            ),
+            DummyPosition(
+                bot="STE", coin="ETH", qty=1.0, entry_price=200.0, status="CLOSED"
+            ),
+            DummyPosition(
+                bot="STE", coin="SOL", qty=1.0, entry_price=300.0, status="CLOSING"
+            ),
         ]
         asyncio.run(tracker.sync_from_repository(positions))
 
@@ -145,7 +161,13 @@ class TestBotPipelineTrackerSyncStress:
         """Verify behavior when dicts are passed instead of objects with attributes."""
         tracker = BotPipelineTracker()
         dicts = [
-            {"bot": "STE", "coin": "BTC", "qty": 1.0, "entry_price": 100.0, "status": "OPEN"}
+            {
+                "bot": "STE",
+                "coin": "BTC",
+                "qty": 1.0,
+                "entry_price": 100.0,
+                "status": "OPEN",
+            }
         ]
         asyncio.run(tracker.sync_from_repository(dicts))
         ste = tracker.get_bot_detail("STE")
@@ -179,7 +201,14 @@ class TestBotPipelineTrackerSyncStress:
         """Verify behavior when position attributes are None."""
         tracker = BotPipelineTracker()
         positions = [
-            DummyPosition(bot="STE", coin="BTC", qty=None, entry_price=None, deployed_capital=None, entry_time=None),
+            DummyPosition(
+                bot="STE",
+                coin="BTC",
+                qty=None,
+                entry_price=None,
+                deployed_capital=None,
+                entry_time=None,
+            ),
         ]
         asyncio.run(tracker.sync_from_repository(positions))
         ste = tracker.get_bot_detail("STE")
@@ -200,6 +229,7 @@ class TestBotPipelineTrackerSyncStress:
 
 # ── SECTION 2: PositionRepository SQLite Status Edge Cases ───────────────────
 
+
 class TestSQLitePositionRepositoryEdgeCases:
 
     @pytest.fixture
@@ -217,18 +247,36 @@ class TestSQLitePositionRepositoryEdgeCases:
             now = datetime.now(timezone.utc)
 
             pos_open = Position(
-                id="pos-open-1", bot=BotName.STE, coin="BTC", pair="BTC/INR",
-                qty=0.01, entry_price=5000000.0, entry_time=now, mode=BotMode.PAPER,
+                id="pos-open-1",
+                bot=BotName.STE,
+                coin="BTC",
+                pair="BTC/INR",
+                qty=0.01,
+                entry_price=5000000.0,
+                entry_time=now,
+                mode=BotMode.PAPER,
                 status=PositionStatus.OPEN,
             )
             pos_closing = Position(
-                id="pos-closing-1", bot=BotName.HDA, coin="ETH", pair="ETH/INR",
-                qty=0.1, entry_price=250000.0, entry_time=now, mode=BotMode.PAPER,
+                id="pos-closing-1",
+                bot=BotName.HDA,
+                coin="ETH",
+                pair="ETH/INR",
+                qty=0.1,
+                entry_price=250000.0,
+                entry_time=now,
+                mode=BotMode.PAPER,
                 status=PositionStatus.CLOSING,
             )
             pos_closed = Position(
-                id="pos-closed-1", bot=BotName.VCP, coin="SOL", pair="SOL/INR",
-                qty=1.0, entry_price=12000.0, entry_time=now, mode=BotMode.PAPER,
+                id="pos-closed-1",
+                bot=BotName.VCP,
+                coin="SOL",
+                pair="SOL/INR",
+                qty=1.0,
+                entry_price=12000.0,
+                entry_time=now,
+                mode=BotMode.PAPER,
                 status=PositionStatus.CLOSED,
             )
 
@@ -260,7 +308,7 @@ class TestSQLitePositionRepositoryEdgeCases:
                 INSERT INTO positions (id, bot, coin, pair, qty, entry_price, entry_time, mode, status)
                 VALUES ('pos-pending-entry-1', 'STE', 'BTC', 'BTC/INR', 0.01, 5000000.0, ?, 'PAPER', 'PENDING_ENTRY')
                 """,
-                (now,)
+                (now,),
             )
             await db.connection.commit()
 
@@ -285,7 +333,7 @@ class TestSQLitePositionRepositoryEdgeCases:
                 INSERT INTO positions (id, bot, coin, pair, qty, entry_price, entry_time, mode, status)
                 VALUES ('pos-pending-exit-1', 'HDA', 'ETH', 'ETH/INR', 0.1, 250000.0, ?, 'PAPER', 'PENDING_EXIT')
                 """,
-                (now,)
+                (now,),
             )
             await db.connection.commit()
 
@@ -298,6 +346,7 @@ class TestSQLitePositionRepositoryEdgeCases:
 
 
 # ── SECTION 3: API Endpoints Stress Tests ───────────────────────────────────
+
 
 class TestAPIEndpointsStress:
 
@@ -356,13 +405,25 @@ class TestAPIEndpointsStress:
         now = datetime.now(timezone.utc)
 
         pos_open = Position(
-            id="api-pos-1", bot=BotName.STE, coin="BTC", pair="BTC/INR",
-            qty=0.01, entry_price=5000000.0, entry_time=now, mode=BotMode.PAPER,
+            id="api-pos-1",
+            bot=BotName.STE,
+            coin="BTC",
+            pair="BTC/INR",
+            qty=0.01,
+            entry_price=5000000.0,
+            entry_time=now,
+            mode=BotMode.PAPER,
             status=PositionStatus.OPEN,
         )
         pos_closed = Position(
-            id="api-pos-2", bot=BotName.STE, coin="ETH", pair="ETH/INR",
-            qty=0.1, entry_price=250000.0, entry_time=now, mode=BotMode.PAPER,
+            id="api-pos-2",
+            bot=BotName.STE,
+            coin="ETH",
+            pair="ETH/INR",
+            qty=0.1,
+            entry_price=250000.0,
+            entry_time=now,
+            mode=BotMode.PAPER,
             status=PositionStatus.CLOSED,
         )
         asyncio.run(repo.insert(pos_open))
@@ -397,7 +458,7 @@ class TestAPIEndpointsStress:
                 INSERT INTO positions (id, bot, coin, pair, qty, entry_price, entry_time, mode, status)
                 VALUES ('pos-raw-pending', 'STE', 'BTC', 'BTC/INR', 0.01, 5000000.0, ?, 'PAPER', 'PENDING_ENTRY')
                 """,
-                (now,)
+                (now,),
             )
             await db.connection.commit()
 
@@ -409,7 +470,9 @@ class TestAPIEndpointsStress:
         assert len(items) == 1
         assert items[0]["status"] == "PENDING_ENTRY"
 
-    def test_overview_with_pending_entry_logs_and_returns_zero_positions(self, test_env):
+    def test_overview_with_pending_entry_logs_and_returns_zero_positions(
+        self, test_env
+    ):
         """
         Verify PENDING_ENTRY (non-OPEN) status is not returned by get_open() in overview summary.
         """
@@ -424,7 +487,7 @@ class TestAPIEndpointsStress:
                 INSERT INTO positions (id, bot, coin, pair, qty, entry_price, entry_time, mode, status)
                 VALUES ('pos-raw-pending-ov', 'STE', 'BTC', 'BTC/INR', 0.01, 5000000.0, ?, 'PAPER', 'PENDING_ENTRY')
                 """,
-                (now,)
+                (now,),
             )
             await db.connection.commit()
 
@@ -449,8 +512,14 @@ class TestAPIEndpointsStress:
 
         for i in range(5):
             pos = Position(
-                id=f"pos-ste-overload-{i}", bot=BotName.STE, coin="BTC", pair="BTC/INR",
-                qty=0.01, entry_price=5000000.0, entry_time=now, mode=BotMode.PAPER,
+                id=f"pos-ste-overload-{i}",
+                bot=BotName.STE,
+                coin="BTC",
+                pair="BTC/INR",
+                qty=0.01,
+                entry_price=5000000.0,
+                entry_time=now,
+                mode=BotMode.PAPER,
                 status=PositionStatus.OPEN,
             )
             asyncio.run(repo.insert(pos))
@@ -483,7 +552,7 @@ class TestAPIEndpointsStress:
                 INSERT INTO positions (id, bot, coin, pair, qty, entry_price, entry_time, mode, status)
                 VALUES ('pos-lowercase-closed', 'STE', 'BTC', 'BTC/INR', 0.01, 5000000.0, ?, 'PAPER', 'closed')
                 """,
-                (now,)
+                (now,),
             )
             await db.connection.commit()
 

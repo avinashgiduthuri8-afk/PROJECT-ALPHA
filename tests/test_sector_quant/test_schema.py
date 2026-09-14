@@ -3,14 +3,13 @@ Tests for sector_quant.db.schema
 """
 
 import sqlite3
-import pytest
 
 from sector_quant.db.schema import (
+    get_daily_prices,
     init_schema,
+    insert_daily_price,
     insert_sector,
     insert_symbol,
-    insert_daily_price,
-    get_daily_prices,
 )
 
 
@@ -39,8 +38,12 @@ def test_schema_init_and_crud():
         assert hdbk_dup == hdbk_id
 
         # 3. Insert Prices
-        insert_daily_price(conn, hdbk_id, "2026-01-01", 1600.0, 1620.0, 1590.0, 1610.0, 100000)
-        insert_daily_price(conn, hdbk_id, "2026-01-02", 1610.0, 1630.0, 1605.0, 1625.0, 120000)
+        insert_daily_price(
+            conn, hdbk_id, "2026-01-01", 1600.0, 1620.0, 1590.0, 1610.0, 100000
+        )
+        insert_daily_price(
+            conn, hdbk_id, "2026-01-02", 1610.0, 1630.0, 1605.0, 1625.0, 120000
+        )
 
         # Query prices
         fetched = get_daily_prices(conn, hdbk_id)

@@ -5,7 +5,6 @@ Vectorized implementation.
 
 from __future__ import annotations
 
-from typing import List
 import numpy as np
 import pandas as pd
 
@@ -22,8 +21,8 @@ class STEStrategy(BaseStrategy):
         df: pd.DataFrame,
         pair: str = "BTC/USDT",
         timeframe: str = "1H",
-    ) -> List[BacktestTradeSignal]:
-        signals: List[BacktestTradeSignal] = []
+    ) -> list[BacktestTradeSignal]:
+        signals: list[BacktestTradeSignal] = []
         n = len(df)
         if n < 40:
             return signals
@@ -37,7 +36,12 @@ class STEStrategy(BaseStrategy):
         shift_ema50 = np.roll(ema_50, 1)
         shift_atr5 = np.roll(atr, 5)
 
-        mask = (closes > ema_50) & (shift_closes <= shift_ema50) & (rsi > 55) & (atr > (shift_atr5 * 1.08))
+        mask = (
+            (closes > ema_50)
+            & (shift_closes <= shift_ema50)
+            & (rsi > 55)
+            & (atr > (shift_atr5 * 1.08))
+        )
         cand_indices = np.where(mask)[0]
 
         for i in cand_indices:

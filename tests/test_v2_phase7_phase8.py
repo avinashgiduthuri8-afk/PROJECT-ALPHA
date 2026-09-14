@@ -6,137 +6,130 @@ and Phase 8 (WebSocket Real-Time Push Feed & Observability Engine).
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone, timedelta
 import uuid
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
+import pytest
 from fastapi import FastAPI
-from starlette.websockets import WebSocketDisconnect
 
+from background.monitoring import AlertManager, HealthChecker, MetricsCollector
+from background.portfolio import PortfolioService
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
 from core.config import V2Config, get_config, invalidate_config
-from core.types import (
-    AIRecommendation,
-    BotMode,
-    BotName,
-    ExitReason,
-    MarketState,
-    OppType,
-    Position,
-    PositionStatus,
-    Priority,
-    RiskLevel,
-    Signal,
-    Trade,
-)
 from core.repository.db import Database
-from core.repository.signal_repo import SignalRepository
-from core.repository.ai_repo import AIAnalysisRepository
-from core.repository.position_repo import PositionRepository
-from core.repository.trade_repo import TradeRepository
-from core.repository.shadow_repo import ShadowRepository
-from core.repository.metrics_repo import MetricsRepository
 from core.repository.event_log_repo import EventLogRepository
-
-from scanner import ScannerService
-from background.ai.service import AIIntelligenceService
+from core.repository.metrics_repo import MetricsRepository
+from core.repository.position_repo import PositionRepository
+from core.repository.shadow_repo import ShadowRepository
+from core.repository.trade_repo import TradeRepository
+from dashboard import DashboardService, WebSocketManager
+from dashboard.api.router import init_router
+from dashboard.api.router import router as api_router
+from dashboard.api.websocket import init_websocket
 from execution.risk import RiskService
-from background.portfolio import PortfolioService
-from execution import TradingService
 from execution.shadow import ShadowService
 from telegram import (
     NotificationService,
     TelegramClient,
+    format_circuit_breaker_alert,
+    format_divergence_alert,
+    format_position_closed_alert,
+    format_position_opened_alert,
     format_signal_ai_alert,
     format_trade_approved_alert,
     format_trade_denied_alert,
-    format_position_opened_alert,
-    format_position_closed_alert,
-    format_circuit_breaker_alert,
-    format_divergence_alert,
-    format_generic_alert,
 )
-from dashboard import DashboardService, WebSocketManager
-from background.monitoring import HealthChecker, MetricsCollector, AlertManager
-from dashboard.api.router import router as api_router, init_router
-from dashboard.api.websocket import router as ws_router, init_websocket
-
 
 # ── 1. Notification Formatter Tests ───────────────────────────────────────────
 
+
 def test_notification_formatters():
-    ai_alert = format_signal_ai_alert({
-        "coin": "SOL",
-        "recommendation": "APPROVE",
-        "confidence_score": 88,
-        "trend_evaluation": "Ascending 4h trend",
-        "setup_quality": "Breakout",
-        "supporting_factors": ["High volume", "RSI divergence"],
-        "risk_factors": ["Macro resistance"],
-    })
+    ai_alert = format_signal_ai_alert(
+        {
+            "coin": "SOL",
+            "recommendation": "APPROVE",
+            "confidence_score": 88,
+            "trend_evaluation": "Ascending 4h trend",
+            "setup_quality": "Breakout",
+            "supporting_factors": ["High volume", "RSI divergence"],
+            "risk_factors": ["Macro resistance"],
+        }
+    )
     assert "SOL" in ai_alert
     assert "APPROVE" in ai_alert
     assert "88%" in ai_alert
 
-    trade_appr = format_trade_approved_alert({
-        "coin": "BTC",
-        "bot": "MTB",
-        "approved_amount": 200.0,
-        "ai_adjustments": {"size_multiplier": 1.0},
-    })
+    trade_appr = format_trade_approved_alert(
+        {
+            "coin": "BTC",
+            "bot": "MTB",
+            "approved_amount": 200.0,
+            "ai_adjustments": {"size_multiplier": 1.0},
+        }
+    )
     assert "BTC" in trade_appr
     assert "200.00" in trade_appr
 
-    trade_denied = format_trade_denied_alert({
-        "coin": "DOGE",
-        "bot": "MTB",
-        "code": "BLOCKED_BOT_CAPITAL",
-        "reason": "Max capital limit reached",
-    })
+    trade_denied = format_trade_denied_alert(
+        {
+            "coin": "DOGE",
+            "bot": "MTB",
+            "code": "BLOCKED_BOT_CAPITAL",
+            "reason": "Max capital limit reached",
+        }
+    )
     assert "DOGE" in trade_denied
     assert "BLOCKED_BOT_CAPITAL" in trade_denied
 
-    pos_opened = format_position_opened_alert({
-        "coin": "ETH",
-        "bot": "STE",
-        "entry_price": 2500.0,
-        "qty": 0.1,
-        "stop_loss": 2450.0,
-        "take_profit": 2600.0,
-    })
+    pos_opened = format_position_opened_alert(
+        {
+            "coin": "ETH",
+            "bot": "STE",
+            "entry_price": 2500.0,
+            "qty": 0.1,
+            "stop_loss": 2450.0,
+            "take_profit": 2600.0,
+        }
+    )
     assert "ETH" in pos_opened
     assert "2500.00" in pos_opened
     assert "2600.00" in pos_opened
 
-    pos_closed = format_position_closed_alert({
-        "coin": "ETH",
-        "bot": "STE",
-        "pnl": 15.50,
-        "pnl_pct": 2.4,
-        "exit_reason": "TAKE_PROFIT",
-        "exit_price": 2600.0,
-    })
+    pos_closed = format_position_closed_alert(
+        {
+            "coin": "ETH",
+            "bot": "STE",
+            "pnl": 15.50,
+            "pnl_pct": 2.4,
+            "exit_reason": "TAKE_PROFIT",
+            "exit_price": 2600.0,
+        }
+    )
     assert "ETH" in pos_closed
     assert "+₹15.50" in pos_closed
     assert "TAKE_PROFIT" in pos_closed
 
-    cb_alert = format_circuit_breaker_alert({"reason": "Max consecutive losses exceeded"})
+    cb_alert = format_circuit_breaker_alert(
+        {"reason": "Max consecutive losses exceeded"}
+    )
     assert "CIRCUIT BREAKER TRIGGERED" in cb_alert
 
-    div_alert = format_divergence_alert({
-        "coin": "AVAX",
-        "bot": "MTB",
-        "divergence_type": "AI_FILTERED",
-        "reason": "AI blocked trade with bearish divergence",
-    })
+    div_alert = format_divergence_alert(
+        {
+            "coin": "AVAX",
+            "bot": "MTB",
+            "divergence_type": "AI_FILTERED",
+            "reason": "AI blocked trade with bearish divergence",
+        }
+    )
     assert "AVAX" in div_alert
     assert "AI_FILTERED" in div_alert
 
 
 # ── 2. Telegram Client Mock & NotificationService Tests ───────────────────────
+
 
 @pytest.mark.anyio
 async def test_telegram_client_mock():
@@ -160,6 +153,7 @@ async def test_notification_service_event_subscriptions():
     telegram = TelegramClient(bot_token="fake-token", chat_id="fake-chat")
 
     sent_messages = []
+
     async def mock_send(text, parse_mode="HTML", max_retries=2):
         sent_messages.append(text)
         return True
@@ -201,6 +195,7 @@ async def test_notification_service_event_subscriptions():
 
 
 # ── 3. WebSocket Manager & Dashboard Service Tests ────────────────────────────
+
 
 @pytest.mark.anyio
 async def test_websocket_manager_broadcast():
@@ -258,6 +253,7 @@ async def test_dashboard_service_overview(tmp_path):
 
 
 # ── 4. Monitoring & Observability Tests ────────────────────────────────────────
+
 
 def test_metrics_collector():
     collector = MetricsCollector()
@@ -320,6 +316,7 @@ async def test_health_checker_and_alert_manager(tmp_path):
 
 
 # ── 5. FastAPI Endpoints Tests (Phase 7 & Phase 8) ────────────────────────────
+
 
 @pytest.mark.anyio
 async def test_api_endpoints_phase7_phase8(tmp_path, monkeypatch):
@@ -389,7 +386,9 @@ async def test_api_endpoints_phase7_phase8(tmp_path, monkeypatch):
         )
 
         transport = httpx.ASGITransport(app=app)
-        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        async with httpx.AsyncClient(
+            transport=transport, base_url="http://test"
+        ) as client:
             headers = {"X-API-Key": "test-secret-key"}
 
             # 1. GET /api/v2/dashboard/overview

@@ -10,17 +10,18 @@ Friction Specifications:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Dict
+from dataclasses import dataclass
 
 
 @dataclass
 class FrictionConfig:
-    exchange_fee_pct: float = 0.20       # 0.20% base trading fee
-    gst_rate_pct: float = 18.0           # 18% GST on exchange fee (0.036%)
-    tds_rate_pct: float = 1.00           # 1.00% Sec 194S TDS on sell (and C2C buy)
-    slippage_per_side_pct: float = 0.05   # 0.05% per side execution buffer
-    is_c2c_pair: bool = False            # True for crypto-to-crypto (e.g. BTC/USDT), False for INR
+    exchange_fee_pct: float = 0.20  # 0.20% base trading fee
+    gst_rate_pct: float = 18.0  # 18% GST on exchange fee (0.036%)
+    tds_rate_pct: float = 1.00  # 1.00% Sec 194S TDS on sell (and C2C buy)
+    slippage_per_side_pct: float = 0.05  # 0.05% per side execution buffer
+    is_c2c_pair: bool = (
+        False  # True for crypto-to-crypto (e.g. BTC/USDT), False for INR
+    )
 
     @property
     def buy_fee_pct(self) -> float:
@@ -31,7 +32,9 @@ class FrictionConfig:
 
     @property
     def sell_fee_pct(self) -> float:
-        base = (self.exchange_fee_pct * (1.0 + self.gst_rate_pct / 100.0)) + self.tds_rate_pct  # 1.236%
+        base = (
+            self.exchange_fee_pct * (1.0 + self.gst_rate_pct / 100.0)
+        ) + self.tds_rate_pct  # 1.236%
         return round(base, 4)
 
     @property
@@ -55,13 +58,17 @@ class CoinDCXFrictionModel:
 
     def get_effective_entry_price(self, raw_entry_price: float) -> float:
         """Entry price after applying buy-side slippage and buy fee friction."""
-        price_with_slippage = raw_entry_price * (1.0 + self.config.slippage_per_side_pct / 100.0)
+        price_with_slippage = raw_entry_price * (
+            1.0 + self.config.slippage_per_side_pct / 100.0
+        )
         effective_price = price_with_slippage * (1.0 + self.config.buy_fee_pct / 100.0)
         return round(effective_price, 4)
 
     def get_effective_exit_price(self, raw_exit_price: float) -> float:
         """Exit price after applying sell-side slippage and sell-side TDS/GST/fee friction."""
-        price_with_slippage = raw_exit_price * (1.0 - self.config.slippage_per_side_pct / 100.0)
+        price_with_slippage = raw_exit_price * (
+            1.0 - self.config.slippage_per_side_pct / 100.0
+        )
         effective_price = price_with_slippage * (1.0 - self.config.sell_fee_pct / 100.0)
         return round(effective_price, 4)
 
@@ -70,14 +77,18 @@ class CoinDCXFrictionModel:
         entry_price: float,
         exit_price: float,
         position_size_qty: float,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Calculates gross vs. net realized PnL for a trade execution.
         """
         gross_entry_cost = entry_price * position_size_qty
         gross_exit_proceeds = exit_price * position_size_qty
         gross_pnl = gross_exit_proceeds - gross_entry_cost
-        gross_pnl_pct = ((exit_price - entry_price) / entry_price) * 100.0 if entry_price > 0 else 0.0
+        gross_pnl_pct = (
+            ((exit_price - entry_price) / entry_price) * 100.0
+            if entry_price > 0
+            else 0.0
+        )
 
         eff_entry_price = self.get_effective_entry_price(entry_price)
         eff_exit_price = self.get_effective_exit_price(exit_price)
@@ -85,9 +96,17 @@ class CoinDCXFrictionModel:
         net_entry_cost = eff_entry_price * position_size_qty
         net_exit_proceeds = eff_exit_price * position_size_qty
         net_pnl = net_exit_proceeds - net_entry_cost
-        net_pnl_pct = ((eff_exit_price - eff_entry_price) / eff_entry_price) * 100.0 if eff_entry_price > 0 else 0.0
+        net_pnl_pct = (
+            ((eff_exit_price - eff_entry_price) / eff_entry_price) * 100.0
+            if eff_entry_price > 0
+            else 0.0
+        )
 
-        total_friction_cost = net_entry_cost - gross_entry_cost + (gross_exit_proceeds - net_exit_proceeds)
+        total_friction_cost = (
+            net_entry_cost
+            - gross_entry_cost
+            + (gross_exit_proceeds - net_exit_proceeds)
+        )
 
         return {
             "gross_entry_cost": round(gross_entry_cost, 2),

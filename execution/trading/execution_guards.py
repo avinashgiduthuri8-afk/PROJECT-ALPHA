@@ -19,7 +19,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from core.logging import get_logger
 
@@ -32,7 +32,7 @@ class GuardCheckResult:
     guard_name: str
     code: str
     message: str
-    details: Dict[str, Any] = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
 
 
 class ExecutionSafetyGuards:
@@ -40,15 +40,20 @@ class ExecutionSafetyGuards:
     Pre-order execution safety guard evaluation engine.
     """
 
-    def __init__(self, max_stale_seconds: float = 60.0, max_slippage_pct: float = 3.0, min_24h_volume: float = 50000.0) -> None:
+    def __init__(
+        self,
+        max_stale_seconds: float = 60.0,
+        max_slippage_pct: float = 3.0,
+        min_24h_volume: float = 50000.0,
+    ) -> None:
         self.max_stale_seconds = max_stale_seconds
         self.max_slippage_pct = max_slippage_pct
         self.min_24h_volume = min_24h_volume
-        self._last_request_timestamps: Dict[str, float] = {}
+        self._last_request_timestamps: dict[str, float] = {}
 
     def check_stale_data_guard(
         self,
-        data_time: datetime | float | int,
+        data_time: datetime | float,
         is_emergency_exit: bool = False,
     ) -> GuardCheckResult:
         """
@@ -80,7 +85,10 @@ class ExecutionSafetyGuards:
                 guard_name="STALE_DATA_GUARD",
                 code="STALE_DATA_REJECTED",
                 message=msg,
-                details={"age_seconds": age_seconds, "max_allowed": self.max_stale_seconds},
+                details={
+                    "age_seconds": age_seconds,
+                    "max_allowed": self.max_stale_seconds,
+                },
             )
 
         return GuardCheckResult(
@@ -126,7 +134,10 @@ class ExecutionSafetyGuards:
                 guard_name="SLIPPAGE_GUARD",
                 code="SLIPPAGE_REJECTED",
                 message=msg,
-                details={"slippage_pct": slippage_pct, "max_allowed": self.max_slippage_pct},
+                details={
+                    "slippage_pct": slippage_pct,
+                    "max_allowed": self.max_slippage_pct,
+                },
             )
 
         return GuardCheckResult(
@@ -166,7 +177,7 @@ class ExecutionSafetyGuards:
     def check_duplicate_order_guard(
         self,
         coin: str,
-        active_coins: List[str],
+        active_coins: list[str],
     ) -> GuardCheckResult:
         """
         Guard 4: Duplicate Order / Single Coin Lock Guard.
@@ -256,18 +267,20 @@ class ExecutionSafetyGuards:
         data_time: datetime | float,
         volume_24h: float,
         coin: str,
-        active_coins: List[str],
+        active_coins: list[str],
         consecutive_failures: int = 0,
         bot_key: str = "STE",
         is_emergency_exit: bool = False,
-    ) -> Tuple[bool, List[GuardCheckResult]]:
+    ) -> tuple[bool, list[GuardCheckResult]]:
         """
         Evaluate all live execution safety guards in sequence.
         Returns (all_passed, list_of_check_results).
         """
         checks = [
             self.check_stale_data_guard(data_time, is_emergency_exit=is_emergency_exit),
-            self.check_slippage_guard(order_price, ticker_price, is_emergency_exit=is_emergency_exit),
+            self.check_slippage_guard(
+                order_price, ticker_price, is_emergency_exit=is_emergency_exit
+            ),
             self.check_liquidity_guard(coin, volume_24h),
             self.check_duplicate_order_guard(coin, active_coins),
             self.check_api_health_guard(consecutive_failures),

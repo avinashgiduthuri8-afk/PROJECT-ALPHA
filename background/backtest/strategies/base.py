@@ -6,7 +6,8 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 import pandas as pd
 
 
@@ -20,7 +21,7 @@ class BacktestTradeSignal:
     stop_loss_price: float
     take_profit_price: float
     direction: str = "LONG"
-    metadata: Dict[str, Any] = None
+    metadata: dict[str, Any] = None
 
     def __post_init__(self) -> None:
         if self.metadata is None:
@@ -39,9 +40,8 @@ class BaseStrategy(ABC):
         df: pd.DataFrame,
         pair: str = "BTC/USDT",
         timeframe: str = "1H",
-    ) -> List[BacktestTradeSignal]:
+    ) -> list[BacktestTradeSignal]:
         """
         Scans OHLCV dataframe and generates trigger signals.
         Must avoid lookahead bias: signals trigger at bar close, execution at next bar open.
         """
-        pass

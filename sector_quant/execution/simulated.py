@@ -7,7 +7,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from datetime import datetime
 from queue import Queue
-from typing import Optional
 
 from sector_quant.data.base import DataHandler
 from sector_quant.events import Event, FillEvent, OrderEvent
@@ -30,10 +29,10 @@ class SimulatedExecutionHandler(ExecutionHandler):
     def __init__(
         self,
         events_queue: Queue,
-        bars: Optional[DataHandler] = None,
+        bars: DataHandler | None = None,
         commission_pct: float = 0.0005,  # 5 bps
-        slippage_pct: float = 0.0005,    # 5 bps
-        min_commission: float = 1.0,     # Minimum INR 1.00 per order
+        slippage_pct: float = 0.0005,  # 5 bps
+        min_commission: float = 1.0,  # Minimum INR 1.00 per order
     ) -> None:
         self.events = events_queue
         self.bars = bars

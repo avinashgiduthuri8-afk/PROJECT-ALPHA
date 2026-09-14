@@ -9,13 +9,13 @@ Features:
 - Simulated execution engine with linear slippage and commissions.
 """
 
-from .events import Event, EventType, MarketEvent, SignalEvent, OrderEvent, FillEvent
+from .events import Event, EventType, FillEvent, MarketEvent, OrderEvent, SignalEvent
 
 __all__ = [
     "Event",
     "EventType",
-    "MarketEvent",
-    "SignalEvent",
-    "OrderEvent",
     "FillEvent",
+    "MarketEvent",
+    "OrderEvent",
+    "SignalEvent",
 ]

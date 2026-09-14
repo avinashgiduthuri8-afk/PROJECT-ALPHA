@@ -16,9 +16,10 @@ from __future__ import annotations
 
 import asyncio
 import traceback
-from dataclasses import dataclass, field
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Awaitable, Callable, Optional
+from typing import Any
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
@@ -32,15 +33,15 @@ LOOP_RESTART_DELAY_S = 5
 
 @dataclass
 class JobDefinition:
-    name:               str
-    fn:                 Callable[[], Awaitable[Any]]
-    interval:           int            # seconds
-    enabled:            bool = True
-    last_run_at:        Optional[datetime] = None
-    last_duration_ms:   Optional[int] = None
-    last_error:         Optional[str] = None
-    run_count:          int = 0
-    error_count:        int = 0
+    name: str
+    fn: Callable[[], Awaitable[Any]]
+    interval: int  # seconds
+    enabled: bool = True
+    last_run_at: datetime | None = None
+    last_duration_ms: int | None = None
+    last_error: str | None = None
+    run_count: int = 0
+    error_count: int = 0
     consecutive_errors: int = 0
 
 
@@ -59,7 +60,7 @@ class BackgroundScheduler:
     def __init__(self, bus: EventBus) -> None:
         self._bus = bus
         self._jobs: dict[str, JobDefinition] = {}
-        self._task: Optional[asyncio.Task] = None
+        self._task: asyncio.Task | None = None
         self._running = False
         # Per-job in-flight guard: job name → running asyncio.Task.
         # _tick() skips scheduling a new run if the job is still in flight.
@@ -77,8 +78,13 @@ class BackgroundScheduler:
         """Register a named job. Safe to call before start()."""
         if name in self._jobs:
             logger.warning("Job already registered — overwriting", extra={"job": name})
-        self._jobs[name] = JobDefinition(name=name, fn=fn, interval=interval, enabled=enabled)
-        logger.info("Job registered", extra={"job": name, "interval": interval, "enabled": enabled})
+        self._jobs[name] = JobDefinition(
+            name=name, fn=fn, interval=interval, enabled=enabled
+        )
+        logger.info(
+            "Job registered",
+            extra={"job": name, "interval": interval, "enabled": enabled},
+        )
 
     def enable(self, name: str) -> None:
         if name in self._jobs:
@@ -127,15 +133,15 @@ class BackgroundScheduler:
     def get_status(self) -> list[dict]:
         return [
             {
-                "name":             j.name,
-                "enabled":          j.enabled,
-                "interval_s":       j.interval,
-                "run_count":        j.run_count,
-                "error_count":      j.error_count,
+                "name": j.name,
+                "enabled": j.enabled,
+                "interval_s": j.interval,
+                "run_count": j.run_count,
+                "error_count": j.error_count,
                 "consecutive_errors": j.consecutive_errors,
-                "last_run_at":      j.last_run_at.isoformat() if j.last_run_at else None,
+                "last_run_at": j.last_run_at.isoformat() if j.last_run_at else None,
                 "last_duration_ms": j.last_duration_ms,
-                "last_error":       j.last_error,
+                "last_error": j.last_error,
             }
             for j in self._jobs.values()
         ]
@@ -154,10 +160,16 @@ class BackgroundScheduler:
             except asyncio.CancelledError:
                 break
             except Exception as exc:
-                logger.exception("Scheduler loop crashed — restarting", extra={"error": str(exc)})
+                logger.exception(
+                    "Scheduler loop crashed — restarting", extra={"error": str(exc)}
+                )
                 await self._bus.publish(
                     EventType.BOT_ERROR,
-                    {"bot": "scheduler", "error_type": type(exc).__name__, "message": str(exc)},
+                    {
+                        "bot": "scheduler",
+                        "error_type": type(exc).__name__,
+                        "message": str(exc),
+                    },
                 )
                 await asyncio.sleep(LOOP_RESTART_DELAY_S)
 
@@ -194,7 +206,9 @@ class BackgroundScheduler:
             if isinstance(result, dict) and result.get("next_interval_s") is not None:
                 next_interval = max(1, int(result["next_interval_s"]))
                 job.interval = next_interval
-            duration_ms = int((datetime.now(timezone.utc) - start).total_seconds() * 1000)
+            duration_ms = int(
+                (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            )
 
             job.run_count += 1
             job.last_duration_ms = duration_ms
@@ -204,9 +218,9 @@ class BackgroundScheduler:
             await self._bus.publish(
                 EventType.JOB_COMPLETED,
                 {
-                    "job":         job.name,
+                    "job": job.name,
                     "duration_ms": duration_ms,
-                    "result":      str(result)[:200] if result is not None else None,
+                    "result": str(result)[:200] if result is not None else None,
                 },
             )
             logger.info(
@@ -215,7 +229,9 @@ class BackgroundScheduler:
             )
 
         except Exception as exc:
-            duration_ms = int((datetime.now(timezone.utc) - start).total_seconds() * 1000)
+            duration_ms = int(
+                (datetime.now(timezone.utc) - start).total_seconds() * 1000
+            )
             tb = traceback.format_exc()
 
             job.run_count += 1
@@ -226,16 +242,20 @@ class BackgroundScheduler:
 
             logger.error(
                 "Job failed",
-                extra={"job": job.name, "error": str(exc), "consecutive": job.consecutive_errors},
+                extra={
+                    "job": job.name,
+                    "error": str(exc),
+                    "consecutive": job.consecutive_errors,
+                },
             )
 
             await self._bus.publish(
                 EventType.JOB_FAILED,
                 {
-                    "job":         job.name,
-                    "error":       str(exc),
+                    "job": job.name,
+                    "error": str(exc),
                     "consecutive": job.consecutive_errors,
-                    "traceback":   tb[:500],
+                    "traceback": tb[:500],
                 },
             )
 
@@ -249,9 +269,9 @@ class BackgroundScheduler:
                 await self._bus.publish(
                     EventType.ALERT_GENERATED,
                     {
-                        "level":     "WARN",
-                        "title":     f"Scheduler job '{job.name}' auto-disabled",
-                        "body":      f"Failed {job.consecutive_errors}× consecutively. Last error: {exc}",
+                        "level": "WARN",
+                        "title": f"Scheduler job '{job.name}' auto-disabled",
+                        "body": f"Failed {job.consecutive_errors}× consecutively. Last error: {exc}",
                         "event_ref": "JOB_FAILED",
                     },
                 )

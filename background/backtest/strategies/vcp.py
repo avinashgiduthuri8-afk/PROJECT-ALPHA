@@ -5,7 +5,6 @@ Vectorized boolean masking for high-speed execution.
 
 from __future__ import annotations
 
-from typing import List
 import numpy as np
 import pandas as pd
 
@@ -22,8 +21,8 @@ class VCPStrategy(BaseStrategy):
         df: pd.DataFrame,
         pair: str = "BTC/USDT",
         timeframe: str = "1H",
-    ) -> List[BacktestTradeSignal]:
-        signals: List[BacktestTradeSignal] = []
+    ) -> list[BacktestTradeSignal]:
+        signals: list[BacktestTradeSignal] = []
         n = len(df)
         if n < 50:
             return signals
@@ -45,19 +44,19 @@ class VCPStrategy(BaseStrategy):
             if i < 30 or i >= n - 1:
                 continue
 
-            pivot_res = np.max(highs[i-20:i])
+            pivot_res = np.max(highs[i - 20 : i])
             if closes[i] <= pivot_res:
                 continue
 
-            t1 = highs[i-20:i-14].max() - lows[i-20:i-14].min()
-            t2 = highs[i-14:i-7].max() - lows[i-14:i-7].min()
-            t3 = highs[i-7:i].max() - lows[i-7:i].min()
+            t1 = highs[i - 20 : i - 14].max() - lows[i - 20 : i - 14].min()
+            t2 = highs[i - 14 : i - 7].max() - lows[i - 14 : i - 7].min()
+            t3 = highs[i - 7 : i].max() - lows[i - 7 : i].min()
 
-            if not (t1 >= t2 and t2 >= t3 and t3 > 0):
+            if not (t1 >= t2 >= t3 > 0):
                 continue
 
             entry = closes[i]
-            stop_loss = np.min(lows[i-5:i]) * 0.995
+            stop_loss = np.min(lows[i - 5 : i]) * 0.995
             sl_distance = entry - stop_loss
             if sl_distance <= 0:
                 continue

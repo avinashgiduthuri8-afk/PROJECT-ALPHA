@@ -5,41 +5,63 @@ Mounted in app.py under the prefixes /api and /api/v2.
 
 from __future__ import annotations
 
-import uuid
 import hmac
-from datetime import datetime, timezone, timedelta
-from typing import Optional
+import uuid
+from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from core.bus.event_types import EventType
 from core.config import get_config
 from core.types import MarketState, OppType, Priority, RiskLevel, Signal
+
 from .auth import require_api_key
-from .dashboard_routes import router as dashboard_router, init_dashboard_routes
-from .production_routes import router as production_router, init_production_routes
-from .schemas import (
-    OkSchema, JobStatusSchema, ScannerHealthSchema,
-    SignalSchema, StatusSchema, V2StatusSchema,
-    AIAnalysisSchema, AIHealthSchema,
-    RiskStateSchema, PositionSchema, TradeSchema,
-    PortfolioSnapshotSchema, ShadowTradeSchema,
-    DecisionDivergenceSchema, DivergenceSummarySchema,
-    DashboardOverviewSchema, MonitoringMetricsSchema,
-    MonitoringHealthSchema, TestNotificationRequestSchema,
-    PipelineStageSchema, PipelineStageDetailSchema,
-    BotStatusSchema, BotDetailSchema,
-    AnalyticsWinRatesSchema, AnalyticsCoinsSchema, AnalyticsFunnelSchema,
-    ScannedCoinSchema, ScannedCoinDetailSchema,
-    SimulateSignalRequestSchema, SimulateSignalResponseSchema,
-    SetModeRequestSchema, SetModeResponseSchema,
-    KillSwitchResponseSchema, ProductionStatusSchema,
-    UnifiedOrderSchema, OrderLifecycleSchema, ErrorLogItemSchema,
-    ManualCloseRequestSchema, ModifyPositionRequestSchema, TrailingProfitRequestSchema,
+from .dashboard_routes import init_dashboard_routes
+from .dashboard_routes import router as dashboard_router
+from .production_routes import (
+    init_production_router,
+    production_router,
 )
-from .research_routes import research_router, init_research_router
-from .production_routes import production_router, init_production_router
+from .production_routes import router as production_router
+from .research_routes import init_research_router, research_router
+from .schemas import (
+    AIAnalysisSchema,
+    AIHealthSchema,
+    AnalyticsCoinsSchema,
+    AnalyticsFunnelSchema,
+    AnalyticsWinRatesSchema,
+    BotDetailSchema,
+    BotStatusSchema,
+    DashboardOverviewSchema,
+    DecisionDivergenceSchema,
+    DivergenceSummarySchema,
+    ErrorLogItemSchema,
+    JobStatusSchema,
+    ManualCloseRequestSchema,
+    ModifyPositionRequestSchema,
+    MonitoringHealthSchema,
+    MonitoringMetricsSchema,
+    OkSchema,
+    OrderLifecycleSchema,
+    PipelineStageDetailSchema,
+    PipelineStageSchema,
+    PortfolioSnapshotSchema,
+    PositionSchema,
+    RiskStateSchema,
+    ScannedCoinDetailSchema,
+    ScannedCoinSchema,
+    ScannerHealthSchema,
+    ShadowTradeSchema,
+    SignalSchema,
+    SimulateSignalRequestSchema,
+    SimulateSignalResponseSchema,
+    StatusSchema,
+    TestNotificationRequestSchema,
+    TradeSchema,
+    TrailingProfitRequestSchema,
+    UnifiedOrderSchema,
+)
 
 router = APIRouter()
 router.include_router(research_router, prefix="/research", tags=["research"])
@@ -155,14 +177,15 @@ def init_router(
     dash_agg = getattr(dashboard_service, "aggregator", None)
     if dash_agg is None:
         from dashboard.aggregator import DashboardAggregator
+
         dash_agg = DashboardAggregator(
-            scanner_service   = scanner_service,
-            trading_service   = trading_service,
-            portfolio_service = portfolio_service,
-            risk_service      = risk_service,
-            journal_service   = journal_service or kwargs.get("journal_service"),
-            analytics_service = analytics_service or kwargs.get("analytics_service"),
-            feedback_service  = feedback_service or kwargs.get("feedback_service"),
+            scanner_service=scanner_service,
+            trading_service=trading_service,
+            portfolio_service=portfolio_service,
+            risk_service=risk_service,
+            journal_service=journal_service or kwargs.get("journal_service"),
+            analytics_service=analytics_service or kwargs.get("analytics_service"),
+            feedback_service=feedback_service or kwargs.get("feedback_service"),
         )
     dash_bot_tracker = getattr(dashboard_service, "bot_tracker", None)
     init_dashboard_routes(
@@ -174,6 +197,7 @@ def init_router(
 
 # ── Health (no auth) ──────────────────────────────────────────────────────────
 
+
 @router.get("/health", response_model=OkSchema, tags=["system"])
 async def health() -> OkSchema:
     """Liveness probe — always returns 200 if V2 process is alive."""
@@ -182,8 +206,10 @@ async def health() -> OkSchema:
 
 # ── Dashboard Security Password Auth ──────────────────────────────────────────
 
+
 class VerifyPasswordRequestSchema(BaseModel):
     password: str
+
 
 @router.post(
     "/auth/verify-password",
@@ -199,12 +225,18 @@ async def verify_dashboard_password(body: VerifyPasswordRequestSchema) -> dict:
             detail="DASHBOARD_SECURITY_PASSWORD is not configured.",
         )
     if hmac.compare_digest(body.password.strip(), expected):
-        return {"ok": True, "success": True, "valid": True, "authorized": True, "message": "Authenticated successfully."}
+        return {
+            "ok": True,
+            "success": True,
+            "valid": True,
+            "authorized": True,
+            "message": "Authenticated successfully.",
+        }
     raise HTTPException(status_code=401, detail="Invalid security password.")
 
 
-
 # ── Status (auth required) ────────────────────────────────────────────────────
+
 
 @router.get(
     "/status",
@@ -219,8 +251,16 @@ async def status_endpoint() -> StatusSchema:
     jobs = _scheduler.get_status() if _scheduler else []
 
     return StatusSchema(
-        scanner_health=ScannerHealthSchema(**scanner_h) if scanner_h else ScannerHealthSchema(
-            healthy=False, poll_count=0, live_signals=0, last_poll_at=None, last_error="not started"
+        scanner_health=(
+            ScannerHealthSchema(**scanner_h)
+            if scanner_h
+            else ScannerHealthSchema(
+                healthy=False,
+                poll_count=0,
+                live_signals=0,
+                last_poll_at=None,
+                last_error="not started",
+            )
         ),
         ai_health=AIHealthSchema(**ai_h) if ai_h else None,
         scheduler_jobs=[JobStatusSchema(**j) for j in jobs],
@@ -232,6 +272,7 @@ async def status_endpoint() -> StatusSchema:
 
 # ── Scanner endpoints ─────────────────────────────────────────────────────────
 
+
 @router.get(
     "/scanner/signals",
     response_model=list[SignalSchema],
@@ -239,7 +280,7 @@ async def status_endpoint() -> StatusSchema:
     tags=["scanner"],
 )
 async def get_signals(
-    priority: Optional[str] = Query(
+    priority: str | None = Query(
         default=None,
         description="Minimum priority filter: Elite|High|Medium|Watch|Ignore",
     ),
@@ -260,7 +301,7 @@ async def get_signals(
             raise HTTPException(
                 status_code=400,
                 detail=f"Invalid priority '{priority}'. "
-                       f"Valid values: Elite, High, Medium, Watch, Ignore",
+                f"Valid values: Elite, High, Medium, Watch, Ignore",
             )
 
     # Apply limit
@@ -268,20 +309,20 @@ async def get_signals(
 
     return [
         SignalSchema(
-            id               = s.id,
-            coin             = s.coin,
-            pair             = s.pair,
-            market_state     = s.market_state.value,
-            opportunity_type = s.opportunity_type.value,
-            priority         = s.priority.value,
-            risk_level       = s.risk_level.value,
-            score            = s.score,
-            confidence       = s.confidence,
-            coin_class       = s.coin_class,
-            mtf_alignment    = s.mtf_alignment,
-            generated_at     = s.generated_at,
-            expires_at       = s.expires_at,
-            source_bot       = s.source_bot,
+            id=s.id,
+            coin=s.coin,
+            pair=s.pair,
+            market_state=s.market_state.value,
+            opportunity_type=s.opportunity_type.value,
+            priority=s.priority.value,
+            risk_level=s.risk_level.value,
+            score=s.score,
+            confidence=s.confidence,
+            coin_class=s.coin_class,
+            mtf_alignment=s.mtf_alignment,
+            generated_at=s.generated_at,
+            expires_at=s.expires_at,
+            source_bot=s.source_bot,
         )
         for s in signals
     ]
@@ -299,15 +340,25 @@ async def get_signal_by_id(signal_id: str) -> SignalSchema:
         raise HTTPException(status_code=503, detail="Scanner service not ready.")
     live = {s.id: s for s in _scanner_service.get_live_signals()}
     if signal_id not in live:
-        raise HTTPException(status_code=404, detail=f"Signal '{signal_id}' not found in live cache.")
+        raise HTTPException(
+            status_code=404, detail=f"Signal '{signal_id}' not found in live cache."
+        )
     s = live[signal_id]
     return SignalSchema(
-        id=s.id, coin=s.coin, pair=s.pair,
-        market_state=s.market_state.value, opportunity_type=s.opportunity_type.value,
-        priority=s.priority.value, risk_level=s.risk_level.value,
-        score=s.score, confidence=s.confidence, coin_class=s.coin_class,
-        mtf_alignment=s.mtf_alignment, generated_at=s.generated_at,
-        expires_at=s.expires_at, source_bot=s.source_bot,
+        id=s.id,
+        coin=s.coin,
+        pair=s.pair,
+        market_state=s.market_state.value,
+        opportunity_type=s.opportunity_type.value,
+        priority=s.priority.value,
+        risk_level=s.risk_level.value,
+        score=s.score,
+        confidence=s.confidence,
+        coin_class=s.coin_class,
+        mtf_alignment=s.mtf_alignment,
+        generated_at=s.generated_at,
+        expires_at=s.expires_at,
+        source_bot=s.source_bot,
     )
 
 
@@ -338,14 +389,21 @@ async def trigger_scanner_poll() -> dict:
     tags=["scanner"],
 )
 async def get_scanned_coins(
-    min_score: Optional[int] = Query(default=None, ge=0, le=100, description="Filter by minimum confluence score"),
+    min_score: int | None = Query(
+        default=None, ge=0, le=100, description="Filter by minimum confluence score"
+    ),
     limit: int = Query(default=50, ge=1, le=200, description="Max coins to return"),
-    sort_by: str = Query(default="confluence_score", description="Sort field: confluence_score | price | symbol"),
+    sort_by: str = Query(
+        default="confluence_score",
+        description="Sort field: confluence_score | price | symbol",
+    ),
 ) -> list[ScannedCoinSchema]:
     """Return evaluated candidate coins from the latest scan pass."""
     if _scanner_service is None:
         raise HTTPException(status_code=503, detail="Scanner service not ready.")
-    items = _scanner_service.get_scanned_coins(min_score=min_score, limit=limit, sort_by=sort_by)
+    items = _scanner_service.get_scanned_coins(
+        min_score=min_score, limit=limit, sort_by=sort_by
+    )
     return [ScannedCoinSchema(**item) for item in items]
 
 
@@ -361,7 +419,10 @@ async def get_scanned_coin_detail(symbol: str) -> ScannedCoinDetailSchema:
         raise HTTPException(status_code=503, detail="Scanner service not ready.")
     detail = _scanner_service.get_scanned_coin_detail(symbol)
     if detail is None:
-        raise HTTPException(status_code=404, detail=f"Coin '{symbol}' was not found in the latest scan snapshot.")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Coin '{symbol}' was not found in the latest scan snapshot.",
+        )
     return ScannedCoinDetailSchema(**detail)
 
 
@@ -375,8 +436,11 @@ async def scanner_health() -> ScannerHealthSchema:
     """Scanner sub-health: poll count, live signal count, last error."""
     if _scanner_service is None:
         return ScannerHealthSchema(
-            healthy=False, poll_count=0, live_signals=0,
-            last_poll_at=None, last_error="not started",
+            healthy=False,
+            poll_count=0,
+            live_signals=0,
+            last_poll_at=None,
+            last_error="not started",
         )
     return ScannerHealthSchema(**_scanner_service.get_health())
 
@@ -394,18 +458,27 @@ async def get_dashboard_signals() -> list[SignalSchema]:
     signals = _scanner_service.get_live_signals()
     return [
         SignalSchema(
-            id=s.id, coin=s.coin, pair=s.pair,
-            market_state=s.market_state.value, opportunity_type=s.opportunity_type.value,
-            priority=s.priority.value, risk_level=s.risk_level.value,
-            score=s.score, confidence=s.confidence, coin_class=s.coin_class,
-            mtf_alignment=s.mtf_alignment, generated_at=s.generated_at,
-            expires_at=s.expires_at, source_bot=s.source_bot,
+            id=s.id,
+            coin=s.coin,
+            pair=s.pair,
+            market_state=s.market_state.value,
+            opportunity_type=s.opportunity_type.value,
+            priority=s.priority.value,
+            risk_level=s.risk_level.value,
+            score=s.score,
+            confidence=s.confidence,
+            coin_class=s.coin_class,
+            mtf_alignment=s.mtf_alignment,
+            generated_at=s.generated_at,
+            expires_at=s.expires_at,
+            source_bot=s.source_bot,
         )
         for s in signals
     ]
 
 
 # ── AI Intelligence endpoints (Phase 4) ───────────────────────────────────────
+
 
 @router.get(
     "/ai/health",
@@ -440,8 +513,12 @@ async def ai_health() -> AIHealthSchema:
     tags=["ai"],
 )
 async def list_ai_analyses(
-    coin: Optional[str] = Query(default=None, description="Filter by coin ticker (e.g. BTC)"),
-    recommendation: Optional[str] = Query(default=None, description="Filter by APPROVE|REJECT|SCALE_DOWN|WATCH"),
+    coin: str | None = Query(
+        default=None, description="Filter by coin ticker (e.g. BTC)"
+    ),
+    recommendation: str | None = Query(
+        default=None, description="Filter by APPROVE|REJECT|SCALE_DOWN|WATCH"
+    ),
     min_confidence: int = Query(default=0, ge=0, le=100),
     limit: int = Query(default=50, ge=1, le=500),
 ) -> list[AIAnalysisSchema]:
@@ -497,7 +574,9 @@ async def get_ai_analysis_by_signal_id(signal_id: str) -> AIAnalysisSchema:
 
     analysis = await _ai_repo.get_by_signal_id(signal_id)
     if not analysis:
-        raise HTTPException(status_code=404, detail=f"No AI analysis found for signal '{signal_id}'.")
+        raise HTTPException(
+            status_code=404, detail=f"No AI analysis found for signal '{signal_id}'."
+        )
 
     return AIAnalysisSchema(
         id=analysis.id,
@@ -571,6 +650,7 @@ async def evaluate_signal_on_demand(signal_id: str) -> AIAnalysisSchema:
 
 # ── Scheduler endpoints ───────────────────────────────────────────────────────
 
+
 @router.get(
     "/scheduler/jobs",
     response_model=list[JobStatusSchema],
@@ -585,6 +665,7 @@ async def scheduler_jobs() -> list[JobStatusSchema]:
 
 
 # ── Risk endpoints (Phase 5) ──────────────────────────────────────────────────
+
 
 @router.get(
     "/risk/state",
@@ -605,11 +686,14 @@ async def get_risk_state() -> RiskStateSchema:
         per_bot_deployed=state.per_bot_deployed,
         per_bot_open_count=state.per_bot_open_count,
         total_capital_limit=_config.total_capital_limit if _config else 0.0,
-        last_checked_at=state.last_checked_at.isoformat() if state.last_checked_at else None,
+        last_checked_at=(
+            state.last_checked_at.isoformat() if state.last_checked_at else None
+        ),
     )
 
 
 # ── Portfolio endpoints (Phase 5) ─────────────────────────────────────────────
+
 
 @router.get(
     "/portfolio/snapshot",
@@ -620,7 +704,9 @@ async def get_risk_state() -> RiskStateSchema:
 async def get_portfolio_snapshot() -> PortfolioSnapshotSchema:
     """Consolidated cross-bot portfolio AUM, deployed capital, cash, and PnL breakdown."""
     if _portfolio_service is None:
-        raise HTTPException(status_code=503, detail="Portfolio service not initialized.")
+        raise HTTPException(
+            status_code=503, detail="Portfolio service not initialized."
+        )
 
     snapshot = await _portfolio_service.get_snapshot()
     return PortfolioSnapshotSchema(
@@ -655,6 +741,7 @@ async def get_portfolio_snapshot() -> PortfolioSnapshotSchema:
 
 # ── Trading endpoints (Phase 5) ───────────────────────────────────────────────
 
+
 @router.get(
     "/trading/positions",
     response_model=list[PositionSchema],
@@ -662,12 +749,16 @@ async def get_portfolio_snapshot() -> PortfolioSnapshotSchema:
     tags=["trading"],
 )
 async def get_positions(
-    status: Optional[str] = Query(default=None, description="Filter by OPEN | CLOSED | ACTIVE"),
+    status: str | None = Query(
+        default=None, description="Filter by OPEN | CLOSED | ACTIVE"
+    ),
     limit: int = Query(default=50, ge=1, le=500),
 ) -> list[PositionSchema]:
     """List open, active, or closed positions from repository."""
     if _position_repo is None:
-        raise HTTPException(status_code=503, detail="Position repository not initialized.")
+        raise HTTPException(
+            status_code=503, detail="Position repository not initialized."
+        )
 
     if status and status.upper() in ("OPEN", "ACTIVE"):
         if hasattr(_position_repo, "get_active_positions"):
@@ -677,8 +768,10 @@ async def get_positions(
     elif status and status.upper() == "CLOSED":
         all_positions = await _position_repo.get_all(limit=max(limit * 2, 100))
         positions = [
-            p for p in all_positions
-            if (p.status.value if hasattr(p.status, "value") else str(p.status)).upper() == "CLOSED"
+            p
+            for p in all_positions
+            if (p.status.value if hasattr(p.status, "value") else str(p.status)).upper()
+            == "CLOSED"
         ][:limit]
     else:
         positions = await _position_repo.get_all(limit=limit)
@@ -700,7 +793,11 @@ async def get_positions(
             status=p.status.value if hasattr(p.status, "value") else str(p.status),
             signal_id=p.signal_id,
             exit_price=p.exit_price,
-            exit_reason=p.exit_reason.value if p.exit_reason and hasattr(p.exit_reason, "value") else str(p.exit_reason) if p.exit_reason else None,
+            exit_reason=(
+                p.exit_reason.value
+                if p.exit_reason and hasattr(p.exit_reason, "value")
+                else str(p.exit_reason) if p.exit_reason else None
+            ),
             closed_at=p.closed_at,
         )
         for p in positions
@@ -732,16 +829,20 @@ async def get_open_positions_alias() -> list[PositionSchema]:
 )
 async def manual_close_position_endpoint(
     position_id: str,
-    body: Optional[ManualCloseRequestSchema] = None,
+    body: ManualCloseRequestSchema | None = None,
 ) -> dict:
     """Manually close an active position immediately at market price."""
     if _trading_service is None:
         raise HTTPException(status_code=503, detail="Trading service not initialized.")
     exit_p = body.exit_price if body else None
     reason = body.reason if body else "MANUAL"
-    res = await _trading_service.manual_close_position(position_id, exit_price=exit_p, reason=reason)
+    res = await _trading_service.manual_close_position(
+        position_id, exit_price=exit_p, reason=reason
+    )
     if not res.get("success"):
-        raise HTTPException(status_code=400, detail=res.get("message") or res.get("error"))
+        raise HTTPException(
+            status_code=400, detail=res.get("message") or res.get("error")
+        )
     return res
 
 
@@ -771,7 +872,9 @@ async def modify_position_targets_endpoint(
         trailing_stop_pct=body.trailing_stop_pct,
     )
     if not res.get("success"):
-        raise HTTPException(status_code=400, detail=res.get("message") or res.get("error"))
+        raise HTTPException(
+            status_code=400, detail=res.get("message") or res.get("error")
+        )
     return res
 
 
@@ -800,9 +903,10 @@ async def toggle_trailing_profit_endpoint(
         trailing_stop_pct=trailing_pct,
     )
     if not res.get("success"):
-        raise HTTPException(status_code=400, detail=res.get("message") or res.get("error"))
+        raise HTTPException(
+            status_code=400, detail=res.get("message") or res.get("error")
+        )
     return res
-
 
 
 @router.get(
@@ -812,7 +916,7 @@ async def toggle_trailing_profit_endpoint(
     tags=["trading"],
 )
 async def get_trades(
-    coin: Optional[str] = Query(default=None, description="Filter by coin symbol"),
+    coin: str | None = Query(default=None, description="Filter by coin symbol"),
     limit: int = Query(default=50, ge=1, le=500),
 ) -> list[TradeSchema]:
     """List historical executed trades."""
@@ -838,7 +942,11 @@ async def get_trades(
             pnl_pct=t.pnl_pct,
             entry_time=t.entry_time,
             exit_time=t.exit_time,
-            exit_reason=t.exit_reason.value if hasattr(t.exit_reason, "value") else str(t.exit_reason),
+            exit_reason=(
+                t.exit_reason.value
+                if hasattr(t.exit_reason, "value")
+                else str(t.exit_reason)
+            ),
             mode=t.mode.value if hasattr(t.mode, "value") else str(t.mode),
             signal_id=t.signal_id,
         )
@@ -848,6 +956,7 @@ async def get_trades(
 
 # ── Shadow Simulation & Divergence endpoints (Phase 6) ────────────────────────
 
+
 @router.get(
     "/shadow/trades",
     response_model=list[ShadowTradeSchema],
@@ -855,18 +964,24 @@ async def get_trades(
     tags=["shadow"],
 )
 async def get_shadow_trades(
-    status: Optional[str] = Query(default=None, description="Filter by OPEN | CLOSED_TP | CLOSED_SL"),
-    coin: Optional[str] = Query(default=None, description="Filter by coin ticker"),
+    status: str | None = Query(
+        default=None, description="Filter by OPEN | CLOSED_TP | CLOSED_SL"
+    ),
+    coin: str | None = Query(default=None, description="Filter by coin ticker"),
     limit: int = Query(default=50, ge=1, le=500),
 ) -> list[ShadowTradeSchema]:
     """List simulated shadow trades."""
     if _shadow_repo is None:
-        raise HTTPException(status_code=503, detail="Shadow repository not initialized.")
+        raise HTTPException(
+            status_code=503, detail="Shadow repository not initialized."
+        )
 
     if coin:
         trades = await _shadow_repo.get_shadow_trades_by_coin(coin.upper(), limit=limit)
     else:
-        trades = await _shadow_repo.get_recent_shadow_trades(limit=limit, status=status.upper() if status else None)
+        trades = await _shadow_repo.get_recent_shadow_trades(
+            limit=limit, status=status.upper() if status else None
+        )
 
     return [
         ShadowTradeSchema(
@@ -900,14 +1015,20 @@ async def get_shadow_trades(
     tags=["shadow"],
 )
 async def get_divergences(
-    divergence_type: Optional[str] = Query(default=None, description="Filter by AI_FILTERED | RISK_FILTERED | SIZE_SCALED"),
+    divergence_type: str | None = Query(
+        default=None, description="Filter by AI_FILTERED | RISK_FILTERED | SIZE_SCALED"
+    ),
     limit: int = Query(default=50, ge=1, le=500),
 ) -> list[DecisionDivergenceSchema]:
     """List decision divergences between V1 execution and V2 AI/Risk evaluation."""
     if _shadow_repo is None:
-        raise HTTPException(status_code=503, detail="Shadow repository not initialized.")
+        raise HTTPException(
+            status_code=503, detail="Shadow repository not initialized."
+        )
 
-    divergences = await _shadow_repo.get_divergences(limit=limit, divergence_type=divergence_type)
+    divergences = await _shadow_repo.get_divergences(
+        limit=limit, divergence_type=divergence_type
+    )
     return [
         DecisionDivergenceSchema(
             id=d.id,
@@ -935,13 +1056,16 @@ async def get_divergences(
 async def get_shadow_summary() -> DivergenceSummarySchema:
     """Aggregate divergence statistics, simulated win-rate, and alpha metrics."""
     if _shadow_repo is None:
-        raise HTTPException(status_code=503, detail="Shadow repository not initialized.")
+        raise HTTPException(
+            status_code=503, detail="Shadow repository not initialized."
+        )
 
     summary = await _shadow_repo.get_divergence_summary()
     return DivergenceSummarySchema(**summary)
 
 
 # ── Dashboard endpoints (Phase 8) ─────────────────────────────────────────────
+
 
 @router.get(
     "/dashboard/overview",
@@ -952,13 +1076,16 @@ async def get_shadow_summary() -> DivergenceSummarySchema:
 async def get_dashboard_overview() -> DashboardOverviewSchema:
     """Single-call consolidated platform state snapshot for frontend dashboards."""
     if _dashboard_service is None:
-        raise HTTPException(status_code=503, detail="Dashboard service not initialized.")
+        raise HTTPException(
+            status_code=503, detail="Dashboard service not initialized."
+        )
 
     overview = await _dashboard_service.get_overview()
     return DashboardOverviewSchema(**overview)
 
 
 # ── Analytics endpoints (Phase 4) ─────────────────────────────────────────────
+
 
 @router.get(
     "/analytics/win-rates",
@@ -969,7 +1096,9 @@ async def get_dashboard_overview() -> DashboardOverviewSchema:
 async def get_analytics_win_rates() -> AnalyticsWinRatesSchema:
     """Historical accuracy and win rates aggregated across horizons and priority tiers."""
     if _dashboard_service is None:
-        raise HTTPException(status_code=503, detail="Dashboard service not initialized.")
+        raise HTTPException(
+            status_code=503, detail="Dashboard service not initialized."
+        )
 
     data = _dashboard_service.get_win_rates_analytics()
     return AnalyticsWinRatesSchema(**data)
@@ -984,7 +1113,9 @@ async def get_analytics_win_rates() -> AnalyticsWinRatesSchema:
 async def get_analytics_coins() -> AnalyticsCoinsSchema:
     """Per-coin historical win rates, performance metrics, and top/bottom rankings."""
     if _dashboard_service is None:
-        raise HTTPException(status_code=503, detail="Dashboard service not initialized.")
+        raise HTTPException(
+            status_code=503, detail="Dashboard service not initialized."
+        )
 
     data = _dashboard_service.get_coins_analytics()
     return AnalyticsCoinsSchema(**data)
@@ -999,13 +1130,16 @@ async def get_analytics_coins() -> AnalyticsCoinsSchema:
 async def get_analytics_funnel() -> AnalyticsFunnelSchema:
     """Historical conversion efficiency metrics across all 5 scanner filtering layers."""
     if _dashboard_service is None:
-        raise HTTPException(status_code=503, detail="Dashboard service not initialized.")
+        raise HTTPException(
+            status_code=503, detail="Dashboard service not initialized."
+        )
 
     data = _dashboard_service.get_funnel_analytics()
     return AnalyticsFunnelSchema(**data)
 
 
 # ── Monitoring endpoints (Phase 8) ────────────────────────────────────────────
+
 
 @router.get(
     "/monitoring/metrics",
@@ -1039,6 +1173,7 @@ async def get_monitoring_health() -> MonitoringHealthSchema:
 
 # ── Notification endpoints (Phase 7) ──────────────────────────────────────────
 
+
 @router.post(
     "/notifications/test",
     response_model=OkSchema,
@@ -1048,13 +1183,23 @@ async def get_monitoring_health() -> MonitoringHealthSchema:
 async def post_test_notification(body: TestNotificationRequestSchema) -> OkSchema:
     """Send a test message through the unified notification pipeline."""
     if _notification_service is None:
-        raise HTTPException(status_code=503, detail="Notification service not initialized.")
+        raise HTTPException(
+            status_code=503, detail="Notification service not initialized."
+        )
 
     sent = await _notification_service.send_custom_alert(body.message)
-    return OkSchema(ok=True, detail="Notification dispatched" if sent else "Notification recorded locally (Telegram not configured)")
+    return OkSchema(
+        ok=True,
+        detail=(
+            "Notification dispatched"
+            if sent
+            else "Notification recorded locally (Telegram not configured)"
+        ),
+    )
 
 
 # ── Autonomous Pipeline Endpoints ─────────────────────────────────────────────
+
 
 @router.get(
     "/pipeline/stages",
@@ -1065,7 +1210,9 @@ async def post_test_notification(body: TestNotificationRequestSchema) -> OkSchem
 async def get_pipeline_stages() -> list[PipelineStageSchema]:
     """Return all 14 stages of the PROJECT-ALPHA Autonomous Pipeline with live metrics."""
     if _dashboard_service is None:
-        raise HTTPException(status_code=503, detail="Dashboard service not initialized.")
+        raise HTTPException(
+            status_code=503, detail="Dashboard service not initialized."
+        )
 
     stages = _dashboard_service.get_pipeline_stages()
     return [PipelineStageSchema(**s) for s in stages]
@@ -1080,17 +1227,21 @@ async def get_pipeline_stages() -> list[PipelineStageSchema]:
 async def get_pipeline_stage_detail(stage_id: str) -> PipelineStageDetailSchema:
     """Return deep telemetry, data contracts, and last processed events for a specific pipeline stage."""
     if _dashboard_service is None:
-        raise HTTPException(status_code=503, detail="Dashboard service not initialized.")
+        raise HTTPException(
+            status_code=503, detail="Dashboard service not initialized."
+        )
 
     detail = _dashboard_service.get_stage_detail(stage_id)
     if detail is None:
-        raise HTTPException(status_code=404, detail=f"Pipeline stage '{stage_id}' not found.")
+        raise HTTPException(
+            status_code=404, detail=f"Pipeline stage '{stage_id}' not found."
+        )
 
     return PipelineStageDetailSchema(**detail)
 
 
-
 # ── Trading Bot Status Endpoints ──────────────────────────────────────────────
+
 
 @router.get(
     "/bots",
@@ -1107,7 +1258,9 @@ async def get_pipeline_stage_detail(stage_id: str) -> PipelineStageDetailSchema:
 async def get_all_bots() -> list[BotStatusSchema]:
     """Return current pipeline stage, status, and live metrics for all production trading bots (STE, HDA, VCP, BBS)."""
     if _dashboard_service is None:
-        raise HTTPException(status_code=503, detail="Dashboard service not initialized.")
+        raise HTTPException(
+            status_code=503, detail="Dashboard service not initialized."
+        )
 
     bots = _dashboard_service.get_bot_statuses()
     return [BotStatusSchema(**b) for b in bots]
@@ -1122,13 +1275,15 @@ async def get_all_bots() -> list[BotStatusSchema]:
 async def get_bot_detail(bot_name: str) -> BotDetailSchema:
     """Return full detail — strategy params, pipeline stage, counters, and last action — for one bot (STE / HDA / VCP / BBS)."""
     if _dashboard_service is None:
-        raise HTTPException(status_code=503, detail="Dashboard service not initialized.")
+        raise HTTPException(
+            status_code=503, detail="Dashboard service not initialized."
+        )
 
     detail = _dashboard_service.get_bot_detail(bot_name)
     if detail is None:
         raise HTTPException(
             status_code=404,
-            detail=f"Bot '{bot_name.upper()}' not found. Valid production options: STE, HDA, VCP, BBS."
+            detail=f"Bot '{bot_name.upper()}' not found. Valid production options: STE, HDA, VCP, BBS.",
         )
 
     return BotDetailSchema(**detail)
@@ -1136,19 +1291,25 @@ async def get_bot_detail(bot_name: str) -> BotDetailSchema:
 
 # ── Simulation & Learning Endpoints ───────────────────────────────────────────
 
+
 @router.post(
     "/learning/simulate-signal",
     response_model=SimulateSignalResponseSchema,
     dependencies=[Depends(require_api_key)],
     tags=["simulation", "learning"],
 )
-async def simulate_signal_emission(body: SimulateSignalRequestSchema) -> SimulateSignalResponseSchema:
+async def simulate_signal_emission(
+    body: SimulateSignalRequestSchema,
+) -> SimulateSignalResponseSchema:
     """
     Emit a synthetic high-conviction signal across EventBus and trigger real-time AI evaluation,
     dashboard telemetry push, and WebSocket distribution without live capital risk.
     """
     if _ai_service is None or _dashboard_service is None:
-        raise HTTPException(status_code=503, detail="AI Intelligence / Dashboard service not initialized.")
+        raise HTTPException(
+            status_code=503,
+            detail="AI Intelligence / Dashboard service not initialized.",
+        )
 
     raw_pair = body.pair or "SOL/INR"
     coin = (body.coin or raw_pair.split("/")[0]).upper()
@@ -1180,7 +1341,8 @@ async def simulate_signal_emission(body: SimulateSignalRequestSchema) -> Simulat
             "suggested_allocation_inr": body.suggested_allocation_inr or 200.0,
             "stop_loss": body.stop_loss or 9980.0,
             "take_profit": body.take_profit or 10450.0,
-            "eval_breakdown": body.eval_breakdown or {
+            "eval_breakdown": body.eval_breakdown
+            or {
                 "chart_structure": 28.0,
                 "technical_indicators": 32.0,
                 "market_sentiment": 16.0,
@@ -1248,26 +1410,34 @@ async def get_active_positions() -> list[PositionSchema]:
     List all active open positions (live or shadow) with current unrealized P&L and bracket targets.
     """
     if _position_repo is None:
-        raise HTTPException(status_code=503, detail="Position repository not initialized.")
+        raise HTTPException(
+            status_code=503, detail="Position repository not initialized."
+        )
 
     positions = await _position_repo.get_open()
     out = []
     for p in positions:
-        out.append(PositionSchema(
-            id=p.id,
-            bot=p.bot.value if hasattr(p.bot, "value") else str(p.bot),
-            coin=p.coin,
-            pair=p.pair,
-            qty=p.qty,
-            entry_price=p.entry_price,
-            entry_time=p.entry_time.isoformat() if hasattr(p.entry_time, "isoformat") else str(p.entry_time or ""),
-            current_price=p.current_price or p.entry_price,
-            unrealised_pnl=p.unrealised_pnl or 0.0,
-            stop_loss=p.stop_loss,
-            take_profit=p.take_profit,
-            mode=p.mode.value if hasattr(p.mode, "value") else str(p.mode),
-            signal_id=p.signal_id,
-        ))
+        out.append(
+            PositionSchema(
+                id=p.id,
+                bot=p.bot.value if hasattr(p.bot, "value") else str(p.bot),
+                coin=p.coin,
+                pair=p.pair,
+                qty=p.qty,
+                entry_price=p.entry_price,
+                entry_time=(
+                    p.entry_time.isoformat()
+                    if hasattr(p.entry_time, "isoformat")
+                    else str(p.entry_time or "")
+                ),
+                current_price=p.current_price or p.entry_price,
+                unrealised_pnl=p.unrealised_pnl or 0.0,
+                stop_loss=p.stop_loss,
+                take_profit=p.take_profit,
+                mode=p.mode.value if hasattr(p.mode, "value") else str(p.mode),
+                signal_id=p.signal_id,
+            )
+        )
     return out
 
 
@@ -1276,13 +1446,16 @@ async def get_active_positions() -> list[PositionSchema]:
 
 # ── Execution Center & Order Lifecycle Endpoints ──────────────────────────────
 
+
 @router.get(
     "/trading/orders",
     response_model=list[UnifiedOrderSchema],
     dependencies=[Depends(require_api_key)],
     tags=["trading", "execution"],
 )
-async def get_all_orders(limit: int = Query(default=50, ge=1, le=200)) -> list[UnifiedOrderSchema]:
+async def get_all_orders(
+    limit: int = Query(default=50, ge=1, le=200)
+) -> list[UnifiedOrderSchema]:
     """
     Unified order feed aggregating open positions, historical closed trades,
     and shadow executions into a single chronological stream.
@@ -1293,69 +1466,99 @@ async def get_all_orders(limit: int = Query(default=50, ge=1, le=200)) -> list[U
     if _position_repo:
         open_pos = await _position_repo.get_open()
         for p in open_pos:
-            entry_ts = p.entry_time.isoformat() if hasattr(p.entry_time, "isoformat") else str(p.entry_time or "")
+            entry_ts = (
+                p.entry_time.isoformat()
+                if hasattr(p.entry_time, "isoformat")
+                else str(p.entry_time or "")
+            )
             is_live = getattr(p.mode, "value", str(p.mode)) == "LIVE_MICROCASH"
-            orders.append(UnifiedOrderSchema(
-                id=f"ORD-POS-{p.id}",
-                exchange_order_id=getattr(p, "exchange_order_id", None) or (f"CDX-{p.id[:8].upper()}" if is_live else None),
-                coin=p.coin,
-                pair=p.pair,
-                side="BUY",
-                qty=p.qty,
-                price=p.entry_price,
-                executed_price=p.entry_price,
-                mode=p.mode.value if hasattr(p.mode, "value") else str(p.mode),
-                status="OPEN",
-                created_at=entry_ts,
-                filled_at=entry_ts,
-                bot=p.bot.value if hasattr(p.bot, "value") else str(p.bot),
-                signal_id=p.signal_id,
-            ))
+            orders.append(
+                UnifiedOrderSchema(
+                    id=f"ORD-POS-{p.id}",
+                    exchange_order_id=getattr(p, "exchange_order_id", None)
+                    or (f"CDX-{p.id[:8].upper()}" if is_live else None),
+                    coin=p.coin,
+                    pair=p.pair,
+                    side="BUY",
+                    qty=p.qty,
+                    price=p.entry_price,
+                    executed_price=p.entry_price,
+                    mode=p.mode.value if hasattr(p.mode, "value") else str(p.mode),
+                    status="OPEN",
+                    created_at=entry_ts,
+                    filled_at=entry_ts,
+                    bot=p.bot.value if hasattr(p.bot, "value") else str(p.bot),
+                    signal_id=p.signal_id,
+                )
+            )
 
     # 2. Executed Trades
     if _trade_repo:
         trades = await _trade_repo.get_recent(limit=limit)
         for t in trades:
-            entry_ts = t.entry_time.isoformat() if hasattr(t.entry_time, "isoformat") else str(t.entry_time or "")
-            exit_ts = t.exit_time.isoformat() if hasattr(t.exit_time, "isoformat") else str(t.exit_time or "")
+            entry_ts = (
+                t.entry_time.isoformat()
+                if hasattr(t.entry_time, "isoformat")
+                else str(t.entry_time or "")
+            )
+            exit_ts = (
+                t.exit_time.isoformat()
+                if hasattr(t.exit_time, "isoformat")
+                else str(t.exit_time or "")
+            )
             is_live = getattr(t.mode, "value", str(t.mode)) == "LIVE_MICROCASH"
-            orders.append(UnifiedOrderSchema(
-                id=f"ORD-TRD-{t.id}",
-                exchange_order_id=getattr(t, "exchange_order_id", None) or (f"CDX-{t.id[:8].upper()}" if is_live else None),
-                coin=t.coin,
-                pair=t.pair,
-                side="SELL",
-                qty=t.qty,
-                price=t.exit_price,
-                executed_price=t.exit_price,
-                mode=t.mode.value if hasattr(t.mode, "value") else str(t.mode),
-                status="FILLED",
-                created_at=entry_ts,
-                filled_at=exit_ts,
-                bot=t.bot.value if hasattr(t.bot, "value") else str(t.bot),
-                signal_id=t.signal_id,
-            ))
+            orders.append(
+                UnifiedOrderSchema(
+                    id=f"ORD-TRD-{t.id}",
+                    exchange_order_id=getattr(t, "exchange_order_id", None)
+                    or (f"CDX-{t.id[:8].upper()}" if is_live else None),
+                    coin=t.coin,
+                    pair=t.pair,
+                    side="SELL",
+                    qty=t.qty,
+                    price=t.exit_price,
+                    executed_price=t.exit_price,
+                    mode=t.mode.value if hasattr(t.mode, "value") else str(t.mode),
+                    status="FILLED",
+                    created_at=entry_ts,
+                    filled_at=exit_ts,
+                    bot=t.bot.value if hasattr(t.bot, "value") else str(t.bot),
+                    signal_id=t.signal_id,
+                )
+            )
 
     # 3. Shadow Trades (if not enough trades)
     if _shadow_repo and len(orders) < limit:
-        shadow_trades = await _shadow_repo.get_recent_shadow_trades(limit=limit - len(orders))
+        shadow_trades = await _shadow_repo.get_recent_shadow_trades(
+            limit=limit - len(orders)
+        )
         for st in shadow_trades:
-            orders.append(UnifiedOrderSchema(
-                id=f"ORD-SHD-{st.id}",
-                exchange_order_id=None,
-                coin=st.coin,
-                pair=st.pair,
-                side="BUY",
-                qty=st.qty,
-                price=st.entry_price,
-                executed_price=st.entry_price,
-                mode="SHADOW",
-                status="FILLED" if st.status.startswith("CLOSED") else "OPEN",
-                created_at=st.created_at.isoformat() if hasattr(st.created_at, "isoformat") else str(st.created_at or ""),
-                filled_at=st.closed_at.isoformat() if st.closed_at and hasattr(st.closed_at, "isoformat") else None,
-                bot=st.bot.value if hasattr(st.bot, "value") else str(st.bot),
-                signal_id=st.signal_id,
-            ))
+            orders.append(
+                UnifiedOrderSchema(
+                    id=f"ORD-SHD-{st.id}",
+                    exchange_order_id=None,
+                    coin=st.coin,
+                    pair=st.pair,
+                    side="BUY",
+                    qty=st.qty,
+                    price=st.entry_price,
+                    executed_price=st.entry_price,
+                    mode="SHADOW",
+                    status="FILLED" if st.status.startswith("CLOSED") else "OPEN",
+                    created_at=(
+                        st.created_at.isoformat()
+                        if hasattr(st.created_at, "isoformat")
+                        else str(st.created_at or "")
+                    ),
+                    filled_at=(
+                        st.closed_at.isoformat()
+                        if st.closed_at and hasattr(st.closed_at, "isoformat")
+                        else None
+                    ),
+                    bot=st.bot.value if hasattr(st.bot, "value") else str(st.bot),
+                    signal_id=st.signal_id,
+                )
+            )
 
     # Sort newest first
     orders.sort(key=lambda o: o.created_at or "", reverse=True)
@@ -1372,7 +1575,12 @@ async def get_order_lifecycle(entity_id: str) -> OrderLifecycleSchema:
     """
     Retrieve deep lifecycle event trail and execution stage milestones for a given order/position.
     """
-    clean_id = entity_id.replace("ORD-POS-", "").replace("ORD-TRD-", "").replace("ORD-SHD-", "").strip()
+    clean_id = (
+        entity_id.replace("ORD-POS-", "")
+        .replace("ORD-TRD-", "")
+        .replace("ORD-SHD-", "")
+        .strip()
+    )
 
     coin = "BTC"
     pair = "BTC/INR"
@@ -1390,24 +1598,34 @@ async def get_order_lifecycle(entity_id: str) -> OrderLifecycleSchema:
         if pos:
             coin = pos.coin
             pair = pos.pair
-            status = pos.status.value if hasattr(pos.status, "value") else str(pos.status)
+            status = (
+                pos.status.value if hasattr(pos.status, "value") else str(pos.status)
+            )
             mode = pos.mode.value if hasattr(pos.mode, "value") else str(pos.mode)
             qty = pos.qty
             price = pos.entry_price
             sig_id = pos.signal_id or clean_id
             if mode == "LIVE_MICROCASH":
                 ex_order_id = f"CDX-{pos.id[:8].upper()}"
-                subaccount_id = f"SUBACCT-{pos.bot.value if hasattr(pos.bot, 'value') else pos.bot}"
+                subaccount_id = (
+                    f"SUBACCT-{pos.bot.value if hasattr(pos.bot, 'value') else pos.bot}"
+                )
 
     # Check in trade_repo
     if _trade_repo and price == 0.0:
         trades = await _trade_repo.get_recent(limit=50)
-        t_match = next((t for t in trades if t.id == clean_id or t.position_id == clean_id), None)
+        t_match = next(
+            (t for t in trades if t.id == clean_id or t.position_id == clean_id), None
+        )
         if t_match:
             coin = t_match.coin
             pair = t_match.pair
             status = "CLOSED"
-            mode = t_match.mode.value if hasattr(t_match.mode, "value") else str(t_match.mode)
+            mode = (
+                t_match.mode.value
+                if hasattr(t_match.mode, "value")
+                else str(t_match.mode)
+            )
             qty = t_match.qty
             price = t_match.exit_price
             sig_id = t_match.signal_id or clean_id
@@ -1423,13 +1641,59 @@ async def get_order_lifecycle(entity_id: str) -> OrderLifecycleSchema:
             events = await _event_log_repo.get_by_entity(sig_id)
 
     stages = [
-        {"stage": "SIGNAL", "name": "Signal Generation", "status": "PASSED", "timestamp": datetime.now(timezone.utc).isoformat(), "detail": f"Signal {sig_id} emitted with C2 Confluence."},
-        {"stage": "RISK_APPROVED", "name": "Risk Engine Gate", "status": "PASSED", "timestamp": datetime.now(timezone.utc).isoformat(), "detail": "Capital headroom, limits & streak checks verified."},
-        {"stage": "ORDER_SUBMITTED", "name": "Order Router Dispatch", "status": "PASSED", "timestamp": datetime.now(timezone.utc).isoformat(), "detail": f"Routed to {mode} execution client."},
-        {"stage": "EXCHANGE_ORDER", "name": "Exchange ACK", "status": "PASSED" if mode == "LIVE_MICROCASH" else "SKIPPED", "timestamp": datetime.now(timezone.utc).isoformat(), "detail": f"Exchange Order ID: {ex_order_id or 'N/A (Paper)'}"},
-        {"stage": "PENDING", "name": "Order Fill Pending", "status": "PASSED", "timestamp": datetime.now(timezone.utc).isoformat(), "detail": "Waiting for market matching engine fill."},
-        {"stage": "FILLED", "name": "Execution Fill Completed", "status": "PASSED" if status in ("OPEN", "CLOSED", "FILLED") else "PENDING", "timestamp": datetime.now(timezone.utc).isoformat(), "detail": f"Filled {qty} @ ₹{price:,.2f}"},
-        {"stage": "POSITION", "name": "Position Active", "status": "ACTIVE" if status == "OPEN" else "CLOSED" if status == "CLOSED" else "PASSED", "timestamp": datetime.now(timezone.utc).isoformat(), "detail": "Active bracket management (SL & TP active)."},
+        {
+            "stage": "SIGNAL",
+            "name": "Signal Generation",
+            "status": "PASSED",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "detail": f"Signal {sig_id} emitted with C2 Confluence.",
+        },
+        {
+            "stage": "RISK_APPROVED",
+            "name": "Risk Engine Gate",
+            "status": "PASSED",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "detail": "Capital headroom, limits & streak checks verified.",
+        },
+        {
+            "stage": "ORDER_SUBMITTED",
+            "name": "Order Router Dispatch",
+            "status": "PASSED",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "detail": f"Routed to {mode} execution client.",
+        },
+        {
+            "stage": "EXCHANGE_ORDER",
+            "name": "Exchange ACK",
+            "status": "PASSED" if mode == "LIVE_MICROCASH" else "SKIPPED",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "detail": f"Exchange Order ID: {ex_order_id or 'N/A (Paper)'}",
+        },
+        {
+            "stage": "PENDING",
+            "name": "Order Fill Pending",
+            "status": "PASSED",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "detail": "Waiting for market matching engine fill.",
+        },
+        {
+            "stage": "FILLED",
+            "name": "Execution Fill Completed",
+            "status": "PASSED" if status in ("OPEN", "CLOSED", "FILLED") else "PENDING",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "detail": f"Filled {qty} @ ₹{price:,.2f}",
+        },
+        {
+            "stage": "POSITION",
+            "name": "Position Active",
+            "status": (
+                "ACTIVE"
+                if status == "OPEN"
+                else "CLOSED" if status == "CLOSED" else "PASSED"
+            ),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "detail": "Active bracket management (SL & TP active).",
+        },
     ]
 
     return OrderLifecycleSchema(
@@ -1454,13 +1718,16 @@ async def get_order_lifecycle(entity_id: str) -> OrderLifecycleSchema:
 
 # ── Error Center Endpoint ─────────────────────────────────────────────────────
 
+
 @router.get(
     "/monitoring/errors",
     response_model=list[ErrorLogItemSchema],
     dependencies=[Depends(require_api_key)],
     tags=["monitoring"],
 )
-async def get_system_errors(limit: int = Query(default=50, ge=1, le=200)) -> list[ErrorLogItemSchema]:
+async def get_system_errors(
+    limit: int = Query(default=50, ge=1, le=200)
+) -> list[ErrorLogItemSchema]:
     """
     Retrieve centralized error trail, circuit trips, alert events, and scheduler warnings.
     """
@@ -1470,30 +1737,56 @@ async def get_system_errors(limit: int = Query(default=50, ge=1, le=200)) -> lis
     if _scheduler:
         for job in _scheduler.get_status():
             if job.get("last_error"):
-                errors.append(ErrorLogItemSchema(
-                    id=f"ERR-SCHED-{job['name']}",
-                    timestamp=job.get("last_run_at") or datetime.now(timezone.utc).isoformat(),
-                    service="scheduler",
-                    severity="WARNING" if job.get("consecutive_errors", 0) < 3 else "ERROR",
-                    message=f"Job '{job['name']}' error: {job['last_error']}",
-                    status="ACTIVE",
-                    payload=job,
-                ))
+                errors.append(
+                    ErrorLogItemSchema(
+                        id=f"ERR-SCHED-{job['name']}",
+                        timestamp=job.get("last_run_at")
+                        or datetime.now(timezone.utc).isoformat(),
+                        service="scheduler",
+                        severity=(
+                            "WARNING"
+                            if job.get("consecutive_errors", 0) < 3
+                            else "ERROR"
+                        ),
+                        message=f"Job '{job['name']}' error: {job['last_error']}",
+                        status="ACTIVE",
+                        payload=job,
+                    )
+                )
 
     # 2. Event log repo error entries
     if _event_log_repo:
-        recent = await _event_log_repo.get_since(datetime.now(timezone.utc) - timedelta(hours=24), limit=limit)
+        recent = await _event_log_repo.get_since(
+            datetime.now(timezone.utc) - timedelta(hours=24), limit=limit
+        )
         for e in recent:
-            if "FAIL" in e.event_type or "ERROR" in e.event_type or "DENIED" in e.event_type or "TRIPPED" in e.event_type:
-                errors.append(ErrorLogItemSchema(
-                    id=f"ERR-EVT-{e.id}",
-                    timestamp=e.logged_at.isoformat() if e.logged_at else datetime.now(timezone.utc).isoformat(),
-                    service=e.source_service or "event_bus",
-                    severity="CRITICAL" if "TRIPPED" in e.event_type else "WARNING" if "DENIED" in e.event_type else "ERROR",
-                    message=f"{e.event_type}: {e.payload.get('reason') or e.payload.get('error') or 'Event recorded'}",
-                    status="RESOLVED" if e.event_type == "TRADE_DENIED" else "ACTIVE",
-                    payload=e.payload,
-                ))
+            if (
+                "FAIL" in e.event_type
+                or "ERROR" in e.event_type
+                or "DENIED" in e.event_type
+                or "TRIPPED" in e.event_type
+            ):
+                errors.append(
+                    ErrorLogItemSchema(
+                        id=f"ERR-EVT-{e.id}",
+                        timestamp=(
+                            e.logged_at.isoformat()
+                            if e.logged_at
+                            else datetime.now(timezone.utc).isoformat()
+                        ),
+                        service=e.source_service or "event_bus",
+                        severity=(
+                            "CRITICAL"
+                            if "TRIPPED" in e.event_type
+                            else "WARNING" if "DENIED" in e.event_type else "ERROR"
+                        ),
+                        message=f"{e.event_type}: {e.payload.get('reason') or e.payload.get('error') or 'Event recorded'}",
+                        status=(
+                            "RESOLVED" if e.event_type == "TRADE_DENIED" else "ACTIVE"
+                        ),
+                        payload=e.payload,
+                    )
+                )
 
     # Sort newest first
     errors.sort(key=lambda x: x.timestamp, reverse=True)
@@ -1501,6 +1794,7 @@ async def get_system_errors(limit: int = Query(default=50, ge=1, le=200)) -> lis
 
 
 # ── Phase 3 Post-Trade Journal & Analytics Endpoints ─────────────────────────
+
 
 @router.get(
     "/journal/trades",
@@ -1510,13 +1804,17 @@ async def get_system_errors(limit: int = Query(default=50, ge=1, le=200)) -> lis
 async def get_journal_trades(
     limit: int = Query(default=50, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
-    bot_name: Optional[str] = Query(default=None),
-    pair: Optional[str] = Query(default=None),
+    bot_name: str | None = Query(default=None),
+    pair: str | None = Query(default=None),
 ):
     """Fetch paginated post-trade journal entries with statutory tax breakdowns and excursion metrics."""
     if _journal_repo is None:
-        raise HTTPException(status_code=503, detail="Journal repository not initialized.")
-    return await _journal_repo.get_entries(limit=limit, offset=offset, bot_name=bot_name, pair=pair)
+        raise HTTPException(
+            status_code=503, detail="Journal repository not initialized."
+        )
+    return await _journal_repo.get_entries(
+        limit=limit, offset=offset, bot_name=bot_name, pair=pair
+    )
 
 
 @router.get(
@@ -1525,14 +1823,18 @@ async def get_journal_trades(
     tags=["analytics"],
 )
 async def get_analytics_performance(
-    bot_name: Optional[str] = Query(default=None),
-    pair: Optional[str] = Query(default=None),
+    bot_name: str | None = Query(default=None),
+    pair: str | None = Query(default=None),
     limit: int = Query(default=1000, ge=1, le=10000),
 ):
     """Return quantitative performance metrics (Win Rates, Profit Factor, Max Drawdown, Sharpe, Sortino, Calmar)."""
     if _analytics_service is None:
-        raise HTTPException(status_code=503, detail="Analytics service not initialized.")
-    return await _analytics_service.get_performance_summary(bot_name=bot_name, pair=pair, limit=limit)
+        raise HTTPException(
+            status_code=503, detail="Analytics service not initialized."
+        )
+    return await _analytics_service.get_performance_summary(
+        bot_name=bot_name, pair=pair, limit=limit
+    )
 
 
 @router.get(
@@ -1541,16 +1843,21 @@ async def get_analytics_performance(
     tags=["analytics"],
 )
 async def get_tax_ledger(
-    start_iso: Optional[str] = Query(default=None),
-    end_iso: Optional[str] = Query(default=None),
+    start_iso: str | None = Query(default=None),
+    end_iso: str | None = Query(default=None),
 ):
     """Return statutory tax & compliance summary (Sec 194S TDS, brokerage GST, quarterly breakdown)."""
     if _analytics_service is None:
-        raise HTTPException(status_code=503, detail="Analytics service not initialized.")
-    return await _analytics_service.get_tax_ledger_summary(start_iso=start_iso, end_iso=end_iso)
+        raise HTTPException(
+            status_code=503, detail="Analytics service not initialized."
+        )
+    return await _analytics_service.get_tax_ledger_summary(
+        start_iso=start_iso, end_iso=end_iso
+    )
 
 
 # ── Phase 4 Learning Engine & Mistake Diagnosis Endpoints ────────────────────
+
 
 @router.get(
     "/learning/insights",
@@ -1558,8 +1865,8 @@ async def get_tax_ledger(
     tags=["learning"],
 )
 async def get_learning_insights(
-    bot_name: Optional[str] = Query(default=None),
-    pair: Optional[str] = Query(default=None),
+    bot_name: str | None = Query(default=None),
+    pair: str | None = Query(default=None),
 ):
     """Return active learned lessons and mistake pattern diagnoses."""
     if _learning_service is None:
@@ -1593,12 +1900,13 @@ async def run_learning_cycle():
 
 # ── Phase 5 Historical Backtest & Strategy Improvement Endpoints ─────────────
 
+
 class BacktestRunPayload(BaseModel):
     strategy_name: str = "STE"
     pair: str = "BTC/INR"
     timeframe: str = "5m"
-    candles: Optional[list[dict]] = None
-    parameters: Optional[dict] = None
+    candles: list[dict] | None = None
+    parameters: dict | None = None
 
 
 @router.post(
@@ -1607,10 +1915,10 @@ class BacktestRunPayload(BaseModel):
     tags=["backtest"],
 )
 async def run_historical_backtest(
-    payload: Optional[BacktestRunPayload] = Body(default=None),
-    strategy_name: Optional[str] = Query(default=None),
-    pair: Optional[str] = Query(default=None),
-    timeframe: Optional[str] = Query(default=None),
+    payload: BacktestRunPayload | None = Body(default=None),
+    strategy_name: str | None = Query(default=None),
+    pair: str | None = Query(default=None),
+    timeframe: str | None = Query(default=None),
 ):
     """Launch historical multi-timeframe backtest simulation."""
     if _backtest_service is None:
@@ -1658,18 +1966,21 @@ async def get_backtest_run_detail(run_id: str):
 
     detail = await _backtest_service.get_run_detail(run_id)
     if detail is None:
-        raise HTTPException(status_code=404, detail=f"Backtest run '{run_id}' not found.")
+        raise HTTPException(
+            status_code=404, detail=f"Backtest run '{run_id}' not found."
+        )
     return detail
 
 
 # ── Phase 6 Autonomous Recursive Feedback Loop Endpoints ─────────────────────
+
 
 class FeedbackTriggerPayload(BaseModel):
     bot_name: str = "STE"
     pair: str = "BTC/INR"
     multiplier: float = 1.0
     threshold: float = 85.0
-    candles: Optional[list[dict]] = None
+    candles: list[dict] | None = None
 
 
 @router.get(
@@ -1690,7 +2001,7 @@ async def get_feedback_loop_status():
     tags=["feedback"],
 )
 async def get_feedback_audit_trail(
-    bot_name: Optional[str] = Query(default=None),
+    bot_name: str | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=1000),
 ):
     """Return chronological record of parameter adjustments, backtest validations, and rollbacks."""
@@ -1705,7 +2016,7 @@ async def get_feedback_audit_trail(
     tags=["feedback"],
 )
 async def trigger_feedback_cycle(
-    payload: Optional[FeedbackTriggerPayload] = Body(default=None),
+    payload: FeedbackTriggerPayload | None = Body(default=None),
 ):
     """Trigger an immediate autonomous feedback evaluation and pre-deployment backtest validation cycle."""
     if _feedback_service is None:
@@ -1719,5 +2030,3 @@ async def trigger_feedback_cycle(
         threshold=p.threshold,
         candles=p.candles,
     )
-
-

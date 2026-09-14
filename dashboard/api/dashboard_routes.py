@@ -7,7 +7,7 @@ and global emergency stop circuit breaker triggers.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 
@@ -15,27 +15,34 @@ from dashboard.api.auth import require_api_key
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
-_dashboard_aggregator: Optional[Any] = None
-_dashboard_service: Optional[Any] = None
-_bot_tracker: Optional[Any] = None
+_dashboard_aggregator: Any | None = None
+_dashboard_service: Any | None = None
+_bot_tracker: Any | None = None
 
 
 def init_dashboard_routes(
     aggregator: Any = None,
-    dashboard_service: Optional[Any] = None,
-    bot_tracker: Optional[Any] = None,
+    dashboard_service: Any | None = None,
+    bot_tracker: Any | None = None,
     **kwargs: Any,
 ) -> None:
     """Initialize router state with DashboardAggregator, DashboardService, and BotPipelineTracker."""
     global _dashboard_aggregator, _dashboard_service, _bot_tracker
 
     # Handle flexible argument positions (e.g. init_dashboard_routes(bot_tracker, aggregator))
-    if aggregator is not None and hasattr(aggregator, "get_all_bots") and dashboard_service is not None and hasattr(dashboard_service, "get_overview_snapshot"):
+    if (
+        aggregator is not None
+        and hasattr(aggregator, "get_all_bots")
+        and dashboard_service is not None
+        and hasattr(dashboard_service, "get_overview_snapshot")
+    ):
         _bot_tracker = aggregator
         _dashboard_aggregator = dashboard_service
     else:
         if aggregator is not None:
-            if hasattr(aggregator, "get_overview") and hasattr(aggregator, "aggregator"):
+            if hasattr(aggregator, "get_overview") and hasattr(
+                aggregator, "aggregator"
+            ):
                 _dashboard_service = aggregator
                 _dashboard_aggregator = aggregator.aggregator
                 _bot_tracker = getattr(aggregator, "bot_tracker", None)
@@ -45,7 +52,9 @@ def init_dashboard_routes(
 
         if dashboard_service is not None:
             _dashboard_service = dashboard_service
-            if _dashboard_aggregator is None and hasattr(dashboard_service, "aggregator"):
+            if _dashboard_aggregator is None and hasattr(
+                dashboard_service, "aggregator"
+            ):
                 _dashboard_aggregator = dashboard_service.aggregator
             if _bot_tracker is None and hasattr(dashboard_service, "bot_tracker"):
                 _bot_tracker = getattr(dashboard_service, "bot_tracker", None)

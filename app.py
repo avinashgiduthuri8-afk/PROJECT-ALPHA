@@ -14,7 +14,6 @@ trading system across the 6 canonical modules:
 from __future__ import annotations
 
 import asyncio
-import os
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -30,56 +29,55 @@ _ROOT = Path(__file__).resolve().parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from core.config import AppConfig, get_config
-from core.logging import get_logger
+from background import (
+    AIIntelligenceService,
+    BackgroundScheduler,
+    BacktestService,
+    FeedbackService,
+    HealthChecker,
+    JournalService,
+    LearningService,
+    PortfolioService,
+    ProductionController,
+    ProductionService,
+    ProductionWatchdog,
+)
+from background.analytics.service import AnalyticsService
+from background.monitoring.alerts import AlertManager
+from background.monitoring.metrics import MetricsCollector
+from background.scheduler.jobs import register_all_jobs
 from core.bus import bus
 from core.bus.subscribers import register_all as register_all_subscribers
-from core.repository.db import Database
-from core.repository.signal_repo import SignalRepository
+from core.config import get_config
+from core.logging import get_logger
 from core.repository.ai_repo import AIAnalysisRepository
-from core.repository.position_repo import PositionRepository
-from core.repository.trade_repo import TradeRepository
-from core.repository.order_repo import OrderRepository
-from core.repository.shadow_repo import ShadowRepository
-from core.repository.metrics_repo import MetricsRepository
-from core.repository.event_log_repo import EventLogRepository
+from core.repository.backtest_repo import BacktestRepository
 from core.repository.candle_repo import CandleRepository
-from core.repository.production_state_repo import ProductionStateRepository
+from core.repository.db import Database
+from core.repository.event_log_repo import EventLogRepository
+from core.repository.feedback_repo import FeedbackRepository
 from core.repository.journal_repo import JournalRepository
 from core.repository.learning_repo import LearningRepository
-from core.repository.backtest_repo import BacktestRepository
-from core.repository.feedback_repo import FeedbackRepository
+from core.repository.metrics_repo import MetricsRepository
+from core.repository.order_repo import OrderRepository
+from core.repository.position_repo import PositionRepository
 from core.repository.production_repo import ProductionRepository
-
-from scanner import ScannerService
-from scanner.research import CoinResearchService
+from core.repository.production_state_repo import ProductionStateRepository
+from core.repository.shadow_repo import ShadowRepository
+from core.repository.signal_repo import SignalRepository
+from core.repository.trade_repo import TradeRepository
+from dashboard import DashboardService
+from dashboard.api.dashboard_routes import init_dashboard_routes
+from dashboard.api.router import init_router
+from dashboard.api.router import router as api_router
+from dashboard.api.websocket import init_websocket
+from dashboard.api.websocket import router as ws_router
 from execution import TradingService
 from execution.risk import RiskService
 from execution.shadow import ShadowService
+from scanner import ScannerService
+from scanner.research import CoinResearchService
 from telegram import NotificationService
-from dashboard import DashboardService
-from dashboard.api.router import router as api_router, init_router
-from dashboard.api.dashboard_routes import init_dashboard_routes
-from dashboard.api.websocket import router as ws_router, init_websocket
-
-from background import (
-    BackgroundScheduler,
-    AIIntelligenceService,
-    PortfolioService,
-    JournalService,
-    AnalyticsEngine,
-    LearningService,
-    BacktestService,
-    FeedbackService,
-    ProductionService,
-    ProductionController,
-    ProductionWatchdog,
-    HealthChecker,
-)
-from background.scheduler.jobs import register_all_jobs
-from background.analytics.service import AnalyticsService
-from background.monitoring.metrics import MetricsCollector
-from background.monitoring.alerts import AlertManager
 
 logger = get_logger("app")
 
@@ -383,7 +381,9 @@ async def lifespan(app: FastAPI):
         bot_tracker=_dashboard_service.bot_tracker,
     )
 
-    if position_repo and hasattr(_dashboard_service.bot_tracker, "sync_from_repository"):
+    if position_repo and hasattr(
+        _dashboard_service.bot_tracker, "sync_from_repository"
+    ):
         await _dashboard_service.bot_tracker.sync_from_repository(position_repo)
 
     asyncio.create_task(_scanner_service.poll())
@@ -451,10 +451,20 @@ _dashboard_static_dir = _ROOT / "dashboard" / "static"
 _dashboard_template_dir = _ROOT / "dashboard" / "templates"
 
 if _dashboard_static_dir.exists():
-    app.mount("/static", StaticFiles(directory=str(_dashboard_static_dir)), name="static")
-    app.mount("/v2-static", StaticFiles(directory=str(_dashboard_static_dir)), name="v2-static")
+    app.mount(
+        "/static", StaticFiles(directory=str(_dashboard_static_dir)), name="static"
+    )
+    app.mount(
+        "/v2-static",
+        StaticFiles(directory=str(_dashboard_static_dir)),
+        name="v2-static",
+    )
 
-templates = Jinja2Templates(directory=str(_dashboard_template_dir)) if _dashboard_template_dir.exists() else None
+templates = (
+    Jinja2Templates(directory=str(_dashboard_template_dir))
+    if _dashboard_template_dir.exists()
+    else None
+)
 
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
@@ -463,7 +473,9 @@ templates = Jinja2Templates(directory=str(_dashboard_template_dir)) if _dashboar
 async def serve_dashboard(request: Request):
     """Serve the Mission Control Dashboard UI."""
     if templates is None:
-        return HTMLResponse("<h2>PROJECT-ALPHA templates directory not found</h2>", status_code=404)
+        return HTMLResponse(
+            "<h2>PROJECT-ALPHA templates directory not found</h2>", status_code=404
+        )
     cfg = get_config()
     return templates.TemplateResponse(
         request=request,
@@ -472,7 +484,10 @@ async def serve_dashboard(request: Request):
             "api_key": cfg.dashboard_api_key or "",
             "data": {
                 "mtb_overview": {"daily_pnl": 0.0, "open_positions": []},
-                "service_statuses": {"scanner_telegram": "ONLINE", "mtb_telegram": "ONLINE"},
+                "service_statuses": {
+                    "scanner_telegram": "ONLINE",
+                    "mtb_telegram": "ONLINE",
+                },
             },
         },
     )
@@ -488,4 +503,3 @@ if __name__ == "__main__":
         log_level="info",
         access_log=True,
     )
-

@@ -8,7 +8,7 @@ and records audit logs in shadow_trade_logs.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
@@ -26,8 +26,8 @@ class ShadowDivergenceTracker:
 
     def __init__(
         self,
-        production_repo: Optional[ProductionRepository] = None,
-        bus: Optional[EventBus] = None,
+        production_repo: ProductionRepository | None = None,
+        bus: EventBus | None = None,
     ) -> None:
         self._production_repo = production_repo
         self._bus = bus
@@ -49,11 +49,13 @@ class ShadowDivergenceTracker:
         pair: str,
         simulated_entry_price: float,
         real_orderbook_entry_price: float,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Evaluate slippage divergence, record audit log, and dispatch alert if anomaly threshold exceeded.
         """
-        div_pct = self.compute_divergence(simulated_entry_price, real_orderbook_entry_price)
+        div_pct = self.compute_divergence(
+            simulated_entry_price, real_orderbook_entry_price
+        )
         is_anomaly = div_pct > DIVERGENCE_ANOMALY_THRESHOLD_PCT
 
         record = {

@@ -12,13 +12,12 @@ Verifies:
 from __future__ import annotations
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
 
+from background.portfolio import PortfolioService
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
 from core.bus.subscribers import register_all
 from core.config import V2Config
-from background.portfolio import PortfolioService, PortfolioAggregator
 
 
 @pytest.mark.anyio
@@ -118,8 +117,13 @@ async def test_portfolio_service_event_handling():
     await service.start()
 
     # Dispatch events to ensure handlers execute cleanly without error
-    await bus.publish(EventType.POSITION_OPENED, {"position_id": "pos_1", "coin": "SOL", "amount": 200.0})
-    await bus.publish(EventType.POSITION_UPDATED, {"position_id": "pos_1", "current_price": 105.0})
+    await bus.publish(
+        EventType.POSITION_OPENED,
+        {"position_id": "pos_1", "coin": "SOL", "amount": 200.0},
+    )
+    await bus.publish(
+        EventType.POSITION_UPDATED, {"position_id": "pos_1", "current_price": 105.0}
+    )
     await bus.publish(EventType.POSITION_CLOSED, {"position_id": "pos_1", "pnl": 10.0})
 
     await service.stop()

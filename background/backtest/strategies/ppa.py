@@ -5,7 +5,6 @@ Vectorized implementation.
 
 from __future__ import annotations
 
-from typing import List
 import numpy as np
 import pandas as pd
 
@@ -22,8 +21,8 @@ class PPAStrategy(BaseStrategy):
         df: pd.DataFrame,
         pair: str = "BTC/USDT",
         timeframe: str = "1H",
-    ) -> List[BacktestTradeSignal]:
-        signals: List[BacktestTradeSignal] = []
+    ) -> list[BacktestTradeSignal]:
+        signals: list[BacktestTradeSignal] = []
         n = len(df)
         if n < 30:
             return signals
@@ -45,12 +44,14 @@ class PPAStrategy(BaseStrategy):
             if i < 12 or i >= n - 1:
                 continue
 
-            down_volumes = [volumes[k] for k in range(i - 10, i) if closes[k] < opens[k]]
+            down_volumes = [
+                volumes[k] for k in range(i - 10, i) if closes[k] < opens[k]
+            ]
             max_down_vol = max(down_volumes) if down_volumes else 0.0
 
             if volumes[i] > max_down_vol:
                 entry = closes[i]
-                stop_loss = np.min(lows[i-3:i+1]) * 0.995
+                stop_loss = np.min(lows[i - 3 : i + 1]) * 0.995
                 sl_distance = entry - stop_loss
                 if sl_distance <= 0:
                     continue
@@ -66,7 +67,10 @@ class PPAStrategy(BaseStrategy):
                         stop_loss_price=float(stop_loss),
                         take_profit_price=float(take_profit),
                         direction="LONG",
-                        metadata={"up_vol": float(volumes[i]), "max_down_vol": float(max_down_vol)},
+                        metadata={
+                            "up_vol": float(volumes[i]),
+                            "max_down_vol": float(max_down_vol),
+                        },
                     )
                 )
 

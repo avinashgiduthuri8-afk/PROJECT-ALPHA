@@ -6,34 +6,40 @@ from __future__ import annotations
 
 import pytest
 
-from background.backtest.data_feeder import COINDCX_INR_PAIRS, get_pair_spec, round_price, round_qty
+from background.backtest.data_feeder import (
+    COINDCX_INR_PAIRS,
+    round_price,
+    round_qty,
+)
 from background.backtest.engine import BacktestEngine
 from background.backtest.fleet_selector import FleetSelector
 from background.backtest.friction import CoinDCXFrictionModel, FrictionConfig
 from background.backtest.metrics import PerformanceMetrics, calculate_trade_metrics
 from background.backtest.risk_gate import Stage06RiskGate
-from background.backtest.strategies import MTBStrategy, HDAStrategy, STEStrategy
+from background.backtest.strategies import HDAStrategy
 
 
 class TestFrictionModel:
 
     def test_inr_spot_friction_rates(self):
         config = FrictionConfig(is_c2c_pair=False)
-        assert config.buy_fee_pct == 0.236   # 0.20% + 18% GST
+        assert config.buy_fee_pct == 0.236  # 0.20% + 18% GST
         assert config.sell_fee_pct == 1.236  # 1.00% Sec 194S TDS + 0.236% fee
         assert config.round_trip_fee_pct == 1.472
         assert config.total_round_trip_drag_pct == 1.572  # 1.472% fee + 0.10% slippage
 
     def test_c2c_pair_friction_rates(self):
         config = FrictionConfig(is_c2c_pair=True)
-        assert config.buy_fee_pct == 1.236   # 1% Buy TDS + 0.236% fee
+        assert config.buy_fee_pct == 1.236  # 1% Buy TDS + 0.236% fee
         assert config.sell_fee_pct == 1.236  # 1% Sell TDS + 0.236% fee
         assert config.round_trip_fee_pct == 2.472
         assert config.total_round_trip_drag_pct == 2.572  # 2.472% fee + 0.10% slippage
 
     def test_trade_net_pnl_calculation(self):
         model = CoinDCXFrictionModel()
-        pnl = model.calculate_trade_net_pnl(entry_price=100.0, exit_price=110.0, position_size_qty=10.0)
+        pnl = model.calculate_trade_net_pnl(
+            entry_price=100.0, exit_price=110.0, position_size_qty=10.0
+        )
         assert pnl["gross_pnl"] == 100.0
         assert pnl["gross_pnl_pct"] == 10.0
         assert pnl["net_pnl"] < pnl["gross_pnl"]  # Friction deducted
@@ -97,10 +103,30 @@ class TestMetricsCalculator:
 class TestFleetSelector:
 
     def test_evaluate_and_rank_fleet(self):
-        selector = FleetSelector(min_net_pf=1.75, min_net_rr=1.50, max_drawdown_pct=15.0)
-        m1 = PerformanceMetrics("HDA", 50, 40, 10, 80.0, 10.0, 5.0, 50.0, 5000.0, 2.0, 3.0, 100.0, True)
-        m2 = PerformanceMetrics("STE", 50, 38, 12, 76.0, 8.0, 4.0, 40.0, 4000.0, 1.8, 4.0, 80.0, True)
-        m3 = PerformanceMetrics("WeakStrategy", 50, 10, 40, 20.0, 0.8, 0.5, -20.0, -2000.0, 0.5, 30.0, -40.0, False)
+        selector = FleetSelector(
+            min_net_pf=1.75, min_net_rr=1.50, max_drawdown_pct=15.0
+        )
+        m1 = PerformanceMetrics(
+            "HDA", 50, 40, 10, 80.0, 10.0, 5.0, 50.0, 5000.0, 2.0, 3.0, 100.0, True
+        )
+        m2 = PerformanceMetrics(
+            "STE", 50, 38, 12, 76.0, 8.0, 4.0, 40.0, 4000.0, 1.8, 4.0, 80.0, True
+        )
+        m3 = PerformanceMetrics(
+            "WeakStrategy",
+            50,
+            10,
+            40,
+            20.0,
+            0.8,
+            0.5,
+            -20.0,
+            -2000.0,
+            0.5,
+            30.0,
+            -40.0,
+            False,
+        )
 
         ranked, top_4 = selector.evaluate_and_rank_fleet([m1, m2, m3])
         assert len(ranked) == 3
@@ -115,6 +141,8 @@ class TestBacktestEngineIntegration:
     def test_run_single_strategy_backtest(self):
         engine = BacktestEngine(initial_capital=100000.0)
         strat = HDAStrategy()
-        m = engine.run_strategy_backtest(strat, pairs=["BTC/INR"], timeframes=["1H"], sessions=50)
+        m = engine.run_strategy_backtest(
+            strat, pairs=["BTC/INR"], timeframes=["1H"], sessions=50
+        )
         assert isinstance(m, PerformanceMetrics)
         assert m.strategy_name == strat.name

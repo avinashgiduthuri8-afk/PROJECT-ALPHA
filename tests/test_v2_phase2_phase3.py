@@ -8,20 +8,20 @@ PROJECT-ALPHA — Phase 2 & Phase 3 Test Suite:
 
 from __future__ import annotations
 
-import asyncio
-from datetime import datetime, timezone
 import time
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-import aiosqlite
 
-from core.types import MarketState, Priority, RiskLevel, Signal, OppType
-from core.config import get_config
 from core.bus.event_bus import EventBus
-from core.repository.signal_repo import SignalRepository
+from core.config import get_config
 from core.repository.event_log_repo import EventLogRepository
-from core.repository.candle_repo import CandleRepository
+from core.repository.signal_repo import SignalRepository
+from core.types import MarketState, OppType, Priority, RiskLevel, Signal
+from scanner.confluence_engine import (
+    ConfluenceEngine,
+)
 from scanner.market_context import (
     MarketContextService,
     calculate_ema,
@@ -29,17 +29,10 @@ from scanner.market_context import (
 )
 from scanner.news_fetcher import (
     NewsRiskService,
-    DELISTING_KEYWORDS,
-    NEGATIVE_NEWS_KEYWORDS,
 )
 from scanner.service import (
-    ScannerService,
     AsyncRateLimiter,
-)
-from scanner.confluence_engine import (
-    ConfluenceEngine,
-    MarketSentimentEvaluator,
-    NewsEventsEvaluator,
+    ScannerService,
 )
 
 
@@ -47,14 +40,16 @@ def _make_bullish_candles(count: int = 30, base_price: float = 60000.0) -> list[
     candles = []
     for i in range(count):
         price = base_price + (i * 200.0)
-        candles.append({
-            "time": 1700000000000 + i * 900000,
-            "open": price - 50.0,
-            "high": price + 100.0,
-            "low": price - 100.0,
-            "close": price,
-            "volume": 10.0 + i,
-        })
+        candles.append(
+            {
+                "time": 1700000000000 + i * 900000,
+                "open": price - 50.0,
+                "high": price + 100.0,
+                "low": price - 100.0,
+                "close": price,
+                "volume": 10.0 + i,
+            }
+        )
     return candles
 
 
@@ -62,14 +57,16 @@ def _make_bearish_candles(count: int = 30, base_price: float = 60000.0) -> list[
     candles = []
     for i in range(count):
         price = base_price - (i * 200.0)
-        candles.append({
-            "time": 1700000000000 + i * 900000,
-            "open": price + 50.0,
-            "high": price + 100.0,
-            "low": price - 100.0,
-            "close": price,
-            "volume": 10.0 + i,
-        })
+        candles.append(
+            {
+                "time": 1700000000000 + i * 900000,
+                "open": price + 50.0,
+                "high": price + 100.0,
+                "low": price - 100.0,
+                "close": price,
+                "volume": 10.0 + i,
+            }
+        )
     return candles
 
 
@@ -99,6 +96,7 @@ def _make_test_signal(
 
 
 # ── 1. MarketContextService Tests ─────────────────────────────────────────────
+
 
 def test_calculate_ema():
     prices = [10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0]
@@ -146,7 +144,9 @@ async def test_fetch_fear_and_greed_fallback():
 
     # Mock response
     mock_resp = MagicMock()
-    mock_resp.json.return_value = {"data": [{"value": "72", "value_classification": "Greed"}]}
+    mock_resp.json.return_value = {
+        "data": [{"value": "72", "value_classification": "Greed"}]
+    }
     mock_resp.raise_for_status = MagicMock()
 
     with patch("httpx.AsyncClient.get", new=AsyncMock(return_value=mock_resp)):
@@ -154,7 +154,9 @@ async def test_fetch_fear_and_greed_fallback():
         assert val == 72
 
     # Network failure triggers fallback to 50
-    with patch("httpx.AsyncClient.get", new=AsyncMock(side_effect=Exception("Network down"))):
+    with patch(
+        "httpx.AsyncClient.get", new=AsyncMock(side_effect=Exception("Network down"))
+    ):
         val_fallback = await service.fetch_fear_and_greed()
         assert val_fallback == 50
 
@@ -179,18 +181,25 @@ async def test_refresh_market_context_full_flow():
 
 # ── 2. NewsRiskService Tests ──────────────────────────────────────────────────
 
+
 def test_news_risk_service_keyword_scanning():
     service = NewsRiskService()
 
     delist_posts = [
-        {"title": "Binance to delist SOL pair trading due to low liquidity", "currencies": [{"code": "SOL"}]}
+        {
+            "title": "Binance to delist SOL pair trading due to low liquidity",
+            "currencies": [{"code": "SOL"}],
+        }
     ]
     res_delist = service._analyze_posts_for_coin("SOL", delist_posts)
     assert res_delist["delisting_risk"] is True
     assert res_delist["sentiment_score"] == 0.0
 
     hack_posts = [
-        {"title": "DeFi Protocol on ETH hacked for $50M in flash loan exploit", "currencies": [{"code": "ETH"}]}
+        {
+            "title": "DeFi Protocol on ETH hacked for $50M in flash loan exploit",
+            "currencies": [{"code": "ETH"}],
+        }
     ]
     res_hack = service._analyze_posts_for_coin("ETH", hack_posts)
     assert res_hack["has_negative_news"] is True
@@ -198,7 +207,10 @@ def test_news_risk_service_keyword_scanning():
     assert res_hack["sentiment_score"] <= 0.40
 
     clean_posts = [
-        {"title": "BTC ETF inflows hit record high with institutional adoption", "currencies": [{"code": "BTC"}]}
+        {
+            "title": "BTC ETF inflows hit record high with institutional adoption",
+            "currencies": [{"code": "BTC"}],
+        }
     ]
     res_clean = service._analyze_posts_for_coin("BTC", clean_posts)
     assert res_clean["has_negative_news"] is False
@@ -214,11 +226,16 @@ async def test_news_risk_service_caching():
     mock_resp.status_code = 200
     mock_resp.json.return_value = {
         "results": [
-            {"title": "SEC investigation into crypto exchange operations", "currencies": [{"code": "XRP"}]}
+            {
+                "title": "SEC investigation into crypto exchange operations",
+                "currencies": [{"code": "XRP"}],
+            }
         ]
     }
 
-    with patch("httpx.AsyncClient.get", new=AsyncMock(return_value=mock_resp)) as mock_get:
+    with patch(
+        "httpx.AsyncClient.get", new=AsyncMock(return_value=mock_resp)
+    ) as mock_get:
         news1 = await service.fetch_latest_news()
         assert "XRP" in news1
         assert news1["XRP"]["has_negative_news"] is True
@@ -231,6 +248,7 @@ async def test_news_risk_service_caching():
 
 
 # ── 3. AsyncRateLimiter Tests ─────────────────────────────────────────────────
+
 
 @pytest.mark.anyio
 async def test_async_rate_limiter():
@@ -245,6 +263,7 @@ async def test_async_rate_limiter():
 
 
 # ── 4. True MTF Indicator Tests ───────────────────────────────────────────────
+
 
 def test_evaluate_mtf_alignment():
     service = ScannerService(
@@ -278,12 +297,16 @@ def test_evaluate_mtf_alignment():
 
 # ── 5. Confluence Engine Dynamic Sentiment & News Risk Integration ────────────
 
+
 def test_confluence_engine_rejection_on_delisting():
     engine = ConfluenceEngine(strict_threshold=85, max_signals=2)
     engine.update_market_sentiment("BULLISH", "BULLISH", "RISK_ON", fear_greed=65)
 
     sig = _make_test_signal("SOL", score=95)
-    cand_with_delist = {"coin": "SOL", "news": {"has_negative_news": False, "delisting_risk": True}}
+    cand_with_delist = {
+        "coin": "SOL",
+        "news": {"has_negative_news": False, "delisting_risk": True},
+    }
 
     accepted, results = engine.evaluate_candidates([cand_with_delist], [sig])
     assert len(accepted) == 0
@@ -297,7 +320,10 @@ def test_confluence_engine_rejection_on_risk_off():
     engine.update_market_sentiment("BEARISH", "BEARISH", "RISK_OFF", fear_greed=18)
 
     sig = _make_test_signal("BTC", score=95)
-    cand_clean = {"coin": "BTC", "news": {"has_negative_news": False, "delisting_risk": False}}
+    cand_clean = {
+        "coin": "BTC",
+        "news": {"has_negative_news": False, "delisting_risk": False},
+    }
 
     accepted, results = engine.evaluate_candidates([cand_clean], [sig])
     assert len(accepted) == 0
@@ -306,6 +332,7 @@ def test_confluence_engine_rejection_on_risk_off():
 
 
 # ── 6. Full ScannerService Poll Integration Test ──────────────────────────────
+
 
 @pytest.mark.anyio
 async def test_scanner_service_poll_with_context_and_news():
@@ -339,25 +366,29 @@ async def test_scanner_service_poll_with_context_and_news():
             "market_state": "breakout",
             "mtf_alignment": True,
             "risk_level": "low",
-        }
+        },
     ]
     service._fetch_v1_signals = AsyncMock(return_value=mock_v1_raw)
 
     # Mock Macro Context
-    service.market_context_service.refresh_market_context = AsyncMock(return_value={
-        "btc_trend": "BULLISH",
-        "eth_trend": "BULLISH",
-        "market_regime": "RISK_ON",
-        "fear_and_greed": 65,
-    })
+    service.market_context_service.refresh_market_context = AsyncMock(
+        return_value={
+            "btc_trend": "BULLISH",
+            "eth_trend": "BULLISH",
+            "market_regime": "RISK_ON",
+            "fear_and_greed": 65,
+        }
+    )
 
     # Mock News Service
     service.news_risk_service.fetch_latest_news = AsyncMock()
-    service.news_risk_service.evaluate_coin_news = MagicMock(side_effect=lambda coin: {
-        "has_negative_news": (coin == "HACKED_COIN"),
-        "delisting_risk": False,
-        "sentiment_score": 0.10 if coin == "HACKED_COIN" else 0.90,
-    })
+    service.news_risk_service.evaluate_coin_news = MagicMock(
+        side_effect=lambda coin: {
+            "has_negative_news": (coin == "HACKED_COIN"),
+            "delisting_risk": False,
+            "sentiment_score": 0.10 if coin == "HACKED_COIN" else 0.90,
+        }
+    )
 
     summary = await service.poll()
     assert summary["fetched"] == 2

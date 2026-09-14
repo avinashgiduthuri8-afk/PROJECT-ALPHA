@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import httpx
 
@@ -18,7 +18,7 @@ from core.logging import get_logger
 logger = get_logger("scanner.market_context")
 
 
-def calculate_ema(prices: List[float], period: int) -> List[float]:
+def calculate_ema(prices: list[float], period: int) -> list[float]:
     """Calculate Exponential Moving Average (EMA) for a price series."""
     if not prices or len(prices) < period:
         return []
@@ -30,7 +30,7 @@ def calculate_ema(prices: List[float], period: int) -> List[float]:
     return ema
 
 
-def determine_trend_from_candles(candles: List[Dict[str, Any]]) -> str:
+def determine_trend_from_candles(candles: list[dict[str, Any]]) -> str:
     """
     Determine trend (BULLISH, BEARISH, SIDEWAYS) using Fast EMA(9) and Slow EMA(21).
     Candles must be ordered chronologically (oldest first).
@@ -38,7 +38,7 @@ def determine_trend_from_candles(candles: List[Dict[str, Any]]) -> str:
     if not candles or len(candles) < 21:
         return "SIDEWAYS"
 
-    closes: List[float] = []
+    closes: list[float] = []
     for c in candles:
         val = c.get("close", c.get("c", c.get("price", 0.0)))
         try:
@@ -80,7 +80,7 @@ class MarketContextService:
 
     def __init__(self, timeout_seconds: float = 6.0) -> None:
         self._timeout = timeout_seconds
-        self._latest_context: Dict[str, Any] = {
+        self._latest_context: dict[str, Any] = {
             "btc_trend": "BULLISH",
             "eth_trend": "BULLISH",
             "market_regime": "RISK_ON",
@@ -89,13 +89,13 @@ class MarketContextService:
             "btc_price": 0.0,
             "eth_price": 0.0,
         }
-        self._last_refresh_at: Optional[datetime] = None
+        self._last_refresh_at: datetime | None = None
 
     def evaluate_regime(
         self,
-        btc_candles: List[Dict[str, Any]],
-        eth_candles: List[Dict[str, Any]],
-    ) -> Tuple[str, str, str]:
+        btc_candles: list[dict[str, Any]],
+        eth_candles: list[dict[str, Any]],
+    ) -> tuple[str, str, str]:
         """
         Evaluate BTC trend, ETH trend, and combined Market Regime.
         Returns: (btc_trend, eth_trend, market_regime)
@@ -114,8 +114,14 @@ class MarketContextService:
             else:
                 # Check recent 2-bar momentum for BTC
                 if len(btc_candles) >= 2:
-                    c1 = float(btc_candles[-1].get("close", btc_candles[-1].get("c", 0.0)) or 0.0)
-                    c0 = float(btc_candles[-2].get("close", btc_candles[-2].get("c", 0.0)) or 0.0)
+                    c1 = float(
+                        btc_candles[-1].get("close", btc_candles[-1].get("c", 0.0))
+                        or 0.0
+                    )
+                    c0 = float(
+                        btc_candles[-2].get("close", btc_candles[-2].get("c", 0.0))
+                        or 0.0
+                    )
                     market_regime = "RISK_ON" if c1 >= c0 else "RISK_OFF"
                 else:
                     market_regime = "RISK_ON"
@@ -137,10 +143,15 @@ class MarketContextService:
                 if items and "value" in items[0]:
                     return int(items[0]["value"])
         except Exception as exc:
-            logger.warning("Failed to fetch Fear & Greed index, falling back to neutral 50: %s", exc)
+            logger.warning(
+                "Failed to fetch Fear & Greed index, falling back to neutral 50: %s",
+                exc,
+            )
         return 50
 
-    async def fetch_pair_candles(self, pair: str, interval: str = "15m", limit: int = 30) -> List[Dict[str, Any]]:
+    async def fetch_pair_candles(
+        self, pair: str, interval: str = "15m", limit: int = 30
+    ) -> list[dict[str, Any]]:
         """Fetch raw candles for a pair directly from CoinDCX API."""
         url = "https://public.coindcx.com/market_data/candles"
         params = {"pair": pair, "interval": interval, "limit": limit}
@@ -151,14 +162,15 @@ class MarketContextService:
                 data = resp.json()
                 if isinstance(data, list):
                     # Sort ascending by timestamp if time field present
-                    def _get_ts(c: Dict[str, Any]) -> int:
+                    def _get_ts(c: dict[str, Any]) -> int:
                         return int(c.get("time", c.get("t", 0)) or 0)
+
                     return sorted(data, key=_get_ts)
         except Exception as exc:
             logger.debug("Failed to fetch candles for %s: %s", pair, exc)
         return []
 
-    async def refresh_market_context(self) -> Dict[str, Any]:
+    async def refresh_market_context(self) -> dict[str, Any]:
         """
         Poll live exchange endpoints for BTC & ETH + sentiment index.
         Updates internal cache and returns fresh payload.
@@ -180,14 +192,26 @@ class MarketContextService:
 
             # Fallback to INR pairs if USDT candles returned empty
             if not btc_data:
-                btc_data = await self.fetch_pair_candles("B-BTC_INR", interval="15m", limit=30)
+                btc_data = await self.fetch_pair_candles(
+                    "B-BTC_INR", interval="15m", limit=30
+                )
             if not eth_data:
-                eth_data = await self.fetch_pair_candles("B-ETH_INR", interval="15m", limit=30)
+                eth_data = await self.fetch_pair_candles(
+                    "B-ETH_INR", interval="15m", limit=30
+                )
 
             btc_trend, eth_trend, regime = self.evaluate_regime(btc_data, eth_data)
 
-            btc_price = float(btc_data[-1].get("close", btc_data[-1].get("c", 0.0))) if btc_data else 0.0
-            eth_price = float(eth_data[-1].get("close", eth_data[-1].get("c", 0.0))) if eth_data else 0.0
+            btc_price = (
+                float(btc_data[-1].get("close", btc_data[-1].get("c", 0.0)))
+                if btc_data
+                else 0.0
+            )
+            eth_price = (
+                float(eth_data[-1].get("close", eth_data[-1].get("c", 0.0)))
+                if eth_data
+                else 0.0
+            )
 
             self._latest_context = {
                 "btc_trend": btc_trend,
@@ -201,13 +225,16 @@ class MarketContextService:
             self._last_refresh_at = datetime.now(timezone.utc)
             logger.info(
                 "Market context refreshed: BTC=%s, ETH=%s, Regime=%s, F&G=%d",
-                btc_trend, eth_trend, regime, fng_val
+                btc_trend,
+                eth_trend,
+                regime,
+                fng_val,
             )
         except Exception as exc:
             logger.exception("Error during market context refresh: %s", exc)
 
         return self._latest_context
 
-    def get_current_sentiment(self) -> Dict[str, Any]:
+    def get_current_sentiment(self) -> dict[str, Any]:
         """Return the current cached market sentiment context."""
         return self._latest_context

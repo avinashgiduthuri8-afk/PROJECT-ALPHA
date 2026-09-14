@@ -20,9 +20,9 @@ Monitors subsystem probes, detects stalled worker loops, and performs autonomous
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
 import time
-from typing import Any, Dict, Optional
+from datetime import datetime, timezone
+from typing import Any
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
@@ -40,26 +40,27 @@ class ProductionWatchdog:
 
     def __init__(
         self,
-        config: Optional[AppConfig] = None,
-        bus: Optional[EventBus] = None,
-        scanner_service: Optional[Any] = None,
-        ai_service: Optional[Any] = None,
-        risk_service: Optional[Any] = None,
-        trading_service: Optional[Any] = None,
-        db: Optional[Any] = None,
-        scheduler: Optional[Any] = None,
-        signal_repo: Optional[Any] = None,
-        event_log_repo: Optional[Any] = None,
-        notification_service: Optional[Any] = None,
+        config: AppConfig | None = None,
+        bus: EventBus | None = None,
+        scanner_service: Any | None = None,
+        ai_service: Any | None = None,
+        risk_service: Any | None = None,
+        trading_service: Any | None = None,
+        db: Any | None = None,
+        scheduler: Any | None = None,
+        signal_repo: Any | None = None,
+        event_log_repo: Any | None = None,
+        notification_service: Any | None = None,
         inspection_interval_sec: float = 30.0,
-        services: Optional[Dict[str, Any]] = None,
-        check_interval_sec: Optional[float] = None,
+        services: dict[str, Any] | None = None,
+        check_interval_sec: float | None = None,
     ) -> None:
         from core.config import get_config
+
         self._config = config or get_config()
         self._bus = bus or EventBus()
         self._services_dict = services or {}
-        
+
         if services:
             scanner_service = scanner_service or services.get("scanner_service")
             ai_service = ai_service or services.get("ai_service")
@@ -69,7 +70,9 @@ class ProductionWatchdog:
             scheduler = scheduler or services.get("scheduler")
             signal_repo = signal_repo or services.get("signal_repo")
             event_log_repo = event_log_repo or services.get("event_log_repo")
-            notification_service = notification_service or services.get("notification_service")
+            notification_service = notification_service or services.get(
+                "notification_service"
+            )
 
         self._scanner_service = scanner_service
         self._ai_service = ai_service
@@ -81,29 +84,32 @@ class ProductionWatchdog:
         self._event_log_repo = event_log_repo
         self._notification_service = notification_service
 
-        self._interval = check_interval_sec if check_interval_sec is not None else inspection_interval_sec
+        self._interval = (
+            check_interval_sec
+            if check_interval_sec is not None
+            else inspection_interval_sec
+        )
         self._running = False
-        self._task: Optional[asyncio.Task] = None
+        self._task: asyncio.Task | None = None
         self._start_time = datetime.now(timezone.utc)
-        self._last_inspection_at: Optional[datetime] = None
+        self._last_inspection_at: datetime | None = None
         self._inspection_count = 0
         self._recovery_count = 0
-        self._probe_history: Dict[str, Dict[str, Any]] = {}
+        self._probe_history: dict[str, dict[str, Any]] = {}
         self._last_alert_status = "HEALTHY"
         self._last_alert_time: float = 0.0
 
-
     def wire_dependencies(
         self,
-        scanner_service: Optional[Any] = None,
-        ai_service: Optional[Any] = None,
-        risk_service: Optional[Any] = None,
-        trading_service: Optional[Any] = None,
-        db: Optional[Any] = None,
-        scheduler: Optional[Any] = None,
-        signal_repo: Optional[Any] = None,
-        event_log_repo: Optional[Any] = None,
-        notification_service: Optional[Any] = None,
+        scanner_service: Any | None = None,
+        ai_service: Any | None = None,
+        risk_service: Any | None = None,
+        trading_service: Any | None = None,
+        db: Any | None = None,
+        scheduler: Any | None = None,
+        signal_repo: Any | None = None,
+        event_log_repo: Any | None = None,
+        notification_service: Any | None = None,
     ) -> None:
         """Wire references dynamically as subsystems finish initialization."""
         if scanner_service is not None:
@@ -132,7 +138,9 @@ class ProductionWatchdog:
         self._running = True
         self._start_time = datetime.now(timezone.utc)
         self._task = asyncio.create_task(self._run_loop(), name="production-watchdog")
-        logger.info("ProductionWatchdog started with %ss inspection cycle", self._interval)
+        logger.info(
+            "ProductionWatchdog started with %ss inspection cycle", self._interval
+        )
 
     async def stop(self) -> None:
         """Stop the watchdog inspection loop gracefully."""
@@ -160,14 +168,14 @@ class ProductionWatchdog:
             except asyncio.CancelledError:
                 break
 
-    async def inspect_system(self) -> Dict[str, Any]:
+    async def inspect_system(self) -> dict[str, Any]:
         """
         Execute full probe inspection across all 9 subsystems.
         Triggers self-healing if stalls or degradations are detected.
         """
         self._inspection_count += 1
         self._last_inspection_at = datetime.now(timezone.utc)
-        probes: Dict[str, Dict[str, Any]] = {}
+        probes: dict[str, dict[str, Any]] = {}
 
         # 1. SQLite Database Probe
         probes["database"] = await self._probe_database()
@@ -206,34 +214,62 @@ class ProductionWatchdog:
                 if not started:
                     unhealthy_services.append(name)
 
-        all_ok = all(p.get("status") in ("OK", "NORMAL", "HEALTHY") for p in probes.values()) and not unhealthy_services
+        all_ok = (
+            all(p.get("status") in ("OK", "NORMAL", "HEALTHY") for p in probes.values())
+            and not unhealthy_services
+        )
         system_status = "HEALTHY" if all_ok else "DEGRADED"
 
         now_ts = time.time()
         if not all_ok:
-            degraded_probes = [k for k, v in probes.items() if v.get("status") not in ("OK", "NORMAL", "HEALTHY")]
-            logger.warning("Watchdog detected degraded subsystems: probes=%s, services=%s", degraded_probes, unhealthy_services)
+            degraded_probes = [
+                k
+                for k, v in probes.items()
+                if v.get("status") not in ("OK", "NORMAL", "HEALTHY")
+            ]
+            logger.warning(
+                "Watchdog detected degraded subsystems: probes=%s, services=%s",
+                degraded_probes,
+                unhealthy_services,
+            )
             # Only publish alert on state change from HEALTHY -> DEGRADED or after 1 hour (3600s) cooldown
-            if self._bus and (self._last_alert_status != "DEGRADED" or (now_ts - self._last_alert_time) > 3600.0):
+            if self._bus and (
+                self._last_alert_status != "DEGRADED"
+                or (now_ts - self._last_alert_time) > 3600.0
+            ):
                 self._last_alert_status = "DEGRADED"
                 self._last_alert_time = now_ts
                 try:
-                    await self._bus.publish(EventType.ALERT_GENERATED, {
-                        "title": "Watchdog Health Degradation Alert",
-                        "severity": "WARNING",
-                        "unhealthy_services": unhealthy_services,
-                        "degraded_probes": degraded_probes,
-                        "timestamp": self._last_inspection_at.isoformat(),
-                    })
+                    await self._bus.publish(
+                        EventType.ALERT_GENERATED,
+                        {
+                            "title": "Watchdog Health Degradation Alert",
+                            "severity": "WARNING",
+                            "unhealthy_services": unhealthy_services,
+                            "degraded_probes": degraded_probes,
+                            "timestamp": self._last_inspection_at.isoformat(),
+                        },
+                    )
                 except Exception as exc:
                     logger.debug("Failed publishing watchdog health alert: %s", exc)
         else:
             if self._last_alert_status == "DEGRADED":
                 self._last_alert_status = "HEALTHY"
-                logger.info("Watchdog detected all subsystems recovered to HEALTHY state")
+                logger.info(
+                    "Watchdog detected all subsystems recovered to HEALTHY state"
+                )
 
-
-        unhealthy_cnt = len(unhealthy_services) if self._services_dict else len([k for k, v in probes.items() if v.get("status") not in ("OK", "NORMAL", "HEALTHY", "UNKNOWN")])
+        unhealthy_cnt = (
+            len(unhealthy_services)
+            if self._services_dict
+            else len(
+                [
+                    k
+                    for k, v in probes.items()
+                    if v.get("status") not in ("OK", "NORMAL", "HEALTHY", "UNKNOWN")
+                ]
+            )
+        )
 
         return {
             "status": system_status,
@@ -249,7 +285,7 @@ class ProductionWatchdog:
 
     inspect_system_health = inspect_system
 
-    async def _probe_database(self) -> Dict[str, Any]:
+    async def _probe_database(self) -> dict[str, Any]:
         """Probe SQLite connectivity and query execution."""
         if not self._db or not self._db.is_open:
             return {"status": "DOWN", "error": "Database not open"}
@@ -269,22 +305,32 @@ class ProductionWatchdog:
                 self._recovery_count += 1
                 return {"status": "RECOVERED", "action": "Reconnected SQLite"}
             except Exception as re_exc:
-                return {"status": "DOWN", "error": f"{exc} | Reconnect failed: {re_exc}"}
+                return {
+                    "status": "DOWN",
+                    "error": f"{exc} | Reconnect failed: {re_exc}",
+                }
 
-    async def _probe_scanner(self) -> Dict[str, Any]:
+    async def _probe_scanner(self) -> dict[str, Any]:
         """Probe scanner health and auto-trigger stalled poll passes."""
         if not self._scanner_service:
             return {"status": "UNKNOWN", "message": "Scanner service not wired"}
         try:
-            is_running = getattr(self._scanner_service, "_started", False) or getattr(self._scanner_service, "_running", False)
-            last_poll = getattr(self._scanner_service, "_last_poll_time", None) or getattr(self._scanner_service, "_last_poll_at", None)
+            is_running = getattr(self._scanner_service, "_started", False) or getattr(
+                self._scanner_service, "_running", False
+            )
+            last_poll = getattr(
+                self._scanner_service, "_last_poll_time", None
+            ) or getattr(self._scanner_service, "_last_poll_at", None)
 
             # Check if scanner is stalled (> 120s since last poll)
             now = datetime.now(timezone.utc)
             if last_poll is not None:
                 elapsed_sec = (now - last_poll).total_seconds()
                 if elapsed_sec > 120.0 and is_running:
-                    logger.warning("Scanner stalled (elapsed: %.1fs > 120s). Triggering self-healing poll...", elapsed_sec)
+                    logger.warning(
+                        "Scanner stalled (elapsed: %.1fs > 120s). Triggering self-healing poll...",
+                        elapsed_sec,
+                    )
                     asyncio.create_task(self._scanner_service.poll())
                     self._recovery_count += 1
                     return {
@@ -301,7 +347,7 @@ class ProductionWatchdog:
         except Exception as exc:
             return {"status": "DEGRADED", "error": str(exc)}
 
-    async def _probe_signal_engine(self) -> Dict[str, Any]:
+    async def _probe_signal_engine(self) -> dict[str, Any]:
         """Probe signal storage and queue responsiveness."""
         if not self._signal_repo:
             return {"status": "OK", "message": "Repo check deferred"}
@@ -316,14 +362,16 @@ class ProductionWatchdog:
         except Exception as exc:
             return {"status": "DEGRADED", "error": str(exc)}
 
-    async def _probe_ai_intelligence(self) -> Dict[str, Any]:
+    async def _probe_ai_intelligence(self) -> dict[str, Any]:
         """Probe AI intelligence scoring service."""
         if not self._ai_service:
             return {"status": "UNKNOWN", "message": "AI service not wired"}
-        is_running = getattr(self._ai_service, "_started", False) or getattr(self._ai_service, "_running", False)
+        is_running = getattr(self._ai_service, "_started", False) or getattr(
+            self._ai_service, "_running", False
+        )
         return {"status": "OK" if is_running else "IDLE", "running": is_running}
 
-    async def _probe_risk_engine(self) -> Dict[str, Any]:
+    async def _probe_risk_engine(self) -> dict[str, Any]:
         """Probe Risk Engine state, circuit breaker, and limits."""
         if not self._risk_service:
             return {"status": "UNKNOWN", "message": "Risk service not wired"}
@@ -340,7 +388,7 @@ class ProductionWatchdog:
         except Exception as exc:
             return {"status": "DEGRADED", "error": str(exc)}
 
-    async def _probe_execution_router(self) -> Dict[str, Any]:
+    async def _probe_execution_router(self) -> dict[str, Any]:
         """Probe TradingService order router and positions."""
         if not self._trading_service:
             return {"status": "UNKNOWN", "message": "Trading service not wired"}
@@ -355,7 +403,7 @@ class ProductionWatchdog:
         except Exception as exc:
             return {"status": "DEGRADED", "error": str(exc)}
 
-    async def _probe_coindcx_relay(self) -> Dict[str, Any]:
+    async def _probe_coindcx_relay(self) -> dict[str, Any]:
         """Probe CoinDCX subaccount manager and client routing."""
         if not self._trading_service:
             return {"status": "OK", "message": "Subaccount relay nominal"}
@@ -368,7 +416,7 @@ class ProductionWatchdog:
         except Exception as exc:
             return {"status": "DEGRADED", "error": str(exc)}
 
-    def _probe_event_bus(self) -> Dict[str, Any]:
+    def _probe_event_bus(self) -> dict[str, Any]:
         """Probe EventBus subscriber counts and operational state."""
         if not self._bus:
             return {"status": "DOWN", "error": "EventBus not initialized"}
@@ -379,7 +427,7 @@ class ProductionWatchdog:
         except Exception as exc:
             return {"status": "DEGRADED", "error": str(exc)}
 
-    def _probe_scheduler(self) -> Dict[str, Any]:
+    def _probe_scheduler(self) -> dict[str, Any]:
         """Probe BackgroundScheduler running status and scheduled jobs."""
         if not self._scheduler:
             return {"status": "UNKNOWN", "message": "Scheduler not wired"}
@@ -394,7 +442,7 @@ class ProductionWatchdog:
         except Exception as exc:
             return {"status": "DEGRADED", "error": str(exc)}
 
-    def get_telemetry(self) -> Dict[str, Any]:
+    def get_telemetry(self) -> dict[str, Any]:
         """Return watchdog inspection telemetry for UI and monitoring APIs."""
         uptime_sec = (datetime.now(timezone.utc) - self._start_time).total_seconds()
         return {
@@ -402,13 +450,16 @@ class ProductionWatchdog:
             "uptime_seconds": round(uptime_sec, 1),
             "inspection_count": self._inspection_count,
             "recovery_count": self._recovery_count,
-            "last_inspection_at": self._last_inspection_at.isoformat() if self._last_inspection_at else None,
+            "last_inspection_at": (
+                self._last_inspection_at.isoformat()
+                if self._last_inspection_at
+                else None
+            ),
             "probes": self._probe_history,
         }
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """Return watchdog summary with inspections_total count."""
         res = self.get_telemetry()
         res["inspections_total"] = self._inspection_count
         return res
-

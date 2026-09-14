@@ -28,10 +28,16 @@ def main() -> None:
     inr_pairs = list(COINDCX_INR_PAIRS.keys())
 
     print("=" * 105)
-    print(" PROJECT-ALPHA V2 - MASTER QUANTITATIVE STRATEGY BACKTESTING ENGINE (COINDCX INR EDITION)")
+    print(
+        " PROJECT-ALPHA V2 - MASTER QUANTITATIVE STRATEGY BACKTESTING ENGINE (COINDCX INR EDITION)"
+    )
     print(f" Basket of {len(inr_pairs)} Mixed-Value INR Coins: {', '.join(inr_pairs)}")
-    print(" Statutory Friction Model: 0.236% Buy Fee | 1.236% Sell (1% TDS + Fee + GST) | 0.10% Slippage Buffer")
-    print(" Total Round-Trip Drag: 1.572% (INR Spot) with discrete tick and lot rounding (roundp)")
+    print(
+        " Statutory Friction Model: 0.236% Buy Fee | 1.236% Sell (1% TDS + Fee + GST) | 0.10% Slippage Buffer"
+    )
+    print(
+        " Total Round-Trip Drag: 1.572% (INR Spot) with discrete tick and lot rounding (roundp)"
+    )
     print("=" * 105)
 
     # Initial equity: INR 100,000
@@ -45,10 +51,15 @@ def main() -> None:
         is_c2c_pair=False,
     )
 
-    engine = BacktestEngine(initial_capital=initial_capital_inr, friction_config=friction_cfg)
+    engine = BacktestEngine(
+        initial_capital=initial_capital_inr, friction_config=friction_cfg
+    )
     selector = FleetSelector(min_net_pf=1.75, min_net_rr=1.50, max_drawdown_pct=15.0)
 
-    print(f"\n[INFO] Running backtest across 10 strategies on {len(inr_pairs)} INR pairs (250+ sessions, 15M/1H/4H)...", flush=True)
+    print(
+        f"\n[INFO] Running backtest across 10 strategies on {len(inr_pairs)} INR pairs (250+ sessions, 15M/1H/4H)...",
+        flush=True,
+    )
     candidate_metrics = engine.run_all_candidate_strategies(
         pairs=inr_pairs,
         timeframes=["15M", "1H", "4H"],
@@ -58,21 +69,24 @@ def main() -> None:
     ranked_list, top_4_fleet = selector.evaluate_and_rank_fleet(candidate_metrics)
 
     print("\n" + "=" * 105, flush=True)
-    print(" MASTER STRATEGY EVALUATION & COMPARISON TABLE (AFTER 1.572% INR STATUTORY FRICTION)", flush=True)
+    print(
+        " MASTER STRATEGY EVALUATION & COMPARISON TABLE (AFTER 1.572% INR STATUTORY FRICTION)",
+        flush=True,
+    )
     print("=" * 105, flush=True)
 
-    header = (
-        "| Rank | Strategy Name | Total Trades | Win Rate % | Gross PF | Net PF (After TDS+Fees) | Net Realized PnL (INR) | Net R:R | Max DD (%) | Expectancy / Trade | Fleet Selection |"
-    )
-    separator = (
-        "|:---:|:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|"
-    )
+    header = "| Rank | Strategy Name | Total Trades | Win Rate % | Gross PF | Net PF (After TDS+Fees) | Net Realized PnL (INR) | Net R:R | Max DD (%) | Expectancy / Trade | Fleet Selection |"
+    separator = "|:---:|:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|"
     print(header, flush=True)
     print(separator, flush=True)
 
     for item in ranked_list:
         m = item.metrics
-        status = "[PROMOTED]" if item.passes_gate and m in top_4_fleet else ("[ALT FLEET]" if m in top_4_fleet else "[REJECTED]")
+        status = (
+            "[PROMOTED]"
+            if item.passes_gate and m in top_4_fleet
+            else ("[ALT FLEET]" if m in top_4_fleet else "[REJECTED]")
+        )
         row = (
             f"| **{item.rank}** | **{m.strategy_name}** | {m.total_trades} | {m.win_rate_pct}% | "
             f"{m.gross_profit_factor} | **{m.net_profit_factor}** | +{m.net_pnl_pct}% (INR {m.net_realized_pnl_dollars:,.2f}) | "
@@ -81,17 +95,31 @@ def main() -> None:
         print(row, flush=True)
 
     print("\n" + "=" * 105, flush=True)
-    print(" SELECTED TOP 4 PRODUCTION FLEET STRATEGIES FOR PROJECT-ALPHA (INR PAIRS)", flush=True)
+    print(
+        " SELECTED TOP 4 PRODUCTION FLEET STRATEGIES FOR PROJECT-ALPHA (INR PAIRS)",
+        flush=True,
+    )
     print("=" * 105, flush=True)
 
     for i, m in enumerate(top_4_fleet, start=1):
         print(f"  {i}. {m.strategy_name.upper()}", flush=True)
-        print(f"     - Net Profit Factor: {m.net_profit_factor} (Gross: {m.gross_profit_factor})", flush=True)
-        print(f"     - Win Rate: {m.win_rate_pct}% | Net R:R: 1:{m.avg_net_rr} | Expectancy: INR {m.expectancy_per_trade:,.2f}/trade", flush=True)
-        print(f"     - Net Realized PnL: +{m.net_pnl_pct}% (INR {m.net_realized_pnl_dollars:,.2f}) | Max DD: {m.max_drawdown_pct}%\n", flush=True)
+        print(
+            f"     - Net Profit Factor: {m.net_profit_factor} (Gross: {m.gross_profit_factor})",
+            flush=True,
+        )
+        print(
+            f"     - Win Rate: {m.win_rate_pct}% | Net R:R: 1:{m.avg_net_rr} | Expectancy: INR {m.expectancy_per_trade:,.2f}/trade",
+            flush=True,
+        )
+        print(
+            f"     - Net Realized PnL: +{m.net_pnl_pct}% (INR {m.net_realized_pnl_dollars:,.2f}) | Max DD: {m.max_drawdown_pct}%\n",
+            flush=True,
+        )
 
     print("=" * 105, flush=True)
-    print(" BACKTEST EXECUTION COMPLETE - ALPHA INR PRODUCTION FLEET SELECTED", flush=True)
+    print(
+        " BACKTEST EXECUTION COMPLETE - ALPHA INR PRODUCTION FLEET SELECTED", flush=True
+    )
     print("=" * 105, flush=True)
 
 

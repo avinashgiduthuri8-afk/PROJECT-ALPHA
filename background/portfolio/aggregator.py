@@ -5,9 +5,8 @@ V2 PortfolioAggregator — computes cross-bot capital allocation, PnL, and AUM.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Optional
 
-from core.types import BotName, Position, PortfolioSnapshot, Trade
+from core.types import BotName, PortfolioSnapshot, Position, Trade
 
 
 class PortfolioAggregator:
@@ -40,7 +39,11 @@ class PortfolioAggregator:
             deployed = pos.deployed_capital
             total_deployed += deployed
 
-            mark_price = pos.current_price if (pos.current_price is not None and pos.current_price > 0) else pos.entry_price
+            mark_price = (
+                pos.current_price
+                if (pos.current_price is not None and pos.current_price > 0)
+                else pos.entry_price
+            )
             mtm_val = pos.qty * mark_price
             total_mtm += mtm_val
 
@@ -55,14 +58,23 @@ class PortfolioAggregator:
         total_cash = max(0.0, base_cash + total_realised - total_deployed)
         total_aum = total_cash + total_deployed + total_unrealised
 
-        capital_util = round((total_deployed / total_aum * 100.0), 2) if total_aum > 0 else 0.0
+        capital_util = (
+            round((total_deployed / total_aum * 100.0), 2) if total_aum > 0 else 0.0
+        )
 
         # Calculate daily realised PnL (from today UTC)
         today_utc = datetime.now(timezone.utc).date()
-        daily_pnl = sum(
-            t.pnl for t in closed_trades
-            if hasattr(t, "exit_time") and t.exit_time and hasattr(t.exit_time, "date") and t.exit_time.date() == today_utc
-        ) + total_unrealised
+        daily_pnl = (
+            sum(
+                t.pnl
+                for t in closed_trades
+                if hasattr(t, "exit_time")
+                and t.exit_time
+                and hasattr(t.exit_time, "date")
+                and t.exit_time.date() == today_utc
+            )
+            + total_unrealised
+        )
 
         return PortfolioSnapshot(
             total_aum=round(total_aum, 2),

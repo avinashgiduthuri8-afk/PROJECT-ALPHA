@@ -2,8 +2,7 @@
 Tests for canonical configuration (AppConfig) and backward-compatibility aliases.
 """
 
-import pytest
-from core.config import AppConfig, V2Config, get_config, invalidate_config
+from core.config import AppConfig, V2Config
 
 
 def test_v2config_is_appconfig():
@@ -57,7 +56,9 @@ def test_backward_compatibility_setattr():
 def test_model_copy_with_legacy_keys():
     """Verify model_copy updates properly when given v2_* keys."""
     cfg = AppConfig()
-    copy = cfg.model_copy(update={"v2_trading_enabled": True, "v2_scanner_poll_interval": 33})
+    copy = cfg.model_copy(
+        update={"v2_trading_enabled": True, "v2_scanner_poll_interval": 33}
+    )
     assert copy.trading_enabled is True
     assert copy.scanner_poll_interval == 33
 

@@ -8,8 +8,10 @@ journal entries, statutory fee breakdowns, MFE/MAE excursions, and strategy tags
 from __future__ import annotations
 
 import json
-import sqlite3, aiosqlite
-from typing import Any, Dict, List, Optional
+import sqlite3
+from typing import Any
+
+import aiosqlite
 
 from core.logging import get_logger
 
@@ -31,7 +33,7 @@ class JournalRepository:
         else:
             return self._conn.execute(query, params)
 
-    async def _fetchall(self, query: str, params: tuple = ()) -> List[Dict[str, Any]]:
+    async def _fetchall(self, query: str, params: tuple = ()) -> list[dict[str, Any]]:
         if self._is_async():
             async with self._conn.execute(query, params) as cursor:
                 rows = await cursor.fetchall()
@@ -43,7 +45,7 @@ class JournalRepository:
             cols = [description[0] for description in cur.description]
             return [dict(zip(cols, r)) for r in rows]
 
-    async def insert_entry(self, entry: Dict[str, Any]) -> str:
+    async def insert_entry(self, entry: dict[str, Any]) -> str:
         """Insert a complete post-trade journal entry into SQLite."""
         tags_raw = entry.get("tags")
         if isinstance(tags_raw, (list, dict)):
@@ -96,7 +98,10 @@ class JournalRepository:
 
         logger.info(
             "Persisted trade journal entry %s for position %s [%s] (Net PnL: INR %.2f)",
-            entry["id"], entry["position_id"], entry["bot_name"], float(entry["net_pnl"]),
+            entry["id"],
+            entry["position_id"],
+            entry["bot_name"],
+            float(entry["net_pnl"]),
         )
         return entry["id"]
 
@@ -104,12 +109,12 @@ class JournalRepository:
         self,
         limit: int = 50,
         offset: int = 0,
-        bot_name: Optional[str] = None,
-        pair: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        bot_name: str | None = None,
+        pair: str | None = None,
+    ) -> list[dict[str, Any]]:
         """Fetch paginated trade journal entries filtered by optional bot_name or pair."""
-        conditions: List[str] = []
-        params: List[Any] = []
+        conditions: list[str] = []
+        params: list[Any] = []
 
         if bot_name:
             conditions.append("bot_name = ?")
@@ -134,7 +139,7 @@ class JournalRepository:
 
     async def get_entries_by_timerange(
         self, start_iso: str, end_iso: str
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Fetch all trade journal entries between start_iso and end_iso."""
         query = "SELECT * FROM trade_journal WHERE exit_timestamp >= ? AND exit_timestamp <= ? ORDER BY exit_timestamp ASC"
         rows = await self._fetchall(query, (start_iso, end_iso))
@@ -146,7 +151,7 @@ class JournalRepository:
                     pass
         return rows
 
-    async def get_all_journal_entries(self) -> List[Dict[str, Any]]:
+    async def get_all_journal_entries(self) -> list[dict[str, Any]]:
         """Fetch all trade journal entries ordered chronologically."""
         query = "SELECT * FROM trade_journal ORDER BY exit_timestamp ASC"
         rows = await self._fetchall(query)

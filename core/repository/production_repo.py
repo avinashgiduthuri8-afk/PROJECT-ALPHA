@@ -6,7 +6,8 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 import aiosqlite
 
 from core.logging import get_logger
@@ -20,15 +21,13 @@ class ProductionRepository:
     def __init__(self, conn: aiosqlite.Connection) -> None:
         self._conn = conn
 
-    async def get_runtime_state(self) -> Dict[str, Any]:
+    async def get_runtime_state(self) -> dict[str, Any]:
         """Fetch current production deployment mode and kill switch status."""
-        async with self._conn.execute(
-            """
+        async with self._conn.execute("""
             SELECT deployment_mode, is_active, global_kill_switch, updated_at
             FROM production_ops_state
             WHERE id = 1
-            """
-        ) as cursor:
+            """) as cursor:
             row = await cursor.fetchone()
             if row:
                 return {
@@ -84,8 +83,8 @@ class ProductionRepository:
         simulated_entry_price: float,
         real_orderbook_entry_price: float,
         slippage_divergence_pct: float,
-        log_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        log_id: str | None = None,
+    ) -> dict[str, Any]:
         """Record shadow vs real orderbook slippage divergence metric."""
         lid = log_id or f"SHD_{uuid.uuid4().hex[:8].upper()}"
         now = datetime.now(timezone.utc).isoformat()
@@ -121,12 +120,12 @@ class ProductionRepository:
 
     async def get_shadow_trade_logs(
         self,
-        bot_name: Optional[str] = None,
+        bot_name: str | None = None,
         limit: int = 50,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Retrieve recent shadow divergence logs."""
         query = "SELECT id, bot_name, pair, simulated_entry_price, real_orderbook_entry_price, slippage_divergence_pct, timestamp FROM shadow_trade_logs"
-        params: List[Any] = []
+        params: list[Any] = []
         if bot_name:
             query += " WHERE bot_name = ?"
             params.append(bot_name.upper())

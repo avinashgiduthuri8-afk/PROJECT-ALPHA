@@ -11,20 +11,13 @@ Tests:
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
 
 from core.bus.event_bus import EventBus
-from core.config import V2Config
-from core.types import BotName, Signal
+from execution.auto_trader import AutoTradeRouter
 from execution.trading.precision_rules import (
-    PRECISION_TABLE,
-    get_pair_spec,
-    round_price,
-    round_qty,
     round_qty_up,
     validate_order_notional,
 )
-from execution.auto_trader import AutoTradeRouter
 from execution.trading.subaccount_manager import CoinDCXSubAccountManager
 
 
@@ -57,15 +50,25 @@ def test_validate_order_notional_invariant_boundary():
     price = 10000.0
 
     # 1. Below 200.00 -> Fails
-    assert validate_order_notional(pair, price, 0.019, min_notional=200.0) is False  # ₹190.00
-    assert validate_order_notional(pair, price, 0.019999, min_notional=200.0) is False  # ₹199.99
+    assert (
+        validate_order_notional(pair, price, 0.019, min_notional=200.0) is False
+    )  # ₹190.00
+    assert (
+        validate_order_notional(pair, price, 0.019999, min_notional=200.0) is False
+    )  # ₹199.99
 
     # 2. Exactly 200.00 -> Passes
-    assert validate_order_notional(pair, price, 0.02, min_notional=200.0) is True  # ₹200.00
+    assert (
+        validate_order_notional(pair, price, 0.02, min_notional=200.0) is True
+    )  # ₹200.00
 
     # 3. Above 200.00 -> Passes
-    assert validate_order_notional(pair, price, 0.02001, min_notional=200.0) is True  # ₹200.10
-    assert validate_order_notional(pair, price, 0.025, min_notional=200.0) is True  # ₹250.00
+    assert (
+        validate_order_notional(pair, price, 0.02001, min_notional=200.0) is True
+    )  # ₹200.10
+    assert (
+        validate_order_notional(pair, price, 0.025, min_notional=200.0) is True
+    )  # ₹250.00
 
 
 @pytest.mark.anyio
@@ -140,4 +143,3 @@ async def test_auto_trader_accepts_orders_at_or_above_200():
     res_250 = await router.handle_signal(sig_250)
     assert res_250["success"] is True
     assert res_250["notional"] == 250.0
-

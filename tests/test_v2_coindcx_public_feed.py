@@ -4,22 +4,21 @@ Unit and Integration Tests for CoinDCX Public Market Data Client & Feeder Pipeli
 
 from __future__ import annotations
 
-import asyncio
 import time
 import uuid
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-import httpx
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
-from core.repository.db import Database
 from core.repository.candle_repo import CandleRepository
-from scanner.market.public_client import CoinDCXPublicClient, TokenBucketRateLimiter
+from core.repository.db import Database
 from scanner.market.feeder import MarketFeeder
-
+from scanner.market.public_client import CoinDCXPublicClient, TokenBucketRateLimiter
 
 # ── 1. Pair Formatting Tests ──────────────────────────────────────────────────
+
 
 def test_pair_formatting():
     assert CoinDCXPublicClient.format_pair("BTC/INR") == "B-BTC_INR"
@@ -30,6 +29,7 @@ def test_pair_formatting():
 
 
 # ── 2. Tickers Endpoint Parser Tests ──────────────────────────────────────────
+
 
 @pytest.mark.anyio
 async def test_get_tickers_parsing():
@@ -55,7 +55,7 @@ async def test_get_tickers_parsing():
             "volume": "150.2",
             "change_24_hour": "-1.2",
             "timestamp": 1725000000,
-        }
+        },
     ]
 
     client = CoinDCXPublicClient()
@@ -76,12 +76,27 @@ async def test_get_tickers_parsing():
 
 # ── 3. Candles Endpoint Normalization & Chronological Sort Tests ──────────────
 
+
 @pytest.mark.anyio
 async def test_get_candles_normalization():
     # CoinDCX API returns candles, often descending or ascending
     raw_candles = [
-        {"open": 85000, "high": 85500, "low": 84900, "close": 85200, "volume": 1.2, "time": 1725000900},
-        {"open": 84500, "high": 85100, "low": 84400, "close": 85000, "volume": 2.5, "time": 1725000000},
+        {
+            "open": 85000,
+            "high": 85500,
+            "low": 84900,
+            "close": 85200,
+            "volume": 1.2,
+            "time": 1725000900,
+        },
+        {
+            "open": 84500,
+            "high": 85100,
+            "low": 84400,
+            "close": 85000,
+            "volume": 2.5,
+            "time": 1725000000,
+        },
     ]
 
     client = CoinDCXPublicClient()
@@ -103,6 +118,7 @@ async def test_get_candles_normalization():
 
 
 # ── 4. Order Book & Spread Calculation Tests ──────────────────────────────────
+
 
 @pytest.mark.anyio
 async def test_get_orderbook_spread_calculation():
@@ -127,6 +143,7 @@ async def test_get_orderbook_spread_calculation():
 
 # ── 5. Rate Limiter Compliance Tests ──────────────────────────────────────────
 
+
 @pytest.mark.anyio
 async def test_rate_limiter_pacing():
     limiter = TokenBucketRateLimiter(max_rate_per_sec=10.0, burst=2)
@@ -144,11 +161,13 @@ async def test_rate_limiter_pacing():
 
 # ── 6. Retry & Resilience on HTTP 429 & 503 Tests ─────────────────────────────
 
+
 @pytest.mark.anyio
 async def test_client_retry_on_transient_errors():
     client = CoinDCXPublicClient(max_retries=2)
 
     call_count = 0
+
     async def mock_request_handler(method, url, params=None):
         nonlocal call_count
         call_count += 1
@@ -179,6 +198,7 @@ async def test_client_retry_on_transient_errors():
 
 # ── 7. MarketFeeder Ingestion & Repository Storage Tests ──────────────────────
 
+
 @pytest.mark.anyio
 async def test_market_feeder_ingestion(tmp_path):
     db_path = str(tmp_path / f"test_feeder_{uuid.uuid4().hex[:6]}.db")
@@ -192,26 +212,71 @@ async def test_market_feeder_ingestion(tmp_path):
         client = CoinDCXPublicClient()
 
         # Mock client responses
-        client.get_tickers = AsyncMock(return_value=[
-            {"market": "BTCINR", "last_price": 8500000.0, "bid": 8499000.0, "ask": 8501000.0, "high": 8600000.0, "low": 8400000.0, "volume": 10.0, "change_24_hour": 1.5, "timestamp": 1725000000},
-            {"market": "ETHINR", "last_price": 250000.0, "bid": 249900.0, "ask": 250100.0, "high": 255000.0, "low": 245000.0, "volume": 50.0, "change_24_hour": -0.5, "timestamp": 1725000000},
-        ])
+        client.get_tickers = AsyncMock(
+            return_value=[
+                {
+                    "market": "BTCINR",
+                    "last_price": 8500000.0,
+                    "bid": 8499000.0,
+                    "ask": 8501000.0,
+                    "high": 8600000.0,
+                    "low": 8400000.0,
+                    "volume": 10.0,
+                    "change_24_hour": 1.5,
+                    "timestamp": 1725000000,
+                },
+                {
+                    "market": "ETHINR",
+                    "last_price": 250000.0,
+                    "bid": 249900.0,
+                    "ask": 250100.0,
+                    "high": 255000.0,
+                    "low": 245000.0,
+                    "volume": 50.0,
+                    "change_24_hour": -0.5,
+                    "timestamp": 1725000000,
+                },
+            ]
+        )
 
-        client.get_candles = AsyncMock(return_value=[
-            {"pair": "BTC/INR", "timeframe": "15m", "timestamp": 1725000000, "open": 84000.0, "high": 85500.0, "low": 83900.0, "close": 85000.0, "volume": 5.0},
-            {"pair": "BTC/INR", "timeframe": "15m", "timestamp": 1725000900, "open": 85000.0, "high": 85800.0, "low": 84900.0, "close": 85500.0, "volume": 4.5},
-        ])
+        client.get_candles = AsyncMock(
+            return_value=[
+                {
+                    "pair": "BTC/INR",
+                    "timeframe": "15m",
+                    "timestamp": 1725000000,
+                    "open": 84000.0,
+                    "high": 85500.0,
+                    "low": 83900.0,
+                    "close": 85000.0,
+                    "volume": 5.0,
+                },
+                {
+                    "pair": "BTC/INR",
+                    "timeframe": "15m",
+                    "timestamp": 1725000900,
+                    "open": 85000.0,
+                    "high": 85800.0,
+                    "low": 84900.0,
+                    "close": 85500.0,
+                    "volume": 4.5,
+                },
+            ]
+        )
 
-        client.get_orderbook = AsyncMock(return_value={
-            "pair": "BTC/INR",
-            "best_bid": 8499000.0,
-            "best_ask": 8501000.0,
-            "spread": 2000.0,
-            "spread_pct": 0.0235,
-            "timestamp": 1725000000,
-        })
+        client.get_orderbook = AsyncMock(
+            return_value={
+                "pair": "BTC/INR",
+                "best_bid": 8499000.0,
+                "best_ask": 8501000.0,
+                "spread": 2000.0,
+                "spread_pct": 0.0235,
+                "timestamp": 1725000000,
+            }
+        )
 
         events_received = []
+
         async def on_market_update(event_type: EventType, payload: dict):
             events_received.append((event_type, payload))
 

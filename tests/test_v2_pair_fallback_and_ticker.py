@@ -3,31 +3,24 @@ Unit & Integration Tests for Multi-Quote Pair Resolution, USDT Fallback,
 Dual-Currency Order Sizing & High-Frequency Price Ticker.
 """
 
+from unittest.mock import MagicMock
+
 import pytest
-import asyncio
-from unittest.mock import AsyncMock, patch, MagicMock
-from decimal import Decimal
 from fastapi.testclient import TestClient
 
-from scanner.research.symbol_normalizer import (
-    resolve_tradeable_pairs,
-    normalize_symbol,
-    is_supported_symbol,
-    get_preferred_pair_for_base,
-    get_base_asset,
-    get_quote_currency,
-)
+from app import app
+from core.bus.event_bus import EventBus
+from core.config import invalidate_config
+from execution.auto_trader import AutoTradeRouter
 from execution.trading.precision_rules import (
     get_pair_spec,
     round_qty_up,
-    round_qty_down,
     validate_order_notional,
 )
-from execution.auto_trader import AutoTradeRouter
-from core.bus.event_bus import EventBus
-from core.config import invalidate_config
-from app import app
-
+from scanner.research.symbol_normalizer import (
+    normalize_symbol,
+    resolve_tradeable_pairs,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -36,7 +29,6 @@ def setup_test_env(monkeypatch):
     invalidate_config()
     yield
     invalidate_config()
-
 
 
 def test_symbol_normalizer_inr_priority():
@@ -94,7 +86,9 @@ def test_precision_rules_usdt_specs():
     # Test validate_order_notional
     # ₹200 equivalent in USDT is ~2.18 USDT at 91.50 rate
     assert validate_order_notional("SOL/USDT", 0.02, 130.0) is True
-    assert validate_order_notional("SOL/USDT", 0.001, 130.0) is False  # 0.13 USDT < 1.0 USDT
+    assert (
+        validate_order_notional("SOL/USDT", 0.001, 130.0) is False
+    )  # 0.13 USDT < 1.0 USDT
 
 
 @pytest.mark.asyncio
@@ -102,7 +96,7 @@ async def test_cross_currency_single_coin_asset_lock():
     """Verify that having an open SOL/INR position blocks opening a new SOL/USDT position."""
     mock_bus = MagicMock(spec=EventBus)
     mock_pos_repo = MagicMock()
-    
+
     # Mock active position on SOL/INR
     mock_pos = MagicMock()
     mock_pos.coin = "SOL"
@@ -183,5 +177,3 @@ def test_api_research_ticker_endpoint():
         data_usdt = resp_usdt.json()
         assert data_usdt["quote_currency"] == "USDT"
         assert "inr_equivalent_ltp" in data_usdt
-
-

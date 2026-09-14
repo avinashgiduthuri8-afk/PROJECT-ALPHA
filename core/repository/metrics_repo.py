@@ -5,13 +5,14 @@ V2 MetricsRepository — time-series portfolio snapshots.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from datetime import datetime, timezone
+from typing import Any
 
 import aiosqlite
 
 from core.logging import get_logger
+
 from .base import BaseRepository
 
 logger = get_logger("core.repository.metrics_repo")
@@ -19,19 +20,19 @@ logger = get_logger("core.repository.metrics_repo")
 
 @dataclass
 class MetricsSnapshot:
-    id:              str
-    captured_at:     datetime
-    total_aum:       float = 0.0
-    total_deployed:  float = 0.0
-    total_cash:      float = 0.0
+    id: str
+    captured_at: datetime
+    total_aum: float = 0.0
+    total_deployed: float = 0.0
+    total_cash: float = 0.0
     total_unrealised: float = 0.0
-    total_realised:  float = 0.0
-    daily_pnl:       float = 0.0
+    total_realised: float = 0.0
+    daily_pnl: float = 0.0
     capital_util_pct: float = 0.0
-    per_bot:         dict  = field(default_factory=dict)
+    per_bot: dict = field(default_factory=dict)
 
 
-def _dt(s: str | None) -> Optional[datetime]:
+def _dt(s: str | None) -> datetime | None:
     if s is None:
         return None
     try:
@@ -44,16 +45,16 @@ def _dt(s: str | None) -> Optional[datetime]:
 def _row_to_snapshot(row: aiosqlite.Row, loads) -> MetricsSnapshot:
     d = dict(row)
     return MetricsSnapshot(
-        id               = d["id"],
-        captured_at      = _dt(d["captured_at"]),
-        total_aum        = d.get("total_aum") or 0.0,
-        total_deployed   = d.get("total_deployed") or 0.0,
-        total_cash       = d.get("total_cash") or 0.0,
-        total_unrealised = d.get("total_unrealised") or 0.0,
-        total_realised   = d.get("total_realised") or 0.0,
-        daily_pnl        = d.get("daily_pnl") or 0.0,
-        capital_util_pct = d.get("capital_util_pct") or 0.0,
-        per_bot          = loads(d.get("per_bot_json")) or {},
+        id=d["id"],
+        captured_at=_dt(d["captured_at"]),
+        total_aum=d.get("total_aum") or 0.0,
+        total_deployed=d.get("total_deployed") or 0.0,
+        total_cash=d.get("total_cash") or 0.0,
+        total_unrealised=d.get("total_unrealised") or 0.0,
+        total_realised=d.get("total_realised") or 0.0,
+        daily_pnl=d.get("daily_pnl") or 0.0,
+        capital_util_pct=d.get("capital_util_pct") or 0.0,
+        per_bot=loads(d.get("per_bot_json")) or {},
     )
 
 
@@ -76,7 +77,10 @@ class MetricsRepository(BaseRepository):
         per_bot = getattr(snapshot, "per_bot", None)
         if per_bot is None:
             positions_by_bot = getattr(snapshot, "positions_by_bot", {})
-            per_bot = {k: len(v) if isinstance(v, list) else v for k, v in positions_by_bot.items()}
+            per_bot = {
+                k: len(v) if isinstance(v, list) else v
+                for k, v in positions_by_bot.items()
+            }
 
         await self._execute(
             """
@@ -100,7 +104,7 @@ class MetricsRepository(BaseRepository):
         )
         return sid
 
-    async def get_latest(self) -> Optional[MetricsSnapshot]:
+    async def get_latest(self) -> MetricsSnapshot | None:
         row = await self._fetchone(
             "SELECT * FROM metrics_snapshots ORDER BY captured_at DESC LIMIT 1"
         )
@@ -110,8 +114,11 @@ class MetricsRepository(BaseRepository):
         self, metric: str, since: datetime
     ) -> list[tuple[datetime, float]]:
         valid = {
-            "total_aum", "total_deployed", "total_cash",
-            "daily_pnl", "capital_util_pct",
+            "total_aum",
+            "total_deployed",
+            "total_cash",
+            "daily_pnl",
+            "capital_util_pct",
         }
         if metric not in valid:
             return []

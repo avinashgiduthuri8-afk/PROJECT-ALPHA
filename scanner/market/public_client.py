@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 
@@ -49,7 +49,7 @@ class CoinDCXPublicClient:
     """Asynchronous client for public CoinDCX market data."""
 
     BASE_URL_EXCHANGE = "https://api.coindcx.com"
-    BASE_URL_PUBLIC   = "https://public.coindcx.com"
+    BASE_URL_PUBLIC = "https://public.coindcx.com"
 
     def __init__(
         self,
@@ -61,9 +61,9 @@ class CoinDCXPublicClient:
         self._max_retries = max_retries
         self._rate_limiter = TokenBucketRateLimiter(max_rate_per_sec=rate_limit_per_sec)
         self._semaphore = asyncio.Semaphore(int(rate_limit_per_sec))
-        self._client: Optional[httpx.AsyncClient] = None
+        self._client: httpx.AsyncClient | None = None
 
-    async def __aenter__(self) -> "CoinDCXPublicClient":
+    async def __aenter__(self) -> CoinDCXPublicClient:
         if self._client is None:
             self._client = httpx.AsyncClient(timeout=self._timeout)
         return self
@@ -114,7 +114,7 @@ class CoinDCXPublicClient:
         self,
         method: str,
         url: str,
-        params: Optional[dict[str, Any]] = None,
+        params: dict[str, Any] | None = None,
     ) -> Any:
         client = self._get_client()
 
@@ -123,7 +123,7 @@ class CoinDCXPublicClient:
             async with self._semaphore:
                 try:
                     resp = await client.request(method, url, params=params)
-                    
+
                     if resp.status_code == 200:
                         return resp.json()
 
@@ -134,7 +134,11 @@ class CoinDCXPublicClient:
                         backoff = 1.0 * (attempt + 1)
                         logger.warning(
                             "CoinDCX API temporary response, retrying",
-                            extra={"status": resp.status_code, "attempt": attempt + 1, "backoff": backoff},
+                            extra={
+                                "status": resp.status_code,
+                                "attempt": attempt + 1,
+                                "backoff": backoff,
+                            },
                         )
                         await asyncio.sleep(backoff)
                         continue
@@ -143,16 +147,25 @@ class CoinDCXPublicClient:
 
                 except (httpx.TimeoutException, httpx.NetworkError) as exc:
                     if attempt == self._max_retries:
-                        logger.error("CoinDCX API request failed after retries", extra={"url": url, "error": str(exc)})
+                        logger.error(
+                            "CoinDCX API request failed after retries",
+                            extra={"url": url, "error": str(exc)},
+                        )
                         raise
                     backoff = 1.0 * (attempt + 1)
                     logger.warning(
                         "CoinDCX connection error, retrying",
-                        extra={"error": str(exc), "attempt": attempt + 1, "backoff": backoff},
+                        extra={
+                            "error": str(exc),
+                            "attempt": attempt + 1,
+                            "backoff": backoff,
+                        },
                     )
                     await asyncio.sleep(backoff)
 
-        raise httpx.HTTPError(f"Request failed to {url} after {self._max_retries} retries")
+        raise httpx.HTTPError(
+            f"Request failed to {url} after {self._max_retries} retries"
+        )
 
     # ── Public Endpoints ──────────────────────────────────────────────────────
 
@@ -165,7 +178,10 @@ class CoinDCXPublicClient:
         raw_data = await self._request("GET", url)
 
         if not isinstance(raw_data, list):
-            logger.warning("Unexpected tickers payload shape", extra={"type": type(raw_data).__name__})
+            logger.warning(
+                "Unexpected tickers payload shape",
+                extra={"type": type(raw_data).__name__},
+            )
             return []
 
         tickers = []
@@ -182,17 +198,19 @@ class CoinDCXPublicClient:
             change_24h = float(item.get("change_24_hour") or 0.0)
             timestamp = int(item.get("timestamp") or time.time())
 
-            tickers.append({
-                "market": market,
-                "last_price": last_price,
-                "bid": bid,
-                "ask": ask,
-                "high": high,
-                "low": low,
-                "volume": volume,
-                "change_24_hour": change_24h,
-                "timestamp": timestamp,
-            })
+            tickers.append(
+                {
+                    "market": market,
+                    "last_price": last_price,
+                    "bid": bid,
+                    "ask": ask,
+                    "high": high,
+                    "low": low,
+                    "volume": volume,
+                    "change_24_hour": change_24h,
+                    "timestamp": timestamp,
+                }
+            )
 
         return tickers
 
@@ -218,7 +236,10 @@ class CoinDCXPublicClient:
         raw_data = await self._request("GET", url, params=params)
 
         if not isinstance(raw_data, list):
-            logger.warning("Unexpected candles payload shape", extra={"pair": pair, "type": type(raw_data).__name__})
+            logger.warning(
+                "Unexpected candles payload shape",
+                extra={"pair": pair, "type": type(raw_data).__name__},
+            )
             return []
 
         candles = []
@@ -230,7 +251,7 @@ class CoinDCXPublicClient:
             try:
                 o = float(item.get("open") or item.get("o") or 0.0)
                 h = float(item.get("high") or item.get("h") or 0.0)
-                l = float(item.get("low")  or item.get("l") or 0.0)
+                l = float(item.get("low") or item.get("l") or 0.0)
                 c = float(item.get("close") or item.get("c") or 0.0)
                 v = float(item.get("volume") or item.get("v") or 0.0)
             except (ValueError, TypeError):
@@ -246,16 +267,18 @@ class CoinDCXPublicClient:
             if ts > 10000000000:  # If millisecond timestamp
                 ts = ts // 1000
 
-            candles.append({
-                "pair": pair.upper(),
-                "timeframe": interval,
-                "timestamp": ts,
-                "open": o,
-                "high": h,
-                "low": l,
-                "close": c,
-                "volume": v,
-            })
+            candles.append(
+                {
+                    "pair": pair.upper(),
+                    "timeframe": interval,
+                    "timestamp": ts,
+                    "open": o,
+                    "high": h,
+                    "low": l,
+                    "close": c,
+                    "volume": v,
+                }
+            )
 
         # Ensure sorted chronologically ascending (oldest -> newest)
         candles.sort(key=lambda x: x["timestamp"])
@@ -301,7 +324,9 @@ class CoinDCXPublicClient:
         elif isinstance(asks, list) and asks:
             best_ask = float(asks[0][0] if isinstance(asks[0], list) else asks[0])
 
-        spread = max(0.0, best_ask - best_bid) if (best_ask > 0 and best_bid > 0) else 0.0
+        spread = (
+            max(0.0, best_ask - best_bid) if (best_ask > 0 and best_bid > 0) else 0.0
+        )
         mid = (best_ask + best_bid) / 2.0 if (best_ask > 0 and best_bid > 0) else 1.0
         spread_pct = (spread / mid) * 100.0 if mid > 0 else 0.0
 

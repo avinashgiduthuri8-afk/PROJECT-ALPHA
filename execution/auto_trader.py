@@ -8,10 +8,10 @@ enforces order book precision & min ₹100 notional rules, and dispatches HMAC-s
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import inspect
 import threading
-from typing import Any, Dict, Optional, Set
+from datetime import datetime, timezone
+from typing import Any
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
@@ -20,14 +20,14 @@ from core.types import BotName, Signal
 from execution.trading.precision_rules import (
     extract_base_coin,
     normalize_price,
-    normalize_qty,
     round_price,
     round_qty,
     round_qty_up,
     validate_order_notional,
-    validate_trade_parameters,
 )
-from execution.trading.subaccount_manager import CoinDCXSubAccountClient, CoinDCXSubAccountManager
+from execution.trading.subaccount_manager import (
+    CoinDCXSubAccountManager,
+)
 
 logger = get_logger("execution.auto_trader")
 
@@ -41,22 +41,26 @@ class AutoTradeRouter:
     def __init__(
         self,
         bus: EventBus,
-        subaccount_manager: Optional[CoinDCXSubAccountManager] = None,
+        subaccount_manager: CoinDCXSubAccountManager | None = None,
         dry_run: bool = False,
-        position_repo: Optional[Any] = None,
+        position_repo: Any | None = None,
     ) -> None:
         self._bus = bus
         self._subaccount_manager = subaccount_manager or CoinDCXSubAccountManager()
         self.dry_run = dry_run
         self._position_repo = position_repo
-        self._processed_idempotency_keys: Set[str] = set()
+        self._processed_idempotency_keys: set[str] = set()
         self._lock = threading.RLock()
 
-    def map_signal_to_bot(self, signal_data: Dict[str, Any]) -> BotName:
+    def map_signal_to_bot(self, signal_data: dict[str, Any]) -> BotName:
         """
         Map incoming signal payload/dataclass to isolated production strategy (STE, HDA, VCP, BBS).
         """
-        bot_hint = signal_data.get("bot") or signal_data.get("target_bot") or signal_data.get("source_bot")
+        bot_hint = (
+            signal_data.get("bot")
+            or signal_data.get("target_bot")
+            or signal_data.get("source_bot")
+        )
         if bot_hint:
             bot_str = str(bot_hint).upper()
             for b in BotName:
@@ -87,15 +91,17 @@ class AutoTradeRouter:
         with self._lock:
             self._processed_idempotency_keys.add(idempotency_key)
 
-    async def handle_signal_event(self, event_type: EventType, payload: Dict[str, Any]) -> None:
+    async def handle_signal_event(
+        self, event_type: EventType, payload: dict[str, Any]
+    ) -> None:
         """EventBus handler callback for SIGNAL_GENERATED."""
         await self.handle_signal(payload)
 
     async def handle_signal(
         self,
-        signal: Signal | Dict[str, Any],
-        dry_run: Optional[bool] = None,
-    ) -> Optional[Dict[str, Any]]:
+        signal: Signal | dict[str, Any],
+        dry_run: bool | None = None,
+    ) -> dict[str, Any] | None:
         """
         Main signal processing pipeline:
           1. Extract signal fields & generate idempotency key
@@ -112,32 +118,76 @@ class AutoTradeRouter:
                 "id": signal.id,
                 "coin": signal.coin,
                 "pair": signal.pair,
-                "opportunity_type": signal.opportunity_type.value if hasattr(signal.opportunity_type, "value") else str(signal.opportunity_type),
+                "opportunity_type": (
+                    signal.opportunity_type.value
+                    if hasattr(signal.opportunity_type, "value")
+                    else str(signal.opportunity_type)
+                ),
                 "score": signal.score,
-                "target_bot": signal.raw_payload.get("target_bot") if signal.raw_payload else None,
-                "price": signal.raw_payload.get("price") if signal.raw_payload else None,
-                "price": getattr(signal, "price", None) or (signal.raw_payload.get("price") if signal.raw_payload else None),
-                "signal_price": getattr(signal, "signal_price", None) or (signal.raw_payload.get("signal_price") if signal.raw_payload else None),
-                "current_price": getattr(signal, "current_price", None) or (signal.raw_payload.get("current_price") if signal.raw_payload else None),
-                "stop_loss": getattr(signal, "stop_loss", None) or (signal.raw_payload.get("stop_loss") if signal.raw_payload else None),
-                "take_profit": getattr(signal, "take_profit", None) or (signal.raw_payload.get("take_profit") if signal.raw_payload else None),
-                "ticker_timestamp": getattr(signal, "ticker_timestamp", None) or (signal.raw_payload.get("ticker_timestamp") if signal.raw_payload else None),
-                "timestamp": getattr(signal, "timestamp", None) or (signal.raw_payload.get("timestamp") if signal.raw_payload else None) or signal.generated_at,
-                "trade_amount": signal.raw_payload.get("trade_amount", 500.0) if signal.raw_payload else 500.0,
+                "target_bot": (
+                    signal.raw_payload.get("target_bot") if signal.raw_payload else None
+                ),
+                "price": (
+                    signal.raw_payload.get("price") if signal.raw_payload else None
+                ),
+                "price": getattr(signal, "price", None)
+                or (signal.raw_payload.get("price") if signal.raw_payload else None),
+                "signal_price": getattr(signal, "signal_price", None)
+                or (
+                    signal.raw_payload.get("signal_price")
+                    if signal.raw_payload
+                    else None
+                ),
+                "current_price": getattr(signal, "current_price", None)
+                or (
+                    signal.raw_payload.get("current_price")
+                    if signal.raw_payload
+                    else None
+                ),
+                "stop_loss": getattr(signal, "stop_loss", None)
+                or (
+                    signal.raw_payload.get("stop_loss") if signal.raw_payload else None
+                ),
+                "take_profit": getattr(signal, "take_profit", None)
+                or (
+                    signal.raw_payload.get("take_profit")
+                    if signal.raw_payload
+                    else None
+                ),
+                "ticker_timestamp": getattr(signal, "ticker_timestamp", None)
+                or (
+                    signal.raw_payload.get("ticker_timestamp")
+                    if signal.raw_payload
+                    else None
+                ),
+                "timestamp": getattr(signal, "timestamp", None)
+                or (signal.raw_payload.get("timestamp") if signal.raw_payload else None)
+                or signal.generated_at,
+                "trade_amount": (
+                    signal.raw_payload.get("trade_amount", 500.0)
+                    if signal.raw_payload
+                    else 500.0
+                ),
             }
         elif isinstance(signal, dict):
             signal_data = dict(signal)
         else:
-            logger.error("Invalid signal object passed to handle_signal: %s", type(signal))
+            logger.error(
+                "Invalid signal object passed to handle_signal: %s", type(signal)
+            )
             return None
 
-        signal_id = str(signal_data.get("id") or signal_data.get("signal_id") or "UNKNOWN_SIG")
+        signal_id = str(
+            signal_data.get("id") or signal_data.get("signal_id") or "UNKNOWN_SIG"
+        )
         coin = str(signal_data.get("coin") or "BTC").upper()
         pair = str(signal_data.get("pair") or f"{coin}/INR").upper().replace("_", "/")
 
         idempotency_key = self.generate_idempotency_key(coin, signal_id)
         if self.is_signal_processed(idempotency_key):
-            logger.warning("Duplicate signal rejected by idempotency filter: %s", idempotency_key)
+            logger.warning(
+                "Duplicate signal rejected by idempotency filter: %s", idempotency_key
+            )
             return {
                 "success": False,
                 "error": "DUPLICATE_SIGNAL",
@@ -160,7 +210,11 @@ class AutoTradeRouter:
                         ts_val = ts_val / 1000.0
                     age = now_ts - ts_val
                 elif isinstance(raw_ts, datetime):
-                    ts_val = raw_ts.timestamp() if raw_ts.tzinfo else raw_ts.replace(tzinfo=timezone.utc).timestamp()
+                    ts_val = (
+                        raw_ts.timestamp()
+                        if raw_ts.tzinfo
+                        else raw_ts.replace(tzinfo=timezone.utc).timestamp()
+                    )
                     age = now_ts - ts_val
                 elif isinstance(raw_ts, str):
                     dt = datetime.fromisoformat(raw_ts.replace("Z", "+00:00"))
@@ -171,7 +225,8 @@ class AutoTradeRouter:
                 if age > 5.0:
                     logger.warning(
                         "AutoTradeRouter rejected signal for %s: ticker age %.2fs > 5.0s (STALE_MARKET_DATA)",
-                        pair, age,
+                        pair,
+                        age,
                     )
                     return {
                         "success": False,
@@ -185,14 +240,26 @@ class AutoTradeRouter:
 
         # 2. Pre-Trade Slippage Guard: Reject if abs(current_price - signal.price) / signal.price > 0.005 (0.5%)
         sig_px_val = signal_data.get("signal_price")
-        curr_px_val = signal_data.get("current_price") or signal_data.get("ticker_price")
+        curr_px_val = signal_data.get("current_price") or signal_data.get(
+            "ticker_price"
+        )
 
-        if sig_px_val is None and curr_px_val is not None and signal_data.get("price") is not None:
+        if (
+            sig_px_val is None
+            and curr_px_val is not None
+            and signal_data.get("price") is not None
+        ):
             sig_px_val = signal_data.get("price")
-        elif sig_px_val is not None and curr_px_val is None and signal_data.get("price") is not None:
+        elif (
+            sig_px_val is not None
+            and curr_px_val is None
+            and signal_data.get("price") is not None
+        ):
             curr_px_val = signal_data.get("price")
-        elif hasattr(signal, "price") and curr_px_val is not None and sig_px_val is None:
-            sig_px_val = getattr(signal, "price")
+        elif (
+            hasattr(signal, "price") and curr_px_val is not None and sig_px_val is None
+        ):
+            sig_px_val = signal.price
 
         if sig_px_val is not None and curr_px_val is not None:
             try:
@@ -203,7 +270,9 @@ class AutoTradeRouter:
                     if slippage_pct > 0.005:
                         logger.warning(
                             "AutoTradeRouter rejected signal for %s: slippage %.4f (%.2f%%) > 0.50%% (SLIPPAGE_EXCEEDED)",
-                            pair, slippage_pct, slippage_pct * 100,
+                            pair,
+                            slippage_pct,
+                            slippage_pct * 100,
                         )
                         return {
                             "success": False,
@@ -227,28 +296,42 @@ class AutoTradeRouter:
                 else:
                     open_positions = get_open_coro
                 for op in open_positions:
-                    op_base = extract_base_coin(getattr(op, "coin", "")) or extract_base_coin(getattr(op, "pair", ""))
+                    op_base = extract_base_coin(
+                        getattr(op, "coin", "")
+                    ) or extract_base_coin(getattr(op, "pair", ""))
                     if candidate_base and op_base and candidate_base == op_base:
-                        op_unrealized_pnl = getattr(op, "unrealized_pnl_pct", getattr(op, "unrealized_pnl", 0.0))
+                        op_unrealized_pnl = getattr(
+                            op, "unrealized_pnl_pct", getattr(op, "unrealized_pnl", 0.0)
+                        )
                         op_pyramid_count = getattr(op, "pyramid_count", 0)
-                        
+
                         # Swing Pyramiding Logic: Bypass lock if firmly in profit (>3%)
                         if op_unrealized_pnl > 3.0 and op_pyramid_count < 3:
                             logger.info(
                                 "Swing Pyramiding Activated for %s: Position already at +%.2f%% profit. Adding capital tranche %d/3.",
-                                candidate_base, op_unrealized_pnl, op_pyramid_count + 1
+                                candidate_base,
+                                op_unrealized_pnl,
+                                op_pyramid_count + 1,
                             )
                             # Optional: you can set a flag on the signal here to tell the position manager to merge
                             signal_data["is_pyramid_entry"] = True
                             signal_data["parent_position_id"] = getattr(op, "id", None)
                             break
-                        
+
                         op_bot = getattr(op, "bot", "BOT")
-                        op_bot_name = op_bot.value if hasattr(op_bot, "value") else str(op_bot)
-                        target_bot_name = target_bot.value if hasattr(target_bot, "value") else str(target_bot)
+                        op_bot_name = (
+                            op_bot.value if hasattr(op_bot, "value") else str(op_bot)
+                        )
+                        target_bot_name = (
+                            target_bot.value
+                            if hasattr(target_bot, "value")
+                            else str(target_bot)
+                        )
                         logger.warning(
                             "AutoTradeRouter rejected signal for %s: active position already exists in strategy %s (target: %s)",
-                            candidate_base, op_bot_name, target_bot_name,
+                            candidate_base,
+                            op_bot_name,
+                            target_bot_name,
                         )
                         return {
                             "success": False,
@@ -257,18 +340,28 @@ class AutoTradeRouter:
                             "message": f"Asset {candidate_base} already has an active open position in strategy {op_bot_name} (PnL: {op_unrealized_pnl}%). Cross-strategy lock prevents opening in {target_bot_name}.",
                         }
             except Exception as exc:
-                logger.debug("AutoTradeRouter active position cross-strategy check error: %s", exc)
+                logger.debug(
+                    "AutoTradeRouter active position cross-strategy check error: %s",
+                    exc,
+                )
 
         client = self._subaccount_manager.get_client(target_bot)
 
         raw_price = signal_data.get("price") or signal_data.get("current_price")
-        raw_price = curr_px_val or signal_data.get("price") or sig_px_val or signal_data.get("current_price")
+        raw_price = (
+            curr_px_val
+            or signal_data.get("price")
+            or sig_px_val
+            or signal_data.get("current_price")
+        )
         try:
             price = normalize_price(raw_price)
         except ValueError as exc:
             logger.warning(
                 "AutoTradeRouter rejected signal for %s: invalid price '%s': %s",
-                pair, raw_price, exc,
+                pair,
+                raw_price,
+                exc,
             )
             return {
                 "success": False,
@@ -277,13 +370,21 @@ class AutoTradeRouter:
                 "message": f"Signal has invalid price: {exc}",
             }
 
-        trade_amount_inr = float(signal_data.get("trade_amount") or signal_data.get("amount") or client.config.default_trade_amount_inr)
-        
+        trade_amount_inr = float(
+            signal_data.get("trade_amount")
+            or signal_data.get("amount")
+            or client.config.default_trade_amount_inr
+        )
+
         is_usdt_pair = pair.upper().endswith("/USDT") or pair.upper().endswith("USDT")
         usdt_inr_rate = float(signal_data.get("usdt_inr_rate") or 91.50)
 
         if is_usdt_pair:
-            target_usdt = trade_amount_inr / usdt_inr_rate if usdt_inr_rate > 0 else (trade_amount_inr / 91.50)
+            target_usdt = (
+                trade_amount_inr / usdt_inr_rate
+                if usdt_inr_rate > 0
+                else (trade_amount_inr / 91.50)
+            )
             qty = target_usdt / price if price > 0 else 0.0
         else:
             qty = trade_amount_inr / price if price > 0 else 0.0
@@ -292,19 +393,33 @@ class AutoTradeRouter:
         rounded_price = round_price(pair, price)
         rounded_qty = round_qty(pair, qty)
         notional_value = rounded_price * rounded_qty
-        notional_inr = (notional_value * usdt_inr_rate) if is_usdt_pair else notional_value
+        notional_inr = (
+            (notional_value * usdt_inr_rate) if is_usdt_pair else notional_value
+        )
 
         # Hard ₹200 minimum trading value invariant:
         # If calculated notional is below ₹200.00, round quantity UP to the next valid exchange lot step
         if notional_inr < 200.0:
             rounded_qty = round_qty_up(pair, qty)
             notional_value = rounded_price * rounded_qty
-            notional_inr = (notional_value * usdt_inr_rate) if is_usdt_pair else notional_value
+            notional_inr = (
+                (notional_value * usdt_inr_rate) if is_usdt_pair else notional_value
+            )
 
-        if not validate_order_notional(pair, rounded_price, rounded_qty, min_notional=200.0, usdt_inr_rate=usdt_inr_rate) or notional_inr < 200.0:
+        if (
+            not validate_order_notional(
+                pair,
+                rounded_price,
+                rounded_qty,
+                min_notional=200.0,
+                usdt_inr_rate=usdt_inr_rate,
+            )
+            or notional_inr < 200.0
+        ):
             logger.warning(
                 "Order rejected by precision gate: notional value INR %.2f < min ₹200.00 for pair %s",
-                notional_inr, pair,
+                notional_inr,
+                pair,
             )
             return {
                 "success": False,
@@ -319,7 +434,12 @@ class AutoTradeRouter:
         if is_dry_run:
             logger.info(
                 "[DRY-RUN] AutoTradeRouter mapped signal %s to bot %s for pair %s @ %.4f (Qty: %s, Notional INR: %.2f)",
-                signal_id, target_bot.value, pair, rounded_price, rounded_qty, notional_inr,
+                signal_id,
+                target_bot.value,
+                pair,
+                rounded_price,
+                rounded_qty,
+                notional_inr,
             )
             return {
                 "success": True,
@@ -364,11 +484,20 @@ class AutoTradeRouter:
                     if inspect.isawaitable(sl_res):
                         sl_res = await sl_res
                     if sl_res.get("success"):
-                        order_record["stop_loss_order_id"] = sl_res.get("exchange_order_id")
+                        order_record["stop_loss_order_id"] = sl_res.get(
+                            "exchange_order_id"
+                        )
                 except Exception as sl_err:
-                    logger.warning("AutoTradeRouter failed to place disaster stop-loss for %s: %s", pair, sl_err)
+                    logger.warning(
+                        "AutoTradeRouter failed to place disaster stop-loss for %s: %s",
+                        pair,
+                        sl_err,
+                    )
 
-            logger.info("Order successfully dispatched via AutoTradeRouter for signal %s", signal_id)
+            logger.info(
+                "Order successfully dispatched via AutoTradeRouter for signal %s",
+                signal_id,
+            )
             return {
                 "success": True,
                 "bot": target_bot.value,

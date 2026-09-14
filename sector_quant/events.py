@@ -7,7 +7,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Optional
 
 
 class EventType(str, Enum):
@@ -20,6 +19,7 @@ class EventType(str, Enum):
 @dataclass
 class Event:
     """Base event representation."""
+
     type: EventType
 
 
@@ -28,6 +28,7 @@ class MarketEvent(Event):
     """
     Emitted when a new market bar is received for one or more symbols.
     """
+
     type: EventType = field(default=EventType.MARKET, init=False)
 
 
@@ -36,6 +37,7 @@ class SignalEvent(Event):
     """
     Emitted by a Strategy to signal portfolio rebalancing.
     """
+
     symbol: str
     datetime: datetime
     signal_type: str  # "LONG", "SHORT", "EXIT"
@@ -49,11 +51,12 @@ class OrderEvent(Event):
     """
     Emitted by Portfolio / RiskEngine to ExecutionHandler.
     """
+
     symbol: str
     order_type: str  # "MKT", "LMT"
     quantity: int
     direction: str  # "BUY", "SELL"
-    price: Optional[float] = None
+    price: float | None = None
     type: EventType = field(default=EventType.ORDER, init=False)
 
     def print_order(self) -> str:
@@ -65,6 +68,7 @@ class FillEvent(Event):
     """
     Encapsulates execution result from broker / simulated exchange.
     """
+
     timeindex: datetime
     symbol: str
     exchange: str

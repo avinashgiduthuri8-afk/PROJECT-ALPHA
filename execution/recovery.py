@@ -7,12 +7,12 @@ verifying local records against exchange sub-account clients to prevent state lo
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.logging import get_logger
-from core.types import BotName, Order, OrderState, Position, PositionStatus
 from core.repository.order_repo import OrderRepository
 from core.repository.position_repo import PositionRepository
+from core.types import Order, OrderState, Position
 from execution.trading.order_state_machine import OrderStateMachine
 from execution.trading.subaccount_manager import CoinDCXSubAccountManager
 
@@ -29,22 +29,25 @@ class RestartRecoveryService:
     def __init__(
         self,
         position_repo: PositionRepository,
-        subaccount_manager: Optional[CoinDCXSubAccountManager] = None,
-        order_repo: Optional[OrderRepository] = None,
+        subaccount_manager: CoinDCXSubAccountManager | None = None,
+        order_repo: OrderRepository | None = None,
     ) -> None:
         self._position_repo = position_repo
         self._subaccount_manager = subaccount_manager or CoinDCXSubAccountManager()
         self._order_repo = order_repo
 
-    async def rehydrate_state(self) -> List[Position]:
+    async def rehydrate_state(self) -> list[Position]:
         """
         Rehydrate all non-CLOSED positions from SQLite and verify against sub-account clients.
         Returns list of active recovered Position objects.
         """
         active_positions = await self._position_repo.get_active_positions()
-        logger.info("RestartRecoveryService rehydrating %d active position(s) from SQLite", len(active_positions))
+        logger.info(
+            "RestartRecoveryService rehydrating %d active position(s) from SQLite",
+            len(active_positions),
+        )
 
-        recovered_positions: List[Position] = []
+        recovered_positions: list[Position] = []
 
         for pos in active_positions:
             try:
@@ -52,16 +55,28 @@ class RestartRecoveryService:
                 client = self._subaccount_manager.get_client(pos.bot)
                 logger.info(
                     "Rehydrated position %s [%s] for %s (%s) @ INR %.2f (Qty: %s)",
-                    pos.id, pos.bot.value, pos.coin, pos.pair, pos.entry_price, pos.qty,
+                    pos.id,
+                    pos.bot.value,
+                    pos.coin,
+                    pos.pair,
+                    pos.entry_price,
+                    pos.qty,
                 )
                 recovered_positions.append(pos)
             except Exception as exc:
-                logger.error("Failed to rehydrate position %s for bot %s: %s", pos.id, pos.bot, exc)
+                logger.error(
+                    "Failed to rehydrate position %s for bot %s: %s",
+                    pos.id,
+                    pos.bot,
+                    exc,
+                )
                 recovered_positions.append(pos)
 
         return recovered_positions
 
-    async def verify_against_exchange(self, positions: List[Position]) -> Dict[str, Any]:
+    async def verify_against_exchange(
+        self, positions: list[Position]
+    ) -> dict[str, Any]:
         """
         Verify local active positions against sub-account telemetry and balance data.
         Returns a verification summary dict.
@@ -74,7 +89,10 @@ class RestartRecoveryService:
             bot_key = pos.bot.value if hasattr(pos.bot, "value") else str(pos.bot)
             sub_info = telemetry.get(bot_key)
             if not sub_info:
-                logger.warning("Sub-account telemetry missing during recovery check for position %s", pos.id)
+                logger.warning(
+                    "Sub-account telemetry missing during recovery check for position %s",
+                    pos.id,
+                )
                 desynced_count += 1
             else:
                 verified_count += 1
@@ -88,7 +106,7 @@ class RestartRecoveryService:
         logger.info("Exchange position verification complete: %s", summary)
         return summary
 
-    async def rehydrate_orders(self) -> List[Order]:
+    async def rehydrate_orders(self) -> list[Order]:
         """
         Rehydrate active non-terminal orders from SQLite, check their state against CoinDCX,
         and apply state transitions if state changed.
@@ -97,9 +115,12 @@ class RestartRecoveryService:
             return []
 
         active_orders = await self._order_repo.get_active_orders()
-        logger.info("RestartRecoveryService rehydrating %d active order(s) from SQLite", len(active_orders))
+        logger.info(
+            "RestartRecoveryService rehydrating %d active order(s) from SQLite",
+            len(active_orders),
+        )
 
-        recovered_orders: List[Order] = []
+        recovered_orders: list[Order] = []
 
         for order in active_orders:
             try:
@@ -116,7 +137,12 @@ class RestartRecoveryService:
                         status_str = str(ex_ord.get("status", "")).lower()
                         if status_str in ("filled", "completed"):
                             target_state = OrderState.FILLED
-                            filled_qty = float(ex_ord.get("total_quantity", ex_ord.get("quantity", order.req_qty)))
+                            filled_qty = float(
+                                ex_ord.get(
+                                    "total_quantity",
+                                    ex_ord.get("quantity", order.req_qty),
+                                )
+                            )
                             avg_price = float(ex_ord.get("price", order.price))
                         elif status_str in ("open", "initiate", "pending"):
                             target_state = OrderState.OPEN
@@ -143,7 +169,9 @@ class RestartRecoveryService:
                     recovered_orders.append(order)
 
             except Exception as exc:
-                logger.error("Failed to rehydrate order %s (%s): %s", order.id, order.pair, exc)
+                logger.error(
+                    "Failed to rehydrate order %s (%s): %s", order.id, order.pair, exc
+                )
                 recovered_orders.append(order)
 
         return recovered_orders

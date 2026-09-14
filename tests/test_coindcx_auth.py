@@ -5,23 +5,20 @@ Unit and Integration Tests for CoinDCX Master API Key Authentication & Unified E
 from __future__ import annotations
 
 import json
-import os
-import time
-import pytest
-import httpx
 
-from core.config import V2Config, invalidate_config
+import httpx
+import pytest
+
+from core.config import V2Config
 from core.types import BotName
 from execution.trading.subaccount_manager import (
-    CoinDCXExecutionManager,
     CoinDCXExecutionClient,
-    CoinDCXSubAccountManager,
+    CoinDCXExecutionManager,
     SubAccountConfig,
 )
-from execution.trading.precision_rules import validate_order_notional
-
 
 # ── 1. Master API Credentials & Config Loading ───────────────────────────────
+
 
 def test_master_api_credentials_loaded_from_env(monkeypatch):
     monkeypatch.setenv("COINDCX_API_KEY", "test_master_key_123")
@@ -46,7 +43,12 @@ def test_hmac_sha256_auth_headers_generation():
     )
     client = CoinDCXExecutionClient(config=config)
 
-    payload = {"side": "buy", "market": "SOLINR", "price_per_unit": 12500.0, "total_quantity": 0.02}
+    payload = {
+        "side": "buy",
+        "market": "SOLINR",
+        "price_per_unit": 12500.0,
+        "total_quantity": 0.02,
+    }
     headers = client.generate_auth_headers(payload)
 
     assert headers["Content-Type"] == "application/json"
@@ -57,6 +59,7 @@ def test_hmac_sha256_auth_headers_generation():
 
 
 # ── 2. Diagnostic Balance Fetching (POST /exchange/v1/users/balances) ─────────
+
 
 @pytest.mark.anyio
 async def test_get_balances_success_mock():
@@ -136,10 +139,14 @@ async def test_get_balances_rate_limited_429():
 
 # ── 3. Live Order Dispatch & Precision Enforcement ────────────────────────────
 
+
 @pytest.mark.anyio
 async def test_place_live_order_success_mock(monkeypatch):
     from core.config import get_config
-    live_cfg = get_config().model_copy(update={"v2_deployment_mode": "LIVE_MICROCASH", "v2_trading_enabled": True})
+
+    live_cfg = get_config().model_copy(
+        update={"v2_deployment_mode": "LIVE_MICROCASH", "v2_trading_enabled": True}
+    )
     monkeypatch.setattr("core.config.get_config", lambda: live_cfg)
     mock_order_response = {
         "id": "ORD_COINDCX_9999",
@@ -152,7 +159,10 @@ async def test_place_live_order_success_mock(monkeypatch):
 
     async def mock_handler(request: httpx.Request):
         if request.url.path == "/exchange/v1/users/balances":
-            return httpx.Response(200, json=[{"currency": "INR", "balance": 10000.0, "locked_balance": 0.0}])
+            return httpx.Response(
+                200,
+                json=[{"currency": "INR", "balance": 10000.0, "locked_balance": 0.0}],
+            )
         if request.url.path == "/exchange/v1/orders/create":
             body = json.loads(request.content.decode("utf-8"))
             assert body["market"] == "SOLINR"
@@ -189,7 +199,10 @@ async def test_place_live_order_success_mock(monkeypatch):
 @pytest.mark.anyio
 async def test_place_live_order_min_notional_rejection(monkeypatch):
     from core.config import get_config
-    live_cfg = get_config().model_copy(update={"v2_deployment_mode": "LIVE_MICROCASH", "v2_trading_enabled": True})
+
+    live_cfg = get_config().model_copy(
+        update={"v2_deployment_mode": "LIVE_MICROCASH", "v2_trading_enabled": True}
+    )
     monkeypatch.setattr("core.config.get_config", lambda: live_cfg)
     config = SubAccountConfig(
         bot_name=BotName.BBS,
@@ -210,6 +223,7 @@ async def test_place_live_order_min_notional_rejection(monkeypatch):
 
 
 # ── 4. Order Status & Cancellation ───────────────────────────────────────────
+
 
 @pytest.mark.anyio
 async def test_get_order_status_and_cancel_mock():
@@ -240,6 +254,7 @@ async def test_get_order_status_and_cancel_mock():
 
 
 # ── 5. Manager Connectivity Diagnostic ────────────────────────────────────────
+
 
 @pytest.mark.anyio
 async def test_manager_check_account_connectivity():

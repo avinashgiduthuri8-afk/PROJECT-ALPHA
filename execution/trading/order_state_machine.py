@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from typing import Dict, Optional, Set, Tuple
 
 from core.exceptions import AlphaError
 from core.logging import get_logger
@@ -20,11 +19,10 @@ logger = get_logger("execution.trading.order_state_machine")
 
 class InvalidOrderStateTransitionError(AlphaError):
     """Raised when an illegal order state transition is attempted."""
-    pass
 
 
 # Define valid state transition graph
-VALID_TRANSITIONS: Dict[OrderState, Set[OrderState]] = {
+VALID_TRANSITIONS: dict[OrderState, set[OrderState]] = {
     OrderState.CREATED: {
         OrderState.SUBMITTED,
         OrderState.FAILED,
@@ -87,12 +85,12 @@ class OrderStateMachine:
         cls,
         order: Order,
         to_state: OrderState,
-        filled_qty: Optional[float] = None,
-        avg_price: Optional[float] = None,
-        exchange_order_id: Optional[str] = None,
-        reason: Optional[str] = None,
-        metadata: Optional[dict] = None,
-    ) -> Tuple[Order, OrderStateTransition]:
+        filled_qty: float | None = None,
+        avg_price: float | None = None,
+        exchange_order_id: str | None = None,
+        reason: str | None = None,
+        metadata: dict | None = None,
+    ) -> tuple[Order, OrderStateTransition]:
         """
         Execute state transition on Order entity.
 
@@ -152,4 +150,3 @@ class OrderStateMachine:
         )
 
         return order, transition_record
-

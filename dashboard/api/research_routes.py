@@ -12,20 +12,20 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from .auth import require_api_key
 from .schemas import (
-    ResearchPairSchema,
-    ResolvedPairsSchema,
-    TickerStreamSchema,
-    CoinProfileSchema,
-    VCPSetupSchema,
-    VCPStageSchema,
-    ScorecardSchema,
-    TickerSnapshotSchema,
-    Week52Schema,
     BacktestRequestSchema,
     BacktestResultSchema,
+    CoinProfileSchema,
+    HorizonForecastSchema,
     PredictRequestSchema,
     PredictResultSchema,
-    HorizonForecastSchema,
+    ResearchPairSchema,
+    ResolvedPairsSchema,
+    ScorecardSchema,
+    TickerSnapshotSchema,
+    TickerStreamSchema,
+    VCPSetupSchema,
+    VCPStageSchema,
+    Week52Schema,
 )
 
 research_router = APIRouter()
@@ -45,6 +45,7 @@ def _get_service():
     if _research_service is None:
         try:
             from scanner.research.service import CoinResearchService
+
             _research_service = CoinResearchService()
         except Exception:
             raise HTTPException(
@@ -54,8 +55,8 @@ def _get_service():
     return _research_service
 
 
-
 # ── GET /research/coins ───────────────────────────────────────────────────────
+
 
 @research_router.get(
     "/coins",
@@ -67,11 +68,13 @@ def _get_service():
 async def list_research_coins() -> list[ResearchPairSchema]:
     """Return the full catalogue of supported pairs for the Research Hub."""
     from scanner.research.symbol_normalizer import get_supported_pairs_info
+
     pairs = get_supported_pairs_info()
     return [ResearchPairSchema(**p) for p in pairs]
 
 
 # ── GET /research/pairs/{symbol:path} ─────────────────────────────────────────
+
 
 @research_router.get(
     "/pairs/{symbol:path}",
@@ -98,6 +101,7 @@ async def resolve_coin_pairs(symbol: str) -> ResolvedPairsSchema:
 
 # ── GET /research/ticker/{symbol:path} ────────────────────────────────────────
 
+
 @research_router.get(
     "/ticker/{symbol:path}",
     response_model=TickerStreamSchema,
@@ -120,8 +124,8 @@ async def get_coin_ticker(symbol: str) -> TickerStreamSchema:
         )
 
 
-
 # ── GET /research/coin/{symbol:path} ──────────────────────────────────────────
+
 
 @research_router.get(
     "/coin/{symbol:path}",
@@ -177,6 +181,7 @@ async def get_coin_profile(symbol: str) -> CoinProfileSchema:
 
 # ── POST /research/backtest ───────────────────────────────────────────────────
 
+
 @research_router.post(
     "/backtest",
     response_model=BacktestResultSchema,
@@ -208,6 +213,7 @@ async def run_backtest(body: BacktestRequestSchema) -> BacktestResultSchema:
 
 # ── POST /research/predict ────────────────────────────────────────────────────
 
+
 @research_router.post(
     "/predict",
     response_model=PredictResultSchema,
@@ -232,10 +238,7 @@ async def predict_trend(body: PredictRequestSchema) -> PredictResultSchema:
             detail=f"Prediction failed: {exc}",
         )
 
-    horizons = {
-        k: HorizonForecastSchema(**v)
-        for k, v in result["horizons"].items()
-    }
+    horizons = {k: HorizonForecastSchema(**v) for k, v in result["horizons"].items()}
 
     return PredictResultSchema(
         pair=result["pair"],
@@ -248,4 +251,3 @@ async def predict_trend(body: PredictRequestSchema) -> PredictResultSchema:
         risk_factors=result.get("risk_factors", []),
         summary=result.get("summary", ""),
     )
-

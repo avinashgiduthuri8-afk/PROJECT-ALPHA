@@ -4,22 +4,26 @@ PROJECT-ALPHA V2 — Live Execution Wiring, Fill Confirmation, and Order Reconci
 
 from __future__ import annotations
 
-import asyncio
 import uuid
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timezone
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
 from core.config import V2Config, invalidate_config
-from core.types import BotMode, BotName, ExitReason, Position, PositionStatus, Trade
 from core.repository.db import Database
 from core.repository.event_log_repo import EventLogRepository
 from core.repository.position_repo import PositionRepository
 from core.repository.trade_repo import TradeRepository
+from core.types import BotMode, BotName, ExitReason, Position, PositionStatus
 from execution.service import TradingService
-from execution.trading.subaccount_manager import CoinDCXSubAccountManager, CoinDCXSubAccountClient, SubAccountConfig
+from execution.trading.subaccount_manager import (
+    CoinDCXSubAccountClient,
+    CoinDCXSubAccountManager,
+    SubAccountConfig,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -38,6 +42,7 @@ def setup_test_env(tmp_path, monkeypatch):
 
 # ── BUY PATH TESTS ─────────────────────────────────────────────────────────────
 
+
 @pytest.mark.anyio
 async def test_1_paper_buy_execution(tmp_path):
     """1. Paper BUY in SHADOW mode creates a local PAPER position without calling live HTTP."""
@@ -49,16 +54,34 @@ async def test_1_paper_buy_execution(tmp_path):
     pos_repo = PositionRepository(db.connection)
     trade_repo = TradeRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
-    cfg = V2Config(v2_deployment_mode="SHADOW", v2_trading_enabled=False, total_capital_limit=10000.0)
+    cfg = V2Config(
+        v2_deployment_mode="SHADOW",
+        v2_trading_enabled=False,
+        total_capital_limit=10000.0,
+    )
 
     mgr = CoinDCXSubAccountManager()
     client = mgr.get_client(BotName.STE)
     client.place_live_order = AsyncMock()
 
-    service = TradingService(bus=bus, position_repo=pos_repo, trade_repo=trade_repo, event_log_repo=event_repo, config=cfg, subaccount_manager=mgr)
+    service = TradingService(
+        bus=bus,
+        position_repo=pos_repo,
+        trade_repo=trade_repo,
+        event_log_repo=event_repo,
+        config=cfg,
+        subaccount_manager=mgr,
+    )
     await service.start()
 
-    payload = {"signal_id": "SIG-01", "coin": "SOL", "pair": "SOL/INR", "bot": "STE", "price": 10000.0, "approved_amount": 200.0}
+    payload = {
+        "signal_id": "SIG-01",
+        "coin": "SOL",
+        "pair": "SOL/INR",
+        "bot": "STE",
+        "price": 10000.0,
+        "approved_amount": 200.0,
+    }
     await service.on_trade_approved(EventType.TRADE_APPROVED, payload)
 
     # Verify place_live_order was NEVER called in SHADOW/PAPER mode
@@ -86,26 +109,46 @@ async def test_2_and_6_live_buy_confirmed_filled(tmp_path):
     pos_repo = PositionRepository(db.connection)
     trade_repo = TradeRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
-    cfg = V2Config(v2_deployment_mode="LIVE_MICROCASH", v2_trading_enabled=True, total_capital_limit=10000.0)
+    cfg = V2Config(
+        v2_deployment_mode="LIVE_MICROCASH",
+        v2_trading_enabled=True,
+        total_capital_limit=10000.0,
+    )
 
     mgr = CoinDCXSubAccountManager()
     client = mgr.get_client(BotName.STE)
-    client.place_live_order = AsyncMock(return_value={
-        "success": True,
-        "status_code": 200,
-        "exchange_order_id": "EX-ORD-BUY-9999",
-        "client_order_id": "ORD_ALPHA_STE_01_12345",
-        "status": "FILLED",
-        "is_filled": True,
-        "price": 10000.0,
-        "qty": 0.02,
-        "notional_inr": 200.0,
-    })
+    client.place_live_order = AsyncMock(
+        return_value={
+            "success": True,
+            "status_code": 200,
+            "exchange_order_id": "EX-ORD-BUY-9999",
+            "client_order_id": "ORD_ALPHA_STE_01_12345",
+            "status": "FILLED",
+            "is_filled": True,
+            "price": 10000.0,
+            "qty": 0.02,
+            "notional_inr": 200.0,
+        }
+    )
 
-    service = TradingService(bus=bus, position_repo=pos_repo, trade_repo=trade_repo, event_log_repo=event_repo, config=cfg, subaccount_manager=mgr)
+    service = TradingService(
+        bus=bus,
+        position_repo=pos_repo,
+        trade_repo=trade_repo,
+        event_log_repo=event_repo,
+        config=cfg,
+        subaccount_manager=mgr,
+    )
     await service.start()
 
-    payload = {"signal_id": "SIG-02", "coin": "SOL", "pair": "SOL/INR", "bot": "STE", "price": 10000.0, "approved_amount": 200.0}
+    payload = {
+        "signal_id": "SIG-02",
+        "coin": "SOL",
+        "pair": "SOL/INR",
+        "bot": "STE",
+        "price": 10000.0,
+        "approved_amount": 200.0,
+    }
     await service.on_trade_approved(EventType.TRADE_APPROVED, payload)
 
     # Verify place_live_order was called for BUY with correct parameters
@@ -137,21 +180,41 @@ async def test_3_live_buy_http_failure_no_position(tmp_path):
     pos_repo = PositionRepository(db.connection)
     trade_repo = TradeRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
-    cfg = V2Config(v2_deployment_mode="LIVE_MICROCASH", v2_trading_enabled=True, total_capital_limit=10000.0)
+    cfg = V2Config(
+        v2_deployment_mode="LIVE_MICROCASH",
+        v2_trading_enabled=True,
+        total_capital_limit=10000.0,
+    )
 
     mgr = CoinDCXSubAccountManager()
     client = mgr.get_client(BotName.STE)
-    client.place_live_order = AsyncMock(return_value={
-        "success": False,
-        "status_code": 500,
-        "error": "NETWORK_ERROR",
-        "message": "Connection to CoinDCX timed out",
-    })
+    client.place_live_order = AsyncMock(
+        return_value={
+            "success": False,
+            "status_code": 500,
+            "error": "NETWORK_ERROR",
+            "message": "Connection to CoinDCX timed out",
+        }
+    )
 
-    service = TradingService(bus=bus, position_repo=pos_repo, trade_repo=trade_repo, event_log_repo=event_repo, config=cfg, subaccount_manager=mgr)
+    service = TradingService(
+        bus=bus,
+        position_repo=pos_repo,
+        trade_repo=trade_repo,
+        event_log_repo=event_repo,
+        config=cfg,
+        subaccount_manager=mgr,
+    )
     await service.start()
 
-    payload = {"signal_id": "SIG-03", "coin": "SOL", "pair": "SOL/INR", "bot": "STE", "price": 10000.0, "approved_amount": 200.0}
+    payload = {
+        "signal_id": "SIG-03",
+        "coin": "SOL",
+        "pair": "SOL/INR",
+        "bot": "STE",
+        "price": 10000.0,
+        "approved_amount": 200.0,
+    }
     await service.on_trade_approved(EventType.TRADE_APPROVED, payload)
 
     # Verify NO position exists
@@ -173,21 +236,41 @@ async def test_4_live_buy_rejection_no_position(tmp_path):
     pos_repo = PositionRepository(db.connection)
     trade_repo = TradeRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
-    cfg = V2Config(v2_deployment_mode="LIVE_MICROCASH", v2_trading_enabled=True, total_capital_limit=10000.0)
+    cfg = V2Config(
+        v2_deployment_mode="LIVE_MICROCASH",
+        v2_trading_enabled=True,
+        total_capital_limit=10000.0,
+    )
 
     mgr = CoinDCXSubAccountManager()
     client = mgr.get_client(BotName.STE)
-    client.place_live_order = AsyncMock(return_value={
-        "success": False,
-        "status_code": 401,
-        "error": "AUTH_FAILED",
-        "message": "Invalid API Key or HMAC Signature",
-    })
+    client.place_live_order = AsyncMock(
+        return_value={
+            "success": False,
+            "status_code": 401,
+            "error": "AUTH_FAILED",
+            "message": "Invalid API Key or HMAC Signature",
+        }
+    )
 
-    service = TradingService(bus=bus, position_repo=pos_repo, trade_repo=trade_repo, event_log_repo=event_repo, config=cfg, subaccount_manager=mgr)
+    service = TradingService(
+        bus=bus,
+        position_repo=pos_repo,
+        trade_repo=trade_repo,
+        event_log_repo=event_repo,
+        config=cfg,
+        subaccount_manager=mgr,
+    )
     await service.start()
 
-    payload = {"signal_id": "SIG-04", "coin": "SOL", "pair": "SOL/INR", "bot": "STE", "price": 10000.0, "approved_amount": 200.0}
+    payload = {
+        "signal_id": "SIG-04",
+        "coin": "SOL",
+        "pair": "SOL/INR",
+        "bot": "STE",
+        "price": 10000.0,
+        "approved_amount": 200.0,
+    }
     await service.on_trade_approved(EventType.TRADE_APPROVED, payload)
 
     open_pos = await pos_repo.get_open()
@@ -208,24 +291,44 @@ async def test_5_live_buy_pending_unfilled_no_position(tmp_path):
     pos_repo = PositionRepository(db.connection)
     trade_repo = TradeRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
-    cfg = V2Config(v2_deployment_mode="LIVE_MICROCASH", v2_trading_enabled=True, total_capital_limit=10000.0)
+    cfg = V2Config(
+        v2_deployment_mode="LIVE_MICROCASH",
+        v2_trading_enabled=True,
+        total_capital_limit=10000.0,
+    )
 
     mgr = CoinDCXSubAccountManager()
     client = mgr.get_client(BotName.STE)
-    client.place_live_order = AsyncMock(return_value={
-        "success": True,
-        "status_code": 200,
-        "exchange_order_id": "EX-ORD-PENDING-123",
-        "status": "OPEN",  # Unfilled resting limit order
-        "is_filled": False,
-        "price": 10000.0,
-        "qty": 0.02,
-    })
+    client.place_live_order = AsyncMock(
+        return_value={
+            "success": True,
+            "status_code": 200,
+            "exchange_order_id": "EX-ORD-PENDING-123",
+            "status": "OPEN",  # Unfilled resting limit order
+            "is_filled": False,
+            "price": 10000.0,
+            "qty": 0.02,
+        }
+    )
 
-    service = TradingService(bus=bus, position_repo=pos_repo, trade_repo=trade_repo, event_log_repo=event_repo, config=cfg, subaccount_manager=mgr)
+    service = TradingService(
+        bus=bus,
+        position_repo=pos_repo,
+        trade_repo=trade_repo,
+        event_log_repo=event_repo,
+        config=cfg,
+        subaccount_manager=mgr,
+    )
     await service.start()
 
-    payload = {"signal_id": "SIG-05", "coin": "SOL", "pair": "SOL/INR", "bot": "STE", "price": 10000.0, "approved_amount": 200.0}
+    payload = {
+        "signal_id": "SIG-05",
+        "coin": "SOL",
+        "pair": "SOL/INR",
+        "bot": "STE",
+        "price": 10000.0,
+        "approved_amount": 200.0,
+    }
     await service.on_trade_approved(EventType.TRADE_APPROVED, payload)
 
     # Position must NOT be marked OPEN when resting/unfilled
@@ -238,6 +341,7 @@ async def test_5_live_buy_pending_unfilled_no_position(tmp_path):
 
 # ── SELL PATH TESTS ────────────────────────────────────────────────────────────
 
+
 @pytest.mark.anyio
 async def test_7_paper_sell_execution(tmp_path):
     """7. Paper SELL evaluates SL/TP and closes position locally with friction deducted."""
@@ -249,13 +353,24 @@ async def test_7_paper_sell_execution(tmp_path):
     pos_repo = PositionRepository(db.connection)
     trade_repo = TradeRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
-    cfg = V2Config(v2_deployment_mode="SHADOW", v2_trading_enabled=False, total_capital_limit=10000.0)
+    cfg = V2Config(
+        v2_deployment_mode="SHADOW",
+        v2_trading_enabled=False,
+        total_capital_limit=10000.0,
+    )
 
     mgr = CoinDCXSubAccountManager()
     client = mgr.get_client(BotName.STE)
     client.place_live_order = AsyncMock()
 
-    service = TradingService(bus=bus, position_repo=pos_repo, trade_repo=trade_repo, event_log_repo=event_repo, config=cfg, subaccount_manager=mgr)
+    service = TradingService(
+        bus=bus,
+        position_repo=pos_repo,
+        trade_repo=trade_repo,
+        event_log_repo=event_repo,
+        config=cfg,
+        subaccount_manager=mgr,
+    )
     await service.start()
 
     pos = Position(
@@ -298,21 +413,34 @@ async def test_8_and_10_live_sell_confirmed_filled(tmp_path):
     pos_repo = PositionRepository(db.connection)
     trade_repo = TradeRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
-    cfg = V2Config(v2_deployment_mode="LIVE_MICROCASH", v2_trading_enabled=True, total_capital_limit=10000.0)
+    cfg = V2Config(
+        v2_deployment_mode="LIVE_MICROCASH",
+        v2_trading_enabled=True,
+        total_capital_limit=10000.0,
+    )
 
     mgr = CoinDCXSubAccountManager()
     client = mgr.get_client(BotName.STE)
-    client.place_live_order = AsyncMock(return_value={
-        "success": True,
-        "status_code": 200,
-        "exchange_order_id": "EX-ORD-SELL-7777",
-        "status": "FILLED",
-        "is_filled": True,
-        "price": 11050.0,
-        "qty": 0.02,
-    })
+    client.place_live_order = AsyncMock(
+        return_value={
+            "success": True,
+            "status_code": 200,
+            "exchange_order_id": "EX-ORD-SELL-7777",
+            "status": "FILLED",
+            "is_filled": True,
+            "price": 11050.0,
+            "qty": 0.02,
+        }
+    )
 
-    service = TradingService(bus=bus, position_repo=pos_repo, trade_repo=trade_repo, event_log_repo=event_repo, config=cfg, subaccount_manager=mgr)
+    service = TradingService(
+        bus=bus,
+        position_repo=pos_repo,
+        trade_repo=trade_repo,
+        event_log_repo=event_repo,
+        config=cfg,
+        subaccount_manager=mgr,
+    )
     await service.start()
 
     pos = Position(
@@ -364,18 +492,31 @@ async def test_9_live_sell_failure_position_remains_open(tmp_path):
     pos_repo = PositionRepository(db.connection)
     trade_repo = TradeRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
-    cfg = V2Config(v2_deployment_mode="LIVE_MICROCASH", v2_trading_enabled=True, total_capital_limit=10000.0)
+    cfg = V2Config(
+        v2_deployment_mode="LIVE_MICROCASH",
+        v2_trading_enabled=True,
+        total_capital_limit=10000.0,
+    )
 
     mgr = CoinDCXSubAccountManager()
     client = mgr.get_client(BotName.STE)
-    client.place_live_order = AsyncMock(return_value={
-        "success": False,
-        "status_code": 500,
-        "error": "NETWORK_ERROR",
-        "message": "Exchange unreachable",
-    })
+    client.place_live_order = AsyncMock(
+        return_value={
+            "success": False,
+            "status_code": 500,
+            "error": "NETWORK_ERROR",
+            "message": "Exchange unreachable",
+        }
+    )
 
-    service = TradingService(bus=bus, position_repo=pos_repo, trade_repo=trade_repo, event_log_repo=event_repo, config=cfg, subaccount_manager=mgr)
+    service = TradingService(
+        bus=bus,
+        position_repo=pos_repo,
+        trade_repo=trade_repo,
+        event_log_repo=event_repo,
+        config=cfg,
+        subaccount_manager=mgr,
+    )
     await service.start()
 
     pos = Position(
@@ -408,6 +549,7 @@ async def test_9_live_sell_failure_position_remains_open(tmp_path):
 
 # ── SAFETY & RECONCILIATION TESTS ──────────────────────────────────────────────
 
+
 @pytest.mark.anyio
 async def test_12_live_mode_never_calls_paper_place_order(tmp_path):
     """12. Prove that LIVE_MICROCASH mode never calls synchronous paper place_order()."""
@@ -419,25 +561,49 @@ async def test_12_live_mode_never_calls_paper_place_order(tmp_path):
     pos_repo = PositionRepository(db.connection)
     trade_repo = TradeRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
-    cfg = V2Config(v2_deployment_mode="LIVE_MICROCASH", v2_trading_enabled=True, total_capital_limit=10000.0)
+    cfg = V2Config(
+        v2_deployment_mode="LIVE_MICROCASH",
+        v2_trading_enabled=True,
+        total_capital_limit=10000.0,
+    )
 
     mgr = CoinDCXSubAccountManager()
     client = mgr.get_client(BotName.STE)
-    client.place_order = MagicMock(side_effect=AssertionError("FATAL: Synchronous paper place_order was called in LIVE mode!"))
-    client.place_live_order = AsyncMock(return_value={
-        "success": True,
-        "status_code": 200,
-        "exchange_order_id": "EX-ORD-LIVE-VALID",
-        "status": "FILLED",
-        "is_filled": True,
-        "price": 10000.0,
-        "qty": 0.02,
-    })
+    client.place_order = MagicMock(
+        side_effect=AssertionError(
+            "FATAL: Synchronous paper place_order was called in LIVE mode!"
+        )
+    )
+    client.place_live_order = AsyncMock(
+        return_value={
+            "success": True,
+            "status_code": 200,
+            "exchange_order_id": "EX-ORD-LIVE-VALID",
+            "status": "FILLED",
+            "is_filled": True,
+            "price": 10000.0,
+            "qty": 0.02,
+        }
+    )
 
-    service = TradingService(bus=bus, position_repo=pos_repo, trade_repo=trade_repo, event_log_repo=event_repo, config=cfg, subaccount_manager=mgr)
+    service = TradingService(
+        bus=bus,
+        position_repo=pos_repo,
+        trade_repo=trade_repo,
+        event_log_repo=event_repo,
+        config=cfg,
+        subaccount_manager=mgr,
+    )
     await service.start()
 
-    payload = {"signal_id": "SIG-12", "coin": "SOL", "pair": "SOL/INR", "bot": "STE", "price": 10000.0, "approved_amount": 200.0}
+    payload = {
+        "signal_id": "SIG-12",
+        "coin": "SOL",
+        "pair": "SOL/INR",
+        "bot": "STE",
+        "price": 10000.0,
+        "approved_amount": 200.0,
+    }
     # This must not raise the AssertionError from place_order
     await service.on_trade_approved(EventType.TRADE_APPROVED, payload)
 
@@ -452,14 +618,25 @@ async def test_12_live_mode_never_calls_paper_place_order(tmp_path):
 async def test_13_timeout_safety_no_blind_duplicate(tmp_path):
     """13. HTTP timeout returns proper error with client_order_id without duplicating or opening phantom position."""
     live_cfg = V2Config(v2_deployment_mode="LIVE_MICROCASH", v2_trading_enabled=True)
-    client = CoinDCXSubAccountClient(SubAccountConfig(bot_name=BotName.STE, subaccount_id="STE_01", api_key="k", api_secret="s"))
-    client.get_balances = AsyncMock(return_value={"success": True, "inr_balance": 10000.0})
+    client = CoinDCXSubAccountClient(
+        SubAccountConfig(
+            bot_name=BotName.STE, subaccount_id="STE_01", api_key="k", api_secret="s"
+        )
+    )
+    client.get_balances = AsyncMock(
+        return_value={"success": True, "inr_balance": 10000.0}
+    )
     mock_http = AsyncMock()
     import httpx
-    mock_http.post.side_effect = httpx.TimeoutException("Network timeout connecting to CoinDCX")
+
+    mock_http.post.side_effect = httpx.TimeoutException(
+        "Network timeout connecting to CoinDCX"
+    )
 
     with patch("core.config.get_config", return_value=live_cfg):
-        res = await client.place_live_order(pair="SOL/INR", side="BUY", price=10000.0, qty=0.02, client=mock_http)
+        res = await client.place_live_order(
+            pair="SOL/INR", side="BUY", price=10000.0, qty=0.02, client=mock_http
+        )
     assert res["success"] is False
     assert res["error"] == "TIMEOUT"
     assert res["requires_reconciliation"] is True
@@ -481,13 +658,22 @@ async def test_14_order_reconciliation_repairs_cancelled_orders(tmp_path):
 
     mgr = CoinDCXSubAccountManager()
     client = mgr.get_client(BotName.STE)
-    client.get_order_status = AsyncMock(return_value={
-        "success": True,
-        "status": "CANCELLED",
-        "order": {"id": "EX-CANCELLED-1", "status": "CANCELLED"},
-    })
+    client.get_order_status = AsyncMock(
+        return_value={
+            "success": True,
+            "status": "CANCELLED",
+            "order": {"id": "EX-CANCELLED-1", "status": "CANCELLED"},
+        }
+    )
 
-    service = TradingService(bus=bus, position_repo=pos_repo, trade_repo=trade_repo, event_log_repo=event_repo, config=cfg, subaccount_manager=mgr)
+    service = TradingService(
+        bus=bus,
+        position_repo=pos_repo,
+        trade_repo=trade_repo,
+        event_log_repo=event_repo,
+        config=cfg,
+        subaccount_manager=mgr,
+    )
     await service.start()
 
     pos = Position(

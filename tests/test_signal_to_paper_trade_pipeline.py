@@ -9,32 +9,34 @@ Verifies the complete pipeline:
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone, timedelta
-import pytest
+import tempfile
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
 from unittest.mock import AsyncMock
 
+import pytest
+
+from background.ai.service import AIIntelligenceService
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
 from core.bus.subscribers import register_all
 from core.config import V2Config
-from core.types import BotName, BotMode, MarketState, OppType, Priority, RiskLevel, Signal
-import uuid
-from core.repository.candle_repo import CandleRepository
-from core.repository.signal_repo import SignalRepository
-from core.repository.position_repo import PositionRepository
-from core.repository.trade_repo import TradeRepository
-from core.repository.event_log_repo import EventLogRepository
 from core.repository.ai_repo import AIAnalysisRepository
+from core.repository.candle_repo import CandleRepository
 from core.repository.db import Database
-from scanner.service import ScannerService
-from background.ai.service import AIIntelligenceService
+from core.repository.event_log_repo import EventLogRepository
+from core.repository.position_repo import PositionRepository
+from core.repository.signal_repo import SignalRepository
+from core.repository.trade_repo import TradeRepository
+from core.types import (
+    BotMode,
+    MarketState,
+)
+from dashboard.bot_pipeline import BotPipelineTracker
 from execution.risk.service import RiskService
 from execution.service import TradingService
-from dashboard.bot_pipeline import BotPipelineTracker
-
-
-import tempfile
-from pathlib import Path
+from scanner.service import ScannerService
 
 
 @pytest.mark.anyio
@@ -66,16 +68,18 @@ async def test_complete_signal_to_paper_trade_pipeline():
         else:
             price += 25000.0  # upward continuation
         vol = 25.0 if i >= 27 else 10.0
-        candles_1h.append({
-            "pair": "BTC/INR",
-            "timeframe": "1h",
-            "timestamp": ts,
-            "open": price - 20000.0,
-            "high": price + 50000.0,
-            "low": price - 50000.0,
-            "close": price,
-            "volume": vol,
-        })
+        candles_1h.append(
+            {
+                "pair": "BTC/INR",
+                "timeframe": "1h",
+                "timestamp": ts,
+                "open": price - 20000.0,
+                "high": price + 50000.0,
+                "low": price - 50000.0,
+                "close": price,
+                "volume": vol,
+            }
+        )
     await candle_repo.upsert_candles(candles_1h)
 
     step_4h = 4 * 60 * 60 * 1000
@@ -88,16 +92,18 @@ async def test_complete_signal_to_paper_trade_pipeline():
         else:
             price_4h += 25000.0
         vol = 50.0 if i >= 27 else 20.0
-        candles_4h.append({
-            "pair": "BTC/INR",
-            "timeframe": "4h",
-            "timestamp": ts,
-            "open": price_4h - 20000.0,
-            "high": price_4h + 50000.0,
-            "low": price_4h - 50000.0,
-            "close": price_4h,
-            "volume": vol,
-        })
+        candles_4h.append(
+            {
+                "pair": "BTC/INR",
+                "timeframe": "4h",
+                "timestamp": ts,
+                "open": price_4h - 20000.0,
+                "high": price_4h + 50000.0,
+                "low": price_4h - 50000.0,
+                "close": price_4h,
+                "volume": vol,
+            }
+        )
     await candle_repo.upsert_candles(candles_4h)
 
     step_1d = 24 * 60 * 60 * 1000
@@ -109,16 +115,18 @@ async def test_complete_signal_to_paper_trade_pipeline():
             p_1d -= 5000.0
         else:
             p_1d += 12000.0
-        candles_1d.append({
-            "pair": "BTC/INR",
-            "timeframe": "1d",
-            "timestamp": ts,
-            "open": p_1d - 2000.0,
-            "high": p_1d + 5000.0,
-            "low": p_1d - 3000.0,
-            "close": p_1d,
-            "volume": 100.0,
-        })
+        candles_1d.append(
+            {
+                "pair": "BTC/INR",
+                "timeframe": "1d",
+                "timestamp": ts,
+                "open": p_1d - 2000.0,
+                "high": p_1d + 5000.0,
+                "low": p_1d - 3000.0,
+                "close": p_1d,
+                "volume": 100.0,
+            }
+        )
     await candle_repo.upsert_candles(candles_1d)
 
     # EventBus and Services
@@ -190,12 +198,14 @@ async def test_complete_signal_to_paper_trade_pipeline():
     scanner_service._candle_flusher_loop = AsyncMock()
     scanner_service._calibration_worker.start = AsyncMock()
     scanner_service._calibration_worker.stop = AsyncMock()
-    scanner_service._market_context_service.refresh_market_context = AsyncMock(return_value={
-        "btc_trend": "BULLISH",
-        "eth_trend": "BULLISH",
-        "market_regime": "RISK_ON",
-        "fear_and_greed": 65,
-    })
+    scanner_service._market_context_service.refresh_market_context = AsyncMock(
+        return_value={
+            "btc_trend": "BULLISH",
+            "eth_trend": "BULLISH",
+            "market_regime": "RISK_ON",
+            "fear_and_greed": 65,
+        }
+    )
 
     await scanner_service.start()
     await ai_service.start()
@@ -205,7 +215,9 @@ async def test_complete_signal_to_paper_trade_pipeline():
     summary = await scanner_service.poll()
 
     assert summary["fetched"] == 1
-    assert summary["new_signals"] == 1, f"Expected 1 high-conviction signal, got {summary}"
+    assert (
+        summary["new_signals"] == 1
+    ), f"Expected 1 high-conviction signal, got {summary}"
 
     # Verify signal persisted in repository
     all_signals = await signal_repo.get_by_coin("BTC")

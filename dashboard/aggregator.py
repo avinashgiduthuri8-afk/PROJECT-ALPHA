@@ -11,7 +11,7 @@ Compiles unified system state snapshots across all sub-services:
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.logging import get_logger
 
@@ -23,13 +23,13 @@ class DashboardAggregator:
 
     def __init__(
         self,
-        scanner_service: Optional[Any] = None,
-        trading_service: Optional[Any] = None,
-        portfolio_service: Optional[Any] = None,
-        risk_service: Optional[Any] = None,
-        journal_service: Optional[Any] = None,
-        analytics_service: Optional[Any] = None,
-        feedback_service: Optional[Any] = None,
+        scanner_service: Any | None = None,
+        trading_service: Any | None = None,
+        portfolio_service: Any | None = None,
+        risk_service: Any | None = None,
+        journal_service: Any | None = None,
+        analytics_service: Any | None = None,
+        feedback_service: Any | None = None,
     ) -> None:
         self.scanner_service = scanner_service
         self.trading_service = trading_service
@@ -40,7 +40,7 @@ class DashboardAggregator:
         self.feedback_service = feedback_service
 
         # Fleet Bot Pause Control States
-        self._paused_bots: Dict[str, bool] = {
+        self._paused_bots: dict[str, bool] = {
             "STE": False,
             "HDA": False,
             "VCP": False,
@@ -65,14 +65,23 @@ class DashboardAggregator:
         logger.warning("EMERGENCY STOP TRIPPED — Global circuit breaker activated")
 
     def is_bot_paused(self, bot_name: str) -> bool:
-        return self._paused_bots.get(bot_name.upper(), False) or self._emergency_stop_tripped
+        return (
+            self._paused_bots.get(bot_name.upper(), False)
+            or self._emergency_stop_tripped
+        )
 
-    async def get_overview_snapshot(self) -> Dict[str, Any]:
+    async def get_overview_snapshot(self) -> dict[str, Any]:
         """Compile complete unified dashboard overview snapshot."""
         # 1. Scanner Funnel
         scanner_data = {
             "total_scanned": 150,
-            "layer_drop_rates": {"l1": 0.40, "l2": 0.25, "l3": 0.15, "l4": 0.10, "l5": 0.05},
+            "layer_drop_rates": {
+                "l1": 0.40,
+                "l2": 0.25,
+                "l3": 0.15,
+                "l4": 0.10,
+                "l5": 0.05,
+            },
             "passing_candidates": 8,
             "market_regime": "RISK_ON",
             "fear_and_greed_index": 68,
@@ -92,12 +101,14 @@ class DashboardAggregator:
             }
 
         # 3. Active Positions
-        active_positions: List[Dict[str, Any]] = []
+        active_positions: list[dict[str, Any]] = []
         pos_repo = None
         if self.trading_service:
             pos_repo = getattr(self.trading_service, "_position_repo", None)
             if pos_repo is None and hasattr(self.trading_service, "position_manager"):
-                pos_repo = getattr(self.trading_service.position_manager, "_position_repo", None)
+                pos_repo = getattr(
+                    self.trading_service.position_manager, "_position_repo", None
+                )
         if pos_repo is None and self.portfolio_service:
             pos_repo = getattr(self.portfolio_service, "_position_repo", None)
 
@@ -112,38 +123,58 @@ class DashboardAggregator:
 
                 for p in positions:
                     if isinstance(p, dict):
-                        active_positions.append({
-                            "position_id": str(p.get("position_id", p.get("id", ""))),
-                            "bot_name": str(p.get("bot_name", p.get("bot", "STE"))),
-                            "pair": str(p.get("pair", "BTC/INR")),
-                            "side": str(p.get("side", "BUY")),
-                            "entry_price": float(p.get("entry_price", 0.0)),
-                            "current_mark_price": float(p.get("current_price", p.get("entry_price", 0.0))),
-                            "quantity": float(p.get("quantity", p.get("qty", 0.0))),
-                            "unrealized_pnl": float(p.get("unrealized_pnl", p.get("unrealised_pnl", 0.0))),
-                            "stop_loss": float(p.get("stop_loss", 0.0)),
-                            "take_profit": float(p.get("take_profit", 0.0)),
-                        })
+                        active_positions.append(
+                            {
+                                "position_id": str(
+                                    p.get("position_id", p.get("id", ""))
+                                ),
+                                "bot_name": str(p.get("bot_name", p.get("bot", "STE"))),
+                                "pair": str(p.get("pair", "BTC/INR")),
+                                "side": str(p.get("side", "BUY")),
+                                "entry_price": float(p.get("entry_price", 0.0)),
+                                "current_mark_price": float(
+                                    p.get("current_price", p.get("entry_price", 0.0))
+                                ),
+                                "quantity": float(p.get("quantity", p.get("qty", 0.0))),
+                                "unrealized_pnl": float(
+                                    p.get(
+                                        "unrealized_pnl", p.get("unrealised_pnl", 0.0)
+                                    )
+                                ),
+                                "stop_loss": float(p.get("stop_loss", 0.0)),
+                                "take_profit": float(p.get("take_profit", 0.0)),
+                            }
+                        )
                         bot_k = str(p.get("bot_name", p.get("bot", "STE"))).upper()
                         if bot_k in fleet_data:
                             fleet_data[bot_k]["active_positions_count"] += 1
                     else:
                         bot_raw = getattr(p, "bot", "STE")
-                        bot_k = bot_raw.value.upper() if hasattr(bot_raw, "value") else str(bot_raw).upper()
+                        bot_k = (
+                            bot_raw.value.upper()
+                            if hasattr(bot_raw, "value")
+                            else str(bot_raw).upper()
+                        )
                         if bot_k in fleet_data:
                             fleet_data[bot_k]["active_positions_count"] += 1
-                        active_positions.append({
-                            "position_id": str(getattr(p, "id", "")),
-                            "bot_name": bot_k,
-                            "pair": str(getattr(p, "pair", "BTC/INR")),
-                            "side": "BUY",
-                            "entry_price": float(getattr(p, "entry_price", 0.0)),
-                            "current_mark_price": float(getattr(p, "current_price", 0.0)),
-                            "quantity": float(getattr(p, "qty", 0.0)),
-                            "unrealized_pnl": float(getattr(p, "unrealised_pnl", 0.0)),
-                            "stop_loss": float(getattr(p, "stop_loss", 0.0)),
-                            "take_profit": float(getattr(p, "take_profit", 0.0)),
-                        })
+                        active_positions.append(
+                            {
+                                "position_id": str(getattr(p, "id", "")),
+                                "bot_name": bot_k,
+                                "pair": str(getattr(p, "pair", "BTC/INR")),
+                                "side": "BUY",
+                                "entry_price": float(getattr(p, "entry_price", 0.0)),
+                                "current_mark_price": float(
+                                    getattr(p, "current_price", 0.0)
+                                ),
+                                "quantity": float(getattr(p, "qty", 0.0)),
+                                "unrealized_pnl": float(
+                                    getattr(p, "unrealised_pnl", 0.0)
+                                ),
+                                "stop_loss": float(getattr(p, "stop_loss", 0.0)),
+                                "take_profit": float(getattr(p, "take_profit", 0.0)),
+                            }
+                        )
             except Exception as e:
                 logger.warning("Error reading active positions for aggregator: %s", e)
 
@@ -165,25 +196,36 @@ class DashboardAggregator:
 
         # 5. Autonomous Feedback State
         feedback_data = {
-            "loop_status": "ACTIVE_HEALTHY" if not self._emergency_stop_tripped else "PAUSED_EMERGENCY",
+            "loop_status": (
+                "ACTIVE_HEALTHY"
+                if not self._emergency_stop_tripped
+                else "PAUSED_EMERGENCY"
+            ),
             "active_calibrations": [],
             "recent_audits": [],
         }
         if self.feedback_service:
             try:
                 fb_status = await self.feedback_service.get_loop_status()
-                feedback_data["active_calibrations"] = fb_status.get("active_calibrations", [])
-                feedback_data["recent_audits"] = fb_status.get("recent_audit_events", [])
+                feedback_data["active_calibrations"] = fb_status.get(
+                    "active_calibrations", []
+                )
+                feedback_data["recent_audits"] = fb_status.get(
+                    "recent_audit_events", []
+                )
             except Exception:
                 pass
 
         # 6. Pipeline Stages (14-Stage Telemetry)
         from dashboard.pipeline import PipelineStageCollector
+
         pipeline_stages = PipelineStageCollector().get_all_stages()
 
         return {
             "status": "ok",
-            "system_status": "OPERATIONAL" if not self._emergency_stop_tripped else "EMERGENCY_STOP",
+            "system_status": (
+                "OPERATIONAL" if not self._emergency_stop_tripped else "EMERGENCY_STOP"
+            ),
             "scanner_funnel": scanner_data,
             "execution_fleet": fleet_data,
             "open_positions": active_positions,

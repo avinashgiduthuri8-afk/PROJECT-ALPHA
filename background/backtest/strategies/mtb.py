@@ -5,7 +5,6 @@ Vectorized implementation.
 
 from __future__ import annotations
 
-from typing import List
 import numpy as np
 import pandas as pd
 
@@ -22,8 +21,8 @@ class MTBStrategy(BaseStrategy):
         df: pd.DataFrame,
         pair: str = "BTC/USDT",
         timeframe: str = "1H",
-    ) -> List[BacktestTradeSignal]:
-        signals: List[BacktestTradeSignal] = []
+    ) -> list[BacktestTradeSignal]:
+        signals: list[BacktestTradeSignal] = []
         n = len(df)
         if n < 50:
             return signals
@@ -34,7 +33,12 @@ class MTBStrategy(BaseStrategy):
         ema_200 = df["ema_200"].values
         macd_hist = df["macd_hist"].values
 
-        mask = (ema_50 > ema_200) & (closes > ema_50) & (closes > donchian_high) & (macd_hist > 0)
+        mask = (
+            (ema_50 > ema_200)
+            & (closes > ema_50)
+            & (closes > donchian_high)
+            & (macd_hist > 0)
+        )
         cand_indices = np.where(mask)[0]
 
         for i in cand_indices:
@@ -55,7 +59,10 @@ class MTBStrategy(BaseStrategy):
                     stop_loss_price=float(stop_loss),
                     take_profit_price=float(take_profit),
                     direction="LONG",
-                    metadata={"donchian_high": float(donchian_high[i]), "macd_hist": float(macd_hist[i])},
+                    metadata={
+                        "donchian_high": float(donchian_high[i]),
+                        "macd_hist": float(macd_hist[i]),
+                    },
                 )
             )
 

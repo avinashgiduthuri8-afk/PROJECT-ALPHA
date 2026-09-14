@@ -2,7 +2,7 @@
 V2 Portfolio Service Package.
 """
 
-from .service import PortfolioService
 from .aggregator import PortfolioAggregator
+from .service import PortfolioService
 
-__all__ = ["PortfolioService", "PortfolioAggregator"]
+__all__ = ["PortfolioAggregator", "PortfolioService"]

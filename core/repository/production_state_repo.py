@@ -5,11 +5,10 @@ V2 ProductionStateRepository — Persistent operational state and circuit breake
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
-
-import aiosqlite
+from typing import Any
 
 from core.logging import get_logger
+
 from .base import BaseRepository
 
 logger = get_logger("core.repository.production_state_repo")
@@ -26,7 +25,7 @@ class ProductionStateRepository(BaseRepository):
             return key[3:]
         return key
 
-    async def get(self, key: str) -> Optional[str]:
+    async def get(self, key: str) -> str | None:
         """Fetch value for a specific runtime key (supports canonical & legacy aliases)."""
         canon = self._canonical_key(key)
         async with self._conn.execute(
@@ -56,7 +55,7 @@ class ProductionStateRepository(BaseRepository):
         )
         await self._conn.commit()
 
-    async def set_many(self, items: Dict[str, Any], updated_by: str = "SYSTEM") -> None:
+    async def set_many(self, items: dict[str, Any], updated_by: str = "SYSTEM") -> None:
         """Atomically insert or update multiple runtime keys (persists both canonical and legacy alias)."""
         now_str = datetime.now(timezone.utc).isoformat()
         params = []
@@ -78,7 +77,7 @@ class ProductionStateRepository(BaseRepository):
         )
         await self._conn.commit()
 
-    async def get_all(self) -> Dict[str, str]:
+    async def get_all(self) -> dict[str, str]:
         """Retrieve all persisted runtime state keys and values."""
         async with self._conn.execute(
             "SELECT key, value FROM production_runtime_state"
@@ -98,4 +97,3 @@ class ProductionStateRepository(BaseRepository):
         except Exception as exc:
             logger.error("Failed to run PRAGMA integrity_check: %s", exc)
             return False
-

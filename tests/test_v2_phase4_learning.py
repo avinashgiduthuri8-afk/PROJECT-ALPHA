@@ -10,25 +10,21 @@ Verifies:
 
 from __future__ import annotations
 
-import asyncio
-import os
 import uuid
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 from fastapi.testclient import TestClient
 
+from app import app
+from background.analytics.engine import AnalyticsEngine
+from background.learning.calibrator import StrategyCalibrator
+from background.learning.engine import LearningEngine
 from core.bus.event_bus import EventBus
-from core.bus.event_types import EventType
 from core.config import invalidate_config
 from core.repository.db import Database
 from core.repository.journal_repo import JournalRepository
 from core.repository.learning_repo import LearningRepository
-from background.analytics.engine import AnalyticsEngine
-from background.learning.engine import LearningEngine
-from background.learning.calibrator import StrategyCalibrator
-from background.learning.service import LearningService
-from app import app
 
 
 async def _create_test_learning_db(tmp_path):
@@ -44,6 +40,7 @@ async def _create_test_learning_db(tmp_path):
 # =============================================================================
 # 1. Mistake Detection & Pattern Extraction Tests
 # =============================================================================
+
 
 class TestMistakeDetectionEngine:
 
@@ -83,11 +80,15 @@ class TestMistakeDetectionEngine:
                 }
                 await journal_repo.insert_entry(trade)
 
-            engine = LearningEngine(journal_repo=journal_repo, learning_repo=learning_repo)
+            engine = LearningEngine(
+                journal_repo=journal_repo, learning_repo=learning_repo
+            )
             insights = await engine.analyze_trades_and_extract_insights()
 
             assert len(insights) >= 1
-            loss_ins = next((i for i in insights if i["pattern_type"] == "CONSECUTIVE_LOSSES"), None)
+            loss_ins = next(
+                (i for i in insights if i["pattern_type"] == "CONSECUTIVE_LOSSES"), None
+            )
             assert loss_ins is not None
             assert loss_ins["bot_name"] == "STE"
             assert loss_ins["severity"] in ("HIGH", "CRITICAL")
@@ -104,28 +105,64 @@ class TestMistakeDetectionEngine:
 
             # Trade 1: High MAE excursion (entry 100, qty 10 -> notional 1000, MAE 30.0 = 3.0%)
             t_mae = {
-                "id": "T_MAE", "position_id": "P_MAE", "bot_name": "HDA", "pair": "ETH/INR", "side": "BUY",
-                "entry_price": 100.0, "exit_price": 102.0, "quantity": 10.0,
-                "entry_timestamp": now_iso, "exit_timestamp": now_iso, "duration_seconds": 1200,
-                "exit_reason": "TP_HIT", "gross_pnl": 20.0, "exchange_fee": 0.4, "gst_tax": 0.07,
-                "tds_194s": 1.02, "slippage_cost": 0.1, "total_statutory_drag": 1.59,
-                "net_pnl": 18.41, "net_pnl_pct": 1.84, "mfe": 100.0, "mae": 30.0, "tags": []
+                "id": "T_MAE",
+                "position_id": "P_MAE",
+                "bot_name": "HDA",
+                "pair": "ETH/INR",
+                "side": "BUY",
+                "entry_price": 100.0,
+                "exit_price": 102.0,
+                "quantity": 10.0,
+                "entry_timestamp": now_iso,
+                "exit_timestamp": now_iso,
+                "duration_seconds": 1200,
+                "exit_reason": "TP_HIT",
+                "gross_pnl": 20.0,
+                "exchange_fee": 0.4,
+                "gst_tax": 0.07,
+                "tds_194s": 1.02,
+                "slippage_cost": 0.1,
+                "total_statutory_drag": 1.59,
+                "net_pnl": 18.41,
+                "net_pnl_pct": 1.84,
+                "mfe": 100.0,
+                "mae": 30.0,
+                "tags": [],
             }
 
             # Trade 2: Low MFE efficiency (MFE = 500.0, Net PnL = 100.0 -> capture ratio 20% < 30%)
             t_mfe = {
-                "id": "T_MFE", "position_id": "P_MFE", "bot_name": "VCP", "pair": "BTC/INR", "side": "BUY",
-                "entry_price": 50000.0, "exit_price": 50200.0, "quantity": 1.0,
-                "entry_timestamp": now_iso, "exit_timestamp": now_iso, "duration_seconds": 1800,
-                "exit_reason": "TP_HIT", "gross_pnl": 200.0, "exchange_fee": 20.0, "gst_tax": 3.6,
-                "tds_194s": 502.0, "slippage_cost": 50.0, "total_statutory_drag": 575.6,
-                "net_pnl": 100.0, "net_pnl_pct": 0.2, "mfe": 500.0, "mae": 20.0, "tags": []
+                "id": "T_MFE",
+                "position_id": "P_MFE",
+                "bot_name": "VCP",
+                "pair": "BTC/INR",
+                "side": "BUY",
+                "entry_price": 50000.0,
+                "exit_price": 50200.0,
+                "quantity": 1.0,
+                "entry_timestamp": now_iso,
+                "exit_timestamp": now_iso,
+                "duration_seconds": 1800,
+                "exit_reason": "TP_HIT",
+                "gross_pnl": 200.0,
+                "exchange_fee": 20.0,
+                "gst_tax": 3.6,
+                "tds_194s": 502.0,
+                "slippage_cost": 50.0,
+                "total_statutory_drag": 575.6,
+                "net_pnl": 100.0,
+                "net_pnl_pct": 0.2,
+                "mfe": 500.0,
+                "mae": 20.0,
+                "tags": [],
             }
 
             await journal_repo.insert_entry(t_mae)
             await journal_repo.insert_entry(t_mfe)
 
-            engine = LearningEngine(journal_repo=journal_repo, learning_repo=learning_repo)
+            engine = LearningEngine(
+                journal_repo=journal_repo, learning_repo=learning_repo
+            )
             insights = await engine.analyze_trades_and_extract_insights()
 
             pattern_types = [i["pattern_type"] for i in insights]
@@ -139,6 +176,7 @@ class TestMistakeDetectionEngine:
 # 2. Dynamic Strategy Calibration Tests
 # =============================================================================
 
+
 class TestDynamicStrategyCalibrator:
 
     @pytest.mark.anyio
@@ -148,7 +186,9 @@ class TestDynamicStrategyCalibrator:
         try:
             bus = EventBus()
             analytics = AnalyticsEngine(journal_repo=journal_repo)
-            calibrator = StrategyCalibrator(learning_repo=learning_repo, analytics_engine=analytics, bus=bus)
+            calibrator = StrategyCalibrator(
+                learning_repo=learning_repo, analytics_engine=analytics, bus=bus
+            )
 
             # Insert high-severity insight for STE
             ins = {
@@ -184,6 +224,7 @@ class TestDynamicStrategyCalibrator:
 # 3. Database Persistence & Service Lifecycle Tests
 # =============================================================================
 
+
 class TestLearningRepositoryPersistence:
 
     @pytest.mark.anyio
@@ -212,6 +253,7 @@ class TestLearningRepositoryPersistence:
 # =============================================================================
 # 4. REST API Endpoint Tests
 # =============================================================================
+
 
 class TestLearningAPIEndpoints:
 

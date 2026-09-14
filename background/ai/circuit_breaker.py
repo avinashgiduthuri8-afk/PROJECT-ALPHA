@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import enum
 import time
-from typing import Dict, Any, Optional
+from typing import Any
 
 from core.logging import get_logger
 
@@ -42,7 +42,7 @@ class CircuitBreaker:
 
         self._state = CircuitState.CLOSED
         self._consecutive_failures = 0
-        self._last_failure_time: Optional[float] = None
+        self._last_failure_time: float | None = None
         self._probe_in_flight: bool = False
         self._total_trips = 0
 
@@ -74,7 +74,9 @@ class CircuitBreaker:
             # Allow exactly one probe request through
             if not self._probe_in_flight:
                 self._probe_in_flight = True
-                logger.info("AI Circuit Breaker permitting trial probe request in HALF_OPEN state")
+                logger.info(
+                    "AI Circuit Breaker permitting trial probe request in HALF_OPEN state"
+                )
                 return True
             return False
 
@@ -88,7 +90,9 @@ class CircuitBreaker:
         """
         closed_now = False
         if self._state == CircuitState.HALF_OPEN:
-            logger.info("AI Circuit Breaker trial probe succeeded: closing circuit breaker")
+            logger.info(
+                "AI Circuit Breaker trial probe succeeded: closing circuit breaker"
+            )
             self._state = CircuitState.CLOSED
             closed_now = True
 
@@ -96,7 +100,7 @@ class CircuitBreaker:
         self._probe_in_flight = False
         return closed_now
 
-    def record_failure(self, error: Optional[str] = None) -> bool:
+    def record_failure(self, error: str | None = None) -> bool:
         """
         Record a failed Gemini API attempt.
         Returns True if the circuit opened as a result of this failure.
@@ -138,12 +142,14 @@ class CircuitBreaker:
 
         return opened_now
 
-    def get_state(self) -> Dict[str, Any]:
+    def get_state(self) -> dict[str, Any]:
         """Return telemetry dictionary for health checks and dashboard visibility."""
         curr_state = self.state
         time_until_probe = 0.0
         if curr_state == CircuitState.OPEN and self._last_failure_time is not None:
-            remaining = self.cooldown_seconds - (time.monotonic() - self._last_failure_time)
+            remaining = self.cooldown_seconds - (
+                time.monotonic() - self._last_failure_time
+            )
             time_until_probe = round(max(0.0, remaining), 1)
 
         return {

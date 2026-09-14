@@ -7,10 +7,12 @@ pre-deployment backtest validation outcomes, and active strategy calibrations ca
 
 from __future__ import annotations
 
-import sqlite3, aiosqlite
+import sqlite3
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
+
+import aiosqlite
 
 from core.logging import get_logger
 
@@ -32,7 +34,7 @@ class FeedbackRepository:
         else:
             return self._conn.execute(query, params)
 
-    async def _fetchall(self, query: str, params: tuple = ()) -> List[Dict[str, Any]]:
+    async def _fetchall(self, query: str, params: tuple = ()) -> list[dict[str, Any]]:
         if self._is_async():
             async with self._conn.execute(query, params) as cursor:
                 rows = await cursor.fetchall()
@@ -44,13 +46,13 @@ class FeedbackRepository:
             cols = [description[0] for description in cur.description]
             return [dict(zip(cols, r)) for r in rows]
 
-    async def _fetchone(self, query: str, params: tuple = ()) -> Optional[Dict[str, Any]]:
+    async def _fetchone(self, query: str, params: tuple = ()) -> dict[str, Any] | None:
         rows = await self._fetchall(query, params)
         return rows[0] if rows else None
 
     # ── Feedback Audit Trail ──────────────────────────────────────────────────
 
-    async def record_audit_event(self, event: Dict[str, Any]) -> str:
+    async def record_audit_event(self, event: dict[str, Any]) -> str:
         """Insert a feedback audit event into SQLite."""
         event_id = str(event.get("id") or uuid.uuid4())
         cycle_id = str(event.get("cycle_id") or uuid.uuid4())
@@ -83,19 +85,24 @@ class FeedbackRepository:
 
         logger.info(
             "Recorded feedback audit event %s [%s] for bot %s: status=%s",
-            event_id, event["action_taken"], event["bot_name"], event.get("status", "PROMOTED"),
+            event_id,
+            event["action_taken"],
+            event["bot_name"],
+            event.get("status", "PROMOTED"),
         )
         return event_id
 
     async def get_audit_history(
-        self, bot_name: Optional[str] = None, limit: int = 50
-    ) -> List[Dict[str, Any]]:
+        self, bot_name: str | None = None, limit: int = 50
+    ) -> list[dict[str, Any]]:
         """Fetch chronological audit trail records."""
         if bot_name:
             query = "SELECT * FROM feedback_audit_trail WHERE bot_name = ? ORDER BY created_at DESC LIMIT ?"
             return await self._fetchall(query, (bot_name.upper(), limit))
         else:
-            query = "SELECT * FROM feedback_audit_trail ORDER BY created_at DESC LIMIT ?"
+            query = (
+                "SELECT * FROM feedback_audit_trail ORDER BY created_at DESC LIMIT ?"
+            )
             return await self._fetchall(query, (limit,))
 
     # ── Active Calibrations Cache ─────────────────────────────────────────────
@@ -122,14 +129,19 @@ class FeedbackRepository:
         if not self._is_async():
             self._conn.commit()
 
-        logger.info("Updated active calibration cache for bot %s -> Mult: %.2fx, Thresh: %.1f", bot_str, weight_multiplier, strict_threshold)
+        logger.info(
+            "Updated active calibration cache for bot %s -> Mult: %.2fx, Thresh: %.1f",
+            bot_str,
+            weight_multiplier,
+            strict_threshold,
+        )
 
-    async def get_active_calibration(self, bot_name: str) -> Optional[Dict[str, Any]]:
+    async def get_active_calibration(self, bot_name: str) -> dict[str, Any] | None:
         """Fetch cached active calibration for a bot strategy."""
         query = "SELECT * FROM active_calibrations_cache WHERE bot_name = ?"
         return await self._fetchone(query, (bot_name.upper(),))
 
-    async def get_all_active_calibrations(self) -> List[Dict[str, Any]]:
+    async def get_all_active_calibrations(self) -> list[dict[str, Any]]:
         """Fetch all cached active calibrations."""
         query = "SELECT * FROM active_calibrations_cache ORDER BY bot_name ASC"
         return await self._fetchall(query)

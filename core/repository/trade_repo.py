@@ -5,18 +5,18 @@ V2 TradeRepository — closed trade history and analytics queries.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Optional
 
 import aiosqlite
 
-from core.types import BotMode, BotName, ExitReason, Trade
 from core.logging import get_logger
+from core.types import BotMode, BotName, ExitReason, Trade
+
 from .base import BaseRepository
 
 logger = get_logger("core.repository.trade_repo")
 
 
-def _dt(s: str | None) -> Optional[datetime]:
+def _dt(s: str | None) -> datetime | None:
     if s is None:
         return None
     try:
@@ -29,32 +29,44 @@ def _dt(s: str | None) -> Optional[datetime]:
 def _row_to_trade(row: aiosqlite.Row) -> Trade:
     d = dict(row)
     return Trade(
-        id                = d["id"],
-        position_id       = d["position_id"],
-        bot               = BotName(d["bot"]),
-        coin              = d["coin"],
-        pair              = d["pair"],
-        entry_price       = d["entry_price"],
-        exit_price        = d["exit_price"],
-        qty               = d["qty"],
-        pnl               = d["pnl"],
-        pnl_pct           = d["pnl_pct"],
-        entry_time        = _dt(d["entry_time"]),
-        exit_time         = _dt(d["exit_time"]),
-        exit_reason       = ExitReason(d["exit_reason"]),
-        mode              = BotMode(d["mode"]),
-        signal_id         = d.get("signal_id"),
-        exchange_order_id = d.get("exchange_order_id"),
-        client_order_id   = d.get("client_order_id"),
+        id=d["id"],
+        position_id=d["position_id"],
+        bot=BotName(d["bot"]),
+        coin=d["coin"],
+        pair=d["pair"],
+        entry_price=d["entry_price"],
+        exit_price=d["exit_price"],
+        qty=d["qty"],
+        pnl=d["pnl"],
+        pnl_pct=d["pnl_pct"],
+        entry_time=_dt(d["entry_time"]),
+        exit_time=_dt(d["exit_time"]),
+        exit_reason=ExitReason(d["exit_reason"]),
+        mode=BotMode(d["mode"]),
+        signal_id=d.get("signal_id"),
+        exchange_order_id=d.get("exchange_order_id"),
+        client_order_id=d.get("client_order_id"),
     )
 
 
 class TradeRepository(BaseRepository):
 
     async def insert(self, trade: Trade) -> str:
-        entry_time_str = trade.entry_time.isoformat() if hasattr(trade.entry_time, "isoformat") else str(trade.entry_time or datetime.now(timezone.utc).isoformat())
-        exit_time_str = trade.exit_time.isoformat() if hasattr(trade.exit_time, "isoformat") else str(trade.exit_time or datetime.now(timezone.utc).isoformat())
-        exit_reason_val = trade.exit_reason.value if hasattr(trade.exit_reason, "value") else str(trade.exit_reason)
+        entry_time_str = (
+            trade.entry_time.isoformat()
+            if hasattr(trade.entry_time, "isoformat")
+            else str(trade.entry_time or datetime.now(timezone.utc).isoformat())
+        )
+        exit_time_str = (
+            trade.exit_time.isoformat()
+            if hasattr(trade.exit_time, "isoformat")
+            else str(trade.exit_time or datetime.now(timezone.utc).isoformat())
+        )
+        exit_reason_val = (
+            trade.exit_reason.value
+            if hasattr(trade.exit_reason, "value")
+            else str(trade.exit_reason)
+        )
         mode_val = trade.mode.value if hasattr(trade.mode, "value") else str(trade.mode)
         bot_val = trade.bot.value if hasattr(trade.bot, "value") else str(trade.bot)
 
@@ -88,7 +100,7 @@ class TradeRepository(BaseRepository):
         )
         return trade.id
 
-    async def get_by_id(self, trade_id: str) -> Optional[Trade]:
+    async def get_by_id(self, trade_id: str) -> Trade | None:
         row = await self._fetchone("SELECT * FROM trades WHERE id=?", (trade_id,))
         return _row_to_trade(row) if row else None
 
@@ -115,9 +127,7 @@ class TradeRepository(BaseRepository):
         )
         return [_row_to_trade(r) for r in rows]
 
-    async def get_since(
-        self, since: datetime, limit: Optional[int] = None
-    ) -> list[Trade]:
+    async def get_since(self, since: datetime, limit: int | None = None) -> list[Trade]:
         if limit:
             rows = await self._fetchall(
                 "SELECT * FROM trades WHERE exit_time >= ? ORDER BY exit_time DESC LIMIT ?",
@@ -138,8 +148,8 @@ class TradeRepository(BaseRepository):
 
     async def get_win_rate(
         self,
-        bot: Optional[BotName] = None,
-        since: Optional[datetime] = None,
+        bot: BotName | None = None,
+        since: datetime | None = None,
     ) -> float:
         """Return fraction of profitable trades (pnl > 0). Returns 0.0 if no trades."""
         conditions = []
@@ -164,8 +174,8 @@ class TradeRepository(BaseRepository):
 
     async def get_pnl_series(
         self,
-        bot: Optional[BotName] = None,
-        since: Optional[datetime] = None,
+        bot: BotName | None = None,
+        since: datetime | None = None,
     ) -> list[tuple[datetime, float]]:
         conditions = []
         params: list = []
@@ -208,23 +218,27 @@ class TradeRepository(BaseRepository):
             if t.entry_price > 0 and t.exit_price > 0:
                 ratio = t.exit_price / t.entry_price
                 if ratio > 5.0 or ratio < 0.2:
-                    issues.append(f"Abnormal price-ratio jump: {ratio:.2f}x (entry: {t.entry_price}, exit: {t.exit_price})")
+                    issues.append(
+                        f"Abnormal price-ratio jump: {ratio:.2f}x (entry: {t.entry_price}, exit: {t.exit_price})"
+                    )
             if abs(t.pnl_pct) > 500.0:
                 issues.append(f"Extreme PnL percentage: {t.pnl_pct:.2f}%")
 
             if issues:
-                suspicious.append({
-                    "trade_id": t.id,
-                    "position_id": t.position_id,
-                    "bot": t.bot.value if hasattr(t.bot, "value") else str(t.bot),
-                    "coin": t.coin,
-                    "pair": t.pair,
-                    "entry_price": t.entry_price,
-                    "exit_price": t.exit_price,
-                    "qty": t.qty,
-                    "pnl": t.pnl,
-                    "pnl_pct": t.pnl_pct,
-                    "status": "CORRUPTED_SUSPICIOUS",
-                    "issues": issues,
-                })
+                suspicious.append(
+                    {
+                        "trade_id": t.id,
+                        "position_id": t.position_id,
+                        "bot": t.bot.value if hasattr(t.bot, "value") else str(t.bot),
+                        "coin": t.coin,
+                        "pair": t.pair,
+                        "entry_price": t.entry_price,
+                        "exit_price": t.exit_price,
+                        "qty": t.qty,
+                        "pnl": t.pnl,
+                        "pnl_pct": t.pnl_pct,
+                        "status": "CORRUPTED_SUSPICIOUS",
+                        "issues": issues,
+                    }
+                )
         return suspicious

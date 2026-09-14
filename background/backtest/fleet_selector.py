@@ -11,7 +11,6 @@ Filters and ranks 10 candidate backtested strategies against strict production c
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Tuple
 
 from .metrics import PerformanceMetrics
 
@@ -21,7 +20,7 @@ class StrategyRank:
     rank: int
     metrics: PerformanceMetrics
     passes_gate: bool
-    rejection_reasons: List[str]
+    rejection_reasons: list[str]
 
 
 class FleetSelector:
@@ -39,22 +38,28 @@ class FleetSelector:
 
     def evaluate_and_rank_fleet(
         self,
-        metrics_list: List[PerformanceMetrics],
-    ) -> Tuple[List[StrategyRank], List[PerformanceMetrics]]:
+        metrics_list: list[PerformanceMetrics],
+    ) -> tuple[list[StrategyRank], list[PerformanceMetrics]]:
         """
         Evaluates all candidate metrics, applies selection gate, ranks by Net Profit Factor,
         and returns (all_ranks, top_4_selected_fleet).
         """
-        ranked_list: List[StrategyRank] = []
+        ranked_list: list[StrategyRank] = []
 
         for m in metrics_list:
             rejection_reasons = []
             if m.net_profit_factor < self.min_net_pf:
-                rejection_reasons.append(f"Net PF ({m.net_profit_factor}) < {self.min_net_pf}")
+                rejection_reasons.append(
+                    f"Net PF ({m.net_profit_factor}) < {self.min_net_pf}"
+                )
             if m.avg_net_rr < self.min_net_rr:
-                rejection_reasons.append(f"Net R:R ({m.avg_net_rr}) < {self.min_net_rr}")
+                rejection_reasons.append(
+                    f"Net R:R ({m.avg_net_rr}) < {self.min_net_rr}"
+                )
             if m.max_drawdown_pct >= self.max_drawdown_pct:
-                rejection_reasons.append(f"Max DD ({m.max_drawdown_pct}%) >= {self.max_drawdown_pct}%")
+                rejection_reasons.append(
+                    f"Max DD ({m.max_drawdown_pct}%) >= {self.max_drawdown_pct}%"
+                )
             if not m.survives_friction:
                 rejection_reasons.append("Failed survival over statutory fee drag")
 
@@ -80,7 +85,7 @@ class FleetSelector:
 
         # Filter passing strategies for Top 4 fleet (fallback to top Net PF strategies if fewer than 4 pass strict gate)
         passing_strategies = [r.metrics for r in ranked_list if r.passes_gate]
-        
+
         if len(passing_strategies) >= 4:
             top_4 = passing_strategies[:4]
         else:

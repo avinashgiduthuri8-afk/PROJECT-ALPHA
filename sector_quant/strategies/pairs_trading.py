@@ -8,10 +8,9 @@ import math
 from abc import ABC, abstractmethod
 from datetime import datetime
 from queue import Queue
-from typing import List, Optional, Tuple
 
 from sector_quant.data.base import DataHandler
-from sector_quant.events import Event, MarketEvent, SignalEvent
+from sector_quant.events import Event, SignalEvent
 
 
 class Strategy(ABC):
@@ -37,7 +36,7 @@ class PairsTradingStrategy(Strategy):
         self,
         bars: DataHandler,
         events_queue: Queue,
-        pair: Tuple[str, str],
+        pair: tuple[str, str],
         lookback_window: int = 20,
         z_entry: float = 2.0,
         z_exit: float = 0.5,
@@ -51,11 +50,13 @@ class PairsTradingStrategy(Strategy):
         self.strategy_id = strategy_id
 
         # Internal state
-        self.in_market: Optional[str] = None  # None, "LONG_SPREAD", "SHORT_SPREAD"
+        self.in_market: str | None = None  # None, "LONG_SPREAD", "SHORT_SPREAD"
         self.hedge_ratio: float = 1.0
         self.last_z_score: float = 0.0
 
-    def _compute_rolling_ols(self, y: List[float], x: List[float]) -> Tuple[float, float, float]:
+    def _compute_rolling_ols(
+        self, y: list[float], x: list[float]
+    ) -> tuple[float, float, float]:
         """
         Compute Ordinary Least Squares regression Y = beta * X + alpha.
         Returns (beta, alpha, residual_std).
@@ -77,7 +78,9 @@ class PairsTradingStrategy(Strategy):
 
         residuals = [yi - (beta * xi + alpha) for xi, yi in zip(x, y)]
         mean_res = sum(residuals) / n
-        var_res = sum((r - mean_res) ** 2 for r in residuals) / (n - 1) if n > 1 else 1.0
+        var_res = (
+            sum((r - mean_res) ** 2 for r in residuals) / (n - 1) if n > 1 else 1.0
+        )
         std_res = math.sqrt(max(1e-8, var_res))
 
         return beta, alpha, std_res
@@ -87,8 +90,12 @@ class PairsTradingStrategy(Strategy):
         if event.type != "MARKET":
             return
 
-        y_prices = self.bars.get_latest_bars_values(self.sym_y, "close", N=self.lookback)
-        x_prices = self.bars.get_latest_bars_values(self.sym_x, "close", N=self.lookback)
+        y_prices = self.bars.get_latest_bars_values(
+            self.sym_y, "close", N=self.lookback
+        )
+        x_prices = self.bars.get_latest_bars_values(
+            self.sym_x, "close", N=self.lookback
+        )
 
         if len(y_prices) < self.lookback or len(x_prices) < self.lookback:
             return
@@ -109,18 +116,66 @@ class PairsTradingStrategy(Strategy):
         if self.in_market is None:
             if z_score >= self.z_entry:
                 # Spread is abnormally high -> Short Y, Long X
-                self.events.put(SignalEvent(self.sym_y, dt, "SHORT", strength=1.0, strategy_id=self.strategy_id))
-                self.events.put(SignalEvent(self.sym_x, dt, "LONG", strength=abs(beta), strategy_id=self.strategy_id))
+                self.events.put(
+                    SignalEvent(
+                        self.sym_y,
+                        dt,
+                        "SHORT",
+                        strength=1.0,
+                        strategy_id=self.strategy_id,
+                    )
+                )
+                self.events.put(
+                    SignalEvent(
+                        self.sym_x,
+                        dt,
+                        "LONG",
+                        strength=abs(beta),
+                        strategy_id=self.strategy_id,
+                    )
+                )
                 self.in_market = "SHORT_SPREAD"
             elif z_score <= -self.z_entry:
                 # Spread is abnormally low -> Long Y, Short X
-                self.events.put(SignalEvent(self.sym_y, dt, "LONG", strength=1.0, strategy_id=self.strategy_id))
-                self.events.put(SignalEvent(self.sym_x, dt, "SHORT", strength=abs(beta), strategy_id=self.strategy_id))
+                self.events.put(
+                    SignalEvent(
+                        self.sym_y,
+                        dt,
+                        "LONG",
+                        strength=1.0,
+                        strategy_id=self.strategy_id,
+                    )
+                )
+                self.events.put(
+                    SignalEvent(
+                        self.sym_x,
+                        dt,
+                        "SHORT",
+                        strength=abs(beta),
+                        strategy_id=self.strategy_id,
+                    )
+                )
                 self.in_market = "LONG_SPREAD"
 
         elif self.in_market in ("LONG_SPREAD", "SHORT_SPREAD"):
             if abs(z_score) <= self.z_exit:
                 # Spread reverted to mean -> Exit both legs
-                self.events.put(SignalEvent(self.sym_y, dt, "EXIT", strength=1.0, strategy_id=self.strategy_id))
-                self.events.put(SignalEvent(self.sym_x, dt, "EXIT", strength=1.0, strategy_id=self.strategy_id))
+                self.events.put(
+                    SignalEvent(
+                        self.sym_y,
+                        dt,
+                        "EXIT",
+                        strength=1.0,
+                        strategy_id=self.strategy_id,
+                    )
+                )
+                self.events.put(
+                    SignalEvent(
+                        self.sym_x,
+                        dt,
+                        "EXIT",
+                        strength=1.0,
+                        strategy_id=self.strategy_id,
+                    )
+                )
                 self.in_market = None

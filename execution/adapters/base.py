@@ -5,9 +5,8 @@ Base Bot Adapter for Trade Construction and Execution.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Optional
 
-from core.types import BotName, ExitReason, Position, Trade
+from core.types import BotName, ExitReason
 
 
 class BaseBotAdapter(ABC):
@@ -26,15 +25,14 @@ class BaseBotAdapter(ABC):
         ai_adjustments: dict,
     ) -> dict:
         """Calculate exact entry price, quantity, stop loss, and take profit."""
-        pass
 
     def check_exit(
         self,
         entry_price: float,
         current_price: float,
-        stop_loss: Optional[float],
-        take_profit: Optional[float],
-    ) -> Optional[tuple[ExitReason, float]]:
+        stop_loss: float | None,
+        take_profit: float | None,
+    ) -> tuple[ExitReason, float] | None:
         """Check whether current price triggers Take Profit or Stop Loss."""
         if take_profit is not None and current_price >= take_profit:
             return ExitReason.TAKE_PROFIT, current_price

@@ -10,11 +10,12 @@ Supports CoinDCX INR pairs with mixed-value price tiers and realistic order roun
 from __future__ import annotations
 
 import math
+import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-import sqlite3
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
+
 import numpy as np
 import pandas as pd
 
@@ -24,35 +25,130 @@ class PairSpec:
     pair: str
     base_price: float
     volatility: float
-    price_precision: int       # Decimals for price rounding (e.g. 2 for ₹100.25, 6 for ₹0.001824)
-    qty_precision: int         # Decimals for lot quantity rounding (e.g. 5 for BTC, 0 for DOGE)
-    min_qty: float             # Minimum tradeable lot size
-    min_notional_inr: float = 100.0  # Minimum order notional in INR (CoinDCX standard: ₹100)
+    price_precision: (
+        int  # Decimals for price rounding (e.g. 2 for ₹100.25, 6 for ₹0.001824)
+    )
+    qty_precision: (
+        int  # Decimals for lot quantity rounding (e.g. 5 for BTC, 0 for DOGE)
+    )
+    min_qty: float  # Minimum tradeable lot size
+    min_notional_inr: float = (
+        100.0  # Minimum order notional in INR (CoinDCX standard: ₹100)
+    )
 
 
-COINDCX_INR_PAIRS: Dict[str, PairSpec] = {
+COINDCX_INR_PAIRS: dict[str, PairSpec] = {
     # ── Tier 1: Mega-Cap / High-Value Coins ──────────────────────────────────
-    "BTC/INR": PairSpec("BTC/INR", base_price=8200000.0, volatility=0.015, price_precision=2, qty_precision=5, min_qty=0.00001),
-    "ETH/INR": PairSpec("ETH/INR", base_price=260000.0, volatility=0.020, price_precision=2, qty_precision=4, min_qty=0.0001),
-    "BNB/INR": PairSpec("BNB/INR", base_price=52000.0, volatility=0.022, price_precision=1, qty_precision=3, min_qty=0.001),
-
+    "BTC/INR": PairSpec(
+        "BTC/INR",
+        base_price=8200000.0,
+        volatility=0.015,
+        price_precision=2,
+        qty_precision=5,
+        min_qty=0.00001,
+    ),
+    "ETH/INR": PairSpec(
+        "ETH/INR",
+        base_price=260000.0,
+        volatility=0.020,
+        price_precision=2,
+        qty_precision=4,
+        min_qty=0.0001,
+    ),
+    "BNB/INR": PairSpec(
+        "BNB/INR",
+        base_price=52000.0,
+        volatility=0.022,
+        price_precision=1,
+        qty_precision=3,
+        min_qty=0.001,
+    ),
     # ── Tier 2: Mid-Cap / Medium-Value Coins ─────────────────────────────────
-    "SOL/INR": PairSpec("SOL/INR", base_price=12500.0, volatility=0.035, price_precision=1, qty_precision=2, min_qty=0.01),
-    "AVAX/INR": PairSpec("AVAX/INR", base_price=2800.0, volatility=0.038, price_precision=1, qty_precision=2, min_qty=0.01),
-    "LINK/INR": PairSpec("LINK/INR", base_price=1400.0, volatility=0.032, price_precision=1, qty_precision=2, min_qty=0.01),
-
+    "SOL/INR": PairSpec(
+        "SOL/INR",
+        base_price=12500.0,
+        volatility=0.035,
+        price_precision=1,
+        qty_precision=2,
+        min_qty=0.01,
+    ),
+    "AVAX/INR": PairSpec(
+        "AVAX/INR",
+        base_price=2800.0,
+        volatility=0.038,
+        price_precision=1,
+        qty_precision=2,
+        min_qty=0.01,
+    ),
+    "LINK/INR": PairSpec(
+        "LINK/INR",
+        base_price=1400.0,
+        volatility=0.032,
+        price_precision=1,
+        qty_precision=2,
+        min_qty=0.01,
+    ),
     # ── Tier 3: Low-Price & Fractional Coins ─────────────────────────────────
-    "XRP/INR": PairSpec("XRP/INR", base_price=110.0, volatility=0.030, price_precision=2, qty_precision=1, min_qty=0.1),
-    "ADA/INR": PairSpec("ADA/INR", base_price=65.0, volatility=0.035, price_precision=2, qty_precision=1, min_qty=0.1),
-    "MATIC/INR": PairSpec("MATIC/INR", base_price=48.0, volatility=0.040, price_precision=2, qty_precision=1, min_qty=0.1),
-    "DOGE/INR": PairSpec("DOGE/INR", base_price=16.50, volatility=0.050, price_precision=3, qty_precision=0, min_qty=1.0),
-    "TRX/INR": PairSpec("TRX/INR", base_price=18.00, volatility=0.028, price_precision=3, qty_precision=0, min_qty=1.0),
-    "SHIB/INR": PairSpec("SHIB/INR", base_price=0.0018, volatility=0.060, price_precision=6, qty_precision=-3, min_qty=1000.0),
+    "XRP/INR": PairSpec(
+        "XRP/INR",
+        base_price=110.0,
+        volatility=0.030,
+        price_precision=2,
+        qty_precision=1,
+        min_qty=0.1,
+    ),
+    "ADA/INR": PairSpec(
+        "ADA/INR",
+        base_price=65.0,
+        volatility=0.035,
+        price_precision=2,
+        qty_precision=1,
+        min_qty=0.1,
+    ),
+    "MATIC/INR": PairSpec(
+        "MATIC/INR",
+        base_price=48.0,
+        volatility=0.040,
+        price_precision=2,
+        qty_precision=1,
+        min_qty=0.1,
+    ),
+    "DOGE/INR": PairSpec(
+        "DOGE/INR",
+        base_price=16.50,
+        volatility=0.050,
+        price_precision=3,
+        qty_precision=0,
+        min_qty=1.0,
+    ),
+    "TRX/INR": PairSpec(
+        "TRX/INR",
+        base_price=18.00,
+        volatility=0.028,
+        price_precision=3,
+        qty_precision=0,
+        min_qty=1.0,
+    ),
+    "SHIB/INR": PairSpec(
+        "SHIB/INR",
+        base_price=0.0018,
+        volatility=0.060,
+        price_precision=6,
+        qty_precision=-3,
+        min_qty=1000.0,
+    ),
 }
 
 
 # Default fallback for any unlisted pair
-DEFAULT_PAIR_SPEC = PairSpec("CUSTOM/INR", base_price=100.0, volatility=0.025, price_precision=2, qty_precision=2, min_qty=0.1)
+DEFAULT_PAIR_SPEC = PairSpec(
+    "CUSTOM/INR",
+    base_price=100.0,
+    volatility=0.025,
+    price_precision=2,
+    qty_precision=2,
+    min_qty=0.1,
+)
 
 
 def get_pair_spec(pair: str) -> PairSpec:
@@ -79,7 +175,7 @@ def round_qty(pair: str, qty: float) -> float:
     elif spec.qty_precision == 0:
         return float(math.floor(qty))
     else:
-        factor = 10 ** spec.qty_precision
+        factor = 10**spec.qty_precision
         return float(math.floor(qty * factor) / factor)
 
 
@@ -94,14 +190,22 @@ def validate_and_align_ohlcv(df: pd.DataFrame, timeframe: str = "1H") -> pd.Data
     # Ensure timestamp is datetime
     if not pd.api.types.is_datetime64_any_dtype(df["timestamp"]):
         if pd.api.types.is_numeric_dtype(df["timestamp"]):
-            first_val = df["timestamp"].dropna().iloc[0] if len(df["timestamp"].dropna()) > 0 else 0
+            first_val = (
+                df["timestamp"].dropna().iloc[0]
+                if len(df["timestamp"].dropna()) > 0
+                else 0
+            )
             unit = "ms" if first_val > 1e11 else "s"
             df["timestamp"] = pd.to_datetime(df["timestamp"], unit=unit, utc=True)
         else:
             df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
 
     # Sort chronologically ascending and drop duplicate timestamps
-    df = df.sort_values("timestamp").drop_duplicates(subset=["timestamp"]).reset_index(drop=True)
+    df = (
+        df.sort_values("timestamp")
+        .drop_duplicates(subset=["timestamp"])
+        .reset_index(drop=True)
+    )
 
     # Ensure required float columns
     for col in ["open", "high", "low", "close", "volume"]:
@@ -120,11 +224,11 @@ class DataFeeder:
 
     def __init__(self, seed: int = 42) -> None:
         self.seed = seed
-        self._cache: Dict[str, pd.DataFrame] = {}
+        self._cache: dict[str, pd.DataFrame] = {}
 
     def load_candles_from_records(
         self,
-        records: List[Dict[str, Any]],
+        records: list[dict[str, Any]],
         pair: str = "BTC/INR",
         timeframe: str = "1H",
     ) -> pd.DataFrame:
@@ -139,9 +243,9 @@ class DataFeeder:
 
     def load_candles_from_csv(
         self,
-        file_path: Union[str, Path],
-        pair: Optional[str] = None,
-        timeframe: Optional[str] = None,
+        file_path: str | Path,
+        pair: str | None = None,
+        timeframe: str | None = None,
     ) -> pd.DataFrame:
         """
         Load historical candles from a CSV file (supports timestamp, open, high, low, close, volume).
@@ -154,10 +258,24 @@ class DataFeeder:
         df.columns = [c.strip().lower() for c in df.columns]
 
         rename_map = {
-            "t": "timestamp", "time": "timestamp", "date": "timestamp", "datetime": "timestamp",
-            "o": "open", "h": "high", "l": "low", "c": "close", "v": "volume", "vol": "volume",
+            "t": "timestamp",
+            "time": "timestamp",
+            "date": "timestamp",
+            "datetime": "timestamp",
+            "o": "open",
+            "h": "high",
+            "l": "low",
+            "c": "close",
+            "v": "volume",
+            "vol": "volume",
         }
-        df = df.rename(columns={k: v for k, v in rename_map.items() if k in df.columns and v not in df.columns})
+        df = df.rename(
+            columns={
+                k: v
+                for k, v in rename_map.items()
+                if k in df.columns and v not in df.columns
+            }
+        )
 
         if "pair" in df.columns and pair:
             norm_pair = pair.upper().replace("_", "/")
@@ -176,9 +294,9 @@ class DataFeeder:
         pair: str = "BTC/INR",
         timeframe: str = "1H",
         limit: int = 10000,
-        start_time: Optional[int] = None,
-        end_time: Optional[int] = None,
-        db_path: Optional[Union[str, Path]] = None,
+        start_time: int | None = None,
+        end_time: int | None = None,
+        db_path: str | Path | None = None,
     ) -> pd.DataFrame:
         """
         Synchronously load historical candles directly from SQLite market_candles table.
@@ -229,15 +347,17 @@ class DataFeeder:
         candle_repo: Any,
         pair: str = "BTC/INR",
         timeframe: str = "1H",
-        start_time: Optional[int] = None,
-        end_time: Optional[int] = None,
+        start_time: int | None = None,
+        end_time: int | None = None,
         limit: int = 10000,
     ) -> pd.DataFrame:
         """
         Asynchronously load candles using CandleRepository instance.
         """
         if hasattr(candle_repo, "get_candles_range"):
-            candles = await candle_repo.get_candles_range(pair, timeframe, start_time, end_time, limit)
+            candles = await candle_repo.get_candles_range(
+                pair, timeframe, start_time, end_time, limit
+            )
         else:
             candles = await candle_repo.get_recent_candles(pair, timeframe, limit)
 
@@ -266,12 +386,18 @@ class DataFeeder:
         tf_minutes = {"15M": 15, "1H": 60, "4H": 240}.get(timeframe, 60)
         num_bars = sessions * (1440 // tf_minutes)  # Total bars across 250+ sessions
 
-        start_time = datetime.now(timezone.utc) - timedelta(minutes=num_bars * tf_minutes)
-        timestamps = [start_time + timedelta(minutes=i * tf_minutes) for i in range(num_bars)]
+        start_time = datetime.now(timezone.utc) - timedelta(
+            minutes=num_bars * tf_minutes
+        )
+        timestamps = [
+            start_time + timedelta(minutes=i * tf_minutes) for i in range(num_bars)
+        ]
 
         # Geometric Brownian Motion + Volatility Regimes (Trend, Pullback, Squeeze)
-        returns = np.random.normal(loc=0.0001, scale=daily_vol / np.sqrt(1440 / tf_minutes), size=num_bars)
-        
+        returns = np.random.normal(
+            loc=0.0001, scale=daily_vol / np.sqrt(1440 / tf_minutes), size=num_bars
+        )
+
         # Add cyclical trend/regime shifts
         cycles = np.sin(np.linspace(0, 12 * np.pi, num_bars)) * 0.002
         returns += cycles
@@ -296,16 +422,20 @@ class DataFeeder:
         closes = np.round(closes, prec)
 
         base_vol = 10000000.0 / base_price
-        volume = base_vol * (1.0 + np.abs(returns) * 50 + np.random.exponential(0.5, num_bars))
+        volume = base_vol * (
+            1.0 + np.abs(returns) * 50 + np.random.exponential(0.5, num_bars)
+        )
 
-        df = pd.DataFrame({
-            "timestamp": timestamps,
-            "open": opens,
-            "high": highs,
-            "low": lows,
-            "close": closes,
-            "volume": np.round(volume, 2),
-        })
+        df = pd.DataFrame(
+            {
+                "timestamp": timestamps,
+                "open": opens,
+                "high": highs,
+                "low": lows,
+                "close": closes,
+                "volume": np.round(volume, 2),
+            }
+        )
 
         # Pre-compute core technical indicators for strategies
         df = self._add_technical_indicators(df)

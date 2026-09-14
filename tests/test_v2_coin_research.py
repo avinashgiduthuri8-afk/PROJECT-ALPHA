@@ -13,25 +13,31 @@ Covers:
 
 from __future__ import annotations
 
+import os
 import uuid
+from unittest.mock import AsyncMock, patch
+
 import numpy as np
 import pytest
-from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
 
 from app import app
 from core.config import get_config, invalidate_config
-from scanner.research.symbol_normalizer import (
-    normalize_symbol, is_supported_pair, get_supported_pairs_info
-)
 from scanner.research.indicators import (
-    compute_ema, compute_rsi, compute_macd, compute_bollinger,
-    compute_atr, compute_rvol, last_valid
+    compute_atr,
+    compute_bollinger,
+    compute_ema,
+    compute_macd,
+    compute_rsi,
+    compute_rvol,
+    last_valid,
 )
 from scanner.research.service import CoinResearchService
-
-
-import os
+from scanner.research.symbol_normalizer import (
+    get_supported_pairs_info,
+    is_supported_pair,
+    normalize_symbol,
+)
 
 TEST_DB_DIR = os.path.abspath(".test_dbs")
 os.makedirs(TEST_DB_DIR, exist_ok=True)
@@ -48,6 +54,7 @@ def setup_test_env(monkeypatch):
 
 
 # ── 1. Symbol Normalizer Tests ────────────────────────────────────────────────
+
 
 def test_symbol_normalization():
     assert normalize_symbol("BTC") == "BTC/INR"
@@ -72,6 +79,7 @@ def test_is_supported_pair():
 
 
 # ── 2. Pure NumPy Indicator Math Tests ────────────────────────────────────────
+
 
 def test_ema_computation():
     # 30 bars of constant price 100 -> EMA should converge to 100
@@ -128,6 +136,7 @@ def test_atr_and_rvol():
 
 # ── 3. CoinResearchService Core Methods ───────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_fetch_full_coin_profile():
     candle_repo = AsyncMock()
@@ -135,33 +144,39 @@ async def test_fetch_full_coin_profile():
     candles_1d = []
     base = 50000.0
     for i in range(60):
-        candles_1d.append({
-            "pair": "BTC/INR",
-            "timeframe": "1d",
-            "timestamp": 1700000000 + i * 86400,
-            "open": base + i * 100,
-            "high": base + i * 100 + 500,
-            "low": base + i * 100 - 300,
-            "close": base + i * 100 + 200,
-            "volume": 1000.0,
-        })
+        candles_1d.append(
+            {
+                "pair": "BTC/INR",
+                "timeframe": "1d",
+                "timestamp": 1700000000 + i * 86400,
+                "open": base + i * 100,
+                "high": base + i * 100 + 500,
+                "low": base + i * 100 - 300,
+                "close": base + i * 100 + 200,
+                "volume": 1000.0,
+            }
+        )
     candle_repo.get_recent_candles.return_value = candles_1d
 
     cfg = get_config()
     service = CoinResearchService(candle_repo=candle_repo, config=cfg)
 
     # Mock public client ticker
-    with patch.object(service._public_client, "get_tickers", new_callable=AsyncMock) as mock_tick:
-        mock_tick.return_value = [{
-            "market": "BTCINR",
-            "last_price": 55000.0,
-            "change_24_hour": 3.5,
-            "high": 56000.0,
-            "low": 54000.0,
-            "volume": 25000.0,
-            "bid": 54990.0,
-            "ask": 55010.0,
-        }]
+    with patch.object(
+        service._public_client, "get_tickers", new_callable=AsyncMock
+    ) as mock_tick:
+        mock_tick.return_value = [
+            {
+                "market": "BTCINR",
+                "last_price": 55000.0,
+                "change_24_hour": 3.5,
+                "high": 56000.0,
+                "low": 54000.0,
+                "volume": 25000.0,
+                "bid": 54990.0,
+                "ask": 55010.0,
+            }
+        ]
 
         profile = await service.fetch_full_coin_profile("BTC/INR")
 
@@ -231,21 +246,36 @@ async def test_predict_trend_and_catalysts():
             "bb_upper": 57000.0,
             "bb_mid": 54000.0,
             "bb_width_pct": 11.1,
-        }
+        },
     }
 
-    pred = await service.predict_trend_and_catalysts("BTC/INR", indicators=dummy_indicators)
+    pred = await service.predict_trend_and_catalysts(
+        "BTC/INR", indicators=dummy_indicators
+    )
 
     assert pred["pair"] == "BTC/INR"
     assert pred["method"] == "RULE_BASED"
-    assert pred["horizons"]["1h"]["direction"] in ("BULLISH", "BEARISH", "CONSOLIDATION")
-    assert pred["horizons"]["4h"]["direction"] in ("BULLISH", "BEARISH", "CONSOLIDATION")
-    assert pred["horizons"]["24h"]["direction"] in ("BULLISH", "BEARISH", "CONSOLIDATION")
+    assert pred["horizons"]["1h"]["direction"] in (
+        "BULLISH",
+        "BEARISH",
+        "CONSOLIDATION",
+    )
+    assert pred["horizons"]["4h"]["direction"] in (
+        "BULLISH",
+        "BEARISH",
+        "CONSOLIDATION",
+    )
+    assert pred["horizons"]["24h"]["direction"] in (
+        "BULLISH",
+        "BEARISH",
+        "CONSOLIDATION",
+    )
     assert len(pred["bullish_catalysts"]) > 0
     assert len(pred["key_support_levels"]) > 0
 
 
 # ── 4. REST API Endpoint Tests via TestClient ─────────────────────────────────
+
 
 def test_api_list_research_coins():
     with TestClient(app) as client:
@@ -254,7 +284,9 @@ def test_api_list_research_coins():
         assert resp_unauth.status_code == 401
 
         # Authorized
-        resp = client.get("/api/v2/research/coins", headers={"X-API-Key": "test-research-key"})
+        resp = client.get(
+            "/api/v2/research/coins", headers={"X-API-Key": "test-research-key"}
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert isinstance(data, list)
@@ -266,7 +298,7 @@ def test_api_get_coin_profile_edge_case_404():
     with TestClient(app) as client:
         resp = client.get(
             "/api/v2/research/coin/NONEXISTENTCOIN999",
-            headers={"X-API-Key": "test-research-key"}
+            headers={"X-API-Key": "test-research-key"},
         )
         assert resp.status_code == 404
         assert "Unsupported pair" in resp.json()["detail"]
@@ -274,15 +306,11 @@ def test_api_get_coin_profile_edge_case_404():
 
 def test_api_backtest_endpoint():
     with TestClient(app) as client:
-        payload = {
-            "symbol": "BTC/INR",
-            "strategy": "STE",
-            "days": 30
-        }
+        payload = {"symbol": "BTC/INR", "strategy": "STE", "days": 30}
         resp = client.post(
             "/api/v2/research/backtest",
             json=payload,
-            headers={"X-API-Key": "test-research-key"}
+            headers={"X-API-Key": "test-research-key"},
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -300,7 +328,7 @@ def test_api_predict_endpoint():
         resp = client.post(
             "/api/v2/research/predict",
             json=payload,
-            headers={"X-API-Key": "test-research-key"}
+            headers={"X-API-Key": "test-research-key"},
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -309,4 +337,3 @@ def test_api_predict_endpoint():
         assert "1h" in data["horizons"]
         assert "4h" in data["horizons"]
         assert "24h" in data["horizons"]
-
