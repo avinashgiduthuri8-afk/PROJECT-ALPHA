@@ -272,9 +272,9 @@ class CoinDCXSubAccountClient:
                 }
 
             order_id = (
-                client_order_id or f"ORD_{self.subaccount_id}_{int(time.time()*1000)}"
+                client_order_id or f"ORD_{self.subaccount_id}_{int(time.time() * 1000)}"
             )
-            ex_id = f"CDX_{self.subaccount_id}_{int(time.time()*1000)}"
+            ex_id = f"CDX_{self.subaccount_id}_{int(time.time() * 1000)}"
             payload = {
                 "side": side.lower(),
                 "order_type": order_type,
@@ -421,12 +421,12 @@ class CoinDCXSubAccountClient:
 
             # 4. Generate payload and client order ID
             order_id = (
-                client_order_id or f"ORD_{self.subaccount_id}_{int(time.time()*1000)}"
+                client_order_id or f"ORD_{self.subaccount_id}_{int(time.time() * 1000)}"
             )
             ex_id = (
-                f"CDX_SL_{int(time.time()*1000)}"
+                f"CDX_SL_{int(time.time() * 1000)}"
                 if order_type.lower() == "stop_limit"
-                else f"CDX_{int(time.time()*1000)}"
+                else f"CDX_{int(time.time() * 1000)}"
             )
             payload = {
                 "side": side.lower(),
@@ -636,7 +636,7 @@ class CoinDCXSubAccountClient:
         POST https://api.coindcx.com/exchange/v1/orders/create
         """
         order_id = (
-            client_order_id or f"ORD_{self.subaccount_id}_{int(time.time()*1000)}"
+            client_order_id or f"ORD_{self.subaccount_id}_{int(time.time() * 1000)}"
         )
 
         # 0. Global Kill-Switch & Execution Mode Isolation Gate

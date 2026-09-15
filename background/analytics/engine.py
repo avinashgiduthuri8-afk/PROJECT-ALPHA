@@ -210,8 +210,8 @@ class AnalyticsEngine:
 
     def _empty_horizon_win_rates(self) -> dict[str, float]:
         return {
+            "15m": 0.0,
             "1h": 0.0,
-            "4h": 0.0,
             "24h": 0.0,
             "7d": 0.0,
             "30d": 0.0,
@@ -223,8 +223,8 @@ class AnalyticsEngine:
     ) -> dict[str, float]:
         now = datetime.now(timezone.utc)
         horizons = {
-            "1h": timedelta(hours=1),
-            "4h": timedelta(hours=4),
+            "15m": timedelta(hours=1),
+            "1h": timedelta(hours=4),
             "24h": timedelta(hours=24),
             "7d": timedelta(days=7),
             "30d": timedelta(days=30),

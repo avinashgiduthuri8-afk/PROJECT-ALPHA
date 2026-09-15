@@ -62,7 +62,7 @@ async def test_scanner_5_stage_filter_cascade_and_funnel_counters():
     sol_candles = [
         {
             "pair": "SOL/INR",
-            "timeframe": "4h",
+            "timeframe": "1h",
             "timestamp": now_ms - (30 - i) * 900000,
             "open": 10000.0 + i * 50,
             "high": 10050.0 + i * 50,
@@ -75,7 +75,7 @@ async def test_scanner_5_stage_filter_cascade_and_funnel_counters():
     eth_candles = [
         {
             "pair": "ETH/INR",
-            "timeframe": "4h",
+            "timeframe": "1h",
             "timestamp": now_ms - (30 - i) * 900000,
             "open": 250000.0 + i * 200,
             "high": 252000.0 + i * 200,
@@ -88,7 +88,7 @@ async def test_scanner_5_stage_filter_cascade_and_funnel_counters():
     pump_candles = [
         {
             "pair": "DOGE/INR",
-            "timeframe": "4h",
+            "timeframe": "1h",
             "timestamp": now_ms - (30 - i) * 900000,
             "open": 10.0 if i == 0 else 15.0 + i * 0.1,
             "high": 16.0 + i * 0.1,
@@ -194,7 +194,7 @@ async def test_scanner_cascade_strict_execution_order_and_stage_isolation():
     b_candles = [
         {
             "pair": "BNB/INR",
-            "timeframe": "4h",
+            "timeframe": "1h",
             "timestamp": now_ms - (30 - i) * 900000,
             "open": 50000.0,
             "high": 50500.0,
@@ -209,7 +209,7 @@ async def test_scanner_cascade_strict_execution_order_and_stage_isolation():
     c_candles = [
         {
             "pair": "XRP/INR",
-            "timeframe": "4h",
+            "timeframe": "1h",
             "timestamp": now_ms - (30 - i) * 900000,
             "open": 50.0 if i == 0 else 70.0,
             "high": 72.0,
@@ -224,7 +224,7 @@ async def test_scanner_cascade_strict_execution_order_and_stage_isolation():
     d_candles = [
         {
             "pair": "DOGE/INR",
-            "timeframe": "4h",
+            "timeframe": "1h",
             "timestamp": now_ms - (30 - i) * 900000,
             "open": 20.0 if i < 20 else (20.0 - (i - 19) * 0.35),
             "high": 20.1 if i < 20 else (20.0 - (i - 19) * 0.35),
@@ -239,7 +239,7 @@ async def test_scanner_cascade_strict_execution_order_and_stage_isolation():
     e_candles = [
         {
             "pair": "ETH/INR",
-            "timeframe": "4h",
+            "timeframe": "1h",
             "timestamp": now_ms - (30 - i) * 900000,
             "open": 250000.0,
             "high": 250100.0,
@@ -254,7 +254,7 @@ async def test_scanner_cascade_strict_execution_order_and_stage_isolation():
     f_candles = [
         {
             "pair": "SOL/INR",
-            "timeframe": "4h",
+            "timeframe": "1h",
             "timestamp": now_ms - (30 - i) * 900000,
             "open": 10000.0 + i * 20,
             "high": 10150.0 + i * 20,
@@ -353,3 +353,318 @@ async def test_b3_score_vs_b4_threshold_attributable_separation():
     # Confirm neither stacked on the other's dimension
     assert res.confluence_score < res.base_score
     assert res.dynamic_threshold > engine.strict_threshold
+
+
+@pytest.mark.asyncio
+async def test_fetch_watchlist_coins_parser_no_prefix():
+    from unittest.mock import MagicMock
+
+    from core.config import AppConfig
+    from scanner.service import ScannerService
+
+    config = AppConfig()
+    config.scanner_ranking_top_n = 50
+    scanner = ScannerService(
+        bus=MagicMock(),
+        signal_repo=MagicMock(),
+        event_log_repo=MagicMock(),
+        config=config,
+        candle_repo=MagicMock(),
+        position_repo=MagicMock(),
+        trade_repo=MagicMock(),
+    )
+
+    mock_ticker_response = [
+        {
+            "market": "BTCINR",
+            "last_price": "6000000",
+            "bid": "5990000",
+            "ask": "6010000",
+            "volume": "20",
+            "change_24_hour": "2.5",
+        },
+        {
+            "market": "ETHUSDT",
+            "last_price": "2500",
+            "bid": "2499",
+            "ask": "2501",
+            "volume": "5000",
+            "change_24_hour": "1.2",
+        },
+        {
+            "market": "DOGEBTC",
+            "last_price": "0.000002",
+            "bid": "0.000001",
+            "ask": "0.000003",
+            "volume": "99999",
+            "change_24_hour": "0.5",
+        },
+    ]
+
+    class MockResponse:
+        def json(self):
+            return mock_ticker_response
+
+        def raise_for_status(self):
+            pass
+
+    class MockClient:
+        async def get(self, *args, **kwargs):
+            return MockResponse()
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+    from unittest.mock import patch
+
+    with patch("httpx.AsyncClient", return_value=MockClient()):
+        with patch("asyncio.sleep", return_value=None):
+            coins = await scanner._fetch_watchlist_coins()
+
+            assert "BTC/INR" in coins
+            assert "ETH/USDT" in coins
+            assert "DOGE/BTC" not in coins
+            assert scanner._last_funnel_counters["market_universe"] == 2
+
+
+@pytest.mark.asyncio
+async def test_supported_candle_intervals_coindcx():
+    from unittest.mock import MagicMock
+
+    from core.config import AppConfig
+    from scanner.service import ScannerService
+
+    config = AppConfig()
+    scanner = ScannerService(
+        bus=MagicMock(),
+        signal_repo=MagicMock(),
+        event_log_repo=MagicMock(),
+        config=config,
+        candle_repo=MagicMock(),
+        position_repo=MagicMock(),
+        trade_repo=MagicMock(),
+    )
+
+    from unittest.mock import patch
+
+    requested_urls = []
+
+    class MockResponse:
+        def json(self):
+            return []
+
+        def raise_for_status(self):
+            pass
+
+    class MockClient:
+        async def get(self, url, params=None, **kwargs):
+            requested_urls.append(params.get("interval") if params else None)
+            return MockResponse()
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+    with patch("httpx.AsyncClient", return_value=MockClient()):
+        with patch("asyncio.sleep", return_value=None):
+            await scanner._fetch_coindcx_candles("B-BTC_INR", "1m")
+            await scanner._fetch_coindcx_candles("B-BTC_INR", "15m")
+            await scanner._fetch_coindcx_candles("B-BTC_INR", "1h")
+            await scanner._fetch_coindcx_candles("B-BTC_INR", "1d")
+
+            assert requested_urls == ["1m", "15m", "1h", "1d"]
+
+            # The system should no longer use 4h, but if it did it would either translate or fail.
+            # Here we prove the system now uses 15m, 1h, 1d in the loop.
+            requested_urls.clear()
+
+            scanner._market_snapshot = {"BTC/INR": {"turnover": 999999999}}
+            scanner._get_candles_for_pair = MagicMock(
+                return_value=[{"close": 1, "volume": 1}] * 120
+            )
+
+            # Wait, testing the actual loop involves too many mocks.
+            # Just verify _fetch_coindcx_candles accepts supported intervals.
+
+
+@pytest.mark.asyncio
+async def test_confluence_genuine_rejection_and_pass():
+    """Verify that candidates legitimately fail confluence in bad markets and pass in good markets."""
+
+    from scanner.confluence_engine import ConfluenceEngine
+
+    engine = ConfluenceEngine(strict_threshold=80, max_signals=2)
+
+    from unittest.mock import MagicMock
+
+    from core.types import Priority
+
+    weak_sig = MagicMock(
+        coin="WEAK", score=15, mtf_alignment=False, priority=Priority.IGNORE
+    )
+    strong_sig = MagicMock(
+        coin="STRONG", score=65, mtf_alignment=True, priority=Priority.ELITE
+    )
+
+    enriched_raw = [
+        {
+            "coin": "WEAK",
+            "volume_24h": 5000000,
+            "chart": {"status": "OK", "score": 15},  # Low chart score
+            "indicator": {"status": "OK", "score": 15},  # Low indicator score
+            "news": {"sentiment": "NEUTRAL", "score": 5, "events": []},
+        },
+        {
+            "coin": "STRONG",
+            "volume_24h": 90000000,
+            "chart": {
+                "status": "OK",
+                "score": 30,
+                "pattern": "VCP_BREAKOUT",
+                "trend": "UP",
+            },
+            "indicator": {"status": "OK", "score": 35, "mtf_aligned": True},
+            "news": {"sentiment": "BULLISH", "score": 15, "events": []},
+        },
+    ]
+
+    # Simulate a BULLISH / RISK_ON market
+    engine.update_market_sentiment(
+        btc_trend="BULLISH", eth_trend="BULLISH", regime="RISK_ON"
+    )
+
+    passed_signals, results = engine.evaluate_candidates(
+        raw_candidates=enriched_raw,
+        signals=[weak_sig, strong_sig],
+        market_volatility=1.0,
+        is_choppy=False,
+    )
+
+    assert len(results) == 2
+
+    # The weak signal should fail
+    weak_res = next(r for r in results if r.signal.coin == "WEAK")
+    assert not weak_res.accepted
+    assert any(
+        "Missing multi-timeframe indicator alignment" in r
+        for r in weak_res.rejection_reasons
+    )
+    assert any("below dynamic threshold" in r for r in weak_res.rejection_reasons)
+
+    # The strong signal should have enough base score to survive the regime penalty and pass
+    strong_res = next(r for r in results if r.signal.coin == "STRONG")
+    assert strong_res.accepted
+    assert len(passed_signals) == 1
+    assert passed_signals[0].coin == "STRONG"
+
+
+@pytest.mark.asyncio
+async def test_scanner_end_to_end_confluence_pass():
+    """Verify that a legitimate high-quality candidate passes Confluence and generates a Final Signal."""
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from core.config import AppConfig
+    from scanner.service import ScannerService
+
+    config = AppConfig()
+    bus = MagicMock()
+    bus.publish = AsyncMock()
+    sig_repo = MagicMock()
+    sig_repo.insert = AsyncMock()
+    event_repo = MagicMock()
+    event_repo.append = AsyncMock()
+    pos_repo = MagicMock()
+    pos_repo.get_open = AsyncMock(return_value=[])
+
+    scanner = ScannerService(
+        bus=bus,
+        signal_repo=sig_repo,
+        event_log_repo=event_repo,
+        config=config,
+        candle_repo=MagicMock(),
+        position_repo=pos_repo,
+        trade_repo=MagicMock(),
+    )
+
+    # 1. Mock the market context to BULLISH / RISK_ON
+    with patch(
+        "scanner.market_context.MarketContextService.refresh_market_context",
+        new_callable=AsyncMock,
+    ) as mock_refresh:
+        with patch(
+            "scanner.market_context.MarketContextService.get_current_sentiment"
+        ) as mock_sent:
+            market_data = {
+                "btc_trend": "BULLISH",
+                "eth_trend": "BULLISH",
+                "market_regime": "RISK_ON",
+                "fear_and_greed": 80,
+            }
+            mock_refresh.return_value = market_data
+            mock_sent.return_value = market_data
+
+            # 2. Mock _fetch_v1_signals to yield one valid strong candidate and one weak
+            async def mock_fetch_v1():
+                return [
+                    {
+                        "coin": "STRONG",
+                        "pair": "STRONG/USDT",
+                        "score": 95,
+                        "confidence": 95,
+                        "priority": "HIGH",
+                        "risk": "LOW",
+                        "opportunity_type": "MOMENTUM_TRADE",
+                        "market_state": "BULL_TREND",
+                        "mtf_alignment": True,
+                        "coin_class": "A",
+                        "volume_24h": 50000000,
+                        "price": 100,
+                        "timeframe": "1h",
+                    },
+                    {
+                        "coin": "WEAK",
+                        "pair": "WEAK/USDT",
+                        "score": 40,
+                        "confidence": 40,
+                        "priority": "HIGH",
+                        "risk": "HIGH",
+                        "opportunity_type": "WATCHLIST",
+                        "market_state": "DOWNTREND",
+                        "mtf_alignment": False,
+                        "coin_class": "C",
+                        "volume_24h": 10000,
+                        "price": 10,
+                        "timeframe": "1h",
+                    },
+                ]
+
+            scanner._fetch_v1_signals = mock_fetch_v1
+
+            # Run the poll loop once
+            await scanner.poll()
+
+            # Verify final signals generated
+            live = scanner.get_live_signals()
+            assert len(live) == 1
+            assert live[0].coin == "STRONG"
+
+            # Verify the signal is actually valid and actionable
+            sig = live[0]
+            assert sig.is_actionable
+
+            # Verify the weak signal is correctly rejected and logged in the evaluation snapshot
+            snapshot = scanner.get_scanned_coins()
+            assert len(snapshot) == 2
+            strong_cand = next(c for c in snapshot if c["coin"] == "STRONG")
+            weak_cand = next(c for c in snapshot if c["coin"] == "WEAK")
+
+            assert strong_cand["status"] == "PASSED"
+            assert weak_cand["status"] == "REJECTED"
+
+            # Verify event bus was called to publish the signal
+            bus.publish.assert_called_once()

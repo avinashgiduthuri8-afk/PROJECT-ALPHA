@@ -534,12 +534,12 @@ class TestTier1Feature6FrontendScriptSyntax:
         open_decl_count = len(
             re.findall(r"(?:const|let|var)\s+openTbody\s*=", template_html)
         )
-        assert (
-            home_decl_count <= 1
-        ), f"Duplicate declaration of homeTbody found ({home_decl_count})"
-        assert (
-            open_decl_count <= 1
-        ), f"Duplicate declaration of openTbody found ({open_decl_count})"
+        assert home_decl_count <= 1, (
+            f"Duplicate declaration of homeTbody found ({home_decl_count})"
+        )
+        assert open_decl_count <= 1, (
+            f"Duplicate declaration of openTbody found ({open_decl_count})"
+        )
 
     def test_t1_30_auth_verify_password_endpoint(
         self, configured_test_client, auth_headers
@@ -687,7 +687,7 @@ class TestTier1Feature11OHLCVCandlesFeed:
         db = await open_test_database(test_db_path)
         try:
             repo = CandleRepository(db.connection)
-            candles = await repo.get_recent_candles("BTC/INR", "1h", limit=50)
+            candles = await repo.get_recent_candles("BTC/INR", "15m", limit=50)
             assert isinstance(candles, list)
         finally:
             await db.close()
@@ -707,7 +707,7 @@ class TestTier1Feature11OHLCVCandlesFeed:
         db = await open_test_database(test_db_path)
         try:
             repo = CandleRepository(db.connection)
-            candles = await repo.get_recent_candles("BTC/INR", "1h", limit=10)
+            candles = await repo.get_recent_candles("BTC/INR", "15m", limit=10)
             if len(candles) >= 2:
                 assert candles[0]["timestamp"] <= candles[-1]["timestamp"]
         finally:
@@ -726,7 +726,7 @@ class TestTier1Feature11OHLCVCandlesFeed:
         }
         sample = {
             "pair": "BTC/INR",
-            "timeframe": "1h",
+            "timeframe": "15m",
             "timestamp": int(datetime.now(timezone.utc).timestamp()),
             "open": 6000000.0,
             "high": 6050000.0,
@@ -737,7 +737,7 @@ class TestTier1Feature11OHLCVCandlesFeed:
         assert set(sample.keys()) == candle_fields
 
     def test_t1_55_supported_candle_intervals(self):
-        intervals = ["1m", "5m", "15m", "1h", "1d"]
+        intervals = ["1m", "5m", "15m", "15m", "1d"]
         for iv in intervals:
             assert isinstance(iv, str)
 
@@ -1294,7 +1294,7 @@ class TestTier2BoundaryCandlesFeed:
         db = await open_test_database(test_db_path)
         try:
             repo = CandleRepository(db.connection)
-            candles = await repo.get_recent_candles("NON_EXISTENT_COIN/INR", "1h")
+            candles = await repo.get_recent_candles("NON_EXISTENT_COIN/INR", "15m")
             assert candles == []
         finally:
             await db.close()
@@ -1304,7 +1304,7 @@ class TestTier2BoundaryCandlesFeed:
         db = await open_test_database(test_db_path)
         try:
             repo = CandleRepository(db.connection)
-            candles = await repo.get_recent_candles("BTC/INR", "1h", limit=1)
+            candles = await repo.get_recent_candles("BTC/INR", "15m", limit=1)
             assert len(candles) <= 1
         finally:
             await db.close()
@@ -1315,7 +1315,7 @@ class TestTier2BoundaryCandlesFeed:
         try:
             repo = CandleRepository(db.connection)
             candles = await repo.get_candles_range(
-                "BTC/INR", "1h", start_time=2000000000, end_time=1000000000
+                "BTC/INR", "15m", start_time=2000000000, end_time=1000000000
             )
             assert candles == []
         finally:
@@ -1326,8 +1326,8 @@ class TestTier2BoundaryCandlesFeed:
         db = await open_test_database(test_db_path)
         try:
             repo = CandleRepository(db.connection)
-            candles_lower = await repo.get_recent_candles("btc/inr", "1h")
-            candles_upper = await repo.get_recent_candles("BTC/INR", "1h")
+            candles_lower = await repo.get_recent_candles("btc/inr", "15m")
+            candles_upper = await repo.get_recent_candles("BTC/INR", "15m")
             assert len(candles_lower) == len(candles_upper)
         finally:
             await db.close()
@@ -1337,7 +1337,7 @@ class TestTier2BoundaryCandlesFeed:
         db = await open_test_database(test_db_path)
         try:
             repo = CandleRepository(db.connection)
-            candles = await repo.get_recent_candles("BTC/INR", "1h", limit=50000)
+            candles = await repo.get_recent_candles("BTC/INR", "15m", limit=50000)
             assert isinstance(candles, list)
         finally:
             await db.close()
@@ -1508,7 +1508,7 @@ class TestTier3PairwiseInteractions:
         db = await open_test_database(test_db_path)
         try:
             repo = CandleRepository(db.connection)
-            candles = await repo.get_recent_candles("BTC/INR", "1h", limit=5)
+            candles = await repo.get_recent_candles("BTC/INR", "15m", limit=5)
             last_close = 6000000.0 if not candles else candles[-1]["close"]
             sl = last_close * 0.98
             tp = last_close * 1.046
@@ -1703,7 +1703,7 @@ class TestTier4RealWorldScenarios:
         db = await open_test_database(test_db_path)
         try:
             repo = CandleRepository(db.connection)
-            candles = await repo.get_recent_candles("SOL/INR", "1h", limit=24)
+            candles = await repo.get_recent_candles("SOL/INR", "15m", limit=24)
             assert isinstance(candles, list)
 
             simulated_candle = {

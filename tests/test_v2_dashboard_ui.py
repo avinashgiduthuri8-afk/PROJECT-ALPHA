@@ -79,9 +79,9 @@ def test_websocket_connection_and_auth():
                 received.append(msg)
                 if "pong" in msg:
                     break
-            assert any(
-                "pong" in m for m in received
-            ), f"Expected pong in received messages, got: {received}"
+            assert any("pong" in m for m in received), (
+                f"Expected pong in received messages, got: {received}"
+            )
 
 
 def test_dashboard_security_elements_rendered():

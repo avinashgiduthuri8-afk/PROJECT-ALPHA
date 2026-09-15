@@ -57,7 +57,6 @@ def _row_to_position(row: aiosqlite.Row) -> Position:
 
 
 class PositionRepository(BaseRepository):
-
     async def insert(self, position: Position) -> str:
         entry_time_str = (
             position.entry_time.isoformat()

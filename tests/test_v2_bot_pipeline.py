@@ -24,7 +24,6 @@ from execution.trading.subaccount_manager import (
 
 
 class TestBotPipelineTrackerInit:
-
     def test_all_four_production_bots_initialized(self):
         tracker = BotPipelineTracker()
         bots = tracker.get_all_bots()
@@ -115,7 +114,6 @@ class TestBotPipelineTrackerInit:
 
 
 class TestBotStageTransitions:
-
     def _make_tracker(self):
         return BotPipelineTracker()
 
@@ -239,7 +237,6 @@ class TestBotStageTransitions:
 
 
 class TestCoinDCXSubAccountArchitecture:
-
     def test_subaccount_manager_initialization(self):
         mgr = CoinDCXSubAccountManager()
         telemetry = mgr.get_all_subaccount_telemetry()

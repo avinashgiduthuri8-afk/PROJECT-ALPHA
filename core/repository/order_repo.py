@@ -181,7 +181,7 @@ class OrderRepository(BaseRepository):
             OrderState.PARTIALLY_FILLED.value,
             OrderState.UNKNOWN.value,
         )
-        sql = f"SELECT * FROM orders WHERE state IN ({','.join(['?']*len(active_states))})"
+        sql = f"SELECT * FROM orders WHERE state IN ({','.join(['?'] * len(active_states))})"
         rows = await self._fetchall(sql, active_states)
         return [self._row_to_order(r) for r in rows]
 

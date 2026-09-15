@@ -1,4 +1,4 @@
-﻿"""
+"""
 V2 AI Intelligence Service Package.
 
 Exports AIIntelligenceService, GeminiClient, and FallbackEvaluator.

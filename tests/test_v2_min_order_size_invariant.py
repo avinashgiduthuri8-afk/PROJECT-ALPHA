@@ -16,9 +16,9 @@ def test_precision_table_min_notional_is_200():
     """Verify all 12 CoinDCX INR pairs have min_notional_inr >= 200.0."""
     for pair, spec in PRECISION_TABLE.items():
         if pair.endswith("/INR"):
-            assert (
-                spec.min_notional_inr >= 200.0
-            ), f"Pair {pair} has min_notional_inr {spec.min_notional_inr} < 200"
+            assert spec.min_notional_inr >= 200.0, (
+                f"Pair {pair} has min_notional_inr {spec.min_notional_inr} < 200"
+            )
 
 
 def test_validate_order_notional_rejects_below_200():
@@ -40,9 +40,9 @@ def test_all_adapters_enforce_200_minimum():
             current_price=260000.0,
             ai_adjustments={},
         )
-        assert (
-            order["amount"] >= 200.0
-        ), f"Adapter {bot.value} produced order amount {order['amount']} < 200.0"
+        assert order["amount"] >= 200.0, (
+            f"Adapter {bot.value} produced order amount {order['amount']} < 200.0"
+        )
         assert order["qty"] * order["entry_price"] >= 200.0
 
 

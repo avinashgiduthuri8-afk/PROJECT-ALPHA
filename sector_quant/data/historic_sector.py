@@ -1,4 +1,4 @@
-﻿"""
+"""
 sector_quant.data.historic_sector — Synchronized multi-symbol historic data handler.
 """
 

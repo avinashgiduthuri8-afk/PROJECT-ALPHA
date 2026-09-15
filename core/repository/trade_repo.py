@@ -50,7 +50,6 @@ def _row_to_trade(row: aiosqlite.Row) -> Trade:
 
 
 class TradeRepository(BaseRepository):
-
     async def insert(self, trade: Trade) -> str:
         entry_time_str = (
             trade.entry_time.isoformat()

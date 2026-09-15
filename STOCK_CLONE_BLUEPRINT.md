@@ -112,42 +112,42 @@ The system uses an asynchronous publish-subscribe pattern with strong typing (`v
 ```python
 class EventType(str, Enum):
     # Scanner & Signals
-    SCANNER_TICK          = "scanner.tick"
-    SIGNAL_GENERATED      = "signal.generated"
-    SIGNAL_FILTERED       = "signal.filtered"
-    SIGNAL_EXPIRED        = "signal.expired"
+    SCANNER_TICK = "scanner.tick"
+    SIGNAL_GENERATED = "signal.generated"
+    SIGNAL_FILTERED = "signal.filtered"
+    SIGNAL_EXPIRED = "signal.expired"
 
     # AI Intelligence & Circuit Breaker
     AI_EVALUATION_STARTED = "ai.evaluation_started"
-    AI_CONFIRMED          = "ai.confirmed"
-    AI_REJECTED           = "ai.rejected"
-    AI_CIRCUIT_OPENED     = "ai.circuit_opened"
-    AI_CIRCUIT_CLOSED     = "ai.circuit_closed"
+    AI_CONFIRMED = "ai.confirmed"
+    AI_REJECTED = "ai.rejected"
+    AI_CIRCUIT_OPENED = "ai.circuit_opened"
+    AI_CIRCUIT_CLOSED = "ai.circuit_closed"
 
     # Risk & Capital Guard
-    RISK_CHECK_PASSED     = "risk.check_passed"
-    RISK_CHECK_FAILED     = "risk.check_failed"
-    CIRCUIT_BREAKER_TRIP  = "risk.circuit_breaker_tripped"
+    RISK_CHECK_PASSED = "risk.check_passed"
+    RISK_CHECK_FAILED = "risk.check_failed"
+    CIRCUIT_BREAKER_TRIP = "risk.circuit_breaker_tripped"
 
     # Orders & Execution
-    ORDER_SUBMITTED       = "order.submitted"
-    ORDER_FILLED          = "order.filled"
-    ORDER_REJECTED        = "order.rejected"
-    ORDER_RECONCILED      = "order.reconciled"
+    ORDER_SUBMITTED = "order.submitted"
+    ORDER_FILLED = "order.filled"
+    ORDER_REJECTED = "order.rejected"
+    ORDER_RECONCILED = "order.reconciled"
 
     # Positions & Realtime Lifecycle
-    POSITION_OPENED       = "position.opened"
-    POSITION_UPDATED      = "position.updated"
-    POSITION_CLOSED       = "position.closed"
-    STOP_LOSS_TRIGGERED   = "position.stop_loss_triggered"
+    POSITION_OPENED = "position.opened"
+    POSITION_UPDATED = "position.updated"
+    POSITION_CLOSED = "position.closed"
+    STOP_LOSS_TRIGGERED = "position.stop_loss_triggered"
     TAKE_PROFIT_TRIGGERED = "position.take_profit_triggered"
-    TRAILING_UPDATED      = "position.trailing_updated"
+    TRAILING_UPDATED = "position.trailing_updated"
 
     # Post-Trade Intelligence & Learning
-    TRADE_JOURNALED       = "journal.trade_recorded"
-    EDGE_LEARNED          = "learning.edge_updated"
-    STRATEGY_CALIBRATED   = "feedback.strategy_calibrated"
-    METRICS_SNAPSHOT      = "monitoring.metrics_snapshot"
+    TRADE_JOURNALED = "journal.trade_recorded"
+    EDGE_LEARNED = "learning.edge_updated"
+    STRATEGY_CALIBRATED = "feedback.strategy_calibrated"
+    METRICS_SNAPSHOT = "monitoring.metrics_snapshot"
 ```
 
 ---
@@ -438,6 +438,7 @@ import asyncio
 from typing import Dict, Any, Optional
 from kiteconnect import KiteConnect  # Or alpaca_trade_api / upstox_client
 
+
 class StockBrokerClient:
     def __init__(self, api_key: str, access_token: str):
         self.kite = KiteConnect(api_key=api_key)
@@ -445,10 +446,10 @@ class StockBrokerClient:
 
     async def place_stock_order(
         self,
-        symbol: str,           # e.g., "RELIANCE", "TCS", "INFY", "AAPL"
-        exchange: str,         # "NSE", "BSE", "NASDAQ", "NYSE"
-        transaction_type: str, # "BUY" or "SELL"
-        quantity: int,         # Whole shares for stocks
+        symbol: str,  # e.g., "RELIANCE", "TCS", "INFY", "AAPL"
+        exchange: str,  # "NSE", "BSE", "NASDAQ", "NYSE"
+        transaction_type: str,  # "BUY" or "SELL"
+        quantity: int,  # Whole shares for stocks
         product: str = "CNC",  # CNC (Delivery), MIS (Intraday), NRML
         order_type: str = "MARKET",
         price: Optional[float] = None,
@@ -484,19 +485,21 @@ import pytz
 
 IST = pytz.timezone("Asia/Kolkata")  # Or 'America/New_York' for US Equities
 
+
 def is_stock_market_open() -> bool:
     """Validate current timestamp against active equity trading hours."""
     now = datetime.now(IST)
-    
+
     # 1. Check Weekend (Saturday=5, Sunday=6)
     if now.weekday() >= 5:
         return False
-        
+
     current_time = now.time()
-    market_open = time(9, 15)   # 09:15 AM IST (NSE/BSE)
-    market_close = time(15, 30) # 03:30 PM IST (NSE/BSE)
-    
+    market_open = time(9, 15)  # 09:15 AM IST (NSE/BSE)
+    market_close = time(15, 30)  # 03:30 PM IST (NSE/BSE)
+
     return market_open <= current_time <= market_close
+
 
 def is_pre_market() -> bool:
     now = datetime.now(IST).time()
@@ -533,17 +536,17 @@ Replace the Bitcoin/Ethereum market context with the benchmark equity indices (N
 async def refresh_stock_market_context(self) -> Dict[str, Any]:
     nifty_quote = await self.broker.get_live_stock_quote("NSE", "NIFTY 50")
     nifty_ema200 = await self.get_candle_ema("NSE:NIFTY 50", timeframe="1d", period=200)
-    
+
     regime = "RISK_ON" if nifty_quote > nifty_ema200 else "RISK_OFF"
-    
+
     # Check Sectoral Leaders (IT vs Bank vs Auto)
     sector_momentum = await self.evaluate_sector_breadth()
-    
+
     return {
         "benchmark_price": nifty_quote,
         "benchmark_regime": regime,
         "sector_leaders": sector_momentum,
-        "market_session": "OPEN" if is_stock_market_open() else "CLOSED"
+        "market_session": "OPEN" if is_stock_market_open() else "CLOSED",
     }
 ```
 

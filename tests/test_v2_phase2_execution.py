@@ -57,7 +57,6 @@ async def _create_test_db(tmp_path):
 
 
 class TestPrecisionAndNotionalEnforcement:
-
     def test_tier_1_2_3_precision_rounding(self):
         """Verify tick size and lot step size rounding across Tier 1, Tier 2, and Tier 3 pairs."""
         # Tier 1: BTC/INR (tick ₹0.01, step 0.00001 BTC)
@@ -107,7 +106,6 @@ class TestPrecisionAndNotionalEnforcement:
 
 
 class TestSubAccountRoutingAndHMAC:
-
     def test_subaccount_manager_initializes_4_isolated_clients(self):
         """Verify subaccount manager configures isolated clients for STE, HDA, VCP, and BBS."""
         mgr = CoinDCXSubAccountManager()
@@ -256,7 +254,6 @@ class TestSubAccountRoutingAndHMAC:
 
 
 class TestBracketAndTrailingEvaluation:
-
     @pytest.mark.anyio
     async def test_take_profit_and_stop_loss_evaluation(self, tmp_path):
         """Assert PositionManager triggers TP and SL correctly on price evaluation."""
@@ -328,7 +325,6 @@ class TestBracketAndTrailingEvaluation:
 
 
 class TestStatutoryFeeDeduction:
-
     @pytest.mark.anyio
     async def test_statutory_1_572_pct_drag_deduction(self, tmp_path):
         """Assert 1.572% statutory round-trip drag friction is deducted from realized PnL."""
@@ -370,7 +366,6 @@ class TestStatutoryFeeDeduction:
 
 
 class TestRestartRecoveryAndReconciliation:
-
     @pytest.mark.anyio
     async def test_restart_recovery_rehydrates_open_positions(self, tmp_path):
         """Assert RestartRecoveryService rehydrates unclosed positions from SQLite."""

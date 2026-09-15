@@ -205,12 +205,12 @@ def test_historical_backtest_production_bots(tmp_path):
 
     # Create CSV dataset for multi-timeframe BTC/INR
     csv_15m = tmp_path / "btc_15m.csv"
-    csv_1h = tmp_path / "btc_1h.csv"
+    csv_15m = tmp_path / "btc_15m.csv"
 
     candles_15m = _generate_sample_candles(count=200, base_price=60000.0, step=15.0)
-    candles_1h = _generate_sample_candles(count=200, base_price=60000.0, step=60.0)
+    candles_15m = _generate_sample_candles(count=200, base_price=60000.0, step=60.0)
 
-    for path, data in [(csv_15m, candles_15m), (csv_1h, candles_1h)]:
+    for path, data in [(csv_15m, candles_15m), (csv_15m, candles_15m)]:
         with open(path, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(
                 f, fieldnames=["timestamp", "open", "high", "low", "close", "volume"]
@@ -230,7 +230,7 @@ def test_historical_backtest_production_bots(tmp_path):
 
     csv_map = {
         "BTC/INR_15M": str(csv_15m),
-        "BTC/INR_1H": str(csv_1h),
+        "BTC/INR_1H": str(csv_15m),
     }
 
     # Test all 4 production bots

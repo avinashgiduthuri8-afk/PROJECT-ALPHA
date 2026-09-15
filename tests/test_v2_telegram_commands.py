@@ -469,7 +469,7 @@ async def test_cmd_signal_detail_deep_dive():
         "volume_ratio": 2.1,
         "ema_trend": "BULLISH",
         "rsi": 62.4,
-        "mtf_alignment": "15m_1h",
+        "mtf_alignment": "15m_15m",
         "confluence_score": 91,
         "status": "PASSED",
         "bot": "STE",

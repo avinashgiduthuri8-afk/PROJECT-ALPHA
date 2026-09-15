@@ -43,7 +43,6 @@ async def _create_test_learning_db(tmp_path):
 
 
 class TestMistakeDetectionEngine:
-
     @pytest.mark.anyio
     async def test_consecutive_losses_detection(self, tmp_path):
         """Assert 3+ consecutive losses trigger a CONSECUTIVE_LOSSES insight."""
@@ -178,7 +177,6 @@ class TestMistakeDetectionEngine:
 
 
 class TestDynamicStrategyCalibrator:
-
     @pytest.mark.anyio
     async def test_calibrator_cooling_down_and_boosted_states(self, tmp_path):
         """Assert StrategyCalibrator sets COOLING_DOWN or BOOSTED state based on performance and insights."""
@@ -226,7 +224,6 @@ class TestDynamicStrategyCalibrator:
 
 
 class TestLearningRepositoryPersistence:
-
     @pytest.mark.anyio
     async def test_upsert_and_retrieve_calibrations(self, tmp_path):
         """Assert calibrations and insights persist cleanly in SQLite."""
@@ -256,7 +253,6 @@ class TestLearningRepositoryPersistence:
 
 
 class TestLearningAPIEndpoints:
-
     @pytest.fixture(autouse=True)
     def setup_env(self, tmp_path, monkeypatch):
         test_db = str(tmp_path / f"test_api_learning_{uuid.uuid4().hex[:6]}.db")

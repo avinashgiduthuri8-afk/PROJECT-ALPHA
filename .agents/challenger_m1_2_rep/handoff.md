@@ -9,7 +9,11 @@
 ### 1.1 Dynamic Total Equity & Mark-to-Market Valuations
 - In `v2/services/portfolio_service/aggregator.py:43-57`, `PortfolioAggregator.aggregate()` computes:
   ```python
-  mark_price = pos.current_price if (pos.current_price is not None and pos.current_price > 0) else pos.entry_price
+  mark_price = (
+      pos.current_price
+      if (pos.current_price is not None and pos.current_price > 0)
+      else pos.entry_price
+  )
   mtm_val = pos.qty * mark_price
   total_mtm += mtm_val
 
@@ -32,7 +36,11 @@
   @property
   def available_balance_inr(self) -> float:
       with self._lock:
-          return max(0.0, self._shared_state["wallet_balance_inr"] - self._shared_state["deployed_capital_inr"])
+          return max(
+              0.0,
+              self._shared_state["wallet_balance_inr"]
+              - self._shared_state["deployed_capital_inr"],
+          )
   ```
   The available pool is strictly clamped to `max(0.0, ...)`, preventing negative capital balances.
 - In `v2/trading/subaccount_manager.py:286-314`, `place_order` verifies order notional against CoinDCX precision rules (`validate_order_notional(pair, rounded_price, rounded_qty)`) and rejects orders below `min_notional_inr` (₹200.00) with `ORDER_NOTIONAL_BELOW_MINIMUM`. Orders exceeding available pool are rejected with `INSUFFICIENT_SUBACCOUNT_BALANCE`.
@@ -52,9 +60,9 @@
    - However, in `v2/core/types.py:91-94`:
      ```python
      class PositionStatus(str, Enum):
-         OPEN    = "OPEN"
+         OPEN = "OPEN"
          CLOSING = "CLOSING"
-         CLOSED  = "CLOSED"
+         CLOSED = "CLOSED"
      ```
    - In `v2/repository/position_repo.py:45`, row deserialization executes:
      ```python

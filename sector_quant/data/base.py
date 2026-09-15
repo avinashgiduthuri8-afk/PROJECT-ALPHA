@@ -1,4 +1,4 @@
-﻿"""
+"""
 sector_quant.data.base — Abstract DataHandler class for event-driven bar feeds.
 """
 

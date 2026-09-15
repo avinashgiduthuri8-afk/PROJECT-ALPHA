@@ -1,4 +1,4 @@
-﻿"""
+"""
 V2 WebSocket Manager — manages live client subscriptions and real-time event broadcasting.
 """
 

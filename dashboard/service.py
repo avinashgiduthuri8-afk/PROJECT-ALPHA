@@ -54,8 +54,8 @@ class DashboardAnalyticsService:
         history = self._read_json("signal_history.json") or []
 
         horizons = {
+            "15m": {"total": 0, "wins": 0},
             "1h": {"total": 0, "wins": 0},
-            "4h": {"total": 0, "wins": 0},
             "24h": {"total": 0, "wins": 0},
             "3d": {"total": 0, "wins": 0},
             "7d": {"total": 0, "wins": 0},
@@ -63,8 +63,8 @@ class DashboardAnalyticsService:
 
         now = datetime.now(timezone.utc)
         time_limits = {
-            "1h": timedelta(hours=1),
-            "4h": timedelta(hours=4),
+            "15m": timedelta(hours=1),
+            "1h": timedelta(hours=4),
             "24h": timedelta(hours=24),
             "3d": timedelta(days=3),
             "7d": timedelta(days=7),

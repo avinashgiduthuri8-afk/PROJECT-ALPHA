@@ -73,7 +73,11 @@ Direct line-by-line observations of Worker M1's modifications across all 11 affe
    - In `v2/services/portfolio_service/service.py:82`, `get_snapshot()` queries `_position_repo.get_active_positions()`.
    - In `PortfolioAggregator.aggregate()`:
      ```python
-     mark_price = pos.current_price if (pos.current_price is not None and pos.current_price > 0) else pos.entry_price
+     mark_price = (
+         pos.current_price
+         if (pos.current_price is not None and pos.current_price > 0)
+         else pos.entry_price
+     )
      mtm_val = pos.qty * mark_price
      total_mtm += mtm_val
      if pos.unrealised_pnl is not None:

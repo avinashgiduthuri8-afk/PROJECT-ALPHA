@@ -1,4 +1,4 @@
-﻿"""
+"""
 sector_quant.execution — Execution simulation and broker interfaces.
 """
 

@@ -12,7 +12,6 @@ from .base import BacktestTradeSignal, BaseStrategy
 
 
 class HDAStrategy(BaseStrategy):
-
     def __init__(self) -> None:
         super().__init__("HDA (High Delivery & CVD Absorption)")
 

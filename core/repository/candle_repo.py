@@ -18,23 +18,37 @@ class CandleRepository(BaseRepository):
     """Manages SQLite storage for historical market candles."""
 
     async def get_recent_candles(
-        self, pair: str, timeframe: str, limit: int = 120
+        self,
+        pair: str,
+        timeframe: str,
+        limit: int = 120,
+        max_timestamp_ms: int | None = None,
     ) -> list[dict[str, Any]]:
         """
-        Get the most recent candles for a pair and timeframe.
+        Get the most recent candles for a pair and timeframe, up to an optional max timestamp (for backtesting).
         Returns a list of dicts ordered chronologically (ascending timestamp).
         """
-        query = """
-            SELECT pair, timeframe, timestamp, open, high, low, close, volume
-            FROM market_candles
-            WHERE pair = ? AND timeframe = ?
-            ORDER BY timestamp DESC
-            LIMIT ?
-        """
+        if max_timestamp_ms is not None:
+            query = """
+                SELECT pair, timeframe, timestamp, open, high, low, close, volume
+                FROM market_candles
+                WHERE pair = ? AND timeframe = ? AND timestamp <= ?
+                ORDER BY timestamp DESC
+                LIMIT ?
+            """
+            params = (pair.upper(), timeframe, max_timestamp_ms, limit)
+        else:
+            query = """
+                SELECT pair, timeframe, timestamp, open, high, low, close, volume
+                FROM market_candles
+                WHERE pair = ? AND timeframe = ?
+                ORDER BY timestamp DESC
+                LIMIT ?
+            """
+            params = (pair.upper(), timeframe, limit)
+
         try:
-            async with self._conn.execute(
-                query, (pair.upper(), timeframe, limit)
-            ) as cursor:
+            async with self._conn.execute(query, params) as cursor:
                 rows = await cursor.fetchall()
 
             # Convert sqlite rows to list of dicts, and reverse to be ascending (chronological)

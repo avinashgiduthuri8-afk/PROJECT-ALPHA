@@ -13,7 +13,10 @@ Do NOT use `starlette.testclient.TestClient` to test FastAPI route handlers that
 2. Example pattern:
    ```python
    req = MagicMock()
-   req.json = lambda: {"coin": "BTC", "base_price": 100.0}  # must be async if handler awaits it
+   req.json = lambda: {
+       "coin": "BTC",
+       "base_price": 100.0,
+   }  # must be async if handler awaits it
    data = json.loads(asyncio.run(my_handler(req)).body)
    ```
 3. For testing auth (which is an app-level dependency, not inside the handler), test the `require_api_key` function directly as a coroutine via `asyncio.run`.

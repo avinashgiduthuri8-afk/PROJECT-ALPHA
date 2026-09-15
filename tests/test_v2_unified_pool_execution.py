@@ -183,9 +183,9 @@ async def test_cross_strategy_coin_lock_all_permutations():
                 active_positions=active_pos,
                 current_coin=notation,
             )
-            assert (
-                decision.allowed is False
-            ), f"Expected {notation} to be blocked for {other_bot.value}"
+            assert decision.allowed is False, (
+                f"Expected {notation} to be blocked for {other_bot.value}"
+            )
             assert decision.code == "OPPORTUNITY_LOCKED_ACTIVE_PAIR"
             assert "Cross-strategy lock prevents opening" in decision.reason
 

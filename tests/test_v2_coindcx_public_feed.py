@@ -1,4 +1,4 @@
-﻿"""
+"""
 Unit and Integration Tests for CoinDCX Public Market Data Client & Feeder Pipeline.
 """
 

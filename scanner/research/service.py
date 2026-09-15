@@ -62,7 +62,7 @@ _STRATEGY_MAP = {
 TIMEFRAMES = [
     ("1m", "1m", 60),
     ("15m", "15m", 900),
-    ("1h", "1h", 3600),
+    ("15m", "15m", 3600),
     ("1d", "1d", 86400),
 ]
 
@@ -203,17 +203,17 @@ class CoinResearchService:
         # 1. Fetch ticker + candles concurrently
         ticker_task = asyncio.create_task(self._fetch_ticker(pair))
         candles_15m_task = asyncio.create_task(self._get_candles(pair, "15m", 120))
-        candles_1h_task = asyncio.create_task(self._get_candles(pair, "1h", 120))
+        candles_1h_task = asyncio.create_task(self._get_candles(pair, "15m", 120))
         candles_1d_task = asyncio.create_task(self._get_candles(pair, "1d", 365))
 
         ticker = await ticker_task
         c_15m = await candles_15m_task
-        c_1h = await candles_1h_task
+        c_15m = await candles_1h_task
         c_1d = await candles_1d_task
 
         # 2. Compute indicators on each timeframe
         ind_15m = self._compute_indicators(c_15m, "15m")
-        ind_1h = self._compute_indicators(c_1h, "1h")
+        ind_15m = self._compute_indicators(c_15m, "15m")
         ind_1d = self._compute_indicators(c_1d, "1d")
 
         # 52-week high/low from 1d candles
@@ -228,7 +228,7 @@ class CoinResearchService:
         # 5. 100-point 4-pillar scorecard
         scorecard = self._compute_scorecard(
             ind_1d=ind_1d,
-            ind_1h=ind_1h,
+            ind_15m=ind_15m,
             ticker=ticker,
             vcp_setup=vcp_setup,
             btc_rs_score=btc_rs_score,
@@ -242,7 +242,7 @@ class CoinResearchService:
             "week52": week52,
             "indicators": {
                 "15m": ind_15m,
-                "1h": ind_1h,
+                "15m": ind_15m,
                 "1d": ind_1d,
             },
             "vcp_setup": vcp_setup,
@@ -337,15 +337,15 @@ class CoinResearchService:
 
         # If indicators not provided, fetch them fresh
         if indicators is None:
-            candles_1h = await self._get_candles(pair, "1h", 120)
+            candles_15m = await self._get_candles(pair, "15m", 120)
             candles_1d = await self._get_candles(pair, "1d", 60)
-            ind_1h = self._compute_indicators(candles_1h, "1h")
+            ind_15m = self._compute_indicators(candles_15m, "15m")
             ind_1d = self._compute_indicators(candles_1d, "1d")
         else:
-            ind_1h = indicators.get("1h", {})
+            ind_15m = indicators.get("15m", {})
             ind_1d = indicators.get("1d", {})
 
-        prediction = self._generate_prediction(pair, ind_1h, ind_1d)
+        prediction = self._generate_prediction(pair, ind_15m, ind_1d)
         return prediction
 
     # ── Internal: Candle Fetching ─────────────────────────────────────────────
@@ -635,7 +635,9 @@ class CoinResearchService:
         quality = (
             "EXCELLENT"
             if len(stages) >= 3
-            else "GOOD" if len(stages) == 2 else "DEVELOPING"
+            else "GOOD"
+            if len(stages) == 2
+            else "DEVELOPING"
         )
 
         return {
@@ -700,7 +702,7 @@ class CoinResearchService:
     def _compute_scorecard(
         self,
         ind_1d: dict,
-        ind_1h: dict,
+        ind_15m: dict,
         ticker: dict,
         vcp_setup: dict,
         btc_rs_score: float,
@@ -805,7 +807,9 @@ class CoinResearchService:
                     else (
                         "WATCH"
                         if total >= 50
-                        else "NEUTRAL" if total >= 35 else "AVOID"
+                        else "NEUTRAL"
+                        if total >= 35
+                        else "AVOID"
                     )
                 )
             ),
@@ -816,7 +820,7 @@ class CoinResearchService:
     def _generate_prediction(
         self,
         pair: str,
-        ind_1h: dict,
+        ind_15m: dict,
         ind_1d: dict,
     ) -> dict[str, Any]:
         """
@@ -940,40 +944,40 @@ class CoinResearchService:
             return direction, confidence, catalysts, risks
 
         # Compute 1h and 24h forecasts
-        dir_1h, conf_1h, cat_1h, risk_1h = _score_direction(ind_1h)
+        dir_15m, conf_15m, cat_15m, risk_15m = _score_direction(ind_15m)
         dir_24h, conf_24h, cat_24h, risk_24h = _score_direction(ind_1d)
 
         # 4h is interpolated between 1h and 24h
-        dir_4h = dir_1h if dir_1h == dir_24h else "CONSOLIDATION"
-        conf_4h = round((conf_1h + conf_24h) / 2)
+        dir_1h = dir_15m if dir_15m == dir_24h else "CONSOLIDATION"
+        conf_1h = round((conf_15m + conf_24h) / 2)
 
         # Key levels
-        close = ind_1h.get("close", 0.0) if ind_1h.get("status") == "OK" else 0.0
-        e21 = ind_1h.get("ema21", 0.0) if ind_1h.get("status") == "OK" else 0.0
-        bb_lo = ind_1h.get("bb_lower", 0.0) if ind_1h.get("status") == "OK" else 0.0
-        bb_up = ind_1h.get("bb_upper", 0.0) if ind_1h.get("status") == "OK" else 0.0
+        close = ind_15m.get("close", 0.0) if ind_15m.get("status") == "OK" else 0.0
+        e21 = ind_15m.get("ema21", 0.0) if ind_15m.get("status") == "OK" else 0.0
+        bb_lo = ind_15m.get("bb_lower", 0.0) if ind_15m.get("status") == "OK" else 0.0
+        bb_up = ind_15m.get("bb_upper", 0.0) if ind_15m.get("status") == "OK" else 0.0
 
         support_levels = sorted({l for l in [round(bb_lo, 4), round(e21, 4)] if l > 0})
         resistance_levels = sorted({l for l in [round(bb_up, 4)] if l > 0})
 
         # Combine catalysts (deduplicated from both timeframes)
-        all_catalysts = list(dict.fromkeys(cat_1h + cat_24h))[:5]
-        all_risks = list(dict.fromkeys(risk_1h + risk_24h))[:5]
+        all_catalysts = list(dict.fromkeys(cat_15m + cat_24h))[:5]
+        all_risks = list(dict.fromkeys(risk_15m + risk_24h))[:5]
 
         return {
             "pair": pair,
             "predicted_at": datetime.now(timezone.utc).isoformat(),
             "method": "RULE_BASED",
             "horizons": {
+                "15m": {
+                    "direction": dir_15m,
+                    "confidence": conf_15m,
+                    "description": f"{dir_15m} bias on 1-hour timeframe ({conf_15m}% confidence)",
+                },
                 "1h": {
                     "direction": dir_1h,
                     "confidence": conf_1h,
-                    "description": f"{dir_1h} bias on 1-hour timeframe ({conf_1h}% confidence)",
-                },
-                "4h": {
-                    "direction": dir_4h,
-                    "confidence": conf_4h,
-                    "description": f"{dir_4h} bias on 4-hour timeframe ({conf_4h}% confidence)",
+                    "description": f"{dir_1h} bias on 4-hour timeframe ({conf_1h}% confidence)",
                 },
                 "24h": {
                     "direction": dir_24h,

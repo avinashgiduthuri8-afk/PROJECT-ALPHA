@@ -1,4 +1,4 @@
-﻿"""
+"""
 sector_quant.data — Market data handlers for event-driven simulation.
 """
 

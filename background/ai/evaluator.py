@@ -1,4 +1,4 @@
-﻿"""
+"""
 Deterministic Heuristic AI Evaluator.
 
 Provides robust, instant, offline-capable signal evaluation that acts as a fail-safe

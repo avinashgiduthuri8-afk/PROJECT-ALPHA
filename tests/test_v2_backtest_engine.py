@@ -20,7 +20,6 @@ from background.backtest.strategies import HDAStrategy
 
 
 class TestFrictionModel:
-
     def test_inr_spot_friction_rates(self):
         config = FrictionConfig(is_c2c_pair=False)
         assert config.buy_fee_pct == 0.236  # 0.20% + 18% GST
@@ -47,7 +46,6 @@ class TestFrictionModel:
 
 
 class TestPrecisionRounding:
-
     def test_inr_pairs_count(self):
         assert len(COINDCX_INR_PAIRS) >= 10
         assert "BTC/INR" in COINDCX_INR_PAIRS
@@ -68,7 +66,6 @@ class TestPrecisionRounding:
 
 
 class TestStage06RiskGate:
-
     def test_position_sizing_calculation(self):
         risk_gate = Stage06RiskGate(max_risk_pct_per_trade=1.0)
         sizing = risk_gate.calculate_position_size(
@@ -84,7 +81,6 @@ class TestStage06RiskGate:
 
 
 class TestMetricsCalculator:
-
     def test_calculate_trade_metrics(self):
         trades = [
             {"net_pnl": 1500.0, "gross_pnl": 2000.0},
@@ -101,7 +97,6 @@ class TestMetricsCalculator:
 
 
 class TestFleetSelector:
-
     def test_evaluate_and_rank_fleet(self):
         selector = FleetSelector(
             min_net_pf=1.75, min_net_rr=1.50, max_drawdown_pct=15.0
@@ -137,7 +132,6 @@ class TestFleetSelector:
 
 
 class TestBacktestEngineIntegration:
-
     def test_run_single_strategy_backtest(self):
         engine = BacktestEngine(initial_capital=100000.0)
         strat = HDAStrategy()

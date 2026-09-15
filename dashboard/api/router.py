@@ -133,9 +133,26 @@ def init_router(
 ) -> None:
     """Called by app_v2.py lifespan after services are started."""
     global _scanner_service, _scheduler, _config, _ai_service, _ai_repo, _signal_repo
-    global _risk_service, _portfolio_service, _trading_service, _shadow_service, _shadow_repo, _position_repo, _trade_repo, _event_log_repo
-    global _notification_service, _dashboard_service, _health_checker, _metrics_collector
-    global _journal_repo, _journal_service, _analytics_service, _learning_repo, _learning_service
+    global \
+        _risk_service, \
+        _portfolio_service, \
+        _trading_service, \
+        _shadow_service, \
+        _shadow_repo, \
+        _position_repo, \
+        _trade_repo, \
+        _event_log_repo
+    global \
+        _notification_service, \
+        _dashboard_service, \
+        _health_checker, \
+        _metrics_collector
+    global \
+        _journal_repo, \
+        _journal_service, \
+        _analytics_service, \
+        _learning_repo, \
+        _learning_service
     global _backtest_repo, _backtest_service, _feedback_repo, _feedback_service
     _scanner_service = scanner_service
     _scheduler = scheduler
@@ -796,7 +813,9 @@ async def get_positions(
             exit_reason=(
                 p.exit_reason.value
                 if p.exit_reason and hasattr(p.exit_reason, "value")
-                else str(p.exit_reason) if p.exit_reason else None
+                else str(p.exit_reason)
+                if p.exit_reason
+                else None
             ),
             closed_at=p.closed_at,
         )
@@ -1454,7 +1473,7 @@ async def get_active_positions() -> list[PositionSchema]:
     tags=["trading", "execution"],
 )
 async def get_all_orders(
-    limit: int = Query(default=50, ge=1, le=200)
+    limit: int = Query(default=50, ge=1, le=200),
 ) -> list[UnifiedOrderSchema]:
     """
     Unified order feed aggregating open positions, historical closed trades,
@@ -1689,7 +1708,9 @@ async def get_order_lifecycle(entity_id: str) -> OrderLifecycleSchema:
             "status": (
                 "ACTIVE"
                 if status == "OPEN"
-                else "CLOSED" if status == "CLOSED" else "PASSED"
+                else "CLOSED"
+                if status == "CLOSED"
+                else "PASSED"
             ),
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "detail": "Active bracket management (SL & TP active).",
@@ -1726,7 +1747,7 @@ async def get_order_lifecycle(entity_id: str) -> OrderLifecycleSchema:
     tags=["monitoring"],
 )
 async def get_system_errors(
-    limit: int = Query(default=50, ge=1, le=200)
+    limit: int = Query(default=50, ge=1, le=200),
 ) -> list[ErrorLogItemSchema]:
     """
     Retrieve centralized error trail, circuit trips, alert events, and scheduler warnings.
@@ -1778,7 +1799,9 @@ async def get_system_errors(
                         severity=(
                             "CRITICAL"
                             if "TRIPPED" in e.event_type
-                            else "WARNING" if "DENIED" in e.event_type else "ERROR"
+                            else "WARNING"
+                            if "DENIED" in e.event_type
+                            else "ERROR"
                         ),
                         message=f"{e.event_type}: {e.payload.get('reason') or e.payload.get('error') or 'Event recorded'}",
                         status=(

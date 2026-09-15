@@ -1,4 +1,4 @@
-﻿"""
+"""
 sector_quant.events — Event-driven primitives for multi-asset backtesting.
 """
 

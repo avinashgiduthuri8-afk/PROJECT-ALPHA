@@ -12,7 +12,6 @@ from .base import BacktestTradeSignal, BaseStrategy
 
 
 class MRBStrategy(BaseStrategy):
-
     def __init__(self) -> None:
         super().__init__("MRB (Statistical Mean Reversion)")
 

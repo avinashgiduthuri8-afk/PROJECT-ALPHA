@@ -12,7 +12,6 @@ from .base import BacktestTradeSignal, BaseStrategy
 
 
 class BBSStrategy(BaseStrategy):
-
     def __init__(self) -> None:
         super().__init__("BBS (Bollinger Band Squeeze)")
 

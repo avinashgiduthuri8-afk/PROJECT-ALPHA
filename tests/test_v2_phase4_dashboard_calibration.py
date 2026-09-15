@@ -70,8 +70,8 @@ def test_dashboard_analytics_service_win_rates():
     analytics = DashboardAnalyticsService()
     res = analytics.get_win_rates()
     assert "time_horizons" in res
+    assert "15m" in res["time_horizons"]
     assert "1h" in res["time_horizons"]
-    assert "4h" in res["time_horizons"]
     assert "24h" in res["time_horizons"]
     assert "3d" in res["time_horizons"]
     assert "7d" in res["time_horizons"]

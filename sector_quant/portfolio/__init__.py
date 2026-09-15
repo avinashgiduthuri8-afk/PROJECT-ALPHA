@@ -1,4 +1,4 @@
-﻿"""
+"""
 sector_quant.portfolio — Portfolio management and risk gates.
 """
 

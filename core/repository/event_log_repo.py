@@ -53,7 +53,6 @@ def _row_to_entry(row: aiosqlite.Row, loads) -> EventLogEntry:
 
 
 class EventLogRepository(BaseRepository):
-
     async def append(
         self,
         event_type: str,

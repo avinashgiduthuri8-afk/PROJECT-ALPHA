@@ -174,7 +174,7 @@ class AIIntelligenceService:
             "confluence_score": (signal.raw_payload or {}).get("confluence_score"),
             "dynamic_threshold": (signal.raw_payload or {}).get("dynamic_threshold"),
             "mtf_timeframes": (signal.raw_payload or {}).get(
-                "mtf_timeframes", ["5m", "15m", "1h"]
+                "mtf_timeframes", ["5m", "15m", "15m"]
             ),
             "expires_at": signal.expires_at.isoformat(),
         }

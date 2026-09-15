@@ -184,7 +184,7 @@ async def test_fetch_full_coin_profile():
     assert profile["ticker"]["ltp"] == 55000.0
     assert profile["ticker"]["change_24h_pct"] == 3.5
     assert "15m" in profile["indicators"]
-    assert "1h" in profile["indicators"]
+    assert "15m" in profile["indicators"]
     assert "1d" in profile["indicators"]
     assert profile["vcp_setup"] is not None
     assert "total_score" in profile["scorecard"]
@@ -221,7 +221,7 @@ async def test_predict_trend_and_catalysts():
 
     # Supply pre-computed indicators
     dummy_indicators = {
-        "1h": {
+        "15m": {
             "status": "OK",
             "close": 55000.0,
             "ema21": 54000.0,
@@ -255,12 +255,12 @@ async def test_predict_trend_and_catalysts():
 
     assert pred["pair"] == "BTC/INR"
     assert pred["method"] == "RULE_BASED"
-    assert pred["horizons"]["1h"]["direction"] in (
+    assert pred["horizons"]["15m"]["direction"] in (
         "BULLISH",
         "BEARISH",
         "CONSOLIDATION",
     )
-    assert pred["horizons"]["4h"]["direction"] in (
+    assert pred["horizons"]["1h"]["direction"] in (
         "BULLISH",
         "BEARISH",
         "CONSOLIDATION",
@@ -334,6 +334,6 @@ def test_api_predict_endpoint():
         data = resp.json()
         assert data["pair"] == "BTC/INR"
         assert "horizons" in data
+        assert "15m" in data["horizons"]
         assert "1h" in data["horizons"]
-        assert "4h" in data["horizons"]
         assert "24h" in data["horizons"]

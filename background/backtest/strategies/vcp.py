@@ -12,7 +12,6 @@ from .base import BacktestTradeSignal, BaseStrategy
 
 
 class VCPStrategy(BaseStrategy):
-
     def __init__(self) -> None:
         super().__init__("VCP (Volatility Contraction Pattern)")
 

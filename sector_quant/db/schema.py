@@ -1,4 +1,4 @@
-﻿"""
+"""
 sector_quant.db.schema — Relational schema and queries for Securities Master.
 """
 

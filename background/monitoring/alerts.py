@@ -1,4 +1,4 @@
-﻿"""
+"""
 V2 AlertManager — monitors health checks and metrics thresholds, auto-emitting alert events.
 """
 

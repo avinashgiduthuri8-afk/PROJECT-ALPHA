@@ -12,7 +12,6 @@ from .base import BacktestTradeSignal, BaseStrategy
 
 
 class MTBStrategy(BaseStrategy):
-
     def __init__(self) -> None:
         super().__init__("MTB (Momentum Trend Breakout)")
 

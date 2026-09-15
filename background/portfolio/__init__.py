@@ -1,4 +1,4 @@
-﻿"""
+"""
 V2 Portfolio Service Package.
 """
 

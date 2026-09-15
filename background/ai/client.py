@@ -1,4 +1,4 @@
-﻿"""
+"""
 Gemini REST API Client for AI Signal Intelligence.
 
 Interacts with the Google Gemini API using structured JSON output mode,

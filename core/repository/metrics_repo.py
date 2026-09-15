@@ -59,7 +59,6 @@ def _row_to_snapshot(row: aiosqlite.Row, loads) -> MetricsSnapshot:
 
 
 class MetricsRepository(BaseRepository):
-
     async def insert_snapshot(self, snapshot: Any) -> str:
         sid = getattr(snapshot, "id", None) or str(uuid.uuid4())
         total_unrealised = getattr(snapshot, "total_unrealised", None)

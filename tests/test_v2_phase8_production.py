@@ -47,7 +47,6 @@ async def _create_test_production_db(tmp_path):
 
 
 class TestProductionControllerAndSafety:
-
     @pytest.mark.anyio
     async def test_mode_transitions_and_persistence(self, tmp_path):
         """Verify transitions between SHADOW, PAPER, and LIVE_MICROCASH modes."""
@@ -128,7 +127,6 @@ class TestProductionControllerAndSafety:
 
 
 class TestShadowDivergenceTracker:
-
     @pytest.mark.anyio
     async def test_divergence_computation_and_anomaly_alert(self, tmp_path):
         """Verify slippage divergence computation and anomaly alert triggering."""
@@ -182,7 +180,6 @@ class TestShadowDivergenceTracker:
 
 
 class TestProductionWatchdog:
-
     @pytest.mark.anyio
     async def test_watchdog_health_inspection_and_alerting(self):
         """Verify watchdog inspects sub-services and reports overall status."""
@@ -220,7 +217,6 @@ class TestProductionWatchdog:
 
 
 class TestProductionAPIEndpoints:
-
     @pytest.fixture(autouse=True)
     def setup_env(self, tmp_path, monkeypatch):
         test_db = str(tmp_path / f"test_api_prod_{uuid.uuid4().hex[:6]}.db")

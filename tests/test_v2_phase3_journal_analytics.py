@@ -46,7 +46,6 @@ async def _create_test_journal_db(tmp_path):
 
 
 class TestJournalIngestionAndFriction:
-
     @pytest.mark.anyio
     async def test_statutory_friction_breakdown_formula(self):
         """Assert exact statutory friction decomposition: 0.20% fee + 18% GST + 1% TDS + 0.10% slippage."""
@@ -134,7 +133,6 @@ class TestJournalIngestionAndFriction:
 
 
 class TestQuantitativeAnalyticsEngine:
-
     @pytest.mark.anyio
     async def test_quant_metrics_calculation(self, tmp_path):
         """Verify Win Rate %, Profit Factor, Max Drawdown, Sharpe, Sortino, Calmar calculations."""
@@ -291,7 +289,6 @@ class TestQuantitativeAnalyticsEngine:
 
 
 class TestStatutoryTaxLedger:
-
     @pytest.mark.anyio
     async def test_tax_ledger_aggregates_tds_and_gst(self, tmp_path):
         """TaxLedgerService correctly aggregates Sec 194S TDS and brokerage GST."""
@@ -345,7 +342,6 @@ class TestStatutoryTaxLedger:
 
 
 class TestJournalAnalyticsAPIEndpoints:
-
     @pytest.fixture(autouse=True)
     def setup_env(self, tmp_path, monkeypatch):
         test_db = str(tmp_path / f"test_api_{uuid.uuid4().hex[:6]}.db")

@@ -1,4 +1,4 @@
-﻿"""
+"""
 V2 MetricsCollector — in-memory counters, rates, and latency distributions.
 """
 

@@ -76,7 +76,6 @@ async def sqlite_env(tmp_path):
 
 
 class TestDynamicEquityAndMTMValuations:
-
     def test_dynamic_equity_positive_unrealized_pnl(self):
         """Verify dynamic equity accurately computes Cash + MTM under +10% unrealized PnL."""
         now = datetime.now(timezone.utc)
@@ -400,7 +399,6 @@ class TestDynamicEquityAndMTMValuations:
 
 
 class TestSharedCapitalPoolAndMinNotional:
-
     def test_shared_capital_pool_never_negative(self):
         """Verify available balance never drops below 0.0 even under excessive simulated deployment."""
         sub_mgr = CoinDCXSubAccountManager()
@@ -532,7 +530,6 @@ class TestSharedCapitalPoolAndMinNotional:
 
 
 class TestStartupHydrationIdempotency:
-
     @pytest.mark.anyio
     async def test_successive_hydration_preserves_idempotency(self, sqlite_env):
         """

@@ -113,9 +113,16 @@ async def _create_test_env(mode: str = "LIVE_MICROCASH", trading_enabled: bool =
 @pytest.mark.anyio
 async def test_01_paper_buy_uses_paper_path():
     """1. Paper BUY uses paper path and never calls live exchange."""
-    db, bus, pos_repo, trade_repo, event_repo, cfg, mgr, service = (
-        await _create_test_env(mode="PAPER", trading_enabled=False)
-    )
+    (
+        db,
+        bus,
+        pos_repo,
+        trade_repo,
+        event_repo,
+        cfg,
+        mgr,
+        service,
+    ) = await _create_test_env(mode="PAPER", trading_enabled=False)
     client = mgr.get_client(BotName.STE)
     client.place_live_order = AsyncMock()
 
@@ -139,9 +146,16 @@ async def test_01_paper_buy_uses_paper_path():
 @pytest.mark.anyio
 async def test_02_shadow_buy_never_reaches_live():
     """2. Shadow BUY never reaches live exchange."""
-    db, bus, pos_repo, trade_repo, event_repo, cfg, mgr, service = (
-        await _create_test_env(mode="SHADOW", trading_enabled=False)
-    )
+    (
+        db,
+        bus,
+        pos_repo,
+        trade_repo,
+        event_repo,
+        cfg,
+        mgr,
+        service,
+    ) = await _create_test_env(mode="SHADOW", trading_enabled=False)
     client = mgr.get_client(BotName.STE)
     client.place_live_order = AsyncMock()
 
@@ -162,9 +176,16 @@ async def test_02_shadow_buy_never_reaches_live():
 @pytest.mark.anyio
 async def test_03_live_buy_calls_place_live_order():
     """3. Live BUY calls place_live_order."""
-    db, bus, pos_repo, trade_repo, event_repo, cfg, mgr, service = (
-        await _create_test_env(mode="LIVE_MICROCASH", trading_enabled=True)
-    )
+    (
+        db,
+        bus,
+        pos_repo,
+        trade_repo,
+        event_repo,
+        cfg,
+        mgr,
+        service,
+    ) = await _create_test_env(mode="LIVE_MICROCASH", trading_enabled=True)
     client = mgr.get_client(BotName.STE)
     client.place_live_order = AsyncMock(
         return_value={
@@ -196,9 +217,16 @@ async def test_03_live_buy_calls_place_live_order():
 @pytest.mark.anyio
 async def test_04_rejected_buy_no_position():
     """4. Rejected BUY -> no position opened."""
-    db, bus, pos_repo, trade_repo, event_repo, cfg, mgr, service = (
-        await _create_test_env(mode="LIVE_MICROCASH", trading_enabled=True)
-    )
+    (
+        db,
+        bus,
+        pos_repo,
+        trade_repo,
+        event_repo,
+        cfg,
+        mgr,
+        service,
+    ) = await _create_test_env(mode="LIVE_MICROCASH", trading_enabled=True)
     client = mgr.get_client(BotName.STE)
     client.place_live_order = AsyncMock(
         return_value={
@@ -226,9 +254,16 @@ async def test_04_rejected_buy_no_position():
 @pytest.mark.anyio
 async def test_05_pending_buy_no_open_position():
     """5. Pending BUY -> no OPEN position until confirmed."""
-    db, bus, pos_repo, trade_repo, event_repo, cfg, mgr, service = (
-        await _create_test_env(mode="LIVE_MICROCASH", trading_enabled=True)
-    )
+    (
+        db,
+        bus,
+        pos_repo,
+        trade_repo,
+        event_repo,
+        cfg,
+        mgr,
+        service,
+    ) = await _create_test_env(mode="LIVE_MICROCASH", trading_enabled=True)
     client = mgr.get_client(BotName.STE)
     client.place_live_order = AsyncMock(
         return_value={
@@ -258,9 +293,16 @@ async def test_05_pending_buy_no_open_position():
 @pytest.mark.anyio
 async def test_06_07_08_filled_buy_persists_order_id_and_actual_qty():
     """6, 7, 8. Filled BUY creates OPEN position with persisted exchange_order_id and actual filled_qty."""
-    db, bus, pos_repo, trade_repo, event_repo, cfg, mgr, service = (
-        await _create_test_env(mode="LIVE_MICROCASH", trading_enabled=True)
-    )
+    (
+        db,
+        bus,
+        pos_repo,
+        trade_repo,
+        event_repo,
+        cfg,
+        mgr,
+        service,
+    ) = await _create_test_env(mode="LIVE_MICROCASH", trading_enabled=True)
     client = mgr.get_client(BotName.STE)
     client.place_live_order = AsyncMock(
         return_value={
@@ -302,9 +344,16 @@ async def test_06_07_08_filled_buy_persists_order_id_and_actual_qty():
 @pytest.mark.anyio
 async def test_09_paper_sell_uses_paper_path():
     """9. Paper SELL uses paper path."""
-    db, bus, pos_repo, trade_repo, event_repo, cfg, mgr, service = (
-        await _create_test_env(mode="PAPER", trading_enabled=False)
-    )
+    (
+        db,
+        bus,
+        pos_repo,
+        trade_repo,
+        event_repo,
+        cfg,
+        mgr,
+        service,
+    ) = await _create_test_env(mode="PAPER", trading_enabled=False)
     client = mgr.get_client(BotName.STE)
     client.place_live_order = AsyncMock()
 
@@ -333,9 +382,16 @@ async def test_09_paper_sell_uses_paper_path():
 @pytest.mark.anyio
 async def test_10_live_sell_calls_place_live_order():
     """10. Live SELL calls place_live_order."""
-    db, bus, pos_repo, trade_repo, event_repo, cfg, mgr, service = (
-        await _create_test_env(mode="LIVE_MICROCASH", trading_enabled=True)
-    )
+    (
+        db,
+        bus,
+        pos_repo,
+        trade_repo,
+        event_repo,
+        cfg,
+        mgr,
+        service,
+    ) = await _create_test_env(mode="LIVE_MICROCASH", trading_enabled=True)
     client = mgr.get_client(BotName.STE)
     client.place_live_order = AsyncMock(
         return_value={
@@ -372,9 +428,16 @@ async def test_10_live_sell_calls_place_live_order():
 @pytest.mark.anyio
 async def test_11_failed_sell_remains_open():
     """11. Failed SELL -> position remains OPEN."""
-    db, bus, pos_repo, trade_repo, event_repo, cfg, mgr, service = (
-        await _create_test_env(mode="LIVE_MICROCASH", trading_enabled=True)
-    )
+    (
+        db,
+        bus,
+        pos_repo,
+        trade_repo,
+        event_repo,
+        cfg,
+        mgr,
+        service,
+    ) = await _create_test_env(mode="LIVE_MICROCASH", trading_enabled=True)
     client = mgr.get_client(BotName.STE)
     client.place_live_order = AsyncMock(
         return_value={
@@ -408,9 +471,16 @@ async def test_11_failed_sell_remains_open():
 @pytest.mark.anyio
 async def test_12_pending_sell_remains_open():
     """12. Pending SELL -> position remains OPEN."""
-    db, bus, pos_repo, trade_repo, event_repo, cfg, mgr, service = (
-        await _create_test_env(mode="LIVE_MICROCASH", trading_enabled=True)
-    )
+    (
+        db,
+        bus,
+        pos_repo,
+        trade_repo,
+        event_repo,
+        cfg,
+        mgr,
+        service,
+    ) = await _create_test_env(mode="LIVE_MICROCASH", trading_enabled=True)
     client = mgr.get_client(BotName.STE)
     client.place_live_order = AsyncMock(
         return_value={
@@ -446,9 +516,16 @@ async def test_12_pending_sell_remains_open():
 @pytest.mark.anyio
 async def test_13_filled_sell_closed():
     """13. Filled SELL -> position CLOSED and trade recorded."""
-    db, bus, pos_repo, trade_repo, event_repo, cfg, mgr, service = (
-        await _create_test_env(mode="LIVE_MICROCASH", trading_enabled=True)
-    )
+    (
+        db,
+        bus,
+        pos_repo,
+        trade_repo,
+        event_repo,
+        cfg,
+        mgr,
+        service,
+    ) = await _create_test_env(mode="LIVE_MICROCASH", trading_enabled=True)
     client = mgr.get_client(BotName.STE)
     client.place_live_order = AsyncMock(
         return_value={
@@ -488,9 +565,16 @@ async def test_13_filled_sell_closed():
 @pytest.mark.anyio
 async def test_14_partial_sell_keeps_remaining_position_open():
     """14. Partial SELL -> remaining position remains OPEN."""
-    db, bus, pos_repo, trade_repo, event_repo, cfg, mgr, service = (
-        await _create_test_env(mode="LIVE_MICROCASH", trading_enabled=True)
-    )
+    (
+        db,
+        bus,
+        pos_repo,
+        trade_repo,
+        event_repo,
+        cfg,
+        mgr,
+        service,
+    ) = await _create_test_env(mode="LIVE_MICROCASH", trading_enabled=True)
     client = mgr.get_client(BotName.STE)
     client.place_live_order = AsyncMock(
         return_value={
@@ -532,9 +616,16 @@ async def test_14_partial_sell_keeps_remaining_position_open():
 @pytest.mark.anyio
 async def test_15_successful_live_sell_never_calls_paper_place_order():
     """15. CRITICAL INVARIANT: A successful LIVE SELL never calls place_order()."""
-    db, bus, pos_repo, trade_repo, event_repo, cfg, mgr, service = (
-        await _create_test_env(mode="LIVE_MICROCASH", trading_enabled=True)
-    )
+    (
+        db,
+        bus,
+        pos_repo,
+        trade_repo,
+        event_repo,
+        cfg,
+        mgr,
+        service,
+    ) = await _create_test_env(mode="LIVE_MICROCASH", trading_enabled=True)
     client = mgr.get_client(BotName.STE)
     client.place_order = MagicMock(
         side_effect=AssertionError("FATAL: duplicate mock place_order was called!")
@@ -576,9 +667,16 @@ async def test_15_successful_live_sell_never_calls_paper_place_order():
 @pytest.mark.anyio
 async def test_16_timeout_does_not_blindly_duplicate_buy():
     """16. Timeout does not blindly duplicate BUY order."""
-    db, bus, pos_repo, trade_repo, event_repo, cfg, mgr, service = (
-        await _create_test_env(mode="LIVE_MICROCASH", trading_enabled=True)
-    )
+    (
+        db,
+        bus,
+        pos_repo,
+        trade_repo,
+        event_repo,
+        cfg,
+        mgr,
+        service,
+    ) = await _create_test_env(mode="LIVE_MICROCASH", trading_enabled=True)
     client = mgr.get_client(BotName.STE)
     # Simulate network timeout
     client.place_live_order = AsyncMock(
@@ -618,9 +716,16 @@ async def test_16_timeout_does_not_blindly_duplicate_buy():
 @pytest.mark.anyio
 async def test_17_timeout_does_not_blindly_duplicate_sell():
     """17. Timeout on SELL does not blindly duplicate exit submission."""
-    db, bus, pos_repo, trade_repo, event_repo, cfg, mgr, service = (
-        await _create_test_env(mode="LIVE_MICROCASH", trading_enabled=True)
-    )
+    (
+        db,
+        bus,
+        pos_repo,
+        trade_repo,
+        event_repo,
+        cfg,
+        mgr,
+        service,
+    ) = await _create_test_env(mode="LIVE_MICROCASH", trading_enabled=True)
     client = mgr.get_client(BotName.STE)
     client.place_live_order = AsyncMock(
         return_value={
@@ -665,9 +770,16 @@ async def test_17_timeout_does_not_blindly_duplicate_sell():
 @pytest.mark.anyio
 async def test_18_reconciliation_detects_mismatch():
     """18. Detect exchange/local mismatch (missing exchange order id on live position)."""
-    db, bus, pos_repo, trade_repo, event_repo, cfg, mgr, service = (
-        await _create_test_env(mode="LIVE_MICROCASH", trading_enabled=True)
-    )
+    (
+        db,
+        bus,
+        pos_repo,
+        trade_repo,
+        event_repo,
+        cfg,
+        mgr,
+        service,
+    ) = await _create_test_env(mode="LIVE_MICROCASH", trading_enabled=True)
 
     pos = Position(
         id="pos-mismatch-18",
@@ -691,9 +803,16 @@ async def test_18_reconciliation_detects_mismatch():
 @pytest.mark.anyio
 async def test_19_reconciliation_handles_rejected_order():
     """19. Reconciliation auto-repairs order cancelled/rejected on exchange to CLOSED."""
-    db, bus, pos_repo, trade_repo, event_repo, cfg, mgr, service = (
-        await _create_test_env(mode="LIVE_MICROCASH", trading_enabled=True)
-    )
+    (
+        db,
+        bus,
+        pos_repo,
+        trade_repo,
+        event_repo,
+        cfg,
+        mgr,
+        service,
+    ) = await _create_test_env(mode="LIVE_MICROCASH", trading_enabled=True)
     client = mgr.get_client(BotName.STE)
     client.get_order_status = AsyncMock(
         return_value={
@@ -729,9 +848,16 @@ async def test_19_reconciliation_handles_rejected_order():
 @pytest.mark.anyio
 async def test_20_reconciliation_handles_partial_fill():
     """20. Reconciliation aligns local quantity with exchange partial fill."""
-    db, bus, pos_repo, trade_repo, event_repo, cfg, mgr, service = (
-        await _create_test_env(mode="LIVE_MICROCASH", trading_enabled=True)
-    )
+    (
+        db,
+        bus,
+        pos_repo,
+        trade_repo,
+        event_repo,
+        cfg,
+        mgr,
+        service,
+    ) = await _create_test_env(mode="LIVE_MICROCASH", trading_enabled=True)
     client = mgr.get_client(BotName.STE)
     client.get_order_status = AsyncMock(
         return_value={
@@ -787,9 +913,16 @@ def test_21_22_scheduler_registers_exit_and_reconciliation_once():
 @pytest.mark.anyio
 async def test_23_poll_exits_reaches_exit_evaluation():
     """23. poll_exits reaches exit evaluation and calls check_open_position_exits."""
-    db, bus, pos_repo, trade_repo, event_repo, cfg, mgr, service = (
-        await _create_test_env()
-    )
+    (
+        db,
+        bus,
+        pos_repo,
+        trade_repo,
+        event_repo,
+        cfg,
+        mgr,
+        service,
+    ) = await _create_test_env()
     pos = Position(
         id="pos-poll-23",
         bot=BotName.STE,

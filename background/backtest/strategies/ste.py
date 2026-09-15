@@ -12,7 +12,6 @@ from .base import BacktestTradeSignal, BaseStrategy
 
 
 class STEStrategy(BaseStrategy):
-
     def __init__(self) -> None:
         super().__init__("STE (SuperTrend ATR Expansion)")
 

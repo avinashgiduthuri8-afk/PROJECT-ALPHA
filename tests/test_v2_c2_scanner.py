@@ -57,7 +57,6 @@ from core.types import OppType
 
 
 class TestChartStructureEvaluator:
-
     def test_breakout_bull_trend_high_score(self):
         evaluator = ChartStructureEvaluator()
         sig = _make_test_signal(market_state=MarketState.BREAKOUT)
@@ -74,7 +73,6 @@ class TestChartStructureEvaluator:
 
 
 class TestIndicatorEvaluator:
-
     def test_mtf_alignment_required(self):
         evaluator = IndicatorEvaluator()
         sig_aligned = _make_test_signal(mtf_alignment=True, score=90)
@@ -88,7 +86,6 @@ class TestIndicatorEvaluator:
 
 
 class TestMarketSentimentEvaluator:
-
     def test_risk_on_bullish_btc_passes(self):
         evaluator = MarketSentimentEvaluator()
         evaluator.update_market_state(
@@ -110,7 +107,6 @@ class TestMarketSentimentEvaluator:
 
 
 class TestNewsEventsEvaluator:
-
     def test_clean_news_passes(self):
         evaluator = NewsEventsEvaluator()
         sig = _make_test_signal()
@@ -126,7 +122,6 @@ class TestNewsEventsEvaluator:
 
 
 class TestConfluenceEngine:
-
     def test_strict_rejection_mentality(self):
         engine = ConfluenceEngine(strict_threshold=85, max_signals=2)
         engine.update_market_sentiment("BULLISH", "BULLISH", "RISK_ON")
@@ -207,7 +202,6 @@ class TestConfluenceEngine:
 
 
 class TestDeduplicationAndPrecision:
-
     def test_dedup_key_and_filter(self):
         from scanner.signal_filter import _dedup_key, deduplicate
 
@@ -316,7 +310,6 @@ class TestDeduplicationAndPrecision:
 
 
 class TestPostExitCooldownAndSignalLifecycle:
-
     @pytest.mark.anyio
     async def test_position_close_triggers_cooldown_and_suppresses_reentry(self):
         """Verify position close sets cooldown and suppresses immediate same-coin re-entry."""

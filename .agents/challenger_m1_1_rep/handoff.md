@@ -37,9 +37,9 @@
    - `PositionStatus` enum in `v2/core/types.py` only defines:
      ```python
      class PositionStatus(str, Enum):
-         OPEN    = "OPEN"
+         OPEN = "OPEN"
          CLOSING = "CLOSING"
-         CLOSED  = "CLOSED"
+         CLOSED = "CLOSED"
      ```
    - In `v2/repository/position_repo.py:45`, `_row_to_position()` constructs:
      `status = PositionStatus(d.get("status", "OPEN"))`

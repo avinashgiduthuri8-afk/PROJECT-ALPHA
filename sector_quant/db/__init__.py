@@ -1,4 +1,4 @@
-﻿"""
+"""
 sector_quant.db — Securities Master database and schema.
 """
 

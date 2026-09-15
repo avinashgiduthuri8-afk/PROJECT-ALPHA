@@ -12,7 +12,6 @@ from .base import BacktestTradeSignal, BaseStrategy
 
 
 class NR7Strategy(BaseStrategy):
-
     def __init__(self) -> None:
         super().__init__("NR7 (Narrow Range 7 Squeeze)")
 

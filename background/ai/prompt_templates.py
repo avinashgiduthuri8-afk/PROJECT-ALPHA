@@ -140,8 +140,8 @@ def build_signal_prompt(signal: Signal) -> str:
             "macd_hist": raw.get("macd_hist"),
             "atr": raw.get("atr"),
             "supertrend": raw.get("supertrend"),
+            "timeframe_15m": raw.get("tf_15m") or raw.get("15m"),
             "timeframe_1h": raw.get("tf_1h") or raw.get("1h"),
-            "timeframe_4h": raw.get("tf_4h") or raw.get("4h"),
             "timeframe_24h": raw.get("tf_24h") or raw.get("24h"),
         },
         "raw_metadata": {

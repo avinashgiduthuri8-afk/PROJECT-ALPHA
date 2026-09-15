@@ -9,7 +9,6 @@ from enum import Enum
 
 
 class EventType(str, Enum):
-
     # ── Signal lifecycle ────────────────────────────────────────────────────
     SIGNAL_GENERATED = "signal.generated"
     SIGNAL_UPDATED = "signal.updated"

@@ -1,4 +1,4 @@
-﻿"""
+"""
 sector_quant.strategies — Quantitative trading strategies.
 """
 

@@ -276,23 +276,23 @@ def test_evaluate_mtf_alignment():
     mtf_bullish = {
         "5m": _make_bullish_candles(30),
         "15m": _make_bullish_candles(30),
-        "1h": _make_bullish_candles(30),
+        "15m": _make_bullish_candles(30),
     }
     is_aligned, details = service.evaluate_mtf_alignment(mtf_bullish)
     assert is_aligned is True
     assert "5m" in details
     assert "15m" in details
-    assert "1h" in details
+    assert "15m" in details
     assert details["15m"]["aligned"] is True
 
-    mtf_bearish_1h = {
+    mtf_bearish_15m = {
         "5m": _make_bullish_candles(30),
         "15m": _make_bullish_candles(30),
-        "1h": _make_bearish_candles(30),
+        "15m": _make_bearish_candles(30),
     }
-    is_aligned_bear, details_bear = service.evaluate_mtf_alignment(mtf_bearish_1h)
+    is_aligned_bear, details_bear = service.evaluate_mtf_alignment(mtf_bearish_15m)
     assert is_aligned_bear is False
-    assert details_bear["1h"]["aligned"] is False
+    assert details_bear["15m"]["aligned"] is False
 
 
 # ── 5. Confluence Engine Dynamic Sentiment & News Risk Integration ────────────

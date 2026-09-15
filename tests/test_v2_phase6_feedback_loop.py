@@ -43,7 +43,6 @@ async def _create_test_feedback_db(tmp_path):
 
 
 class TestPreDeploymentValidationGate:
-
     @pytest.mark.anyio
     async def test_calibration_promotion_on_valid_backtest(self, tmp_path):
         """Assert candidate calibration passing backtest is PROMOTED to active cache."""
@@ -120,7 +119,6 @@ class TestPreDeploymentValidationGate:
 
 
 class TestSafetyRollbackEngine:
-
     @pytest.mark.anyio
     async def test_safety_rollback_on_consecutive_losses(self, tmp_path):
         """Assert 2 consecutive post-promotion losses trigger emergency rollback to baseline config."""
@@ -165,7 +163,6 @@ class TestSafetyRollbackEngine:
 
 
 class TestFeedbackAPIEndpoints:
-
     @pytest.fixture(autouse=True)
     def setup_env(self, tmp_path, monkeypatch):
         test_db = str(tmp_path / f"test_api_feedback_{uuid.uuid4().hex[:6]}.db")

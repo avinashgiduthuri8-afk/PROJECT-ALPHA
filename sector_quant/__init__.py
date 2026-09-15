@@ -1,4 +1,4 @@
-﻿"""
+"""
 sector_quant — Institutional Event-Driven Multi-Asset & Cross-Sector Framework.
 
 Features:

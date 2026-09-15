@@ -76,7 +76,6 @@ async def _create_test_backtest_db(tmp_path):
 
 
 class TestHistoricalRunnerEngine:
-
     def test_zero_look_ahead_bias_execution(self):
         """Assert signal calculated on bar N close enters trade at bar N+1 Open price."""
         runner = HistoricalRunner()
@@ -113,7 +112,6 @@ class TestHistoricalRunnerEngine:
 
 
 class TestStrategyOptimizer:
-
     def test_walk_forward_split_and_validation(self):
         """Verify 70/30 Walk-Forward split ratio and validation report generation."""
         optimizer = StrategyOptimizer()
@@ -155,7 +153,6 @@ class TestStrategyOptimizer:
 
 
 class TestBacktestRepositoryPersistence:
-
     @pytest.mark.anyio
     async def test_record_and_retrieve_backtest_run(self, tmp_path):
         """Verify SQLite persistence for backtest runs and simulated trade logs."""
@@ -183,7 +180,6 @@ class TestBacktestRepositoryPersistence:
 
 
 class TestBacktestAPIEndpoints:
-
     @pytest.fixture(autouse=True)
     def setup_env(self, tmp_path, monkeypatch):
         test_db = str(tmp_path / f"test_api_backtest_{uuid.uuid4().hex[:6]}.db")

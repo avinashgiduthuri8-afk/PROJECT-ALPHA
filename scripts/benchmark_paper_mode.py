@@ -39,9 +39,9 @@ async def run_paper_mode_benchmark():
 
     cfg = get_config()
     print(f"[1] Configuration Loaded: deployment_mode = {cfg.deployment_mode}")
-    assert (
-        cfg.deployment_mode == "PAPER"
-    ), f"Expected DEPLOYMENT_MODE='PAPER', got '{cfg.deployment_mode}'"
+    assert cfg.deployment_mode == "PAPER", (
+        f"Expected DEPLOYMENT_MODE='PAPER', got '{cfg.deployment_mode}'"
+    )
     print("    [PASS] Paper mode deployment invariant confirmed.")
 
     # In-memory SQLite DB for clean benchmark run
@@ -98,9 +98,9 @@ async def run_paper_mode_benchmark():
     print(
         f"    Risk Decision: Allowed={decision.allowed}, Code={decision.code}, Check Time={decision.check_ms}ms"
     )
-    assert (
-        decision.allowed
-    ), f"Risk Gate unexpectedly rejected candidate trade: {decision.reason}"
+    assert decision.allowed, (
+        f"Risk Gate unexpectedly rejected candidate trade: {decision.reason}"
+    )
     print("    [PASS] Stage 06 Risk Gate passed successfully.")
 
     print("\n[3] Ingesting AI Confirmed Event into TradingService...")
@@ -124,9 +124,9 @@ async def run_paper_mode_benchmark():
     # Verify active paper position created in SQLite
     open_positions = await pos_repo.get_open()
     print(f"    Active Open Positions in Ledger: {len(open_positions)}")
-    assert (
-        len(open_positions) == 1
-    ), f"Expected 1 open position, found {len(open_positions)}"
+    assert len(open_positions) == 1, (
+        f"Expected 1 open position, found {len(open_positions)}"
+    )
 
     pos = open_positions[0]
     print(f"    Position ID    : {pos.id}")
@@ -169,16 +169,16 @@ async def run_paper_mode_benchmark():
     # Verify position is closed
     open_positions_after = await pos_repo.get_open()
     print(f"    Open Positions After Exit: {len(open_positions_after)}")
-    assert (
-        len(open_positions_after) == 0
-    ), f"Expected 0 open positions, found {len(open_positions_after)}"
+    assert len(open_positions_after) == 0, (
+        f"Expected 0 open positions, found {len(open_positions_after)}"
+    )
     print("    [PASS] Position successfully marked CLOSED.")
 
     print("\n[6] Validating Closed Trade & 1.572% Statutory Friction Model...")
     recent_trades = await trade_repo.get_recent(limit=5)
-    assert (
-        len(recent_trades) == 1
-    ), f"Expected 1 trade in journal, found {len(recent_trades)}"
+    assert len(recent_trades) == 1, (
+        f"Expected 1 trade in journal, found {len(recent_trades)}"
+    )
 
     trade = recent_trades[0]
     gross_return_pct = (
@@ -213,9 +213,9 @@ async def run_paper_mode_benchmark():
     print(
         f"    Post-Exit Evaluation: Allowed={dec_released.allowed}, Code={dec_released.code}"
     )
-    assert (
-        dec_released.allowed
-    ), f"Asset lock was not released after exit: {dec_released.reason}"
+    assert dec_released.allowed, (
+        f"Asset lock was not released after exit: {dec_released.reason}"
+    )
     print(
         "    [PASS] Single-Coin Asset Lock successfully released upon position close."
     )

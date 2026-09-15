@@ -1,4 +1,4 @@
-﻿"""
+"""
 Base Bot Adapter for Trade Construction and Execution.
 """
 

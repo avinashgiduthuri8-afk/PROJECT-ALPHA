@@ -1,4 +1,4 @@
-﻿"""
+"""
 sector_quant.portfolio.risk_engine — Sector exposure caps & single-stock risk gates.
 """
 

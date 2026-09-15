@@ -44,7 +44,11 @@
 4. **Dynamic Equity & Valuation Mechanics (`v2/services/portfolio_service/aggregator.py:23-78`)**:
    - `PortfolioAggregator.aggregate()` loops across active positions:
      ```python
-     mark_price = pos.current_price if (pos.current_price is not None and pos.current_price > 0) else pos.entry_price
+     mark_price = (
+         pos.current_price
+         if (pos.current_price is not None and pos.current_price > 0)
+         else pos.entry_price
+     )
      mtm_val = pos.qty * mark_price
      total_mtm += mtm_val
      if pos.unrealised_pnl is not None:

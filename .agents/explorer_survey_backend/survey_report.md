@@ -71,7 +71,10 @@ async def sync_from_repository(
     elif isinstance(repository_or_positions, list):
         active_positions = repository_or_positions
     else:
-        logger.warning("sync_from_repository received unsupported source: %s", type(repository_or_positions))
+        logger.warning(
+            "sync_from_repository received unsupported source: %s",
+            type(repository_or_positions),
+        )
         return
 
     # Reset in-memory counters prior to hydration
@@ -82,14 +85,14 @@ async def sync_from_repository(
     for pos in active_positions:
         bot_raw = getattr(pos, "bot", "")
         bot_key = bot_raw.value if hasattr(bot_raw, "value") else str(bot_raw).upper()
-        
+
         if bot_key in self._bots:
             s = self._bots[bot_key]
             s.open_positions += 1
-            
+
             qty = float(getattr(pos, "qty", 0.0) or 0.0)
             entry_price = float(getattr(pos, "entry_price", 0.0) or 0.0)
-            s.capital_deployed += (qty * entry_price)
+            s.capital_deployed += qty * entry_price
 
             # Advance pipeline stage to reflect active position
             s.current_stage = "position_manager"
@@ -99,11 +102,18 @@ async def sync_from_repository(
             s.last_action = f"Tracking active position: {coin}"
             entry_time = getattr(pos, "entry_time", None)
             if entry_time:
-                s.last_action_time = entry_time.strftime("%H:%M:%S UTC") if hasattr(entry_time, "strftime") else str(entry_time)
+                s.last_action_time = (
+                    entry_time.strftime("%H:%M:%S UTC")
+                    if hasattr(entry_time, "strftime")
+                    else str(entry_time)
+                )
 
     logger.info(
         "BotPipelineTracker hydrated from repository: %s",
-        {b: f"{s.open_positions} pos, ₹{s.capital_deployed:.2f}" for b, s in self._bots.items()}
+        {
+            b: f"{s.open_positions} pos, ₹{s.capital_deployed:.2f}"
+            for b, s in self._bots.items()
+        },
     )
 ```
 
@@ -121,15 +131,15 @@ async def sync_from_repository(
    - In `lifespan`:
      ```python
      _dashboard_service = DashboardService(
-         bus               = bus,
-         config            = cfg,
-         position_repo     = position_repo,
-         scanner_service   = _scanner_service,
-         ai_service        = _ai_service,
-         risk_service      = _risk_service,
-         portfolio_service = _portfolio_service,
-         trading_service   = _trading_service,
-         shadow_service    = _shadow_service,
+         bus=bus,
+         config=cfg,
+         position_repo=position_repo,
+         scanner_service=_scanner_service,
+         ai_service=_ai_service,
+         risk_service=_risk_service,
+         portfolio_service=_portfolio_service,
+         trading_service=_trading_service,
+         shadow_service=_shadow_service,
      )
      await _dashboard_service.start()
      ```
@@ -175,15 +185,17 @@ async def sync_from_repository(
    if dashboard_service and hasattr(dashboard_service, "aggregator"):
        init_dashboard_routes(dashboard_service.aggregator)
    else:
-       init_dashboard_routes(DashboardAggregator(
-           scanner_service   = scanner_service,
-           trading_service   = trading_service,
-           portfolio_service = portfolio_service,
-           risk_service      = risk_service,
-           journal_service   = journal_service or kwargs.get("journal_service"),
-           analytics_service = analytics_service or kwargs.get("analytics_service"),
-           feedback_service  = feedback_service or kwargs.get("feedback_service"),
-       ))
+       init_dashboard_routes(
+           DashboardAggregator(
+               scanner_service=scanner_service,
+               trading_service=trading_service,
+               portfolio_service=portfolio_service,
+               risk_service=risk_service,
+               journal_service=journal_service or kwargs.get("journal_service"),
+               analytics_service=analytics_service or kwargs.get("analytics_service"),
+               feedback_service=feedback_service or kwargs.get("feedback_service"),
+           )
+       )
    ```
 3. **Reconciling `/dashboard/overview`**:
    Currently, both `dashboard_routes.py:36` and `router.py:918` define `GET /dashboard/overview`.
@@ -207,6 +219,7 @@ async def sync_from_repository(
       else:
           positions = await _position_repo.get_all(limit=limit)
       ...
+
 
   @router.get("/positions/open")
   async def get_open_positions_alias() -> list[PositionSchema]:
@@ -241,18 +254,23 @@ In `v2/api/router.py`:
     tags=["trading"],
 )
 async def get_positions(
-    status: Optional[str] = Query(default=None, description="Filter by OPEN | CLOSED | ACTIVE"),
+    status: Optional[str] = Query(
+        default=None, description="Filter by OPEN | CLOSED | ACTIVE"
+    ),
     limit: int = Query(default=50, ge=1, le=500),
 ) -> list[PositionSchema]:
     """List positions from repository, returning all non-closed positions when querying open/active."""
     if _position_repo is None:
-        raise HTTPException(status_code=503, detail="Position repository not initialized.")
+        raise HTTPException(
+            status_code=503, detail="Position repository not initialized."
+        )
 
     if status and status.upper() in ("OPEN", "ACTIVE"):
         positions = await _position_repo.get_active_positions()
     elif status and status.upper() == "CLOSED":
         rows = await _position_repo._fetchall(
-            "SELECT * FROM positions WHERE status='CLOSED' ORDER BY entry_time DESC LIMIT ?", (limit,)
+            "SELECT * FROM positions WHERE status='CLOSED' ORDER BY entry_time DESC LIMIT ?",
+            (limit,),
         )
         positions = [_row_to_position(r) for r in rows]
     else:
@@ -270,7 +288,9 @@ async def get_positions(
 async def get_open_positions_alias() -> list[PositionSchema]:
     """Return all non-closed active positions (status != 'CLOSED') including transitional states."""
     if _position_repo is None:
-        raise HTTPException(status_code=503, detail="Position repository not initialized.")
+        raise HTTPException(
+            status_code=503, detail="Position repository not initialized."
+        )
     positions = await _position_repo.get_active_positions()
     return [_position_to_schema(p) for p in positions]
 ```
@@ -308,72 +328,106 @@ This ensures `/api/v2/production/status` also returns accurate `open_positions_c
 1. **Update `DashboardOverviewSchema` in `v2/api/schemas.py`**:
    ```python
    class DashboardOverviewSchema(BaseModel):
-       status:             str = "ok"
-       system_status:      Optional[str] = "OPERATIONAL"
-       active_ws_clients:  int = 0
-       portfolio:          Optional[dict[str, Any]] = None
-       risk:               Optional[dict[str, Any]] = None
-       shadow:             Optional[dict[str, Any]] = None
-       subsystems:         dict[str, Any] = Field(default_factory=dict)
-       pipeline_stages:    Optional[list[dict[str, Any]]] = None
-       bots:               Optional[list[dict[str, Any]]] = None
-       execution_fleet:    Optional[dict[str, Any]] = None
-       open_positions:     Optional[list[dict[str, Any]]] = Field(default_factory=list)
+       status: str = "ok"
+       system_status: Optional[str] = "OPERATIONAL"
+       active_ws_clients: int = 0
+       portfolio: Optional[dict[str, Any]] = None
+       risk: Optional[dict[str, Any]] = None
+       shadow: Optional[dict[str, Any]] = None
+       subsystems: dict[str, Any] = Field(default_factory=dict)
+       pipeline_stages: Optional[list[dict[str, Any]]] = None
+       bots: Optional[list[dict[str, Any]]] = None
+       execution_fleet: Optional[dict[str, Any]] = None
+       open_positions: Optional[list[dict[str, Any]]] = Field(default_factory=list)
        open_positions_count: int = 0
-       active_positions:   Optional[list[dict[str, Any]]] = Field(default_factory=list)
-       scanned_coins:      Optional[list[dict[str, Any]]] = Field(default_factory=list)
-       watchlist_summary:  Optional[dict[str, Any]] = Field(default_factory=dict)
-       telemetry:          Optional[dict[str, Any]] = None
+       active_positions: Optional[list[dict[str, Any]]] = Field(default_factory=list)
+       scanned_coins: Optional[list[dict[str, Any]]] = Field(default_factory=list)
+       watchlist_summary: Optional[dict[str, Any]] = Field(default_factory=dict)
+       telemetry: Optional[dict[str, Any]] = None
    ```
 2. **Update `DashboardService.get_overview()` in `v2/services/dashboard_service/service.py`**:
    ```python
    async def get_overview(self) -> dict[str, Any]:
        """Aggregate the full platform state in a single call for dashboard initial load."""
-       portfolio = await self._portfolio_service.get_snapshot() if self._portfolio_service else None
+       portfolio = (
+           await self._portfolio_service.get_snapshot()
+           if self._portfolio_service
+           else None
+       )
        risk_state = await self._risk_service.get_state() if self._risk_service else None
-       shadow_summary = await self._shadow_service.get_summary() if self._shadow_service else {}
-       scanned_coins = self._scanner_service.get_scanned_coins() if self._scanner_service else []
+       shadow_summary = (
+           await self._shadow_service.get_summary() if self._shadow_service else {}
+       )
+       scanned_coins = (
+           self._scanner_service.get_scanned_coins() if self._scanner_service else []
+       )
 
        # Fetch active positions directly from PositionRepository
        active_positions_list: List[Dict[str, Any]] = []
        pos_repo = getattr(self, "_position_repo", None)
-       if pos_repo is None and self._trading_service and hasattr(self._trading_service, "_position_repo"):
+       if (
+           pos_repo is None
+           and self._trading_service
+           and hasattr(self._trading_service, "_position_repo")
+       ):
            pos_repo = self._trading_service._position_repo
-       if pos_repo is None and self._portfolio_service and hasattr(self._portfolio_service, "_position_repo"):
+       if (
+           pos_repo is None
+           and self._portfolio_service
+           and hasattr(self._portfolio_service, "_position_repo")
+       ):
            pos_repo = self._portfolio_service._position_repo
 
        if pos_repo is not None:
            try:
                raw_positions = await pos_repo.get_active_positions()
                for p in raw_positions:
-                   active_positions_list.append({
-                       "id": p.id,
-                       "position_id": p.id,
-                       "bot": p.bot.value if hasattr(p.bot, "value") else str(p.bot),
-                       "bot_name": p.bot.value if hasattr(p.bot, "value") else str(p.bot),
-                       "coin": p.coin,
-                       "pair": p.pair,
-                       "qty": p.qty,
-                       "quantity": p.qty,
-                       "entry_price": p.entry_price,
-                       "entry_time": p.entry_time.isoformat() if hasattr(p.entry_time, "isoformat") else str(p.entry_time),
-                       "current_price": p.current_price,
-                       "current_mark_price": p.current_price if p.current_price is not None else p.entry_price,
-                       "unrealised_pnl": p.unrealised_pnl if p.unrealised_pnl is not None else 0.0,
-                       "unrealized_pnl": p.unrealised_pnl if p.unrealised_pnl is not None else 0.0,
-                       "stop_loss": p.stop_loss,
-                       "take_profit": p.take_profit,
-                       "mode": p.mode.value if hasattr(p.mode, "value") else str(p.mode),
-                       "status": p.status.value if hasattr(p.status, "value") else str(p.status),
-                       "signal_id": p.signal_id,
-                   })
+                   active_positions_list.append(
+                       {
+                           "id": p.id,
+                           "position_id": p.id,
+                           "bot": p.bot.value if hasattr(p.bot, "value") else str(p.bot),
+                           "bot_name": p.bot.value
+                           if hasattr(p.bot, "value")
+                           else str(p.bot),
+                           "coin": p.coin,
+                           "pair": p.pair,
+                           "qty": p.qty,
+                           "quantity": p.qty,
+                           "entry_price": p.entry_price,
+                           "entry_time": p.entry_time.isoformat()
+                           if hasattr(p.entry_time, "isoformat")
+                           else str(p.entry_time),
+                           "current_price": p.current_price,
+                           "current_mark_price": p.current_price
+                           if p.current_price is not None
+                           else p.entry_price,
+                           "unrealised_pnl": p.unrealised_pnl
+                           if p.unrealised_pnl is not None
+                           else 0.0,
+                           "unrealized_pnl": p.unrealised_pnl
+                           if p.unrealised_pnl is not None
+                           else 0.0,
+                           "stop_loss": p.stop_loss,
+                           "take_profit": p.take_profit,
+                           "mode": p.mode.value
+                           if hasattr(p.mode, "value")
+                           else str(p.mode),
+                           "status": p.status.value
+                           if hasattr(p.status, "value")
+                           else str(p.status),
+                           "signal_id": p.signal_id,
+                       }
+                   )
            except Exception as exc:
                logger.warning("Error fetching active positions in get_overview: %s", exc)
 
        bot_statuses = self.get_bot_statuses()
        fleet_data = {b["bot_name"]: b for b in bot_statuses}
 
-       is_emergency = bool(risk_state and (risk_state.circuit_breaker_open or risk_state.emergency_stop))
+       is_emergency = bool(
+           risk_state and (risk_state.circuit_breaker_open or risk_state.emergency_stop)
+       )
 
        return {
            "status": "ok",
@@ -385,18 +439,30 @@ This ensures `/api/v2/production/status` also returns accurate `open_positions_c
                "total_cash": portfolio.total_cash if portfolio else 0.0,
                "daily_pnl": portfolio.daily_pnl if portfolio else 0.0,
                "capital_utilisation": portfolio.capital_utilisation if portfolio else 0.0,
-           } if portfolio else None,
+           }
+           if portfolio
+           else None,
            "risk": {
                "trading_enabled": risk_state.trading_enabled if risk_state else False,
-               "circuit_breaker_open": risk_state.circuit_breaker_open if risk_state else False,
+               "circuit_breaker_open": risk_state.circuit_breaker_open
+               if risk_state
+               else False,
                "emergency_stop": risk_state.emergency_stop if risk_state else False,
                "per_bot_deployed": risk_state.per_bot_deployed if risk_state else {},
-           } if risk_state else None,
+           }
+           if risk_state
+           else None,
            "shadow": shadow_summary,
            "subsystems": {
-               "scanner": self._scanner_service.get_health() if self._scanner_service else {"healthy": False},
-               "ai": self._ai_service.get_health() if self._ai_service else {"healthy": False},
-               "trading": self._trading_service.get_health() if self._trading_service else {"healthy": False},
+               "scanner": self._scanner_service.get_health()
+               if self._scanner_service
+               else {"healthy": False},
+               "ai": self._ai_service.get_health()
+               if self._ai_service
+               else {"healthy": False},
+               "trading": self._trading_service.get_health()
+               if self._trading_service
+               else {"healthy": False},
            },
            "pipeline_stages": self.get_pipeline_stages(),
            "bots": bot_statuses,
@@ -407,7 +473,9 @@ This ensures `/api/v2/production/status` also returns accurate `open_positions_c
            "scanned_coins": scanned_coins,
            "watchlist_summary": {
                "total_evaluated": len(scanned_coins),
-               "passed_confluence_count": len([c for c in scanned_coins if c.get("status") == "PASSED"]),
+               "passed_confluence_count": len(
+                   [c for c in scanned_coins if c.get("status") == "PASSED"]
+               ),
                "top_candidates": scanned_coins[:5],
                "last_scan_at": scanned_coins[0]["evaluated_at"] if scanned_coins else None,
            },
@@ -490,12 +558,18 @@ class PortfolioAggregator:
             total_deployed += deployed
 
             # Mark-to-market valuation
-            mark_price = pos.current_price if (pos.current_price is not None and pos.current_price > 0) else pos.entry_price
+            mark_price = (
+                pos.current_price
+                if (pos.current_price is not None and pos.current_price > 0)
+                else pos.entry_price
+            )
             mtm_val = pos.qty * mark_price
             total_mtm += mtm_val
 
             # Statutory round-trip friction cost
-            friction = (deployed + mtm_val) * (PortfolioAggregator.STATUTORY_ROUND_TRIP_DRAG_RATE / 2.0)
+            friction = (deployed + mtm_val) * (
+                PortfolioAggregator.STATUTORY_ROUND_TRIP_DRAG_RATE / 2.0
+            )
             total_friction += friction
 
             if pos.unrealised_pnl is not None:
@@ -511,14 +585,22 @@ class PortfolioAggregator:
         # Total AUM / Equity combines cash balances with mark-to-market valuations
         total_aum = total_cash + total_deployed + total_unrealised
 
-        capital_util = round((total_deployed / total_aum * 100.0), 2) if total_aum > 0 else 0.0
+        capital_util = (
+            round((total_deployed / total_aum * 100.0), 2) if total_aum > 0 else 0.0
+        )
 
         # Calculate daily realised PnL (from today UTC)
         today_utc = datetime.now(timezone.utc).date()
-        daily_pnl = sum(
-            t.pnl for t in closed_trades
-            if hasattr(t, "exit_time") and t.exit_time and t.exit_time.date() == today_utc
-        ) + total_unrealised
+        daily_pnl = (
+            sum(
+                t.pnl
+                for t in closed_trades
+                if hasattr(t, "exit_time")
+                and t.exit_time
+                and t.exit_time.date() == today_utc
+            )
+            + total_unrealised
+        )
 
         return PortfolioSnapshot(
             total_aum=round(total_aum, 2),

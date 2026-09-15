@@ -54,7 +54,6 @@ def _row_to_signal(row: aiosqlite.Row) -> Signal:
 
 
 class SignalRepository(BaseRepository):
-
     async def insert(self, signal: Signal) -> str:
         """Persist a new signal. Returns the signal id."""
         await self._execute(

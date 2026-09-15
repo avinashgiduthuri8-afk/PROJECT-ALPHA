@@ -59,7 +59,6 @@ class DummyPosition:
 
 
 class TestBotPipelineTrackerSyncStress:
-
     def test_sync_empty_list_resets_state(self):
         """Verify syncing with empty list cleanly resets all bots to 0 positions and IDLE scanner."""
         tracker = BotPipelineTracker()
@@ -231,7 +230,6 @@ class TestBotPipelineTrackerSyncStress:
 
 
 class TestSQLitePositionRepositoryEdgeCases:
-
     @pytest.fixture
     def test_db_file(self, tmp_path):
         db_path = str(tmp_path / f"test_stress_{uuid.uuid4().hex[:8]}.db")
@@ -349,7 +347,6 @@ class TestSQLitePositionRepositoryEdgeCases:
 
 
 class TestAPIEndpointsStress:
-
     @pytest.fixture
     def test_env(self, tmp_path):
         db_path = str(tmp_path / f"api_stress_{uuid.uuid4().hex[:8]}.db")

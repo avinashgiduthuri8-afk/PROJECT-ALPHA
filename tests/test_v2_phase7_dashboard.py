@@ -26,7 +26,6 @@ from dashboard.ws_gateway import WebSocketTelemetryGateway
 
 
 class TestDashboardAggregator:
-
     @pytest.mark.anyio
     async def test_aggregator_snapshot_assembly(self):
         """Verify DashboardAggregator compiles unified system overview snapshot."""
@@ -55,7 +54,6 @@ class TestDashboardAggregator:
 
 
 class TestWebSocketTelemetryGateway:
-
     @pytest.mark.anyio
     async def test_ws_gateway_lifecycle_and_delta_broadcast(self):
         """Verify WebSocketTelemetryGateway lifecycle and delta broadcast capability."""
@@ -87,7 +85,6 @@ from dashboard.api.dashboard_routes import router as dashboard_router
 
 
 class TestDashboardAPIEndpoints:
-
     @pytest.fixture(autouse=True)
     def setup_env(self, tmp_path, monkeypatch):
         test_db = str(tmp_path / f"test_api_dashboard_{uuid.uuid4().hex[:6]}.db")

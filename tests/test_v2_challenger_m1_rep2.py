@@ -78,7 +78,6 @@ async def test_db_env(tmp_path):
 
 
 class TestDynamicEquityAndMTMValuationsRep2:
-
     def test_dynamic_equity_zero_cash_and_99pct_drawdown(self):
         """
         Stress test: 100% of cash deployed, followed by catastrophic 99% collapse of the coin.
@@ -240,7 +239,6 @@ class TestDynamicEquityAndMTMValuationsRep2:
 
 
 class TestSharedCapitalPoolConcurrencyRep2:
-
     def test_concurrent_multi_threaded_order_race_condition(self):
         """
         Adversarial Concurrency Test:
@@ -280,9 +278,9 @@ class TestSharedCapitalPoolConcurrencyRep2:
         successes = [r for r in results if r.get("success") is True]
         failures = [r for r in results if r.get("success") is False]
 
-        assert (
-            len(successes) == 2
-        ), f"Expected exactly 2 successes, got {len(successes)}"
+        assert len(successes) == 2, (
+            f"Expected exactly 2 successes, got {len(successes)}"
+        )
         assert len(failures) == 18, f"Expected 18 failures, got {len(failures)}"
 
         for f in failures:
@@ -356,7 +354,6 @@ class TestSharedCapitalPoolConcurrencyRep2:
 
 
 class TestStartupHydrationIdempotencyRep2:
-
     @pytest.mark.anyio
     async def test_five_successive_hydrations_zero_drift(self, test_db_env):
         """

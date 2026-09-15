@@ -111,7 +111,7 @@ async def test_scanner_service_bootstrap_insufficient(sqlite_conn):
     await service.bootstrap_candles()
 
     # Verify they were saved to DB (insufficient was < 120, we had 0)
-    db_candles = await candle_repo.get_recent_candles("BTC/INR", "1h", limit=150)
+    db_candles = await candle_repo.get_recent_candles("BTC/INR", "15m", limit=150)
     assert len(db_candles) == 120
     assert service._fetch_coindcx_candles.call_count == 3  # 1h, 4h and 1d
 
@@ -124,11 +124,11 @@ async def test_scanner_service_bootstrap_sufficient(sqlite_conn):
     config = get_config()
     candle_repo = CandleRepository(sqlite_conn)
 
-    # Pre-populate database with 120 candles for swing timeframes (1h, 4h, 1d)
-    candles_1h = [
+    # Pre-populate database with 120 candles for swing timeframes (15m, 1h, 1d)
+    candles_15m = [
         {
             "pair": "BTC/INR",
-            "timeframe": "1h",
+            "timeframe": "15m",
             "timestamp": 1700000000000 + i * 3600000,
             "open": 80000.0,
             "high": 81000.0,
@@ -138,12 +138,12 @@ async def test_scanner_service_bootstrap_sufficient(sqlite_conn):
         }
         for i in range(120)
     ]
-    await candle_repo.upsert_candles(candles_1h)
+    await candle_repo.upsert_candles(candles_15m)
 
-    candles_4h = [
+    candles_1h = [
         {
             "pair": "BTC/INR",
-            "timeframe": "4h",
+            "timeframe": "1h",
             "timestamp": 1700000000000 + i * 14400000,
             "open": 80000.0,
             "high": 81000.0,
@@ -153,7 +153,7 @@ async def test_scanner_service_bootstrap_sufficient(sqlite_conn):
         }
         for i in range(120)
     ]
-    await candle_repo.upsert_candles(candles_4h)
+    await candle_repo.upsert_candles(candles_1h)
 
     candles_1d = [
         {
