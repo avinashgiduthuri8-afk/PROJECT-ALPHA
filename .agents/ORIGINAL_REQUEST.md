@@ -92,3 +92,44 @@ Maintain all backward-compatibility API and WebSocket endpoints (`/api/v2/*`, `/
 - [ ] `python -m pytest tests/test_canonical_config.py tests/test_canonical_app.py tests/test_v2_dashboard_ui.py tests/test_v2_pipeline_dashboard.py tests/test_v2_phase7_dashboard.py tests/test_v2_safety_invariants.py --basetemp=.pytest_temp -v` exits with code 0 (0 failed).
 - [ ] Full pytest discovery (`python -m pytest --collect-only`) collects all tests without any `ModuleNotFoundError` for `v2`.
 
+## 2026-09-17T08:22:34Z
+
+# Teamwork Project Prompt — Draft
+
+> Status: Launched
+> Goal: Craft prompt → get user approval → delegate to teamwork_preview
+> Requested team: Small, focused team
+
+Perform a read-only audit of the scanner's indicator calculations on the VPS to validate correctness, no look-ahead bias, proper warm-up, and live integration. Do NOT modify any indicator logic, thresholds, or scoring.
+
+Working directory: `C:\Users\ASUS\Documents\GitHub\PROJECT-ALPHA`
+Integrity mode: development
+
+## Requirements
+
+### R1. Phase 1: Code Inspection
+Inspect `scanner/indicators.py` and `scanner/research/indicators.py` on the VPS to report line counts, list active indicator function signatures (RSI, MACD, EMA, Bollinger, ATR, Volume), and scan for any forward-looking/look-ahead data leakage patterns.
+
+### R2. Phase 2: Unit Test Coverage
+Locate and execute the indicator test suite (`tests/test_v2_indicators.py`) on the VPS. Summarize the test results and report any failures.
+
+### R3. Phase 3 & 4 & 5: Manual Reference Validation
+Create and execute temporary Python scripts on the VPS to validate that:
+- RSI correctly identifies overbought (>70) on an uptrend and oversold (<30) on a downtrend.
+- MACD returns a valid multi-column DataFrame with non-null final values.
+- EMA50 correctly handles insufficient data (<50 candles) by returning None/NaN, and returns valid values with sufficient data.
+
+### R4. Phase 6: Live Scanner Integration
+Query the live SQLite database (`data/project_alpha.db`) on the VPS to verify that signals have been generated in the last 5 minutes and that the `indicators` JSON blob is correctly populated.
+
+### R5. Controlled Infrastructure (VPS Access)
+All commands and scripts must be executed on the remote Linux VPS. Because your local environment is Windows, you must write and execute local Python scripts using the `paramiko` library to run commands over SSH (`root@148.113.9.103`, port `20069`, password `SMT6SiQU2nIUMj0V`).
+
+## Acceptance Criteria
+
+### Execution & Reporting
+- [ ] All 7 phases from the user's audit script are executed exactly as requested.
+- [ ] The final output is a strictly formatted Summary Report (Phase 7) detailing the status of RSI, MACD, EMA, and Live Scanner Integration.
+- [ ] No indicator logic, thresholds, or scoring mechanisms are modified in the codebase.
+- [ ] Large tests or execution scripts are broken down into smaller, manageable chunks.
+

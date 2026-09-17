@@ -5,13 +5,13 @@
  * Execution Lifecycle Inspector, 7-Stage Signal Pipeline, Risk Guard, and Research Hub.
  */
 
-class V2InstitutionalDashboard {
+class AlphaDashboard {
   constructor() {
     const urlParams = new URLSearchParams(window.location.search);
     const serverKey = (typeof window !== 'undefined' && window.__V2_API_KEY__) ? window.__V2_API_KEY__ : null;
-    this.apiKey = urlParams.get('api_key') || serverKey || localStorage.getItem('api_key') || localStorage.getItem('v2_api_key') || 'alpha-prod-key';
+    this.apiKey = urlParams.get('api_key') || serverKey || localStorage.getItem('api_key') || localStorage.getItem('alpha_api_key') || 'alpha-prod-key';
     localStorage.setItem('api_key', this.apiKey);
-    localStorage.setItem('v2_api_key', this.apiKey);
+    localStorage.setItem('alpha_api_key', this.apiKey);
 
     this.ws = null;
     this.reconnectAttempts = 0;
@@ -249,7 +249,7 @@ class V2InstitutionalDashboard {
         if (key !== null) {
           this.apiKey = key.trim();
           localStorage.setItem('api_key', this.apiKey);
-          localStorage.setItem('v2_api_key', this.apiKey);
+          localStorage.setItem('alpha_api_key', this.apiKey);
           this.showToast('API Key Saved', 'Reconnecting with updated credentials...');
           this.fetchAllData();
           if (this.ws) this.ws.close();
@@ -282,7 +282,7 @@ class V2InstitutionalDashboard {
     if (res.status === 401 && typeof window !== 'undefined' && window.__V2_API_KEY__ && this.apiKey !== window.__V2_API_KEY__) {
       this.apiKey = window.__V2_API_KEY__;
       localStorage.setItem('api_key', this.apiKey);
-      localStorage.setItem('v2_api_key', this.apiKey);
+      localStorage.setItem('alpha_api_key', this.apiKey);
       headers['X-API-Key'] = this.apiKey;
       res = await fetch(url, { ...options, headers });
     }
@@ -671,7 +671,7 @@ class V2InstitutionalDashboard {
         const stText = st === 'healthy' ? 'HEALTHY' : st === 'degraded' ? 'DEGRADED' : 'OFFLINE';
 
         return `
-          <div class="health-card" onclick="window.v2Dashboard.openHealthModal('${srv.key}', '${srv.name}', '${srv.icon}')">
+          <div class="health-card" onclick="window.alphaDashboard.openHealthModal('${srv.key}', '${srv.name}', '${srv.icon}')">
             <div class="health-card-top">
               <span class="health-card-name">${srv.icon} ${srv.name}</span>
               <span class="health-status-badge ${badgeClass}">${stText}</span>
@@ -813,7 +813,7 @@ class V2InstitutionalDashboard {
       const status = isPassed ? 'QUALIFIED' : 'WATCHLIST';
 
       return `
-        <tr style="cursor: pointer;" onclick="window.v2Dashboard.openCoinModal('${sym}')">
+        <tr style="cursor: pointer;" onclick="window.alphaDashboard.openCoinModal('${sym}')">
           <td>
             <strong style="color: var(--text-main);">${sym}</strong>
             <span style="font-size: 0.65rem; color: var(--text-dim); display: block;">${pair}</span>
@@ -863,7 +863,7 @@ class V2InstitutionalDashboard {
       const price = this.formatPrice(sig.price);
 
       return `
-        <div class="signal-conviction-card" onclick="window.v2Dashboard.openCoinModal('${sym}')">
+        <div class="signal-conviction-card" onclick="window.alphaDashboard.openCoinModal('${sym}')">
           <div class="sig-card-top">
             <div>
               <span class="sig-pair font-mono">${pair}</span>
@@ -892,7 +892,7 @@ class V2InstitutionalDashboard {
           </div>
           <div class="sig-footer">
             <span class="status-ready font-mono">● READY FOR DISPATCH</span>
-            <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation(); window.v2Dashboard.openCoinModal('${sym}')">Inspect ➔</button>
+            <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation(); window.alphaDashboard.openCoinModal('${sym}')">Inspect ➔</button>
           </div>
         </div>
       `;
@@ -990,7 +990,7 @@ class V2InstitutionalDashboard {
       const pnlHtml = pnl !== undefined && pnl !== null ? `<span class="font-mono ${pnl >= 0 ? 'text-green' : 'text-red'}">${pnl >= 0 ? '+' : ''}${this.formatCurrency(pnl)}</span>` : '<span class="text-dim">—</span>';
 
       return `
-        <tr style="cursor: pointer;" onclick="window.v2Dashboard.openOrderLifecycleModal('${o.id || o.order_id}')">
+        <tr style="cursor: pointer;" onclick="window.alphaDashboard.openOrderLifecycleModal('${o.id || o.order_id}')">
           <td class="font-mono text-dim">${timeStr}</td>
           <td><strong>${o.coin || o.symbol || '—'}</strong></td>
           <td><span class="font-mono ${side === 'BUY' ? 'text-green' : 'text-cyan'} font-bold">${side}</span></td>
@@ -1027,7 +1027,7 @@ class V2InstitutionalDashboard {
       const lastEvent = s.last_event?.event_type || s.last_event_type || 'Listening...';
 
       return `
-        <div class="pipeline-stage-card" onclick="window.v2Dashboard.openStageModal(${s.stage_number})">
+        <div class="pipeline-stage-card" onclick="window.alphaDashboard.openStageModal(${s.stage_number})">
           <div class="pipeline-stage-card-header">
             <span class="stage-num-badge">STAGE ${String(s.stage_number).padStart(2, '0')}</span>
             <span class="status-dot ${st === 'active' ? 'green' : 'amber'}"></span>
@@ -1056,7 +1056,7 @@ class V2InstitutionalDashboard {
       const isPos = pnl >= 0;
 
       return `
-        <div class="bot-fleet-card" onclick="window.v2Dashboard.openBotModal('${b.bot}')">
+        <div class="bot-fleet-card" onclick="window.alphaDashboard.openBotModal('${b.bot}')">
           <div class="bot-fleet-card-header">
             <span class="bot-name">${b.bot}</span>
             <span class="bot-stage-pill">${b.current_stage || 'ACTIVE'}</span>
@@ -1643,5 +1643,5 @@ class V2DashboardClient extends V2InstitutionalDashboard {}
 
 // Instantiate upon DOM load
 document.addEventListener('DOMContentLoaded', () => {
-  window.v2Dashboard = new V2InstitutionalDashboard();
+  window.alphaDashboard = new V2InstitutionalDashboard();
 });

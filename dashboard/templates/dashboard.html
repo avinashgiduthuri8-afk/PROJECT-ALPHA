@@ -65,7 +65,7 @@
         .text-indigo { color: var(--accent-indigo) !important; }
         .text-amber { color: var(--accent-amber) !important; }
         .text-red { color: var(--accent-red) !important; }
-        .v2-section-label { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); margin: 20px 0 12px; display: flex; align-items: center; justify-content: space-between; }
+        .alpha-section-label { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); margin: 20px 0 12px; display: flex; align-items: center; justify-content: space-between; }
         .bot-cards-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px; }
         .bot-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; }
         .bot-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
@@ -87,9 +87,9 @@
         .progress-label { display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-muted); }
         .v2-two-col { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 16px; margin-bottom: 24px; }
         .v2-panel { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 18px; }
-        .v2-panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-        .v2-panel-title { font-size: 0.95rem; font-weight: 700; color: #fff; }
-        .v2-panel-sub { font-size: 0.75rem; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; }
+        .alpha-panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+        .alpha-panel-title { font-size: 0.95rem; font-weight: 700; color: #fff; }
+        .alpha-panel-sub { font-size: 0.75rem; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; }
         .scroller-table-axis { overflow-x: auto; max-height: 280px; }
         table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
         th { text-align: left; padding: 10px 12px; color: var(--text-muted); font-size: 0.72rem; font-weight: 600; text-transform: uppercase; border-bottom: 1px solid var(--border-color); }
@@ -922,7 +922,7 @@
                     </div>
 
                     <!-- KPI STRIP -->
-                    <div class="v2-section-label">Key Portfolio &amp; Risk Metrics</div>
+                    <div class="alpha-section-label">Key Portfolio &amp; Risk Metrics</div>
                     <div class="kpi-row">
                         <div class="kpi-card accent-blue">
                             <div class="kpi-label">Total Crypto Equity</div>
@@ -957,7 +957,7 @@
                     </div>
 
                                         <!-- BOT CARDS ROW (DYNAMIC LIVE FLEET TELEMETRY) -->
-                    <div class="v2-section-label">Production Fleet Status (4 Multi-Archetype Bots)</div>
+                    <div class="alpha-section-label">Production Fleet Status (4 Multi-Archetype Bots)</div>
                     <div class="bot-cards-row">
                         <div class="bot-card">
                             <div class="bot-card-header">
@@ -1026,7 +1026,7 @@
                     </div>
 
                     <!-- ACTIVE OPEN POSITIONS & POST-ENTRY CONTROLS (LIVE TELEMETRY) -->
-                    <div class="v2-section-label" style="display:flex; justify-content:space-between; align-items:center;">
+                    <div class="alpha-section-label" style="display:flex; justify-content:space-between; align-items:center;">
                         <span>Active Crypto Positions &amp; Real-Time Risk Management</span>
                         <span style="font-size:0.75rem; color:var(--text-secondary); font-weight:normal;">Default Order Size: <strong class="text-blue">₹200.00</strong> · Friction: <strong class="text-amber">1.572%</strong></span>
                     </div>
@@ -1059,12 +1059,12 @@
                     </div>
 
                     <!-- SCANNER PREVIEW & MARKET STATE -->
-                    <div class="v2-section-label">Live Market Intel &amp; Evaluated Crypto Confluence</div>
-                    <div class="v2-two-col">
-                        <div class="v2-panel">
-                            <div class="v2-panel-header">
-                                <span class="v2-panel-title">Scanned Crypto Universe</span>
-                                <span class="v2-panel-sub">Elite: <span class="text-blue">5</span> · High: <span class="text-amber">2</span> · Total: <span>7</span></span>
+                    <div class="alpha-section-label">Live Market Intel &amp; Evaluated Crypto Confluence</div>
+                    <div class="alpha-two-col">
+                        <div class="alpha-panel">
+                            <div class="alpha-panel-header">
+                                <span class="alpha-panel-title">Scanned Crypto Universe</span>
+                                <span class="alpha-panel-sub">Elite: <span class="text-blue">5</span> · High: <span class="text-amber">2</span> · Total: <span>7</span></span>
                             </div>
                             <div class="scroller-table-axis">
                                 <table>
@@ -1082,10 +1082,10 @@
                             </div>
                         </div>
 
-                        <div class="v2-panel">
-                            <div class="v2-panel-header">
-                                <span class="v2-panel-title">Crypto Market Regime</span>
-                                <span class="v2-panel-sub text-green">RISK-ON MOMENTUM</span>
+                        <div class="alpha-panel">
+                            <div class="alpha-panel-header">
+                                <span class="alpha-panel-title">Crypto Market Regime</span>
+                                <span class="alpha-panel-sub text-green">RISK-ON MOMENTUM</span>
                             </div>
                             <div class="market-metrics">
                                 <div class="market-metric-row"><span class="market-metric-label">Crypto Market Strength</span><span class="market-metric-value text-green font-mono">91%</span></div>
@@ -1098,7 +1098,7 @@
                     </div>
 
                     <!-- ANALYTICS SECTION -->
-                    <div class="v2-section-label">Real-Time Intelligence Charts</div>
+                    <div class="alpha-section-label">Real-Time Intelligence Charts</div>
                     <div class="analytics-grid">
                         <div class="chart-placeholder">
                             <div class="chart-ph-header"><span class="chart-ph-title">Signal Distribution</span><span class="chart-ph-tag">Score ≥ 85</span></div>
@@ -1120,7 +1120,7 @@
                 <!--  ⚡ ALPHA 14-STAGE EXECUTION & LEARNING INTELLIGENCE PIPELINE VIEW -->
                 <!-- ═══════════════════════════════════════════════════════════ -->
                 <div id="alpha-pipeline-view" class="spa-view-layer view-hidden">
-                    <div class="v2-section-label">⚡ ALPHA 14-Stage Automated Crypto Execution &amp; Learning Intelligence Pipeline</div>
+                    <div class="alpha-section-label">⚡ ALPHA 14-Stage Automated Crypto Execution &amp; Learning Intelligence Pipeline</div>
                     
                     <div class="beta-deep-grid">
                         <!-- Stage 1: Market Data -->

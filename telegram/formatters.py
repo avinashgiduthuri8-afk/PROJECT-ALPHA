@@ -173,7 +173,7 @@ def format_telegram_menu(overview: dict[str, Any]) -> str:
     pnl_emoji = "🟢" if daily_pnl >= 0 else "🔴"
 
     return (
-        f"🚀 <b>PROJECT-ALPHA V2 · Mission Control C2</b>\n"
+        f"🚀 <b>PROJECT-ALPHA · Mission Control C2</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"<b>Status:</b> <code>{status_str}</code> | <b>Mode:</b> <code>{trading_mode}</code>\n"
         f"<b>AUM:</b> ₹{total_aum:,.2f} | <b>Deployed:</b> ₹{deployed:,.2f}\n"
@@ -485,7 +485,7 @@ def format_telegram_status(d: dict[str, Any]) -> str:
     amt_str = f"₹{d.get('order_amount_inr', 200.0):,.2f}"
 
     lines = [
-        "📊 <b>PROJECT-ALPHA V2 SYSTEM STATUS</b>",
+        "📊 <b>PROJECT-ALPHA SYSTEM STATUS</b>",
         f"<b>MODE: {mode}</b>",
         "━━━━━━━━━━━━━━━━━━━━━━━━━",
         f"• <b>System Status:</b> <code>{d.get('system_status', 'HEALTHY')}</code>",
@@ -515,7 +515,7 @@ def format_telegram_health(h: dict[str, Any]) -> str:
         return "🟢" if ok else "🔴"
 
     lines = [
-        "🩺 <b>PROJECT-ALPHA V2 COMPONENT HEALTH</b>",
+        "🩺 <b>PROJECT-ALPHA COMPONENT HEALTH</b>",
         f"<b>MODE: {mode}</b>",
         "━━━━━━━━━━━━━━━━━━━━━━━━━",
         f"Scanner       {icon(components.get('scanner', False))}",
@@ -928,7 +928,7 @@ def format_telegram_logs(logs: list[dict[str, Any]], mode: str = "SHADOW") -> st
 def format_telegram_help() -> str:
     """Format comprehensive help manual listing all 24 operator commands."""
     return (
-        "📖 <b>PROJECT-ALPHA V2 OPERATOR COMMANDS</b>\n"
+        "📖 <b>PROJECT-ALPHA OPERATOR COMMANDS</b>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         "<b>1. System Commands:</b>\n"
         "  • /start — Welcome & Operator Overview\n"

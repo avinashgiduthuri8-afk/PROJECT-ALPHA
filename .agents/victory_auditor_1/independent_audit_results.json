@@ -1,0 +1,239 @@
+{
+  "git_status_opt": {
+    "code": 0,
+    "out": "?? .venv/\n?? _debug_inspect.py\n?? backups/\n?? project_alpha_v2.db\n?? scratch_check_tg.py\n?? v2/",
+    "err": ""
+  },
+  "git_diff_opt": {
+    "code": 0,
+    "out": "",
+    "err": ""
+  },
+  "git_log_opt": {
+    "code": 0,
+    "out": "3b4c616 Phase G: Scanner backtest integration and fixes",
+    "err": ""
+  },
+  "git_status_root": {
+    "code": 0,
+    "out": "?? .venv/",
+    "err": ""
+  },
+  "git_diff_root": {
+    "code": 0,
+    "out": "",
+    "err": ""
+  },
+  "git_log_root": {
+    "code": 0,
+    "out": "3b4c616 Phase G: Scanner backtest integration and fixes",
+    "err": ""
+  },
+  "wc_indicators": {
+    "code": 0,
+    "out": "203 /opt/project-alpha/scanner/research/indicators.py"
+  },
+  "sha256_indicators": {
+    "code": 0,
+    "out": "09e2f1054fbbfe848caaddcc086775ba76a6329b895bcb5854b4b2686cb97150  /opt/project-alpha/scanner/research/indicators.py"
+  },
+  "check_legacy_indicators": {
+    "code": 0,
+    "out": "NOT_FOUND"
+  },
+  "check_legacy_test": {
+    "code": 0,
+    "out": "NOT_FOUND"
+  },
+  "sha256_tests": {
+    "code": 0,
+    "out": "dabb77749a7bf4dfaadfc4e55fc7df351fa28e38e123fbb25b0006823e59aebb  /opt/project-alpha/tests/test_indicator_calculations.py"
+  },
+  "pytest_direct": {
+    "code": 2,
+    "out": "============================= test session starts ==============================\nplatform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /opt/project-alpha/.venv/bin/python3\ncachedir: .pytest_cache\nrootdir: /opt/project-alpha\nplugins: asyncio-1.4.0, anyio-4.15.0\nasyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function\ncollecting ... collected 0 items / 1 error\n\n==================================== ERRORS ====================================\n____________ ERROR collecting tests/test_indicator_calculations.py _____________\nImportError while importing test module '/opt/project-alpha/tests/test_indicator_calculations.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/lib/python3.12/importlib/__init__.py:90: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntests/test_indicator_calculations.py:3: in <module>\n    from scanner.research.indicators import (\nE   ModuleNotFoundError: No module named 'scanner'\n=========================== short test summary info ============================\nERROR tests/test_indicator_calculations.py\n!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!\n=============================== 1 error in 0.29s ===============================",
+    "err": ""
+  },
+  "pytest_module": {
+    "code": 0,
+    "out": "============================= test session starts ==============================\nplatform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /opt/project-alpha/.venv/bin/python3\ncachedir: .pytest_cache\nrootdir: /opt/project-alpha\nplugins: asyncio-1.4.0, anyio-4.15.0\nasyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function\ncollecting ... collected 6 items\n\ntests/test_indicator_calculations.py::test_compute_ema_validation PASSED [ 16%]\ntests/test_indicator_calculations.py::test_compute_rsi_validation PASSED [ 33%]\ntests/test_indicator_calculations.py::test_compute_macd_validation PASSED [ 50%]\ntests/test_indicator_calculations.py::test_compute_bollinger_validation PASSED [ 66%]\ntests/test_indicator_calculations.py::test_compute_atr_validation PASSED [ 83%]\ntests/test_indicator_calculations.py::test_compute_rvol_validation PASSED [100%]\n\n============================== 6 passed in 0.63s ===============================",
+    "err": ""
+  },
+  "pytest_research": {
+    "code": 0,
+    "out": "============================= test session starts ==============================\nplatform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /opt/project-alpha/.venv/bin/python3\ncachedir: .pytest_cache\nrootdir: /opt/project-alpha\nplugins: asyncio-1.4.0, anyio-4.15.0\nasyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function\ncollecting ... collected 14 items / 9 deselected / 5 selected\n\ntests/test_v2_coin_research.py::test_ema_computation PASSED              [ 20%]\ntests/test_v2_coin_research.py::test_rsi_computation PASSED              [ 40%]\ntests/test_v2_coin_research.py::test_macd_computation PASSED             [ 60%]\ntests/test_v2_coin_research.py::test_bollinger_bands PASSED              [ 80%]\ntests/test_v2_coin_research.py::test_atr_and_rvol PASSED                 [100%]\n\n=============================== warnings summary ===============================\n.venv/lib/python3.12/site-packages/starlette/testclient.py:51\n  /opt/project-alpha/.venv/lib/python3.12/site-packages/starlette/testclient.py:51: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.\n    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n================== 5 passed, 9 deselected, 1 warning in 1.60s ==================",
+    "err": ""
+  },
+  "ref_validation": {
+    "rsi": {
+      "uptrend_final": 99.9999999,
+      "uptrend_overbought_gt_70": true,
+      "downtrend_final": 0.0,
+      "downtrend_oversold_lt_30": true,
+      "flat_final": 99.9999999,
+      "flat_non_nan": true,
+      "short_all_nan": true,
+      "warmup_nan_count": 14
+    },
+    "macd": {
+      "shape": [
+        40,
+        3
+      ],
+      "columns": [
+        "macd",
+        "signal",
+        "hist"
+      ],
+      "final_macd": 7.400166655316951,
+      "final_signal": 7.112606950549674,
+      "final_hist": 0.2875597047672773,
+      "all_final_non_null": true,
+      "identity_max_discrepancy": 0.0,
+      "identity_holds_exact": true,
+      "macd_nan_count": 25,
+      "signal_nan_count": 33,
+      "hist_nan_count": 33
+    },
+    "ema50": {
+      "lt50_all_nan": true,
+      "lt50_calc_ema_empty": true,
+      "exact50_seed_val": 124.5,
+      "exact50_sma_seed": 124.5,
+      "exact50_seed_matches": true,
+      "exact50_calc_ema": [
+        124.5
+      ],
+      "gt50_final_val": 154.50000000000006,
+      "gt50_calc_ema_final": 154.5,
+      "gt50_matches_calc_ema": true
+    },
+    "lookahead": {
+      "rsi_clean": true,
+      "ema_clean": true,
+      "macd_clean": true
+    }
+  },
+  "service_status": {
+    "code": 0,
+    "out": "* project-alpha-v2.service - PROJECT-ALPHA V2 Institutional Quantitative Trading Platform\n     Loaded: loaded (/etc/systemd/system/project-alpha-v2.service; enabled; preset: enabled)\n     Active: active (running) since Thu 2026-09-17 05:07:44 UTC; 3h 35min ago\n   Main PID: 71891 (python3)\n      Tasks: 7 (limit: 154205)\n     Memory: 216.0M (peak: 285.1M)\n        CPU: 8min 48.752s\n     CGroup: /system.slice/project-alpha-v2.service\n             `-71891 /opt/project-alpha/.venv/bin/python3 app.py\n\nSep 17 08:43:05 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:43:05\", \"level\": \"INFO\", \"logger\": \"scanner.market_context\", \"msg\": \"Market context refreshed: BTC=SIDEWAYS, ETH=SIDEWAYS, Regime=RISK_ON, F&G=50\"}\nSep 17 08:43:06 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:43:06\", \"level\": \"INFO\", \"logger\": \"scanner.service\", \"msg\": \"Scanner Funnel Cascade: raw=50, liq=50, vol=50, pump_dump=47, trend=47, atr=47 -> c2_eval=47\", \"funnel\": {\"raw_universe\": 50, \"market_universe\": 959, \"market_liquidity_rejected\": 678, \"market_top_n\": 50, \"liquidity_passed\": 50, \"volume_passed\": 50, \"pump_dump_passed\": 47, \"trend_aligned_passed\": 47, \"volatility_passed\": 47, \"c2_evaluated\": 47}}\nSep 17 08:43:06 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:43:06\", \"level\": \"INFO\", \"logger\": \"scanner.confluence_engine\", \"msg\": \"C2 Confluence evaluation complete\", \"evaluated\": 45, \"confluence_passed\": 0, \"final_signals_output\": 0, \"max_signals_cap\": 2, \"dynamic_threshold\": 88, \"regime_adjustment\": 0}\nSep 17 08:43:06 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:43:06\", \"level\": \"INFO\", \"logger\": \"scanner.service\", \"msg\": \"Scanner poll complete\", \"fetched\": 47, \"new_signals\": 0, \"expired\": 0, \"errors\": 0, \"next_interval_s\": 60, \"live_count\": 2, \"evaluated_count\": 45}\nSep 17 08:43:06 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:43:06\", \"level\": \"INFO\", \"logger\": \"background.scheduler\", \"msg\": \"Job completed\", \"job\": \"scanner_poll\", \"duration_ms\": 2067}\nSep 17 08:43:10 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:43:10\", \"level\": \"INFO\", \"logger\": \"background.scheduler\", \"msg\": \"Job completed\", \"job\": \"exit_monitor\", \"duration_ms\": 0}\nSep 17 08:43:13 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:43:13\", \"level\": \"INFO\", \"logger\": \"background.scheduler\", \"msg\": \"Job completed\", \"job\": \"signal_expiry_check\", \"duration_ms\": 0}\nSep 17 08:43:14 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:43:14\", \"level\": \"WARNING\", \"logger\": \"execution.reconciliation\", \"msg\": \"CoinDCX Exchange Reconciliation flagged issues: 19 mismatches (0 orphans, 2 missing, 0 partials, 0 cancelled, 0 bal_mismatch, 17 pos_mismatch)\"}\nSep 17 08:43:14 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:43:14\", \"level\": \"INFO\", \"logger\": \"background.scheduler\", \"msg\": \"Job completed\", \"job\": \"order_reconciliation\", \"duration_ms\": 453}\nSep 17 08:43:15 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:43:15\", \"level\": \"INFO\", \"logger\": \"background.scheduler\", \"msg\": \"Job completed\", \"job\": \"exit_monitor\", \"duration_ms\": 1}"
+  },
+  "lsof_db": {
+    "code": 0,
+    "out": "COMMAND   PID USER   FD   TYPE DEVICE  SIZE/OFF   NODE NAME\npython3 23239 root    6ur  REG   7,70 110936064 568077 /opt/project-alpha/v2/data/alpha_v2.db\npython3 71891 root    6ur  REG   7,70 110936064 568077 /opt/project-alpha/v2/data/alpha_v2.db"
+  },
+  "db_audit": {
+    "active_db": {
+      "path": "/opt/project-alpha/v2/data/alpha_v2.db",
+      "total_signals": 422,
+      "max_generated_at": "2026-09-17T08:11:33.344530+00:00",
+      "count_today": 14,
+      "recent_signals": [
+        {
+          "id": "25b4517f-5131-4e76-ac7b-9b3194a72811",
+          "coin": "BTC",
+          "pair": "BTC/INR",
+          "market_state": "bull_trend",
+          "score": 90,
+          "generated_at": "2026-09-17T08:11:33.344530+00:00",
+          "rsi": 69.49,
+          "atr_pct": 0.82,
+          "volume_24h": 232456036150622.72,
+          "volume_ratio": 0.1,
+          "mtf_alignment": true,
+          "mtf_timeframes": [
+            "15m",
+            "1h",
+            "1d"
+          ],
+          "strategy": "Volatility Contraction Pattern"
+        },
+        {
+          "id": "36f68b08-a884-4a88-94aa-8841c9a0b28e",
+          "coin": "BTC",
+          "pair": "BTC/USDT",
+          "market_state": "bull_trend",
+          "score": 90,
+          "generated_at": "2026-09-17T08:11:33.344530+00:00",
+          "rsi": 67.91,
+          "atr_pct": 0.51,
+          "volume_24h": 84031859698239.34,
+          "volume_ratio": 0.1,
+          "mtf_alignment": true,
+          "mtf_timeframes": [
+            "15m",
+            "1h",
+            "1d"
+          ],
+          "strategy": "Volatility Contraction Pattern"
+        },
+        {
+          "id": "cfa24b33-1c0c-4017-ba71-0437eff307e4",
+          "coin": "BTC",
+          "pair": "BTC/INR",
+          "market_state": "bull_trend",
+          "score": 90,
+          "generated_at": "2026-09-17T07:10:56.763401+00:00",
+          "rsi": 61.15,
+          "atr_pct": 0.84,
+          "volume_24h": 231654458669709.3,
+          "volume_ratio": 0.13,
+          "mtf_alignment": true,
+          "mtf_timeframes": [
+            "15m",
+            "1h",
+            "1d"
+          ],
+          "strategy": "SuperTrend ATR Range Expansion"
+        },
+        {
+          "id": "3bc73383-4775-48ed-82ad-b454a22ad8ff",
+          "coin": "BTC",
+          "pair": "BTC/USDT",
+          "market_state": "bull_trend",
+          "score": 90,
+          "generated_at": "2026-09-17T07:10:56.763401+00:00",
+          "rsi": 66.76,
+          "atr_pct": 0.63,
+          "volume_24h": 86581717058457.02,
+          "volume_ratio": 0.1,
+          "mtf_alignment": true,
+          "mtf_timeframes": [
+            "15m",
+            "1h",
+            "1d"
+          ],
+          "strategy": "Volatility Contraction Pattern"
+        },
+        {
+          "id": "b903dcdc-c7b9-4a56-b471-d58d3fd099b4",
+          "coin": "BTC",
+          "pair": "BTC/USDT",
+          "market_state": "bull_trend",
+          "score": 90,
+          "generated_at": "2026-09-17T06:10:20.993873+00:00",
+          "rsi": 63.58,
+          "atr_pct": 0.66,
+          "volume_24h": 87219023866178.25,
+          "volume_ratio": 0.07,
+          "mtf_alignment": true,
+          "mtf_timeframes": [
+            "15m",
+            "1h",
+            "1d"
+          ],
+          "strategy": "Volatility Contraction Pattern"
+        }
+      ]
+    },
+    "legacy_db": {
+      "path": "/opt/project-alpha/data/project_alpha.db",
+      "total_signals": 408,
+      "max_generated_at": "2026-09-11T13:26:44.782646+00:00"
+    }
+  },
+  "journalctl": {
+    "code": 0,
+    "out": "Sep 17 08:42:14 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:42:14\", \"level\": \"INFO\", \"logger\": \"background.scheduler\", \"msg\": \"Job completed\", \"job\": \"order_reconciliation\", \"duration_ms\": 412}\nSep 17 08:42:15 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:42:15\", \"level\": \"INFO\", \"logger\": \"background.scheduler\", \"msg\": \"Job completed\", \"job\": \"exit_monitor\", \"duration_ms\": 0}\nSep 17 08:42:20 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:42:20\", \"level\": \"INFO\", \"logger\": \"background.scheduler\", \"msg\": \"Job completed\", \"job\": \"exit_monitor\", \"duration_ms\": 0}\nSep 17 08:42:20 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:42:20\", \"level\": \"INFO\", \"logger\": \"scanner.service\", \"msg\": \"[Flusher] Periodic candle flush cycle completed successfully\"}\nSep 17 08:42:24 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:42:24\", \"level\": \"WARNING\", \"logger\": \"execution.reconciliation\", \"msg\": \"CoinDCX Exchange Reconciliation flagged issues: 19 mismatches (0 orphans, 2 missing, 0 partials, 0 cancelled, 0 bal_mismatch, 17 pos_mismatch)\"}\nSep 17 08:42:25 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:42:25\", \"level\": \"INFO\", \"logger\": \"background.scheduler\", \"msg\": \"Job completed\", \"job\": \"exit_monitor\", \"duration_ms\": 0}\nSep 17 08:42:30 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:42:30\", \"level\": \"INFO\", \"logger\": \"background.scheduler\", \"msg\": \"Job completed\", \"job\": \"exit_monitor\", \"duration_ms\": 0}\nSep 17 08:42:35 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:42:35\", \"level\": \"INFO\", \"logger\": \"background.scheduler\", \"msg\": \"Job completed\", \"job\": \"exit_monitor\", \"duration_ms\": 1}\nSep 17 08:42:40 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:42:40\", \"level\": \"INFO\", \"logger\": \"background.scheduler\", \"msg\": \"Job completed\", \"job\": \"exit_monitor\", \"duration_ms\": 0}\nSep 17 08:42:43 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:42:43\", \"level\": \"INFO\", \"logger\": \"background.scheduler\", \"msg\": \"Job completed\", \"job\": \"signal_expiry_check\", \"duration_ms\": 0}\nSep 17 08:42:45 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:42:45\", \"level\": \"INFO\", \"logger\": \"background.scheduler\", \"msg\": \"Job completed\", \"job\": \"exit_monitor\", \"duration_ms\": 0}\nSep 17 08:42:50 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:42:50\", \"level\": \"INFO\", \"logger\": \"background.scheduler\", \"msg\": \"Job completed\", \"job\": \"exit_monitor\", \"duration_ms\": 0}\nSep 17 08:42:55 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:42:55\", \"level\": \"INFO\", \"logger\": \"background.scheduler\", \"msg\": \"Job completed\", \"job\": \"exit_monitor\", \"duration_ms\": 0}\nSep 17 08:43:00 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:43:00\", \"level\": \"INFO\", \"logger\": \"background.scheduler\", \"msg\": \"Job completed\", \"job\": \"exit_monitor\", \"duration_ms\": 0}\nSep 17 08:43:05 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:43:05\", \"level\": \"INFO\", \"logger\": \"background.scheduler\", \"msg\": \"Job completed\", \"job\": \"exit_monitor\", \"duration_ms\": 0}\nSep 17 08:43:05 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:43:05\", \"level\": \"INFO\", \"logger\": \"scanner.market_context\", \"msg\": \"Market context refreshed: BTC=SIDEWAYS, ETH=SIDEWAYS, Regime=RISK_ON, F&G=50\"}\nSep 17 08:43:06 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:43:06\", \"level\": \"INFO\", \"logger\": \"scanner.service\", \"msg\": \"Scanner Funnel Cascade: raw=50, liq=50, vol=50, pump_dump=47, trend=47, atr=47 -> c2_eval=47\", \"funnel\": {\"raw_universe\": 50, \"market_universe\": 959, \"market_liquidity_rejected\": 678, \"market_top_n\": 50, \"liquidity_passed\": 50, \"volume_passed\": 50, \"pump_dump_passed\": 47, \"trend_aligned_passed\": 47, \"volatility_passed\": 47, \"c2_evaluated\": 47}}\nSep 17 08:43:06 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:43:06\", \"level\": \"INFO\", \"logger\": \"scanner.confluence_engine\", \"msg\": \"C2 Confluence evaluation complete\", \"evaluated\": 45, \"confluence_passed\": 0, \"final_signals_output\": 0, \"max_signals_cap\": 2, \"dynamic_threshold\": 88, \"regime_adjustment\": 0}\nSep 17 08:43:06 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:43:06\", \"level\": \"INFO\", \"logger\": \"scanner.service\", \"msg\": \"Scanner poll complete\", \"fetched\": 47, \"new_signals\": 0, \"expired\": 0, \"errors\": 0, \"next_interval_s\": 60, \"live_count\": 2, \"evaluated_count\": 45}\nSep 17 08:43:06 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:43:06\", \"level\": \"INFO\", \"logger\": \"background.scheduler\", \"msg\": \"Job completed\", \"job\": \"scanner_poll\", \"duration_ms\": 2067}\nSep 17 08:43:10 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:43:10\", \"level\": \"INFO\", \"logger\": \"background.scheduler\", \"msg\": \"Job completed\", \"job\": \"exit_monitor\", \"duration_ms\": 0}\nSep 17 08:43:13 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:43:13\", \"level\": \"INFO\", \"logger\": \"background.scheduler\", \"msg\": \"Job completed\", \"job\": \"signal_expiry_check\", \"duration_ms\": 0}\nSep 17 08:43:14 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:43:14\", \"level\": \"WARNING\", \"logger\": \"execution.reconciliation\", \"msg\": \"CoinDCX Exchange Reconciliation flagged issues: 19 mismatches (0 orphans, 2 missing, 0 partials, 0 cancelled, 0 bal_mismatch, 17 pos_mismatch)\"}\nSep 17 08:43:14 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:43:14\", \"level\": \"INFO\", \"logger\": \"background.scheduler\", \"msg\": \"Job completed\", \"job\": \"order_reconciliation\", \"duration_ms\": 453}\nSep 17 08:43:15 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:43:15\", \"level\": \"INFO\", \"logger\": \"background.scheduler\", \"msg\": \"Job completed\", \"job\": \"exit_monitor\", \"duration_ms\": 1}"
+  }
+}

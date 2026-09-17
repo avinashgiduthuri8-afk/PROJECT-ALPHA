@@ -1,7 +1,7 @@
 """
 V2 Interactive Telegram Command & Control (C2) Interface.
 
-Provides a mobile-friendly, bidirectional operator interface for PROJECT-ALPHA V2
+Provides a mobile-friendly, bidirectional operator interface for PROJECT-ALPHA
 requiring ZERO external domain, ZERO public IP, and ZERO port-forwarding via
 Telegram Bot API long polling.
 """
@@ -404,10 +404,10 @@ class TelegramInteractiveInterface:
     async def _send_main_menu(self, chat_id: str | int) -> None:
         mode = self._get_active_mode()
         text = (
-            "🤖 <b>PROJECT-ALPHA V2 MISSION CONTROL</b>\n"
+            "🤖 <b>PROJECT-ALPHA MISSION CONTROL</b>\n"
             f"<b>MODE: {mode}</b>\n"
             "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            "PROJECT-ALPHA V2 Operator Control & Telemetry Interface.\n"
+            "PROJECT-ALPHA Operator Control & Telemetry Interface.\n"
             "• Use buttons below for quick navigation\n"
             "• Send /help for the complete operator manual\n"
             "━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -421,10 +421,10 @@ class TelegramInteractiveInterface:
     async def _render_main_menu_edit(self, chat_id: str | int, message_id: int) -> None:
         mode = self._get_active_mode()
         text = (
-            "🤖 <b>PROJECT-ALPHA V2 MISSION CONTROL</b>\n"
+            "🤖 <b>PROJECT-ALPHA MISSION CONTROL</b>\n"
             f"<b>MODE: {mode}</b>\n"
             "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            "PROJECT-ALPHA V2 Operator Control & Telemetry Interface.\n"
+            "PROJECT-ALPHA Operator Control & Telemetry Interface.\n"
             "• Use buttons below for quick navigation\n"
             "• Send /help for the complete operator manual\n"
             "━━━━━━━━━━━━━━━━━━━━━━━━━"

@@ -1,0 +1,397 @@
+{
+  "Phase_3_RSI": {
+    "status": "PASS",
+    "tests": {
+      "3.1_monotonic_uptrend": {
+        "input_len": 30,
+        "output_len": 30,
+        "initial_nans": 14,
+        "first_valid_idx": 14,
+        "first_valid_val": 100.0,
+        "final_rsi": 99.9999999,
+        "is_overbought_gt_70": true,
+        "is_100": false,
+        "pass": true
+      },
+      "3.2_monotonic_downtrend": {
+        "input_len": 30,
+        "output_len": 30,
+        "initial_nans": 14,
+        "first_valid_idx": 14,
+        "first_valid_val": 0.0,
+        "final_rsi": 0.0,
+        "is_oversold_lt_30": true,
+        "is_0": true,
+        "pass": true
+      },
+      "3.3_constant_series": {
+        "details": {
+          "const_0.0": {
+            "nan_count": 14,
+            "first_valid": 100.0,
+            "all_valid_finite": true,
+            "val_is_100": true
+          },
+          "const_1.0": {
+            "nan_count": 14,
+            "first_valid": 100.0,
+            "all_valid_finite": true,
+            "val_is_100": true
+          },
+          "const_50.0": {
+            "nan_count": 14,
+            "first_valid": 100.0,
+            "all_valid_finite": true,
+            "val_is_100": true
+          },
+          "const_1e-08": {
+            "nan_count": 14,
+            "first_valid": 100.0,
+            "all_valid_finite": true,
+            "val_is_100": true
+          },
+          "const_100000000.0": {
+            "nan_count": 14,
+            "first_valid": 100.0,
+            "all_valid_finite": true,
+            "val_is_100": true
+          }
+        },
+        "pass": true
+      },
+      "3.4_single_large_spike": {
+        "max_val": 100.0,
+        "min_val": 48.148148148148145,
+        "within_0_100": true,
+        "all_valid_finite": true,
+        "pass": true
+      },
+      "3.5_length_boundaries_0_to_20": {
+        "details": {
+          "len_0": {
+            "len": 0,
+            "all_nan": true,
+            "pass": true
+          },
+          "len_1": {
+            "len": 1,
+            "all_nan": true,
+            "pass": true
+          },
+          "len_2": {
+            "len": 2,
+            "all_nan": true,
+            "pass": true
+          },
+          "len_3": {
+            "len": 3,
+            "all_nan": true,
+            "pass": true
+          },
+          "len_4": {
+            "len": 4,
+            "all_nan": true,
+            "pass": true
+          },
+          "len_5": {
+            "len": 5,
+            "all_nan": true,
+            "pass": true
+          },
+          "len_6": {
+            "len": 6,
+            "all_nan": true,
+            "pass": true
+          },
+          "len_7": {
+            "len": 7,
+            "all_nan": true,
+            "pass": true
+          },
+          "len_8": {
+            "len": 8,
+            "all_nan": true,
+            "pass": true
+          },
+          "len_9": {
+            "len": 9,
+            "all_nan": true,
+            "pass": true
+          },
+          "len_10": {
+            "len": 10,
+            "all_nan": true,
+            "pass": true
+          },
+          "len_11": {
+            "len": 11,
+            "all_nan": true,
+            "pass": true
+          },
+          "len_12": {
+            "len": 12,
+            "all_nan": true,
+            "pass": true
+          },
+          "len_13": {
+            "len": 13,
+            "all_nan": true,
+            "pass": true
+          },
+          "len_14": {
+            "len": 14,
+            "all_nan": true,
+            "pass": true
+          },
+          "len_15": {
+            "len": 15,
+            "first_14_nan": true,
+            "valid_tail": true,
+            "bounds_0_100": true,
+            "pass": true
+          },
+          "len_16": {
+            "len": 16,
+            "first_14_nan": true,
+            "valid_tail": true,
+            "bounds_0_100": true,
+            "pass": true
+          },
+          "len_17": {
+            "len": 17,
+            "first_14_nan": true,
+            "valid_tail": true,
+            "bounds_0_100": true,
+            "pass": true
+          },
+          "len_18": {
+            "len": 18,
+            "first_14_nan": true,
+            "valid_tail": true,
+            "bounds_0_100": true,
+            "pass": true
+          },
+          "len_19": {
+            "len": 19,
+            "first_14_nan": true,
+            "valid_tail": true,
+            "bounds_0_100": true,
+            "pass": true
+          },
+          "len_20": {
+            "len": 20,
+            "first_14_nan": true,
+            "valid_tail": true,
+            "bounds_0_100": true,
+            "pass": true
+          }
+        },
+        "pass": true
+      },
+      "3.6_monte_carlo_bounds_invariants": {
+        "iterations": 100,
+        "passes": 100,
+        "pass": true
+      }
+    }
+  },
+  "Phase_4_MACD": {
+    "status": "PASS",
+    "tests": {
+      "4.1_dataframe_40_3_format": {
+        "is_dataframe": true,
+        "shape": [
+          40,
+          3
+        ],
+        "expected_shape": [
+          40,
+          3
+        ],
+        "columns": [
+          "macd",
+          "signal",
+          "hist"
+        ],
+        "expected_columns": [
+          "macd",
+          "signal",
+          "hist"
+        ],
+        "final_macd": 7.400166655316951,
+        "final_signal": 7.112606950549674,
+        "final_hist": 0.2875597047672773,
+        "non_null_final_values": true,
+        "pass": true
+      },
+      "4.2_exact_identity_hist_equals_macd_minus_signal": {
+        "valid_bars_count": 7,
+        "max_discrepancy": 0.0,
+        "allclose_1e_9": true,
+        "nan_mask_aligned": true,
+        "pass": true
+      },
+      "4.3_boundary_lengths_warmup": {
+        "details": {
+          "len_0": {
+            "shape": [
+              0,
+              3
+            ],
+            "pass": true
+          },
+          "len_1": {
+            "shape": [
+              1,
+              3
+            ],
+            "pass": true
+          },
+          "len_12": {
+            "shape": [
+              12,
+              3
+            ],
+            "pass": true
+          },
+          "len_25": {
+            "shape": [
+              25,
+              3
+            ],
+            "pass": true
+          },
+          "len_26": {
+            "shape": [
+              26,
+              3
+            ],
+            "pass": true
+          },
+          "len_33": {
+            "shape": [
+              33,
+              3
+            ],
+            "pass": true
+          },
+          "len_34": {
+            "shape": [
+              34,
+              3
+            ],
+            "pass": true
+          },
+          "len_35": {
+            "shape": [
+              35,
+              3
+            ],
+            "pass": true
+          },
+          "len_60": {
+            "shape": [
+              60,
+              3
+            ],
+            "pass": true
+          }
+        },
+        "pass": true
+      },
+      "4.4_constant_series_flatness": {
+        "max_abs_macd": 0.0,
+        "max_abs_signal": 0.0,
+        "max_abs_hist": 0.0,
+        "pass": true
+      }
+    }
+  },
+  "Phase_5_EMA50": {
+    "status": "PASS",
+    "tests": {
+      "5.1_insufficient_data_lt_50": {
+        "details": {
+          "len_0": {
+            "len": 0,
+            "all_nan": true,
+            "last_valid_zero": true,
+            "calc_ema_empty": true,
+            "pass": true
+          },
+          "len_1": {
+            "len": 1,
+            "all_nan": true,
+            "last_valid_zero": true,
+            "calc_ema_empty": true,
+            "pass": true
+          },
+          "len_10": {
+            "len": 10,
+            "all_nan": true,
+            "last_valid_zero": true,
+            "calc_ema_empty": true,
+            "pass": true
+          },
+          "len_49": {
+            "len": 49,
+            "all_nan": true,
+            "last_valid_zero": true,
+            "calc_ema_empty": true,
+            "pass": true
+          }
+        },
+        "pass": true
+      },
+      "5.2_boundary_seed_matches_sma_exact": {
+        "input_len": 50,
+        "output_len": 50,
+        "first_49_are_nan": true,
+        "expected_sma_mean": 124.5,
+        "actual_seed_at_49": 124.5,
+        "diff": 0.0,
+        "seed_matches_exact": true,
+        "calc_ema_list_len": 1,
+        "calc_ema_matches": true,
+        "pass": true
+      },
+      "5.3_length_100_recursive_step_verification": {
+        "output_len": 100,
+        "valid_elements_count": 51,
+        "expected_valid_elements": 51,
+        "max_discrepancy_vs_manual": 0.0,
+        "all_steps_match_1e_12": true,
+        "all_subsequent_finite": true,
+        "calc_ema_matches_compute_ema": true,
+        "final_value": 86.96129775356577,
+        "pass": true
+      }
+    }
+  },
+  "Causality_LookAhead": {
+    "status": "PASS",
+    "tests": {
+      "scenario_1_massive_moonshot_spike": {
+        "pass": true,
+        "failures": []
+      },
+      "scenario_2_catastrophic_flash_crash": {
+        "pass": true,
+        "failures": []
+      },
+      "scenario_3_extreme_volatility_50_bars": {
+        "pass": true,
+        "failures": []
+      },
+      "scenario_4_flat_line_50_bars": {
+        "pass": true,
+        "failures": []
+      },
+      "scenario_5_single_incremental_bar": {
+        "pass": true,
+        "failures": []
+      }
+    }
+  },
+  "Overall_Verdict": "APPROVE"
+}

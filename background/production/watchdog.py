@@ -1,5 +1,5 @@
 """
-v2/services/production_service/watchdog.py — 24/7 Watchdog Supervisor & Health Recovery.
+core/production_service/watchdog.py — 24/7 Watchdog Supervisor & Health Recovery.
 background/production/watchdog.py — 24/7 Watchdog Supervisor & Health Recovery.
 
 Monitors all 14 pipeline stages and 9 critical subsystem probes:

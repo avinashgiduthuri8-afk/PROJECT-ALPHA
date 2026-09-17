@@ -21,7 +21,7 @@ from background.ai.service import AIIntelligenceService
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
 from core.bus.subscribers import register_all
-from core.config import V2Config
+from core.config import AppConfig
 from core.repository.ai_repo import AIAnalysisRepository
 from core.repository.candle_repo import CandleRepository
 from core.repository.db import Database

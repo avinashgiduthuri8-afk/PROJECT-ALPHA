@@ -1,8 +1,8 @@
-# PROJECT-ALPHA V2: Master Engineering Blueprint & Stock Market Clone Guide
+# PROJECT-ALPHA: Master Engineering Blueprint & Stock Market Clone Guide
 
 > **Document Type:** Master Technical Specification & Architecture Blueprint  
 > **Target Audience:** Systems Architects, Quantitative Developers, Algorithmic Traders  
-> **Source Platform:** PROJECT-ALPHA V2 (Institutional Event-Driven Crypto Quantitative Trading Engine)  
+> **Source Platform:** PROJECT-ALPHA (Institutional Event-Driven Crypto Quantitative Trading Engine)  
 > **Target Application:** Complete Clone & Adaptation for Equities / Stock Markets (NSE, BSE, NYSE, NASDAQ)  
 > **Release Version:** `v2.0.0-production`
 
@@ -30,7 +30,7 @@
 
 ## 1. Executive Summary & High-Level Architecture
 
-PROJECT-ALPHA V2 is an institutional-grade, asynchronous, event-driven quantitative algorithmic trading platform. It eliminates tight coupling by replacing monolithic loops with an asynchronous in-process **EventBus**, clean **Repository Pattern** persistence on SQLite WAL, an autonomous **14-Stage Execution & Intelligence Pipeline**, **AI Thesis Validation** with hardware circuit breakers, and an automated **Self-Calibrating Feedback Loop**.
+PROJECT-ALPHA is an institutional-grade, asynchronous, event-driven quantitative algorithmic trading platform. It eliminates tight coupling by replacing monolithic loops with an asynchronous in-process **EventBus**, clean **Repository Pattern** persistence on SQLite WAL, an autonomous **14-Stage Execution & Intelligence Pipeline**, **AI Thesis Validation** with hardware circuit breakers, and an automated **Self-Calibrating Feedback Loop**.
 
 ### System Topology Diagram
 
@@ -154,7 +154,7 @@ class EventType(str, Enum):
 
 ## 4. Complete Microservices Catalog (15 Subsystems)
 
-All services inherit standard lifecycle contracts (`start()`, `stop()`, `get_health()`) located in `v2/services/`:
+All services inherit standard lifecycle contracts (`start()`, `stop()`, `get_health()`) located in `core/`:
 
 1. **`ScannerService`**: Dispatches live candle warm-ups, multi-timeframe candle parsing, and feeds candidate tickers.
 2. **`AIIntelligenceService`**: Dispatches structured prompts to Gemini 2.5 Flash / Claude / OpenAI. Includes a hardware `CircuitBreaker` and rule-based `FallbackEvaluator`.
@@ -323,7 +323,7 @@ PROJECT-ALPHA runs 4 distinct quantitative archetypes across isolated subaccount
 
 ## 7. C2 Confluence Scoring Engine
 
-The Confluence Engine (`v2/services/scanner_service/confluence_engine.py`) aggregates technical evidence across 4 distinct dimensions. A signal is only dispatched if the total score is $\ge 85.0$ (ELITE priority).
+The Confluence Engine (`core/scanner_service/confluence_engine.py`) aggregates technical evidence across 4 distinct dimensions. A signal is only dispatched if the total score is $\ge 85.0$ (ELITE priority).
 
 $$\text{Confluence Score} = (W_{\text{chart}} \cdot S_{\text{chart}}) + (W_{\text{ind}} \cdot S_{\text{ind}}) + (W_{\text{regime}} \cdot S_{\text{regime}}) + (W_{\text{sent}} \cdot S_{\text{sent}})$$
 
@@ -340,7 +340,7 @@ $$\text{Confluence Score} = (W_{\text{chart}} \cdot S_{\text{chart}}) + (W_{\tex
 
 ## 8. AI Thesis Validator & Circuit Breaker Subsystem
 
-Signals passing C2 confluence undergo independent LLM thesis validation (`v2/services/ai_intelligence_service/service.py`).
+Signals passing C2 confluence undergo independent LLM thesis validation (`core/ai_intelligence_service/service.py`).
 
 ### Hardware Circuit Breaker State Machine
 
@@ -476,7 +476,7 @@ class StockBrokerClient:
 
 ### Step 2: Market Session & Trading Hours Awareness
 
-Unlike 24/7 crypto markets, stock markets have strict trading sessions. Add a Market Session Guard in `v2/services/risk_service/service.py`:
+Unlike 24/7 crypto markets, stock markets have strict trading sessions. Add a Market Session Guard in `core/risk_service/service.py`:
 
 ```python
 # File: v2/core/market_session.py
@@ -529,10 +529,10 @@ Replace the crypto watchlist (`BTC`, `ETH`, `SOL`) in `v2/data/watchlist.json` w
 
 ### Step 4: Stock Market Regime & Sector Rotation Engine
 
-Replace the Bitcoin/Ethereum market context with the benchmark equity indices (NIFTY 50 / S&P 500) and sectoral breadth in `v2/services/scanner_service/market_context.py`:
+Replace the Bitcoin/Ethereum market context with the benchmark equity indices (NIFTY 50 / S&P 500) and sectoral breadth in `core/scanner_service/market_context.py`:
 
 ```python
-# In v2/services/scanner_service/market_context.py
+# In core/scanner_service/market_context.py
 async def refresh_stock_market_context(self) -> Dict[str, Any]:
     nifty_quote = await self.broker.get_live_stock_quote("NSE", "NIFTY 50")
     nifty_ema200 = await self.get_candle_ema("NSE:NIFTY 50", timeframe="1d", period=200)
@@ -578,10 +578,10 @@ Here is the exact file modification map for cloning PROJECT-ALPHA into a stock t
 | `v2/data/watchlist.json` | Stock asset universe | Replace crypto pairs (`SOL/INR`) with equity symbols (`RELIANCE`, `TCS`, `INFY`). |
 | `v2/trading/subaccount_manager.py` | Broker Client Adapter | Replace CoinDCX HMAC client with Kite Connect / Upstox / Alpaca order dispatch methods. |
 | `v2/trading/precision_rules.py` | Stock Tick & Lot Rules | Enforce integer quantities (shares) and standard tick size ($\text{₹}0.05$). |
-| `v2/services/scanner_service/service.py` | Stock Universe Scanner | Feed equity candle history from broker WebSocket / historical API. |
-| `v2/services/scanner_service/market_context.py`| Index & Sector Context | Track NIFTY 50 / S&P 500 benchmark trends instead of BTC/ETH. |
-| `v2/services/risk_service/capital_guard.py` | Stock Capital Guard | Apply stock margin rules, Single-Stock lock, and MIS auto-square-off timers. |
-| `v2/services/analytics_service/tax_ledger.py` | Equity Tax Ledger | Replace 1% Crypto TDS with STT, Stamp Duty, GST, and STCG/LTCG tax rules. |
+| `core/scanner_service/service.py` | Stock Universe Scanner | Feed equity candle history from broker WebSocket / historical API. |
+| `core/scanner_service/market_context.py`| Index & Sector Context | Track NIFTY 50 / S&P 500 benchmark trends instead of BTC/ETH. |
+| `core/risk_service/capital_guard.py` | Stock Capital Guard | Apply stock margin rules, Single-Stock lock, and MIS auto-square-off timers. |
+| `core/analytics_service/tax_ledger.py` | Equity Tax Ledger | Replace 1% Crypto TDS with STT, Stamp Duty, GST, and STCG/LTCG tax rules. |
 | `v2/templates/dashboard.html` | Mission Control Web UI | Update currency and ticker displays to show stock symbols and sectoral badges. |
 
 ---
@@ -620,4 +620,4 @@ python -m pytest tests/ -v --basetemp=./.pytest_tmp
 
 ---
 
-*PROJECT-ALPHA V2 Architecture Blueprint — Certified for Autonomous Production & Quantitative Cloning.*
+*PROJECT-ALPHA Architecture Blueprint — Certified for Autonomous Production & Quantitative Cloning.*

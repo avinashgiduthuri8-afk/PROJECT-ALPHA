@@ -9,7 +9,7 @@ import json
 import httpx
 import pytest
 
-from core.config import V2Config
+from core.config import AppConfig
 from core.types import BotName
 from execution.trading.subaccount_manager import (
     CoinDCXExecutionClient,
@@ -24,7 +24,7 @@ def test_master_api_credentials_loaded_from_env(monkeypatch):
     monkeypatch.setenv("COINDCX_API_KEY", "test_master_key_123")
     monkeypatch.setenv("COINDCX_API_SECRET", "test_master_secret_456")
 
-    cfg = V2Config()
+    cfg = AppConfig()
     assert cfg.coindcx_api_key == "test_master_key_123"
     assert cfg.coindcx_api_secret == "test_master_secret_456"
 

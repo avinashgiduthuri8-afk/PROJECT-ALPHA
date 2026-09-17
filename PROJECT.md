@@ -1,11 +1,11 @@
-# Project: PROJECT-ALPHA V2 Platform, Telemetry & UI Fixes
+# Project: PROJECT-ALPHA Platform, Telemetry & UI Fixes
 
 ## Architecture
-PROJECT-ALPHA V2 is an automated crypto algorithmic trading system operating strictly under `BotMode.PAPER` with a unified shared capital pool (minimum ₹200 notional per order).
+PROJECT-ALPHA is an automated crypto algorithmic trading system operating strictly under `BotMode.PAPER` with a unified shared capital pool (minimum ₹200 notional per order).
 Data flow and module boundaries:
 1. **Repository Layer (`v2/repository/`)**:
    - `PositionRepository`: SQLite database interface for `positions` and `trades`. Tracks lifecycle (`PENDING_ENTRY`, `OPEN`, `PENDING_EXIT`, `CLOSING`, `CLOSED`). Provides `get_active_positions()` (`status != 'CLOSED'`).
-2. **Service Layer (`v2/services/`)**:
+2. **Service Layer (`core/`)**:
    - `BotPipelineTracker` (`dashboard_service/bot_pipeline.py`): Tracks 4 execution bots (`STE`, `HDA`, `VCP`, `BBS`) with configured capacities `(3, 3, 2, 4)`. Must hydrate active positions and deployed capital from `PositionRepository` on startup.
    - `DashboardService` (`dashboard_service/service.py`) & `DashboardAggregator`: Aggregates overview metrics, fleet state, risk metrics, and active positions for API and WebSocket delivery.
    - `PortfolioService` & `PortfolioAggregator`: Computes cash balance, total MTM valuation, statutory friction, and dynamic total equity ($\text{Cash} + \text{MTM} - \text{Friction}$).
@@ -48,7 +48,7 @@ Data flow and module boundaries:
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
 | M0 | E2E Testing Suite (Tiers 1-4) | Design test harness and test cases in `tests/e2e/`, publish `TEST_INFRA.md` & `TEST_READY.md`. | none | IN_PROGRESS |
-| M1 | Backend Startup Hydration & Active Positions Routing | Implement features 1, 2, 3, 4, 5 in `v2/services/`, `v2/api/`, `v2/repository/`. | none | PLANNED |
+| M1 | Backend Startup Hydration & Active Positions Routing | Implement features 1, 2, 3, 4, 5 in `core/`, `v2/api/`, `v2/repository/`. | none | PLANNED |
 | M2 | Frontend Script, DOM Sync, Capacities & Watchlist | Implement features 6, 7, 8, 9, 10 in `v2/templates/dashboard.html` and schemas. | M1 | PLANNED |
 | M3 | Trade Chart Plotting Integration | Implement features 11, 12 in `v2/api/research_routes.py` and `v2/templates/dashboard.html`. | M2 | PLANNED |
 | M4 | Final Acceptance & Adversarial Hardening | Implement feature 14, run full pytest suite (100% pass), adversarial coverage audit. | M0, M1, M2, M3 | PLANNED |
@@ -87,13 +87,13 @@ Data flow and module boundaries:
 ---
 
 ## Code Layout
-- `v2/services/dashboard_service/bot_pipeline.py`: Bot pipeline and hydration tracking.
-- `v2/services/dashboard_service/service.py`: Dashboard overview aggregation.
+- `core/dashboard_service/bot_pipeline.py`: Bot pipeline and hydration tracking.
+- `core/dashboard_service/service.py`: Dashboard overview aggregation.
 - `v2/api/router.py`: FastAPI root router and `/positions/open` handler.
 - `v2/api/dashboard_routes.py`: Dashboard fleet, signals, overview routes.
 - `v2/api/research_routes.py`: Research candle feed for charting.
 - `v2/api/schemas.py`: Schema definitions (`DashboardOverviewSchema`, `ScannedCoinSchema`, etc.).
-- `v2/services/portfolio_service/`: Dynamic total equity calculation.
+- `core/portfolio_service/`: Dynamic total equity calculation.
 - `v2/templates/dashboard.html`: Single-page application HTML/JS/CSS.
 - `tests/test_v2_dashboard_ui.py`: UI and API endpoint unit tests.
 - `tests/e2e/`: Opaque-box E2E test suite.

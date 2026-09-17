@@ -1,5 +1,5 @@
 """
-v2/services/production_service/controller.py — Production Controller & Emergency Kill-Switch.
+core/production_service/controller.py — Production Controller & Emergency Kill-Switch.
 background/production/controller.py — Production Controller & Emergency Kill-Switch.
 
 Manages:

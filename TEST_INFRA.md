@@ -22,8 +22,8 @@
 | 12 | Interactive Trade Chart Widget | ORIGINAL_REQUEST R4 | 5 | 5 | ✓ | ✓ |
 
 ## Test Architecture
-- **Runner**: Pytest invocation: `py -m pytest tests/e2e/ tests/test_v2_dashboard_ui.py tests/test_v2_price_precision_and_order_integrity.py --basetemp=.pytest_tmp -v`.
-- **E2E Test Directory**: `tests/e2e/test_v2_e2e_platform.py`
+- **Runner**: Pytest invocation: `py -m pytest tests/e2e/ tests/test_dashboard_ui.py tests/test_price_precision_and_order_integrity.py --basetemp=.pytest_tmp -v`.
+- **E2E Test Directory**: `tests/e2e/test_e2e_platform.py`
 - **Pass/Fail Semantics**: 100% pass, zero errors, exit code 0.
 - **Fixture Support**: Isolated temporary SQLite test databases and FastAPI `TestClient` / `AsyncClient`.
 

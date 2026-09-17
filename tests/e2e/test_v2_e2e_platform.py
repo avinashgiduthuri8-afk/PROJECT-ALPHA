@@ -33,7 +33,7 @@ from background.ai.service import AIIntelligenceService
 from background.portfolio.aggregator import PortfolioAggregator
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
-from core.config import V2Config, get_config, invalidate_config
+from core.config import AppConfig, get_config, invalidate_config
 from core.repository.candle_repo import CandleRepository
 from core.repository.db import Database
 from core.repository.position_repo import PositionRepository
@@ -640,7 +640,7 @@ class TestTier1Feature10AITelemetryBinding:
 
     def test_t1_46_ai_service_initialization(self):
         bus = EventBus()
-        cfg = V2Config()
+        cfg = AppConfig()
         ai = AIIntelligenceService(
             bus=bus, ai_repo=MagicMock(), event_log_repo=MagicMock(), config=cfg
         )
@@ -1518,14 +1518,14 @@ class TestTier3PairwiseInteractions:
 
     def test_t3_11_capital_limit_and_fleet_allocation(self):
         """F5 + F8: Configured bot capital limits govern wallet allocation."""
-        cfg = V2Config()
+        cfg = AppConfig()
         tracker = BotPipelineTracker(config=cfg)
         ste = tracker.get_bot_detail("STE")
         assert ste["capital_limit"] == cfg.ste_capital_limit
 
     def test_t3_12_restart_preserves_paper_mode_invariant(self):
         """F1 + F6: System operates strictly under non-live paper trading mode."""
-        cfg = V2Config()
+        cfg = AppConfig()
         assert "LIVE" not in cfg.v2_deployment_mode
 
 

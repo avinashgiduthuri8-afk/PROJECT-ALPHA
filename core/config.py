@@ -36,6 +36,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DEFAULT_ORDER_AMOUNT_INR: float = 200.0
 
+# Backward-compatibility mapping: production deployments may still use V2_* env vars
 LEGACY_FIELD_MAP = {
     "v2_trading_enabled": "trading_enabled",
     "v2_deployment_mode": "deployment_mode",
@@ -877,6 +878,7 @@ class AppConfig(BaseSettings):
 
 
 # Canonical alias for backward compatibility
+# Backward compatibility alias (permanent, used by legacy tests)
 V2Config = AppConfig
 
 

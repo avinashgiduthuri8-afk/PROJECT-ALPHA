@@ -1,0 +1,935 @@
+{
+  "vps_time_utc": "2026-09-17T08:36:39.297022+00:00",
+  "window_5m_start_utc": "2026-09-17T08:31:39.297022+00:00",
+  "window_today_start_utc": "2026-09-17T00:00:00+00:00",
+  "databases": {
+    "project_alpha_db": {
+      "path": "/opt/project-alpha/data/project_alpha.db",
+      "exists": true,
+      "size_bytes": 108371968,
+      "mtime_utc": "2026-09-17T05:05:40.656172+00:00",
+      "tables": [
+        "schema_version",
+        "signals",
+        "positions",
+        "trades",
+        "metrics_snapshots",
+        "bot_snapshots",
+        "event_log",
+        "ai_analyses",
+        "shadow_trades",
+        "decision_divergences",
+        "market_candles",
+        "production_runtime_state",
+        "learning_insights",
+        "strategy_calibrations",
+        "trade_journal",
+        "backtest_runs",
+        "backtest_trades",
+        "feedback_audit_trail",
+        "active_calibrations_cache",
+        "production_ops_state",
+        "shadow_trade_logs",
+        "orders",
+        "order_state_transitions"
+      ],
+      "signals_columns": [
+        "id",
+        "coin",
+        "pair",
+        "market_state",
+        "opportunity_type",
+        "priority",
+        "risk_level",
+        "score",
+        "confidence",
+        "coin_class",
+        "mtf_alignment",
+        "generated_at",
+        "expires_at",
+        "expired_at",
+        "expiry_reason",
+        "source_bot",
+        "raw_payload"
+      ],
+      "total_signals": 408,
+      "latest_signal_timestamp": "2026-09-11T13:26:44.782646+00:00",
+      "signals_last_5m_count": 0,
+      "signals_last_15m_count": 0,
+      "signals_last_1h_count": 0,
+      "signals_today_count": 0,
+      "audited_recent_signals": [
+        {
+          "id": "fbd30627-375c-42f3-96f1-5c363020d38b",
+          "coin": "ONDO",
+          "pair": "ONDO/USDT",
+          "score_col": 93,
+          "generated_at": "2026-09-11T13:26:44.782646+00:00",
+          "raw_payload_present": true,
+          "json_parse_ok": true,
+          "field_checks": {
+            "rsi": {
+              "value": 62.55,
+              "valid": true
+            },
+            "atr_pct": {
+              "value": 0.93,
+              "valid": true
+            },
+            "volume_24h": {
+              "value": 3198033.65,
+              "valid": true
+            },
+            "volume_ratio": {
+              "value": 0.67,
+              "valid": true
+            },
+            "mtf_alignment": {
+              "value": true,
+              "valid": true
+            },
+            "score": {
+              "value": 92.0,
+              "valid": true
+            }
+          },
+          "errors": []
+        },
+        {
+          "id": "9b555932-8918-41e2-a2bb-d83717faad26",
+          "coin": "FLOKI",
+          "pair": "FLOKI/USDT",
+          "score_col": 93,
+          "generated_at": "2026-09-11T13:26:44.782646+00:00",
+          "raw_payload_present": true,
+          "json_parse_ok": true,
+          "field_checks": {
+            "rsi": {
+              "value": 68.15,
+              "valid": true
+            },
+            "atr_pct": {
+              "value": 0.77,
+              "valid": true
+            },
+            "volume_24h": {
+              "value": 751470.44,
+              "valid": true
+            },
+            "volume_ratio": {
+              "value": 0.44,
+              "valid": true
+            },
+            "mtf_alignment": {
+              "value": true,
+              "valid": true
+            },
+            "score": {
+              "value": 92.1,
+              "valid": true
+            }
+          },
+          "errors": []
+        },
+        {
+          "id": "aab8e80b-6e53-4549-831e-48b3e5ca4684",
+          "coin": "ETH",
+          "pair": "ETH/USDT",
+          "score_col": 97,
+          "generated_at": "2026-09-11T13:26:44.678213+00:00",
+          "raw_payload_present": true,
+          "json_parse_ok": true,
+          "field_checks": {
+            "rsi": {
+              "value": 68.43,
+              "valid": true
+            },
+            "atr_pct": {
+              "value": 0.59,
+              "valid": true
+            },
+            "volume_24h": {
+              "value": 387777397.05,
+              "valid": true
+            },
+            "volume_ratio": {
+              "value": 2.22,
+              "valid": true
+            },
+            "mtf_alignment": {
+              "value": true,
+              "valid": true
+            },
+            "score": {
+              "value": 91.9,
+              "valid": true
+            }
+          },
+          "errors": []
+        },
+        {
+          "id": "834c817b-60a0-4251-800d-317680f05782",
+          "coin": "ETH",
+          "pair": "ETH/INR",
+          "score_col": 95,
+          "generated_at": "2026-09-11T13:26:44.678213+00:00",
+          "raw_payload_present": true,
+          "json_parse_ok": true,
+          "field_checks": {
+            "rsi": {
+              "value": 71.17,
+              "valid": true
+            },
+            "atr_pct": {
+              "value": 0.78,
+              "valid": true
+            },
+            "volume_24h": {
+              "value": 11538782.75,
+              "valid": true
+            },
+            "volume_ratio": {
+              "value": 1.28,
+              "valid": true
+            },
+            "mtf_alignment": {
+              "value": true,
+              "valid": true
+            },
+            "score": {
+              "value": 86.7,
+              "valid": true
+            }
+          },
+          "errors": []
+        },
+        {
+          "id": "c5c3d36b-c08c-4127-a613-8550565aa00e",
+          "coin": "TAO",
+          "pair": "TAO/USDT",
+          "score_col": 92,
+          "generated_at": "2026-09-11T13:25:45.532471+00:00",
+          "raw_payload_present": true,
+          "json_parse_ok": true,
+          "field_checks": {
+            "rsi": {
+              "value": 69.9,
+              "valid": true
+            },
+            "atr_pct": {
+              "value": 0.98,
+              "valid": true
+            },
+            "volume_24h": {
+              "value": 6428100.53,
+              "valid": true
+            },
+            "volume_ratio": {
+              "value": 0.72,
+              "valid": true
+            },
+            "mtf_alignment": {
+              "value": true,
+              "valid": true
+            },
+            "score": {
+              "value": 91.7,
+              "valid": true
+            }
+          },
+          "errors": []
+        },
+        {
+          "id": "b5f02f19-dfa5-4ae5-8337-3a4c8a48b97d",
+          "coin": "WIF",
+          "pair": "WIF/USDT",
+          "score_col": 92,
+          "generated_at": "2026-09-11T13:25:45.532471+00:00",
+          "raw_payload_present": true,
+          "json_parse_ok": true,
+          "field_checks": {
+            "rsi": {
+              "value": 61.11,
+              "valid": true
+            },
+            "atr_pct": {
+              "value": 1.0,
+              "valid": true
+            },
+            "volume_24h": {
+              "value": 615298.75,
+              "valid": true
+            },
+            "volume_ratio": {
+              "value": 0.45,
+              "valid": true
+            },
+            "mtf_alignment": {
+              "value": true,
+              "valid": true
+            },
+            "score": {
+              "value": 91.5,
+              "valid": true
+            }
+          },
+          "errors": []
+        },
+        {
+          "id": "4e18007e-3385-4c38-8ee2-0eb6eb65c17f",
+          "coin": "JUP",
+          "pair": "JUP/USDT",
+          "score_col": 92,
+          "generated_at": "2026-09-11T13:24:45.255274+00:00",
+          "raw_payload_present": true,
+          "json_parse_ok": true,
+          "field_checks": {
+            "rsi": {
+              "value": 74.35,
+              "valid": true
+            },
+            "atr_pct": {
+              "value": 1.58,
+              "valid": true
+            },
+            "volume_24h": {
+              "value": 2946226.81,
+              "valid": true
+            },
+            "volume_ratio": {
+              "value": 0.54,
+              "valid": true
+            },
+            "mtf_alignment": {
+              "value": true,
+              "valid": true
+            },
+            "score": {
+              "value": 90.7,
+              "valid": true
+            }
+          },
+          "errors": []
+        },
+        {
+          "id": "83154c4d-875c-44bf-869e-656fa2abcf27",
+          "coin": "PENDLE",
+          "pair": "PENDLE/USDT",
+          "score_col": 92,
+          "generated_at": "2026-09-11T13:24:45.255274+00:00",
+          "raw_payload_present": true,
+          "json_parse_ok": true,
+          "field_checks": {
+            "rsi": {
+              "value": 78.86,
+              "valid": true
+            },
+            "atr_pct": {
+              "value": 1.04,
+              "valid": true
+            },
+            "volume_24h": {
+              "value": 1179925.75,
+              "valid": true
+            },
+            "volume_ratio": {
+              "value": 0.76,
+              "valid": true
+            },
+            "mtf_alignment": {
+              "value": true,
+              "valid": true
+            },
+            "score": {
+              "value": 90.3,
+              "valid": true
+            }
+          },
+          "errors": []
+        },
+        {
+          "id": "0910417a-e0a2-4a32-a782-ef97f3d28321",
+          "coin": "PEPE",
+          "pair": "PEPE/USDT",
+          "score_col": 92,
+          "generated_at": "2026-09-11T13:23:45.045968+00:00",
+          "raw_payload_present": true,
+          "json_parse_ok": true,
+          "field_checks": {
+            "rsi": {
+              "value": 65.38,
+              "valid": true
+            },
+            "atr_pct": {
+              "value": 1.11,
+              "valid": true
+            },
+            "volume_24h": {
+              "value": 9337432.2,
+              "valid": true
+            },
+            "volume_ratio": {
+              "value": 0.82,
+              "valid": true
+            },
+            "mtf_alignment": {
+              "value": true,
+              "valid": true
+            },
+            "score": {
+              "value": 91.7,
+              "valid": true
+            }
+          },
+          "errors": []
+        },
+        {
+          "id": "d2be5124-598c-48c7-9ba5-b8071cab4450",
+          "coin": "UNI",
+          "pair": "UNI/USDT",
+          "score_col": 92,
+          "generated_at": "2026-09-11T13:23:45.045968+00:00",
+          "raw_payload_present": true,
+          "json_parse_ok": true,
+          "field_checks": {
+            "rsi": {
+              "value": 64.15,
+              "valid": true
+            },
+            "atr_pct": {
+              "value": 1.23,
+              "valid": true
+            },
+            "volume_24h": {
+              "value": 18592204.94,
+              "valid": true
+            },
+            "volume_ratio": {
+              "value": 0.76,
+              "valid": true
+            },
+            "mtf_alignment": {
+              "value": true,
+              "valid": true
+            },
+            "score": {
+              "value": 91.3,
+              "valid": true
+            }
+          },
+          "errors": []
+        }
+      ]
+    },
+    "alpha_v2_db": {
+      "path": "/opt/project-alpha/v2/data/alpha_v2.db",
+      "exists": true,
+      "size_bytes": 110931968,
+      "mtime_utc": "2026-09-17T08:36:27.007842+00:00",
+      "tables": [
+        "schema_version",
+        "signals",
+        "positions",
+        "trades",
+        "metrics_snapshots",
+        "bot_snapshots",
+        "event_log",
+        "ai_analyses",
+        "shadow_trades",
+        "decision_divergences",
+        "market_candles",
+        "production_runtime_state",
+        "learning_insights",
+        "strategy_calibrations",
+        "trade_journal",
+        "backtest_runs",
+        "backtest_trades",
+        "feedback_audit_trail",
+        "active_calibrations_cache",
+        "production_ops_state",
+        "shadow_trade_logs",
+        "orders",
+        "order_state_transitions"
+      ],
+      "signals_columns": [
+        "id",
+        "coin",
+        "pair",
+        "market_state",
+        "opportunity_type",
+        "priority",
+        "risk_level",
+        "score",
+        "confidence",
+        "coin_class",
+        "mtf_alignment",
+        "generated_at",
+        "expires_at",
+        "expired_at",
+        "expiry_reason",
+        "source_bot",
+        "raw_payload"
+      ],
+      "total_signals": 422,
+      "latest_signal_timestamp": "2026-09-17T08:11:33.344530+00:00",
+      "signals_last_5m_count": 0,
+      "signals_last_15m_count": 0,
+      "signals_last_1h_count": 2,
+      "signals_today_count": 14,
+      "audited_recent_signals": [
+        {
+          "id": "25b4517f-5131-4e76-ac7b-9b3194a72811",
+          "coin": "BTC",
+          "pair": "BTC/INR",
+          "score_col": 90,
+          "generated_at": "2026-09-17T08:11:33.344530+00:00",
+          "raw_payload_present": true,
+          "json_parse_ok": true,
+          "field_checks": {
+            "rsi": {
+              "value": 69.49,
+              "valid": true
+            },
+            "atr_pct": {
+              "value": 0.82,
+              "valid": true
+            },
+            "volume_24h": {
+              "value": 232456036150622.72,
+              "valid": true
+            },
+            "volume_ratio": {
+              "value": 0.1,
+              "valid": true
+            },
+            "mtf_alignment": {
+              "value": true,
+              "valid": true
+            },
+            "score": {
+              "value": 91.3,
+              "valid": true
+            }
+          },
+          "errors": []
+        },
+        {
+          "id": "36f68b08-a884-4a88-94aa-8841c9a0b28e",
+          "coin": "BTC",
+          "pair": "BTC/USDT",
+          "score_col": 90,
+          "generated_at": "2026-09-17T08:11:33.344530+00:00",
+          "raw_payload_present": true,
+          "json_parse_ok": true,
+          "field_checks": {
+            "rsi": {
+              "value": 67.91,
+              "valid": true
+            },
+            "atr_pct": {
+              "value": 0.51,
+              "valid": true
+            },
+            "volume_24h": {
+              "value": 84031859698239.34,
+              "valid": true
+            },
+            "volume_ratio": {
+              "value": 0.1,
+              "valid": true
+            },
+            "mtf_alignment": {
+              "value": true,
+              "valid": true
+            },
+            "score": {
+              "value": 90.9,
+              "valid": true
+            }
+          },
+          "errors": []
+        },
+        {
+          "id": "cfa24b33-1c0c-4017-ba71-0437eff307e4",
+          "coin": "BTC",
+          "pair": "BTC/INR",
+          "score_col": 90,
+          "generated_at": "2026-09-17T07:10:56.763401+00:00",
+          "raw_payload_present": true,
+          "json_parse_ok": true,
+          "field_checks": {
+            "rsi": {
+              "value": 61.15,
+              "valid": true
+            },
+            "atr_pct": {
+              "value": 0.84,
+              "valid": true
+            },
+            "volume_24h": {
+              "value": 231654458669709.3,
+              "valid": true
+            },
+            "volume_ratio": {
+              "value": 0.13,
+              "valid": true
+            },
+            "mtf_alignment": {
+              "value": true,
+              "valid": true
+            },
+            "score": {
+              "value": 91.1,
+              "valid": true
+            }
+          },
+          "errors": []
+        },
+        {
+          "id": "3bc73383-4775-48ed-82ad-b454a22ad8ff",
+          "coin": "BTC",
+          "pair": "BTC/USDT",
+          "score_col": 90,
+          "generated_at": "2026-09-17T07:10:56.763401+00:00",
+          "raw_payload_present": true,
+          "json_parse_ok": true,
+          "field_checks": {
+            "rsi": {
+              "value": 66.76,
+              "valid": true
+            },
+            "atr_pct": {
+              "value": 0.63,
+              "valid": true
+            },
+            "volume_24h": {
+              "value": 86581717058457.02,
+              "valid": true
+            },
+            "volume_ratio": {
+              "value": 0.1,
+              "valid": true
+            },
+            "mtf_alignment": {
+              "value": true,
+              "valid": true
+            },
+            "score": {
+              "value": 91.0,
+              "valid": true
+            }
+          },
+          "errors": []
+        },
+        {
+          "id": "b903dcdc-c7b9-4a56-b471-d58d3fd099b4",
+          "coin": "BTC",
+          "pair": "BTC/USDT",
+          "score_col": 90,
+          "generated_at": "2026-09-17T06:10:20.993873+00:00",
+          "raw_payload_present": true,
+          "json_parse_ok": true,
+          "field_checks": {
+            "rsi": {
+              "value": 63.58,
+              "valid": true
+            },
+            "atr_pct": {
+              "value": 0.66,
+              "valid": true
+            },
+            "volume_24h": {
+              "value": 87219023866178.25,
+              "valid": true
+            },
+            "volume_ratio": {
+              "value": 0.07,
+              "valid": true
+            },
+            "mtf_alignment": {
+              "value": true,
+              "valid": true
+            },
+            "score": {
+              "value": 90.8,
+              "valid": true
+            }
+          },
+          "errors": []
+        },
+        {
+          "id": "5948f048-a0be-4812-b56c-7d4f48782715",
+          "coin": "BTC",
+          "pair": "BTC/INR",
+          "score_col": 88,
+          "generated_at": "2026-09-17T06:10:20.993873+00:00",
+          "raw_payload_present": true,
+          "json_parse_ok": true,
+          "field_checks": {
+            "rsi": {
+              "value": 70.57,
+              "valid": true
+            },
+            "atr_pct": {
+              "value": 0.86,
+              "valid": true
+            },
+            "volume_24h": {
+              "value": 235282157466658.4,
+              "valid": true
+            },
+            "volume_ratio": {
+              "value": 0.12,
+              "valid": true
+            },
+            "mtf_alignment": {
+              "value": true,
+              "valid": true
+            },
+            "score": {
+              "value": 86.5,
+              "valid": true
+            }
+          },
+          "errors": []
+        },
+        {
+          "id": "10cd5538-ff6b-42c0-8ba9-365697285899",
+          "coin": "USELESS",
+          "pair": "USELESS/USDT",
+          "score_col": 94,
+          "generated_at": "2026-09-17T05:49:08.548260+00:00",
+          "raw_payload_present": true,
+          "json_parse_ok": true,
+          "field_checks": {
+            "rsi": {
+              "value": 73.35,
+              "valid": true
+            },
+            "atr_pct": {
+              "value": 4.36,
+              "valid": true
+            },
+            "volume_24h": {
+              "value": 798501.33,
+              "valid": true
+            },
+            "volume_ratio": {
+              "value": 1.41,
+              "valid": true
+            },
+            "mtf_alignment": {
+              "value": true,
+              "valid": true
+            },
+            "score": {
+              "value": 95.0,
+              "valid": true
+            }
+          },
+          "errors": []
+        },
+        {
+          "id": "22ff7ff7-0df0-47a4-8cfa-ed0a30a26535",
+          "coin": "VVV",
+          "pair": "VVV/USDT",
+          "score_col": 94,
+          "generated_at": "2026-09-17T05:49:08.548260+00:00",
+          "raw_payload_present": true,
+          "json_parse_ok": true,
+          "field_checks": {
+            "rsi": {
+              "value": 71.95,
+              "valid": true
+            },
+            "atr_pct": {
+              "value": 2.92,
+              "valid": true
+            },
+            "volume_24h": {
+              "value": 27089332.43,
+              "valid": true
+            },
+            "volume_ratio": {
+              "value": 1.66,
+              "valid": true
+            },
+            "mtf_alignment": {
+              "value": true,
+              "valid": true
+            },
+            "score": {
+              "value": 95.0,
+              "valid": true
+            }
+          },
+          "errors": []
+        },
+        {
+          "id": "8868913e-fe58-4576-927f-0f6790a47378",
+          "coin": "MINA",
+          "pair": "MINA/USDT",
+          "score_col": 94,
+          "generated_at": "2026-09-17T05:19:22.047168+00:00",
+          "raw_payload_present": true,
+          "json_parse_ok": true,
+          "field_checks": {
+            "rsi": {
+              "value": 71.31,
+              "valid": true
+            },
+            "atr_pct": {
+              "value": 2.22,
+              "valid": true
+            },
+            "volume_24h": {
+              "value": 138058.27,
+              "valid": true
+            },
+            "volume_ratio": {
+              "value": 1.42,
+              "valid": true
+            },
+            "mtf_alignment": {
+              "value": true,
+              "valid": true
+            },
+            "score": {
+              "value": 95.0,
+              "valid": true
+            }
+          },
+          "errors": []
+        },
+        {
+          "id": "46d0c2ae-cbc8-42ff-b1f9-02413d60e40f",
+          "coin": "ARB",
+          "pair": "ARB/USDT",
+          "score_col": 94,
+          "generated_at": "2026-09-17T05:19:22.047168+00:00",
+          "raw_payload_present": true,
+          "json_parse_ok": true,
+          "field_checks": {
+            "rsi": {
+              "value": 73.37,
+              "valid": true
+            },
+            "atr_pct": {
+              "value": 3.06,
+              "valid": true
+            },
+            "volume_24h": {
+              "value": 9840235.89,
+              "valid": true
+            },
+            "volume_ratio": {
+              "value": 0.47,
+              "valid": true
+            },
+            "mtf_alignment": {
+              "value": true,
+              "valid": true
+            },
+            "score": {
+              "value": 95.0,
+              "valid": true
+            }
+          },
+          "errors": []
+        }
+      ]
+    }
+  },
+  "journalctl": {
+    "line_count": 50,
+    "error_lines_count": 2,
+    "error_lines": [
+      "Sep 17 08:35:11 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:35:11\", \"level\": \"INFO\", \"logger\": \"scanner.service\", \"msg\": \"Scanner poll complete\", \"fetched\": 45, \"new_signals\": 0, \"expired\": 0, \"errors\": 0, \"next_interval_s\": 60, \"live_count\": 2, \"evaluated_count\": 43}",
+      "Sep 17 08:36:05 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:36:05\", \"level\": \"INFO\", \"logger\": \"scanner.service\", \"msg\": \"Scanner poll complete\", \"fetched\": 45, \"new_signals\": 0, \"expired\": 0, \"errors\": 0, \"next_interval_s\": 60, \"live_count\": 2, \"evaluated_count\": 43}"
+    ],
+    "scanner_lines_count": 12,
+    "last_10_scanner_lines": [
+      "Sep 17 08:35:11 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:35:11\", \"level\": \"INFO\", \"logger\": \"scanner.service\", \"msg\": \"Scanner Funnel Cascade: raw=50, liq=50, vol=50, pump_dump=45, trend=45, atr=45 -> c2_eval=45\", \"funnel\": {\"raw_universe\": 50, \"market_universe\": 959, \"market_liquidity_rejected\": 674, \"market_top_n\": 50, \"liquidity_passed\": 50, \"volume_passed\": 50, \"pump_dump_passed\": 45, \"trend_aligned_passed\": 45, \"volatility_passed\": 45, \"c2_evaluated\": 45}}",
+      "Sep 17 08:35:11 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:35:11\", \"level\": \"INFO\", \"logger\": \"scanner.confluence_engine\", \"msg\": \"C2 Confluence evaluation complete\", \"evaluated\": 43, \"confluence_passed\": 0, \"final_signals_output\": 0, \"max_signals_cap\": 2, \"dynamic_threshold\": 88, \"regime_adjustment\": 0}",
+      "Sep 17 08:35:11 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:35:11\", \"level\": \"INFO\", \"logger\": \"scanner.service\", \"msg\": \"Scanner poll complete\", \"fetched\": 45, \"new_signals\": 0, \"expired\": 0, \"errors\": 0, \"next_interval_s\": 60, \"live_count\": 2, \"evaluated_count\": 43}",
+      "Sep 17 08:35:11 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:35:11\", \"level\": \"INFO\", \"logger\": \"background.scheduler\", \"msg\": \"Job completed\", \"job\": \"scanner_poll\", \"duration_ms\": 7555}",
+      "Sep 17 08:36:02 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:36:02\", \"level\": \"INFO\", \"logger\": \"scanner.service\", \"msg\": \"[Flusher] Periodic candle flush cycle started\"}",
+      "Sep 17 08:36:04 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:36:04\", \"level\": \"INFO\", \"logger\": \"scanner.market_context\", \"msg\": \"Market context refreshed: BTC=SIDEWAYS, ETH=SIDEWAYS, Regime=RISK_ON, F&G=50\"}",
+      "Sep 17 08:36:05 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:36:05\", \"level\": \"INFO\", \"logger\": \"scanner.service\", \"msg\": \"Scanner Funnel Cascade: raw=50, liq=50, vol=50, pump_dump=45, trend=45, atr=45 -> c2_eval=45\", \"funnel\": {\"raw_universe\": 50, \"market_universe\": 959, \"market_liquidity_rejected\": 672, \"market_top_n\": 50, \"liquidity_passed\": 50, \"volume_passed\": 50, \"pump_dump_passed\": 45, \"trend_aligned_passed\": 45, \"volatility_passed\": 45, \"c2_evaluated\": 45}}",
+      "Sep 17 08:36:05 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:36:05\", \"level\": \"INFO\", \"logger\": \"scanner.confluence_engine\", \"msg\": \"C2 Confluence evaluation complete\", \"evaluated\": 43, \"confluence_passed\": 0, \"final_signals_output\": 0, \"max_signals_cap\": 2, \"dynamic_threshold\": 88, \"regime_adjustment\": 0}",
+      "Sep 17 08:36:05 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:36:05\", \"level\": \"INFO\", \"logger\": \"scanner.service\", \"msg\": \"Scanner poll complete\", \"fetched\": 45, \"new_signals\": 0, \"expired\": 0, \"errors\": 0, \"next_interval_s\": 60, \"live_count\": 2, \"evaluated_count\": 43}",
+      "Sep 17 08:36:05 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:36:05\", \"level\": \"INFO\", \"logger\": \"background.scheduler\", \"msg\": \"Job completed\", \"job\": \"scanner_poll\", \"duration_ms\": 1918}"
+    ],
+    "last_5_raw_lines": [
+      "Sep 17 08:36:19 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:36:19\", \"level\": \"INFO\", \"logger\": \"background.scheduler\", \"msg\": \"Job completed\", \"job\": \"exit_monitor\", \"duration_ms\": 0}",
+      "Sep 17 08:36:21 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:36:21\", \"level\": \"WARNING\", \"logger\": \"execution.reconciliation\", \"msg\": \"CoinDCX Exchange Reconciliation flagged issues: 19 mismatches (0 orphans, 2 missing, 0 partials, 0 cancelled, 0 bal_mismatch, 17 pos_mismatch)\"}",
+      "Sep 17 08:36:24 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:36:24\", \"level\": \"INFO\", \"logger\": \"background.scheduler\", \"msg\": \"Job completed\", \"job\": \"exit_monitor\", \"duration_ms\": 0}",
+      "Sep 17 08:36:29 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:36:29\", \"level\": \"INFO\", \"logger\": \"background.scheduler\", \"msg\": \"Job completed\", \"job\": \"exit_monitor\", \"duration_ms\": 0}",
+      "Sep 17 08:36:34 vps-tekq python3[71891]: {\"ts\": \"2026-09-17T08:36:34\", \"level\": \"INFO\", \"logger\": \"background.scheduler\", \"msg\": \"Job completed\", \"job\": \"exit_monitor\", \"duration_ms\": 0}"
+    ]
+  },
+  "api_scanner_coins": {
+    "status_code": 200,
+    "type": "list",
+    "total_candidates": 43,
+    "sample_keys": [
+      "symbol",
+      "coin",
+      "pair",
+      "price",
+      "price_change_pct",
+      "volume_24h",
+      "volume_ratio",
+      "ema_trend",
+      "rsi",
+      "mtf_alignment",
+      "is_mtf_aligned",
+      "confluence_score",
+      "status",
+      "accepted",
+      "rejection_reason",
+      "evaluated_at"
+    ],
+    "sample_candidate": {
+      "symbol": "USELESS",
+      "coin": "USELESS",
+      "pair": "USELESS/USDT",
+      "price": 0.27034,
+      "price_change_pct": 0.0,
+      "volume_24h": 846859.87,
+      "volume_ratio": 0.6,
+      "ema_trend": "BULLISH",
+      "rsi": 72.59,
+      "mtf_alignment": "15m_1h_1d",
+      "is_mtf_aligned": true,
+      "confluence_score": 87,
+      "status": "REJECTED",
+      "accepted": false,
+      "rejection_reason": "Confluence score (87) below dynamic threshold (88)",
+      "evaluated_at": "2026-09-17T08:36:05.712479+00:00"
+    },
+    "invalid_coins_count": 0,
+    "invalid_coins": []
+  },
+  "api_scanner_signals": {
+    "status_code": 200,
+    "response_type": "list",
+    "count": 2,
+    "sample": {
+      "id": "25b4517f-5131-4e76-ac7b-9b3194a72811",
+      "coin": "BTC",
+      "pair": "BTC/INR",
+      "market_state": "bull_trend",
+      "opportunity_type": "continuation",
+      "priority": "Elite",
+      "risk_level": "medium",
+      "score": 90,
+      "confidence": 0,
+      "coin_class": "A",
+      "mtf_alignment": true,
+      "generated_at": "2026-09-17T08:11:33.344530Z",
+      "expires_at": "2026-09-17T09:11:33.344530Z",
+      "source_bot": "VCP"
+    }
+  }
+}
