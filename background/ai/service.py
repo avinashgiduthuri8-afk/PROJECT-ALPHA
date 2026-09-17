@@ -189,6 +189,10 @@ class AIIntelligenceService:
 
         raw_p = signal.raw_payload or {}
         price = float(raw_p.get("price") or raw_p.get("close") or 0.0)
+        if price <= 0.0:
+            logger.warning("AI Service dropping signal %s for %s: price <= 0.0", signal.id, signal.coin)
+            return
+
         bot = (
             signal.source_bot
             if signal.source_bot in ("STE", "HDA", "VCP", "BBS")

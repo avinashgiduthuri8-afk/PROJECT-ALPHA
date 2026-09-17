@@ -287,7 +287,6 @@ async def lifespan(app: FastAPI):
         scanner_service=_scanner_service,
         trading_service=_trading_service,
     )
-    await _scheduler.start()
     _health_checker._scheduler = _scheduler
 
     # 6. WebSocket & Subscriber Wiring
@@ -303,7 +302,8 @@ async def lifespan(app: FastAPI):
         notification_service=_notification_service,
         dashboard_service=_dashboard_service,
     )
-
+    
+    await _scheduler.start()
     _research_service = CoinResearchService(
         candle_repo=candle_repo,
         config=cfg,

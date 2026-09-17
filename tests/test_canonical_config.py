@@ -2,12 +2,12 @@
 Tests for canonical configuration (AppConfig) and backward-compatibility aliases.
 """
 
-from core.config import AppConfig, V2Config
+from core.config import AppConfig, AppConfig
 
 
 def test_v2config_is_appconfig():
-    """Verify V2Config is an alias for AppConfig."""
-    assert V2Config is AppConfig
+    """Verify AppConfig is an alias for AppConfig."""
+    assert AppConfig is AppConfig
 
 
 def test_canonical_defaults():

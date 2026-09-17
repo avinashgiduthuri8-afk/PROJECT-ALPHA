@@ -1,5 +1,5 @@
 """
-PROJECT-ALPHA V2 — Live Execution Wiring, Fill Confirmation, and Order Reconciliation Tests.
+PROJECT-ALPHA — Live Execution Wiring, Fill Confirmation, and Order Reconciliation Tests.
 """
 
 from __future__ import annotations
@@ -54,7 +54,7 @@ async def test_1_paper_buy_execution(tmp_path):
     pos_repo = PositionRepository(db.connection)
     trade_repo = TradeRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
-    cfg = V2Config(
+    cfg = AppConfig(
         v2_deployment_mode="SHADOW",
         v2_trading_enabled=False,
         total_capital_limit=10000.0,
@@ -109,7 +109,7 @@ async def test_2_and_6_live_buy_confirmed_filled(tmp_path):
     pos_repo = PositionRepository(db.connection)
     trade_repo = TradeRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
-    cfg = V2Config(
+    cfg = AppConfig(
         v2_deployment_mode="LIVE_MICROCASH",
         v2_trading_enabled=True,
         total_capital_limit=10000.0,
@@ -180,7 +180,7 @@ async def test_3_live_buy_http_failure_no_position(tmp_path):
     pos_repo = PositionRepository(db.connection)
     trade_repo = TradeRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
-    cfg = V2Config(
+    cfg = AppConfig(
         v2_deployment_mode="LIVE_MICROCASH",
         v2_trading_enabled=True,
         total_capital_limit=10000.0,
@@ -236,7 +236,7 @@ async def test_4_live_buy_rejection_no_position(tmp_path):
     pos_repo = PositionRepository(db.connection)
     trade_repo = TradeRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
-    cfg = V2Config(
+    cfg = AppConfig(
         v2_deployment_mode="LIVE_MICROCASH",
         v2_trading_enabled=True,
         total_capital_limit=10000.0,
@@ -291,7 +291,7 @@ async def test_5_live_buy_pending_unfilled_no_position(tmp_path):
     pos_repo = PositionRepository(db.connection)
     trade_repo = TradeRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
-    cfg = V2Config(
+    cfg = AppConfig(
         v2_deployment_mode="LIVE_MICROCASH",
         v2_trading_enabled=True,
         total_capital_limit=10000.0,
@@ -353,7 +353,7 @@ async def test_7_paper_sell_execution(tmp_path):
     pos_repo = PositionRepository(db.connection)
     trade_repo = TradeRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
-    cfg = V2Config(
+    cfg = AppConfig(
         v2_deployment_mode="SHADOW",
         v2_trading_enabled=False,
         total_capital_limit=10000.0,
@@ -413,7 +413,7 @@ async def test_8_and_10_live_sell_confirmed_filled(tmp_path):
     pos_repo = PositionRepository(db.connection)
     trade_repo = TradeRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
-    cfg = V2Config(
+    cfg = AppConfig(
         v2_deployment_mode="LIVE_MICROCASH",
         v2_trading_enabled=True,
         total_capital_limit=10000.0,
@@ -492,7 +492,7 @@ async def test_9_live_sell_failure_position_remains_open(tmp_path):
     pos_repo = PositionRepository(db.connection)
     trade_repo = TradeRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
-    cfg = V2Config(
+    cfg = AppConfig(
         v2_deployment_mode="LIVE_MICROCASH",
         v2_trading_enabled=True,
         total_capital_limit=10000.0,
@@ -561,7 +561,7 @@ async def test_12_live_mode_never_calls_paper_place_order(tmp_path):
     pos_repo = PositionRepository(db.connection)
     trade_repo = TradeRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
-    cfg = V2Config(
+    cfg = AppConfig(
         v2_deployment_mode="LIVE_MICROCASH",
         v2_trading_enabled=True,
         total_capital_limit=10000.0,
@@ -617,7 +617,7 @@ async def test_12_live_mode_never_calls_paper_place_order(tmp_path):
 @pytest.mark.anyio
 async def test_13_timeout_safety_no_blind_duplicate(tmp_path):
     """13. HTTP timeout returns proper error with client_order_id without duplicating or opening phantom position."""
-    live_cfg = V2Config(v2_deployment_mode="LIVE_MICROCASH", v2_trading_enabled=True)
+    live_cfg = AppConfig(v2_deployment_mode="LIVE_MICROCASH", v2_trading_enabled=True)
     client = CoinDCXSubAccountClient(
         SubAccountConfig(
             bot_name=BotName.STE, subaccount_id="STE_01", api_key="k", api_secret="s"
@@ -654,7 +654,7 @@ async def test_14_order_reconciliation_repairs_cancelled_orders(tmp_path):
     pos_repo = PositionRepository(db.connection)
     trade_repo = TradeRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
-    cfg = V2Config(v2_deployment_mode="LIVE_MICROCASH", v2_trading_enabled=True)
+    cfg = AppConfig(v2_deployment_mode="LIVE_MICROCASH", v2_trading_enabled=True)
 
     mgr = CoinDCXSubAccountManager()
     client = mgr.get_client(BotName.STE)

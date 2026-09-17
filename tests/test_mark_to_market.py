@@ -1,5 +1,5 @@
 """
-Focused Regression Tests for PROJECT-ALPHA V2 Mark-to-Market Fix.
+Focused Regression Tests for PROJECT-ALPHA Mark-to-Market Fix.
 
 Verifies:
 - Test A: current_price updates from entry_price on fresh ticker
@@ -52,7 +52,7 @@ async def setup_env(tmp_path):
     trade_repo = TradeRepository(conn)
     event_repo = EventLogRepository(conn)
     bus = EventBus()
-    cfg = V2Config(v2_trading_enabled=True)
+    cfg = AppConfig(v2_trading_enabled=True)
     exec_mgr = CoinDCXExecutionManager()
 
     trading_svc = TradingService(

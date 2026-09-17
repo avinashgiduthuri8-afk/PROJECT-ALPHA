@@ -1,6 +1,6 @@
 """
 tests/test_v2_safety_invariants.py
-Focused Regression Test Suite for PROJECT-ALPHA V2 Safety Invariants.
+Focused Regression Test Suite for PROJECT-ALPHA Safety Invariants.
 
 Verifies:
 1. Dynamic Capital: No ₹10,000 fallback, ₹200 default only, manually configurable order_size_inr.
@@ -95,7 +95,7 @@ def test_01_dynamic_capital_no_10k_fallback_configurable_order_size():
     os.environ.pop("CAPITAL_POOL", None)
     invalidate_config()
 
-    cfg = V2Config(total_capital_limit=None)
+    cfg = AppConfig(total_capital_limit=None)
     assert cfg.order_size_inr == 200.0
     assert cfg.total_capital_limit is None  # Dynamic capital, no fixed ₹10,000 ceiling
 
@@ -127,7 +127,7 @@ async def test_02_authoritative_precision_rules_and_no_arbitrary_100_floor(tmp_d
     db = Database(tmp_db_file)
     await db.open()
     bus = EventBus()
-    cfg = V2Config(
+    cfg = AppConfig(
         v2_db_path=tmp_db_file,
         alert_chat_id="12345",
         telegram_allowed_chat_ids="12345",
@@ -182,7 +182,7 @@ async def test_02_authoritative_precision_rules_and_no_arbitrary_100_floor(tmp_d
 @pytest.mark.anyio
 async def test_03_kill_switch_blocks_every_outbound_path_buy_and_sell():
     """Kill-switch blocks both BUY and SELL calls to CoinDCX with 0 network requests."""
-    disabled_cfg = V2Config(
+    disabled_cfg = AppConfig(
         v2_trading_enabled=False, v2_deployment_mode="LIVE_MICROCASH"
     )
     sub_mgr = CoinDCXSubAccountManager(config=disabled_cfg)
@@ -222,7 +222,7 @@ async def test_04_resume_rejects_when_risk_engine_reports_unsafe(tmp_db_file):
     db = Database(tmp_db_file)
     await db.open()
     bus = EventBus()
-    cfg = V2Config(
+    cfg = AppConfig(
         v2_db_path=tmp_db_file,
         v2_max_consecutive_losses=3,
         v2_trading_enabled=False,
@@ -272,7 +272,7 @@ async def test_05_telegram_safety_obeys_risk_engine(tmp_db_file):
     db = Database(tmp_db_file)
     await db.open()
     bus = EventBus()
-    cfg = V2Config(
+    cfg = AppConfig(
         v2_db_path=tmp_db_file, alert_chat_id="1001", telegram_allowed_chat_ids="1001"
     )
     pos_repo = PositionRepository(db.connection)
@@ -325,7 +325,7 @@ async def test_06_paper_and_shadow_never_call_exchange(tmp_db_file):
     db = Database(tmp_db_file)
     await db.open()
     bus = EventBus()
-    cfg = V2Config(
+    cfg = AppConfig(
         v2_db_path=tmp_db_file, v2_shadow_mode=False, v2_deployment_mode="PAPER"
     )
     pos_repo = PositionRepository(db.connection)
@@ -378,7 +378,7 @@ async def test_06_paper_and_shadow_never_call_exchange(tmp_db_file):
 @pytest.mark.anyio
 async def test_07_live_dynamic_balance_fails_closed_when_unavailable():
     """LIVE mode fails closed (BLOCKED_BALANCE_UNAVAILABLE) if exchange balance is unverified."""
-    cfg = V2Config(v2_trading_enabled=True, v2_deployment_mode="LIVE_MICROCASH")
+    cfg = AppConfig(v2_trading_enabled=True, v2_deployment_mode="LIVE_MICROCASH")
     sub_mgr = CoinDCXSubAccountManager(config=cfg)
     client = sub_mgr.get_client(BotName.STE)
     # Simulate network failure returning None for balance
@@ -409,7 +409,7 @@ async def test_08_watchdog_safety_invariants(tmp_db_file):
     db = Database(tmp_db_file)
     await db.open()
     bus = EventBus()
-    cfg = V2Config(v2_db_path=tmp_db_file, v2_trading_enabled=False)
+    cfg = AppConfig(v2_db_path=tmp_db_file, v2_trading_enabled=False)
     pos_repo = PositionRepository(db.connection)
     trade_repo = TradeRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
@@ -446,7 +446,7 @@ async def test_09_execution_amount_flow_buy_and_sell(tmp_db_file):
     db = Database(tmp_db_file)
     await db.open()
     bus = EventBus()
-    cfg = V2Config(v2_db_path=tmp_db_file, order_size_inr=400.0)
+    cfg = AppConfig(v2_db_path=tmp_db_file, order_size_inr=400.0)
     pos_repo = PositionRepository(db.connection)
     trade_repo = TradeRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
@@ -509,7 +509,7 @@ async def test_10_reconciliation_safety_no_duplicates_or_reopening(tmp_db_file):
     db = Database(tmp_db_file)
     await db.open()
     bus = EventBus()
-    cfg = V2Config(v2_db_path=tmp_db_file, v2_deployment_mode="LIVE_MICROCASH")
+    cfg = AppConfig(v2_db_path=tmp_db_file, v2_deployment_mode="LIVE_MICROCASH")
     pos_repo = PositionRepository(db.connection)
     trade_repo = TradeRepository(db.connection)
     event_repo = EventLogRepository(db.connection)

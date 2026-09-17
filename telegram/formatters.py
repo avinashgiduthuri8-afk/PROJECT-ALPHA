@@ -21,6 +21,14 @@ def format_qty(qty: float | None) -> str:
     s = f"{q:.6f}".rstrip("0").rstrip(".")
     return s if s else "0"
 
+def fmt_price(p: float) -> str:
+    """Format prices dynamically for sub-satoshi precision."""
+    if p >= 1.0:
+        return f"{p:.2f}"
+    elif p >= 0.0001:
+        return f"{p:.6f}"
+    else:
+        return f"{p:.10f}"
 
 def format_signal_ai_alert(payload: dict[str, Any]) -> str:
     """Format AI Intelligence confirmation or rejection alert."""
@@ -89,13 +97,13 @@ def format_position_opened_alert(payload: dict[str, Any]) -> str:
     sl = payload.get("stop_loss")
     tp = payload.get("take_profit")
 
-    sl_str = f"₹{sl:.2f}" if sl is not None else "None"
-    tp_str = f"₹{tp:.2f}" if tp is not None else "None"
+    sl_str = f"₹{fmt_price(sl)}" if sl is not None else "None"
+    tp_str = f"₹{fmt_price(tp)}" if tp is not None else "None"
 
     return (
         f"🟢 <b>BUY EXECUTED</b>\n"
         f"<b>Coin:</b> <code>{coin}</code> | <b>Bot:</b> <code>{bot}</code>\n"
-        f"<b>Amount:</b> ₹{amount:.2f} | <b>Entry:</b> ₹{price:.2f}\n"
+        f"<b>Amount:</b> ₹{amount:.2f} | <b>Entry:</b> ₹{fmt_price(price)}\n"
         f"<b>TP:</b> {tp_str} | <b>SL:</b> {sl_str}"
     )
 
@@ -114,7 +122,7 @@ def format_position_closed_alert(payload: dict[str, Any]) -> str:
 
     return (
         f"{emoji} <b>Position Closed — {coin}</b>\n"
-        f"<b>Bot:</b> <code>{bot}</code> | <b>Exit Price:</b> ₹{price:.2f}\n"
+        f"<b>Bot:</b> <code>{bot}</code> | <b>Exit Price:</b> ₹{fmt_price(price)}\n"
         f"<b>Realized PnL:</b> <code>{sign}₹{pnl:.2f} ({sign}{pnl_pct:.2f}%)</code>\n"
         f"<b>Exit Trigger:</b> <code>{reason}</code>"
     )
@@ -310,13 +318,13 @@ def format_telegram_positions(positions: list[dict[str, Any]]) -> str:
         sym = "$" if is_usdt else "₹"
         deployed = float(p.get("amount", 0.0) or (qty * entry))
 
-        sl_str = f"{sym}{float(sl):.2f}" if sl is not None else "None"
-        tp_str = f"{sym}{float(tp):.2f}" if tp is not None else "None"
+        sl_str = f"{sym}{fmt_price(float(sl))}" if sl is not None else "None"
+        tp_str = f"{sym}{fmt_price(float(tp))}" if tp is not None else "None"
 
         if cur is None:
             lines.append(
                 f"⚪ <b>{pair}</b> [{status}]\n"
-                f"   • Entry: {sym}{entry:.2f} | Capital: {sym}{deployed:.2f}\n"
+                f"   • Entry: {sym}{fmt_price(entry)} | Capital: {sym}{deployed:.2f}\n"
                 f"   • Unrealized P&L: <code>UNAVAILABLE</code>\n"
                 f"   • TP: {tp_str} | SL: {sl_str}\n"
                 f"   • Status: <code>{status}</code>"
@@ -337,7 +345,7 @@ def format_telegram_positions(positions: list[dict[str, Any]]) -> str:
             emoji = "🟢" if unrealized >= 0 else "🔴"
             lines.append(
                 f"{emoji} <b>{pair}</b> [{status}]\n"
-                f"   • Entry: {sym}{entry:.2f} | Capital: {sym}{deployed:.2f}\n"
+                f"   • Entry: {sym}{fmt_price(entry)} | Capital: {sym}{deployed:.2f}\n"
                 f"   • Unrealized P&L: <code>{sign}{sym}{unrealized:.2f} ({pct_sign}{unrealized_pct:.2f}%)</code>\n"
                 f"   • TP: {tp_str} | SL: {sl_str}\n"
                 f"   • Status: <code>{status}</code>"

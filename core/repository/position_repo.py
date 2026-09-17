@@ -58,6 +58,10 @@ def _row_to_position(row: aiosqlite.Row) -> Position:
 
 class PositionRepository(BaseRepository):
     async def insert(self, position: Position) -> str:
+        if position.entry_price <= 0.0:
+            logger.error("Repository layer rejected insert: entry_price <= 0 for %s", position.coin)
+            raise ValueError(f"Invalid entry_price: {position.entry_price}")
+
         entry_time_str = (
             position.entry_time.isoformat()
             if hasattr(position.entry_time, "isoformat")

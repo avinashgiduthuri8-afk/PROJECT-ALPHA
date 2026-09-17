@@ -1,5 +1,5 @@
 """
-Phase 6 Autonomous Recursive Feedback Loop Test Suite for PROJECT-ALPHA V2.
+Phase 6 Autonomous Recursive Feedback Loop Test Suite for PROJECT-ALPHA.
 
 Verifies:
   1. End-to-End Feedback Pipeline (Signal -> Trade -> Result -> Insight -> Pre-Validation -> Promotion).
@@ -24,7 +24,7 @@ from core.config import invalidate_config
 from core.repository.backtest_repo import BacktestRepository
 from core.repository.db import Database
 from core.repository.feedback_repo import FeedbackRepository
-from tests.test_v2_phase5_backtest_improvement import generate_synthetic_candles
+from tests.test_phase5_backtest_improvement import generate_synthetic_candles
 
 
 async def _create_test_feedback_db(tmp_path):

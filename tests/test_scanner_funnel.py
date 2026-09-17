@@ -38,7 +38,7 @@ async def test_scanner_5_stage_filter_cascade_and_funnel_counters():
     event_repo = EventLogRepository(db.connection)
     candle_repo = CandleRepository(db.connection)
 
-    cfg = V2Config(
+    cfg = AppConfig(
         v2_db_path=db_file,
         scanner_min_24h_volume=1000.0,
         scanner_max_price_change_pct=25.0,
@@ -168,7 +168,7 @@ async def test_scanner_cascade_strict_execution_order_and_stage_isolation():
     event_repo = EventLogRepository(db.connection)
     candle_repo = CandleRepository(db.connection)
 
-    cfg = V2Config(
+    cfg = AppConfig(
         v2_db_path=db_file,
         scanner_min_24h_volume=50000.0,
         scanner_max_price_change_pct=25.0,
@@ -609,7 +609,7 @@ async def test_scanner_end_to_end_confluence_pass():
             mock_sent.return_value = market_data
 
             # 2. Mock _fetch_v1_signals to yield one valid strong candidate and one weak
-            async def mock_fetch_v1():
+            async def mock_fetch_v1(**kwargs):
                 return [
                     {
                         "coin": "STRONG",

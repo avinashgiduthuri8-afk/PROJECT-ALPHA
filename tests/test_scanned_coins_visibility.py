@@ -44,7 +44,7 @@ async def test_scanner_snapshot_retention_and_overwrite(tmp_path):
     bus = EventBus()
     sig_repo = SignalRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
-    cfg = V2Config(v2_scanner_strict_confluence_threshold=85, v2_scanner_max_signals=2)
+    cfg = AppConfig(v2_scanner_strict_confluence_threshold=85, v2_scanner_max_signals=2)
 
     scanner = ScannerService(
         bus=bus, signal_repo=sig_repo, event_log_repo=event_repo, config=cfg
@@ -151,7 +151,7 @@ async def test_scanner_snapshot_retention_and_overwrite(tmp_path):
     )
 
     # Directly mock confluence evaluation return
-    async def mock_fetch_v1():
+    async def mock_fetch_v1(**kwargs):
         return [
             {"coin": "BTC", "price": 6500000.0, "rsi": 58.0},
             {"coin": "ETH", "price": 280000.0, "rsi": 48.0},
@@ -192,7 +192,7 @@ async def test_scanner_snapshot_retention_and_overwrite(tmp_path):
     assert detail_btc3 is not None
 
     # Simulate second scan pass with only 1 coin to test atomic overwrite (no memory leak)
-    async def mock_fetch_v1_pass2():
+    async def mock_fetch_v1_pass2(**kwargs):
         return [{"coin": "ETH", "price": 282000.0, "rsi": 50.0}]
 
     scanner._fetch_v1_signals = mock_fetch_v1_pass2

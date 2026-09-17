@@ -51,7 +51,7 @@ async def exit_test_env():
     order_repo = OrderRepository(db.connection)
     subaccount_mgr = CoinDCXSubAccountManager()
 
-    cfg = V2Config(
+    cfg = AppConfig(
         v2_trading_enabled=True,
         v2_deployment_mode="LIVE_MICROCASH",
         order_size_inr=250.0,

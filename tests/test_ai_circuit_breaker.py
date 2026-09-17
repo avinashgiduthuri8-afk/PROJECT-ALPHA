@@ -149,7 +149,7 @@ async def ai_service_env(tmp_path):
     event_repo = EventLogRepository(conn)
     bus = EventBus()
 
-    cfg = V2Config(
+    cfg = AppConfig(
         v2_ai_enabled=True,
         gemini_api_key="fake-key-for-testing",
         v2_ai_circuit_breaker_threshold=3,

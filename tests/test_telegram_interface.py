@@ -1,5 +1,5 @@
 """
-Test Suite for PROJECT-ALPHA V2 Telegram Interactive C2 Interface.
+Test Suite for PROJECT-ALPHA Telegram Interactive C2 Interface.
 """
 
 from __future__ import annotations
@@ -121,7 +121,7 @@ def test_telegram_formatters():
         "trading_mode": "PAPER ACTIVE",
     }
     menu_txt = format_telegram_menu(overview)
-    assert "PROJECT-ALPHA V2" in menu_txt
+    assert "PROJECT-ALPHA" in menu_txt
     assert "₹100,000.00" in menu_txt
     assert "+₹1,250.50" in menu_txt
 
@@ -210,7 +210,7 @@ def test_telegram_formatters():
 @pytest.mark.anyio
 async def test_telegram_authorization(tmp_path):
     """Verify whitelist authorization rules for Telegram chat IDs."""
-    cfg = V2Config(
+    cfg = AppConfig(
         v2_db_path=str(tmp_path / "test_auth.db"),
         alert_bot_token="test-token",
         alert_chat_id="1001",
@@ -242,7 +242,7 @@ async def test_telegram_command_routing(tmp_path):
         sig_repo = SignalRepository(conn)
         pos_repo = PositionRepository(conn)
         trade_repo = TradeRepository(conn)
-        cfg = V2Config(
+        cfg = AppConfig(
             v2_db_path=db_path,
             alert_bot_token="test-token",
             alert_chat_id="12345",
@@ -265,7 +265,7 @@ async def test_telegram_command_routing(tmp_path):
             {"chat": {"id": 12345}, "text": "/start"}
         )
         assert len(mock_client.sent_messages) == 1
-        assert "PROJECT-ALPHA V2" in mock_client.sent_messages[-1]["text"]
+        assert "PROJECT-ALPHA" in mock_client.sent_messages[-1]["text"]
         assert mock_client.sent_messages[-1]["reply_markup"] is not None
 
         # 2. Test /bots
@@ -339,7 +339,7 @@ async def test_telegram_callback_queries(tmp_path):
         bus = EventBus()
         pos_repo = PositionRepository(conn)
         trade_repo = TradeRepository(conn)
-        cfg = V2Config(
+        cfg = AppConfig(
             v2_db_path=db_path,
             alert_bot_token="test-token",
             alert_chat_id="12345",
@@ -424,7 +424,7 @@ async def test_notification_service_with_interactive_telegram(tmp_path):
         sig_repo = SignalRepository(conn)
         pos_repo = PositionRepository(conn)
         trade_repo = TradeRepository(conn)
-        cfg = V2Config(
+        cfg = AppConfig(
             v2_db_path=db_path,
             alert_bot_token="test-token",
             alert_chat_id="12345",

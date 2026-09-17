@@ -1,5 +1,5 @@
 """
-Phase 2 Execution Engine Test Suite for PROJECT-ALPHA V2.
+Phase 2 Execution Engine Test Suite for PROJECT-ALPHA.
 
 Verifies:
   1. Precision & Notional Enforcement (tick size, lot step size, min ₹100 notional rejection).

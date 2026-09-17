@@ -58,7 +58,7 @@ async def test_db_env(tmp_path):
     pos_repo = PositionRepository(conn)
     trade_repo = TradeRepository(conn)
     bus = EventBus()
-    cfg = V2Config(v2_trading_enabled=True)
+    cfg = AppConfig(v2_trading_enabled=True)
 
     yield {
         "db": db,

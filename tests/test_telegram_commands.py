@@ -1,6 +1,6 @@
 """
 tests/test_v2_telegram_commands.py
-Comprehensive test suite for PROJECT-ALPHA V2 Telegram Bot Command Layer.
+Comprehensive test suite for PROJECT-ALPHA Telegram Bot Command Layer.
 
 Tests:
 1. Authorization & Security:
@@ -44,7 +44,7 @@ from background.monitoring.health import HealthChecker
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
 from core.config import (
-    V2Config,
+    AppConfig,
     get_config,
     invalidate_config,
 )
@@ -146,7 +146,7 @@ async def _setup_telegram_test_env(
     event_repo = EventLogRepository(db.connection)
     sig_repo = SignalRepository(db.connection)
 
-    cfg = V2Config(
+    cfg = AppConfig(
         v2_deployment_mode=mode,
         v2_trading_enabled=True,
         order_size_inr=order_size,
@@ -248,7 +248,7 @@ async def test_authorized_user_succeeds():
 
     await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/help"})
     assert len(tg_client.sent_messages) == 1
-    assert "PROJECT-ALPHA V2 OPERATOR COMMANDS" in tg_client.sent_messages[0]["text"]
+    assert "PROJECT-ALPHA OPERATOR COMMANDS" in tg_client.sent_messages[0]["text"]
     await db.close()
 
 
@@ -891,7 +891,7 @@ async def test_notification_alert_dedup_and_high_conviction_filter():
     from telegram.service import NotificationService
 
     bus = EventBus()
-    cfg = V2Config(
+    cfg = AppConfig(
         v2_deployment_mode="PAPER",
         alert_chat_id="999888",
     )

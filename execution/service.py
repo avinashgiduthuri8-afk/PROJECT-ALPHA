@@ -208,6 +208,15 @@ class TradingService:
                 ai_adjustments=ai_adjustments,
             )
 
+            if float(order_data.get("entry_price", 0.0) or 0.0) <= 0.0:
+                logger.warning(
+                    "Execution rejected: entry_price <= 0.0 from adapter for %s %s (raw_price=%s)",
+                    coin,
+                    pair,
+                    raw_price,
+                )
+                return
+
             # Mandatory defense: enforce minimum ₹200.00 position amount in all modes (Paper & Live)
             entry_px = float(order_data.get("entry_price") or price)
             if order_data.get("amount", 0.0) < 200.0 and entry_px > 0:
@@ -357,6 +366,11 @@ class TradingService:
                     client_order_id=client_order_id,
                     filled_qty=order_data["qty"],
                 )
+                
+                if pos.entry_price <= 0.0:
+                    logger.warning("Paper position insert aborted: entry_price is <= 0.0 for %s %s", pos.coin, pos.pair)
+                    return
+                    
                 await self._position_repo.insert(pos)
                 self._total_executed += 1
 
@@ -533,6 +547,10 @@ class TradingService:
                     client_order_id=order_result.get("client_order_id"),
                     filled_qty=fill_qty,
                 )
+
+                if pos.entry_price <= 0.0:
+                    logger.warning("Live position insert aborted: entry_price is <= 0.0 for %s %s", pos.coin, pos.pair)
+                    return
 
                 await self._position_repo.insert(pos)
                 self._total_executed += 1

@@ -1,5 +1,5 @@
 """
-Phase 3 Post-Trade Intelligence, Journaling, Analytics & Tax Ledger Test Suite for PROJECT-ALPHA V2.
+Phase 3 Post-Trade Intelligence, Journaling, Analytics & Tax Ledger Test Suite for PROJECT-ALPHA.
 
 Verifies:
   1. Journal Ingestion (POSITION_CLOSED event mapping, SQLite persistence, MFE/MAE recording).

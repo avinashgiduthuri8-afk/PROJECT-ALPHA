@@ -1,5 +1,5 @@
 """
-Phase 7 Dashboard Plugin & Real-Time Fleet Monitoring Test Suite for PROJECT-ALPHA V2.
+Phase 7 Dashboard Plugin & Real-Time Fleet Monitoring Test Suite for PROJECT-ALPHA.
 
 Verifies:
   1. Aggregator State Assembly (Scanner, Execution Fleet, Active Positions, Performance Summary, Feedback State).

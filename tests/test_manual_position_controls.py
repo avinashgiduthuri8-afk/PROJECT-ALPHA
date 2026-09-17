@@ -53,7 +53,7 @@ async def test_manual_close_position_lifecycle(tmp_path):
         trade_repo = TradeRepository(conn)
         event_repo = EventLogRepository(conn)
         bus = EventBus()
-        cfg = V2Config(v2_trading_enabled=True)
+        cfg = AppConfig(v2_trading_enabled=True)
         exec_mgr = CoinDCXExecutionManager()
 
         trading_svc = TradingService(
@@ -139,7 +139,7 @@ async def test_modify_position_targets_and_trailing(tmp_path):
         trade_repo = TradeRepository(conn)
         event_repo = EventLogRepository(conn)
         bus = EventBus()
-        cfg = V2Config(v2_trading_enabled=True)
+        cfg = AppConfig(v2_trading_enabled=True)
         exec_mgr = CoinDCXExecutionManager()
 
         trading_svc = TradingService(

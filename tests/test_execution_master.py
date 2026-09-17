@@ -1,5 +1,5 @@
 """
-PROJECT-ALPHA V2 — Master Production Execution, Reconciliation & Safety Tests.
+PROJECT-ALPHA — Master Production Execution, Reconciliation & Safety Tests.
 
 Comprehensive test suite covering all 26 audit invariants:
   BUY:
@@ -87,7 +87,7 @@ async def _create_test_env(mode: str = "LIVE_MICROCASH", trading_enabled: bool =
     trade_repo = TradeRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
 
-    cfg = V2Config(
+    cfg = AppConfig(
         v2_deployment_mode=mode,
         v2_trading_enabled=trading_enabled,
         total_capital_limit=10000.0,

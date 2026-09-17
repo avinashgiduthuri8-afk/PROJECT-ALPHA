@@ -34,7 +34,7 @@ async def test_early_lock_suppresses_c2_and_ai_evaluation():
     sig_repo = SignalRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
 
-    cfg = V2Config(
+    cfg = AppConfig(
         v2_db_path=db_file,
         v2_scanner_strict_confluence_threshold=80,
     )
@@ -63,7 +63,7 @@ async def test_early_lock_suppresses_c2_and_ai_evaluation():
     await pos_repo.insert(pos)
 
     # Mock raw candidates returned from market data (SOL, BTC, ETH)
-    async def mock_fetch_v1():
+    async def mock_fetch_v1(**kwargs):
         return [
             {
                 "coin": "SOL",

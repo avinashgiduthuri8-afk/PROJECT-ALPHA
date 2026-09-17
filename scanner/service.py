@@ -1587,6 +1587,10 @@ class ScannerService:
     async def _publish_signal_generated(self, sig: Signal) -> None:
         raw_p = sig.raw_payload or {}
         price = float(raw_p.get("price") or raw_p.get("close") or 0.0)
+        if price <= 0.0:
+            logger.warning("Scanner skipping signal %s for %s: price is %.8f", sig.id, sig.coin, price)
+            return
+
         bot = (
             sig.source_bot
             if sig.source_bot in ("STE", "HDA", "VCP", "BBS")

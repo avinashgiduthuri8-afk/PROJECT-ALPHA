@@ -41,7 +41,7 @@ from execution.trading.subaccount_manager import CoinDCXExecutionManager
 
 
 def test_unified_capital_pool_configuration():
-    cfg = V2Config(
+    cfg = AppConfig(
         total_capital_limit=10000.0,
         order_size_inr=200.0,
         max_concurrent_positions=10,
@@ -95,7 +95,7 @@ def test_min_notional_precision_rejection():
 
 @pytest.mark.anyio
 async def test_single_coin_fleet_lock_in_capital_guard():
-    cfg = V2Config(
+    cfg = AppConfig(
         total_capital_limit=10000.0,
         max_concurrent_positions=10,
         enforce_single_coin_lock=True,
@@ -148,7 +148,7 @@ async def test_single_coin_fleet_lock_in_capital_guard():
 
 @pytest.mark.anyio
 async def test_cross_strategy_coin_lock_all_permutations():
-    cfg = V2Config(
+    cfg = AppConfig(
         total_capital_limit=10000.0,
         max_concurrent_positions=10,
         enforce_single_coin_lock=True,
@@ -238,7 +238,7 @@ async def test_auto_trade_router_cross_strategy_position_rejection():
 
 @pytest.mark.anyio
 async def test_fleet_max_concurrent_positions_limit():
-    cfg = V2Config(
+    cfg = AppConfig(
         total_capital_limit=10000.0,
         max_concurrent_positions=3,  # Set small cap for test
         enforce_single_coin_lock=True,
@@ -299,7 +299,7 @@ async def test_fleet_max_concurrent_positions_limit():
 
 @pytest.mark.anyio
 async def test_unified_capital_pool_ceiling_enforcement():
-    cfg = V2Config(
+    cfg = AppConfig(
         total_capital_limit=10000.0,
         max_concurrent_positions=10,
     )
@@ -336,7 +336,7 @@ async def test_simultaneous_ste_and_hda_signal_deduplication(tmp_path):
         event_repo = EventLogRepository(conn)
         bus = EventBus()
 
-        cfg = V2Config(
+        cfg = AppConfig(
             total_capital_limit=10000.0,
             order_size_inr=200.0,
             max_concurrent_positions=10,

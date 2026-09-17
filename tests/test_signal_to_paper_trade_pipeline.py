@@ -1,5 +1,5 @@
 """
-Regression test for PROJECT-ALPHA V2:
+Regression test for PROJECT-ALPHA:
 Verifies the complete pipeline:
   Candles -> Native Candidate Generation -> Confluence Engine -> Signal
   -> AI Intelligence -> Risk Engine -> Trading Service -> Paper Position
@@ -131,7 +131,7 @@ async def test_complete_signal_to_paper_trade_pipeline():
 
     # EventBus and Services
     bus = EventBus()
-    config = V2Config(
+    config = AppConfig(
         v2_deployment_mode="SHADOW",
         v2_ai_enabled=True,
         v2_ai_confidence_threshold=60,

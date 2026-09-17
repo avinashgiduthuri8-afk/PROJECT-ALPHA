@@ -69,7 +69,7 @@ async def test_manual_close_full_fill_closes_position(db_env):
     await pos_repo.insert(pos)
 
     bus = EventBus()
-    cfg = V2Config(v2_trading_enabled=True, v2_deployment_mode="LIVE_MICROCASH")
+    cfg = AppConfig(v2_trading_enabled=True, v2_deployment_mode="LIVE_MICROCASH")
 
     mgr = CoinDCXSubAccountManager()
     client = mgr.get_client(BotName.STE)
@@ -124,7 +124,7 @@ async def test_manual_close_partial_fill_keeps_position_open(db_env):
     await pos_repo.insert(pos)
 
     bus = EventBus()
-    cfg = V2Config(v2_trading_enabled=True, v2_deployment_mode="LIVE_MICROCASH")
+    cfg = AppConfig(v2_trading_enabled=True, v2_deployment_mode="LIVE_MICROCASH")
 
     mgr = CoinDCXSubAccountManager()
     client = mgr.get_client(BotName.STE)
@@ -182,7 +182,7 @@ async def test_manual_close_exchange_rejection_keeps_position_open(db_env):
     await pos_repo.insert(pos)
 
     bus = EventBus()
-    cfg = V2Config(v2_trading_enabled=True, v2_deployment_mode="LIVE_MICROCASH")
+    cfg = AppConfig(v2_trading_enabled=True, v2_deployment_mode="LIVE_MICROCASH")
 
     mgr = CoinDCXSubAccountManager()
     client = mgr.get_client(BotName.STE)
@@ -330,7 +330,7 @@ async def test_manual_close_zero_fill_keeps_position_open(db_env):
     await pos_repo.insert(pos)
 
     bus = EventBus()
-    cfg = V2Config(v2_trading_enabled=True, v2_deployment_mode="LIVE_MICROCASH")
+    cfg = AppConfig(v2_trading_enabled=True, v2_deployment_mode="LIVE_MICROCASH")
 
     mgr = CoinDCXSubAccountManager()
     client = mgr.get_client(BotName.STE)
@@ -373,7 +373,7 @@ async def test_trading_service_enforces_execution_guards(db_env):
     event_log_repo = db_env["event_log_repo"]
 
     bus = EventBus()
-    cfg = V2Config(
+    cfg = AppConfig(
         v2_trading_enabled=True,
         v2_deployment_mode="LIVE_MICROCASH",
         scanner_min_24h_volume=50000.0,

@@ -176,19 +176,30 @@ class RiskService:
 
             # Apply AI position size scaling multiplier
             size_multiplier = float(ai_adjustments.get("size_multiplier", 1.0))
-            scaled_amount = max(200.0, requested_base * size_multiplier)
+            scaled_amount = requested_base * size_multiplier
+            scaled_amount = max(200.0, scaled_amount)
 
             decision = await self.check_trade_allowed(
                 bot, scaled_amount, coin=coin, pair=pair
             )
 
             if decision.allowed:
+                raw_price = float(payload.get("price") or 0.0)
+                if raw_price <= 0.0:
+                    logger.warning(
+                        "Risk check aborted: missing or invalid price (%.4f) in payload for %s %s",
+                        raw_price,
+                        coin,
+                        signal_id,
+                    )
+                    return
+
                 approved_payload = {
                     "signal_id": signal_id,
                     "coin": coin,
                     "pair": pair,
                     "bot": bot.value,
-                    "price": float(payload.get("price") or 100.0),
+                    "price": raw_price,
                     "approved_amount": decision.adjusted_amount,
                     "ai_adjustments": ai_adjustments,
                     "approved_at": datetime.now(timezone.utc).isoformat(),

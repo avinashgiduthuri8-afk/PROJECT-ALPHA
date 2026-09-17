@@ -1,5 +1,5 @@
 """
-Phase 4 Learning Engine & Dynamic Calibration Test Suite for PROJECT-ALPHA V2.
+Phase 4 Learning Engine & Dynamic Calibration Test Suite for PROJECT-ALPHA.
 
 Verifies:
   1. Mistake Detection (consecutive losses, MAE excursion leak, low MFE efficiency, regime mismatch).

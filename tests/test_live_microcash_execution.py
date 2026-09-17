@@ -58,7 +58,7 @@ async def test_shadow_mode_isolation_and_single_coin_lock(tmp_path):
     pos_repo = PositionRepository(db.connection)
     trade_repo = TradeRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
-    cfg = V2Config(
+    cfg = AppConfig(
         v2_deployment_mode="SHADOW",
         v2_trading_enabled=False,
         total_capital_limit=10000.0,
@@ -134,7 +134,7 @@ async def test_bracket_exit_and_statutory_friction(tmp_path):
     pos_repo = PositionRepository(db.connection)
     trade_repo = TradeRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
-    cfg = V2Config(
+    cfg = AppConfig(
         v2_deployment_mode="SHADOW",
         v2_trading_enabled=False,
         total_capital_limit=10000.0,

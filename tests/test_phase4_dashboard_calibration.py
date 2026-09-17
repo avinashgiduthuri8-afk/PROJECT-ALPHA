@@ -51,7 +51,7 @@ def _make_test_signal(
     )
 
 
-def _build_test_app(dash_svc: DashboardService, cfg: V2Config) -> FastAPI:
+def _build_test_app(dash_svc: DashboardService, cfg: AppConfig) -> FastAPI:
     app = FastAPI()
     app.include_router(api_router, prefix="/api/v2")
     app.include_router(ws_router)

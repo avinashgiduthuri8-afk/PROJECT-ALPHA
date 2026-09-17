@@ -33,7 +33,7 @@ def test_serve_dashboard_html():
         resp = client.get("/")
         assert resp.status_code == 200
         assert "text/html" in resp.headers.get("content-type", "")
-        assert "PROJECT-ALPHA V2" in resp.text
+        assert "PROJECT-ALPHA" in resp.text
         assert "MISSION CONTROL" in resp.text
         assert "ai-feed" in resp.text
         assert "health-matrix" in resp.text
@@ -41,7 +41,7 @@ def test_serve_dashboard_html():
         # 2. Dashboard alias route
         resp_dash = client.get("/dashboard")
         assert resp_dash.status_code == 200
-        assert "PROJECT-ALPHA V2" in resp_dash.text
+        assert "PROJECT-ALPHA" in resp_dash.text
 
 
 def test_static_assets_served():

@@ -73,12 +73,12 @@ def test_capital_guard_blocks_order_below_200():
 
 
 def test_v2_config_clamps_order_size_to_200(tmp_path):
-    """Verify V2Config validator and runtime overrides enforce order_size_inr >= 200.0."""
-    cfg = V2Config(order_size_inr=50.0)
+    """Verify AppConfig validator and runtime overrides enforce order_size_inr >= 200.0."""
+    cfg = AppConfig(order_size_inr=50.0)
     assert cfg.order_size_inr == 200.0
 
     override_file = str(tmp_path / "test_override.json")
-    saved = V2Config.save_runtime_overrides(
+    saved = AppConfig.save_runtime_overrides(
         {"order_size_inr": 75.0}, override_path=override_file
     )
     assert saved.order_size_inr == 200.0

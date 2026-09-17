@@ -321,7 +321,7 @@ class TestPostExitCooldownAndSignalLifecycle:
         from scanner.service import ScannerService
 
         bus = EventBus()
-        config = V2Config(
+        config = AppConfig(
             v2_post_exit_cooldown_seconds=900,
             v2_scanner_strict_confluence_threshold=80,
         )
@@ -390,7 +390,7 @@ class TestPostExitCooldownAndSignalLifecycle:
         from core.types import BotName
         from execution.risk.capital_guard import CapitalGuard
 
-        config = V2Config(v2_post_exit_cooldown_seconds=900)
+        config = AppConfig(v2_post_exit_cooldown_seconds=900)
         guard = CapitalGuard(config)
 
         now = datetime.now(timezone.utc)
@@ -437,7 +437,7 @@ class TestPostExitCooldownAndSignalLifecycle:
         from scanner.service import ScannerService
 
         bus = EventBus()
-        config = V2Config(
+        config = AppConfig(
             v2_post_exit_cooldown_seconds=300,  # 5 min cooldown
             v2_scanner_strict_confluence_threshold=80,
         )

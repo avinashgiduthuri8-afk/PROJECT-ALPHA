@@ -167,7 +167,7 @@ def test_strategy_adapter_factory():
 
 
 def test_capital_guard_limits():
-    cfg = V2Config(
+    cfg = AppConfig(
         ste_capital_limit=500.0,
         total_capital_limit=1000.0,
         v2_max_positions_ste=2,
@@ -220,7 +220,7 @@ def test_capital_guard_limits():
 
 
 def test_circuit_breaker_trips_and_resets():
-    cfg = V2Config(v2_max_consecutive_losses=3, v2_max_drawdown_pct=10.0)
+    cfg = AppConfig(v2_max_consecutive_losses=3, v2_max_drawdown_pct=10.0)
     breaker = CircuitBreaker(cfg)
 
     assert breaker.is_open is False
@@ -311,7 +311,7 @@ async def test_risk_and_trading_service_flow(tmp_path):
         shadow_repo = ShadowRepository(conn)
         event_log = EventLogRepository(conn)
 
-        cfg = V2Config(
+        cfg = AppConfig(
             v2_db_path=db_path,
             v2_shadow_mode=True,
             v2_trading_enabled=True,
@@ -411,7 +411,7 @@ async def test_portfolio_service_aggregation(tmp_path):
         pos_repo = PositionRepository(conn)
         trade_repo = TradeRepository(conn)
         metrics_repo = MetricsRepository(conn)
-        cfg = V2Config(v2_db_path=db_path)
+        cfg = AppConfig(v2_db_path=db_path)
 
         port_service = PortfolioService(bus, pos_repo, trade_repo, metrics_repo, cfg)
         await port_service.start()

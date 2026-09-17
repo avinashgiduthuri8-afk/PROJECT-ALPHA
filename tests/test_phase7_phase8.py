@@ -149,7 +149,7 @@ async def test_telegram_client_mock():
 @pytest.mark.anyio
 async def test_notification_service_event_subscriptions():
     bus = EventBus()
-    cfg = V2Config(alert_bot_token="fake-token", alert_chat_id="fake-chat")
+    cfg = AppConfig(alert_bot_token="fake-token", alert_chat_id="fake-chat")
     telegram = TelegramClient(bot_token="fake-token", chat_id="fake-chat")
 
     sent_messages = []
@@ -226,7 +226,7 @@ async def test_dashboard_service_overview(tmp_path):
         shadow_repo = ShadowRepository(conn)
         metrics_repo = MetricsRepository(conn)
         event_log = EventLogRepository(conn)
-        cfg = V2Config(v2_db_path=db_path)
+        cfg = AppConfig(v2_db_path=db_path)
 
         risk_svc = RiskService(bus, pos_repo, trade_repo, event_log, cfg)
         port_svc = PortfolioService(bus, pos_repo, trade_repo, metrics_repo, cfg)
@@ -280,7 +280,7 @@ async def test_health_checker_and_alert_manager(tmp_path):
         shadow_repo = ShadowRepository(conn)
         metrics_repo = MetricsRepository(conn)
         event_log = EventLogRepository(conn)
-        cfg = V2Config(v2_db_path=db_path)
+        cfg = AppConfig(v2_db_path=db_path)
 
         risk_svc = RiskService(bus, pos_repo, trade_repo, event_log, cfg)
         port_svc = PortfolioService(bus, pos_repo, trade_repo, metrics_repo, cfg)

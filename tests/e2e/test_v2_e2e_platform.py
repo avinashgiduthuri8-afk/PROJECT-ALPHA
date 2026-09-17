@@ -1,6 +1,6 @@
 """
 test_v2_e2e_platform.py — Comprehensive Opaque-Box E2E Platform Test Suite
-PROJECT-ALPHA V2 (Milestones M0-M4 Verification Suite)
+PROJECT-ALPHA (Milestones M0-M4 Verification Suite)
 
 Authoritative test suite derived directly from:
 - ORIGINAL_REQUEST.md (Requirements R1, R2, R3, R4)
@@ -518,7 +518,7 @@ class TestTier1Feature6FrontendScriptSyntax:
 
     def test_t1_26_dashboard_html_renders(self, template_html):
         assert "<!DOCTYPE html>" in template_html
-        assert "PROJECT-ALPHA V2" in template_html
+        assert "PROJECT-ALPHA" in template_html
 
     def test_t1_27_live_trade_confirm_modal_present(self, template_html):
         assert 'id="liveTradeConfirmModal"' in template_html

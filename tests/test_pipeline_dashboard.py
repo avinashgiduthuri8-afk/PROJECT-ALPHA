@@ -1,5 +1,5 @@
 """
-Tests for PROJECT-ALPHA V2 14-Stage Autonomous Trading Pipeline & Dashboard Inspection.
+Tests for PROJECT-ALPHA 14-Stage Autonomous Trading Pipeline & Dashboard Inspection.
 """
 
 from __future__ import annotations

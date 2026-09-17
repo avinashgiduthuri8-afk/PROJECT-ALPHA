@@ -1,5 +1,5 @@
 """
-Phase 5 Historical Backtest & Strategy Improvement Test Suite for PROJECT-ALPHA V2.
+Phase 5 Historical Backtest & Strategy Improvement Test Suite for PROJECT-ALPHA.
 
 Verifies:
   1. Zero Look-Ahead Bias (signal on bar N close executes on bar N+1 Open price).

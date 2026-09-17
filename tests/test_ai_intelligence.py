@@ -202,7 +202,7 @@ async def test_ai_service_evaluate_and_publishes_events(tmp_path):
         signal_repo = SignalRepository(conn)
         ai_repo = AIAnalysisRepository(conn)
         event_log = EventLogRepository(conn)
-        cfg = V2Config(
+        cfg = AppConfig(
             v2_db_path=db_path, v2_ai_enabled=True, v2_ai_confidence_threshold=70
         )
 
@@ -279,7 +279,7 @@ async def test_ai_service_on_signal_generated_subscription(tmp_path):
         signal_repo = SignalRepository(conn)
         ai_repo = AIAnalysisRepository(conn)
         event_log = EventLogRepository(conn)
-        cfg = V2Config(
+        cfg = AppConfig(
             v2_db_path=db_path, v2_ai_enabled=True, v2_ai_min_priority="Medium"
         )
 

@@ -1,5 +1,5 @@
 """
-Phase 8 Production Readiness & Autonomous Deployment Test Suite for PROJECT-ALPHA V2.
+Phase 8 Production Readiness & Autonomous Deployment Test Suite for PROJECT-ALPHA.
 
 Verifies:
   1. Mode Transitions (SHADOW, PAPER, LIVE_MICROCASH).
