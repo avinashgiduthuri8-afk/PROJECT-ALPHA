@@ -191,6 +191,22 @@ async def _setup_telegram_test_env(
         event_log_repo=event_repo,
         config=cfg,
     )
+    scanner._fetch_watchlist_coins = AsyncMock(
+        return_value=["BTC/INR", "ETH/INR", "SOL/INR", "BNB/INR"]
+    )
+    # Also mock _fetch_v1_signals to prevent live API calls during poll
+    scanner._fetch_v1_signals = AsyncMock(
+        return_value=[
+            {
+                "coin": "SOL",
+                "pair": "SOL/INR",
+                "price": 1000.0,
+                "rsi": 55.0,
+                "score": 90,
+                "mtf_alignment": True,
+            }
+        ]
+    )
     if scanner_healthy:
         scanner.get_health = MagicMock(
             return_value={"healthy": True, "registered": True, "poll_count": 5}

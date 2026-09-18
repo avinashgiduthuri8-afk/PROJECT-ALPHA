@@ -214,40 +214,49 @@ def test_api_scanned_coins_endpoints():
     """Verify GET /api/v2/scanner/coins and /api/v2/scanner/coins/{symbol}."""
     import sys
 
-    with TestClient(app) as client:
-        headers = {"X-API-Key": "test-visibility-key"}
+    headers = {"X-API-Key": "test-visibility-key"}
 
-        # Mock candidate signals on scanner service if available
-        mock_raw = [
-            {
-                "coin": "BTC",
-                "pair": "BTC/INR",
-                "price": 6500000.0,
-                "rsi": 58.0,
-                "score": 88,
-                "mtf_alignment": True,
-            },
-            {
-                "coin": "ETH",
-                "pair": "ETH/INR",
-                "price": 280000.0,
-                "rsi": 48.0,
-                "score": 78,
-                "mtf_alignment": True,
-            },
-        ]
-        router_mod = sys.modules.get("dashboard.api.router")
-        if router_mod and getattr(router_mod, "_scanner_service", None):
-            router_mod._scanner_service._fetch_candidate_signals = AsyncMock(
-                return_value=mock_raw
-            )
-            router_mod._scanner_service._fetch_v1_signals = AsyncMock(
-                return_value=mock_raw
-            )
+    # Mock candidate signals on scanner service if available
+    mock_raw = [
+        {
+            "coin": "BTC",
+            "pair": "BTC/INR",
+            "price": 6500000.0,
+            "rsi": 58.0,
+            "score": 88,
+            "mtf_alignment": True,
+        },
+        {
+            "coin": "ETH",
+            "pair": "ETH/INR",
+            "price": 280000.0,
+            "rsi": 48.0,
+            "score": 78,
+            "mtf_alignment": True,
+        },
+    ]
+    from unittest.mock import patch
 
-        # 1. Trigger poll to populate snapshot
-        poll_resp = client.post("/api/v2/scanner/poll", headers=headers)
-        assert poll_resp.status_code == 200
+    with patch("scanner.service.ScannerService._fetch_candidate_signals", new_callable=AsyncMock) as mock_cand, \
+         patch("scanner.service.ScannerService._fetch_v1_signals", new_callable=AsyncMock) as mock_v1, \
+         patch("scanner.service.ScannerService._fetch_watchlist_coins", new_callable=AsyncMock) as mock_watchlist:
+        
+        mock_cand.return_value = mock_raw
+        mock_v1.return_value = mock_raw
+        mock_watchlist.return_value = ["BTC/INR", "ETH/INR"]
+
+        with TestClient(app) as client:
+            import time
+            # Wait for the background startup poll to finish
+            for _ in range(20):
+                if getattr(sys.modules.get("dashboard.api.router"), "_scanner_service", None):
+                    if not getattr(sys.modules["dashboard.api.router"]._scanner_service, "_poll_lock").locked():
+                        break
+                time.sleep(0.1)
+
+            # 1. Trigger poll to populate snapshot (if not already populated)
+            poll_resp = client.post("/api/v2/scanner/poll", headers=headers)
+            assert poll_resp.status_code == 200
 
         # 2. Query coins list
         resp = client.get("/api/v2/scanner/coins", headers=headers)
