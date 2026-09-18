@@ -1884,6 +1884,7 @@
             return formatCurrencyVal(p, isUsdt ? 'USDT' : 'INR');
         }
 
+        let cryptoData = {};
         const coinNames = {
             'BTC': 'Bitcoin', 'ETH': 'Ethereum', 'SOL': 'Solana', 'NEAR': 'Near Protocol',
             'FET': 'Fetch.ai', 'DOGE': 'Dogecoin', 'BNB': 'BNB', 'XRP': 'Ripple',
@@ -2602,7 +2603,10 @@
                     }
                 }
             } catch (e) {
-                console.debug("Telemetry fetch error:", e);
+                console.error("Telemetry fetch error:", e);
+                if (homeTbody) {
+                    homeTbody.innerHTML = `<tr><td colspan="10" style="color:red;text-align:center;">JS Error: ${e.message}</td></tr>`;
+                }
             }
         }
 
