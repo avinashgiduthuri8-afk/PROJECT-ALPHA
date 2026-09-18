@@ -258,43 +258,43 @@ def test_api_scanned_coins_endpoints():
             poll_resp = client.post("/api/v2/scanner/poll", headers=headers)
             assert poll_resp.status_code == 200
 
-        # 2. Query coins list
-        resp = client.get("/api/v2/scanner/coins", headers=headers)
-        assert resp.status_code == 200
-        coins = resp.json()
-        assert isinstance(coins, list)
-        assert len(coins) >= 1
-
-        for c in coins:
-            assert "symbol" in c
-            assert "pair" in c
-            assert "price" in c
-            assert "confluence_score" in c
-            assert "status" in c
-            assert "ema_trend" in c
-            assert "rsi" in c
-
-        first_sym = coins[0]["symbol"]
-
-        # 3. Query single coin detail
-        resp_detail = client.get(f"/api/v2/scanner/coins/{first_sym}", headers=headers)
-        assert resp_detail.status_code == 200
-        detail = resp_detail.json()
-        assert detail["symbol"] == first_sym
-        assert "eval_breakdown" in detail
-        assert "chart" in detail["eval_breakdown"]
-        assert "indicator" in detail["eval_breakdown"]
-        assert "sentiment" in detail["eval_breakdown"]
-        assert "news" in detail["eval_breakdown"]
-
-        # 4. Query unknown coin returns 404
-        resp_404 = client.get(
-            "/api/v2/scanner/coins/NON_EXISTENT_COIN_XYZ", headers=headers
-        )
-        assert resp_404.status_code == 404
-        assert "not found" in resp_404.json()["detail"].lower()
-
-
+            # 2. Query coins list
+            resp = client.get("/api/v2/scanner/coins", headers=headers)
+            assert resp.status_code == 200
+            coins = resp.json()
+            assert isinstance(coins, list)
+            assert len(coins) >= 1
+    
+            for c in coins:
+                assert "symbol" in c
+                assert "pair" in c
+                assert "price" in c
+                assert "confluence_score" in c
+                assert "status" in c
+                assert "ema_trend" in c
+                assert "rsi" in c
+    
+            first_sym = coins[0]["symbol"]
+    
+            # 3. Query single coin detail
+            resp_detail = client.get(f"/api/v2/scanner/coins/{first_sym}", headers=headers)
+            assert resp_detail.status_code == 200
+            detail = resp_detail.json()
+            assert detail["symbol"] == first_sym
+            assert "eval_breakdown" in detail
+            assert "chart" in detail["eval_breakdown"]
+            assert "indicator" in detail["eval_breakdown"]
+            assert "sentiment" in detail["eval_breakdown"]
+            assert "news" in detail["eval_breakdown"]
+    
+            # 4. Query unknown coin returns 404
+            resp_404 = client.get(
+                "/api/v2/scanner/coins/NON_EXISTENT_COIN_XYZ", headers=headers
+            )
+            assert resp_404.status_code == 404
+            assert "not found" in resp_404.json()["detail"].lower()
+    
+    
 def test_zero_signal_market_regime_retains_scanned_coins():
     """Verify that even when 0 signals pass the 85-point strict gate, all evaluated coins remain visible."""
     with TestClient(app) as client:
