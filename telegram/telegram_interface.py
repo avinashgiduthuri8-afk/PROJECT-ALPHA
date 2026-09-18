@@ -449,7 +449,7 @@ class TelegramInteractiveInterface:
         open_pos_count = 0
         if self._position_repo:
             try:
-                open_pos = await self._position_repo.get_open()
+                open_pos = await self._position_repo.get_active_positions()
                 open_pos_count = len(open_pos)
             except Exception as e:
                 logger.debug("Status fetch open positions error: %s", e)
@@ -955,7 +955,7 @@ class TelegramInteractiveInterface:
 
     async def _fetch_positions_data(self) -> list[dict[str, Any]]:
         if self._position_repo:
-            open_pos = await self._position_repo.get_open()
+            open_pos = await self._position_repo.get_active_positions()
             return [
                 {
                     "coin": p.coin,
@@ -1077,7 +1077,7 @@ class TelegramInteractiveInterface:
 
         if self._position_repo:
             try:
-                open_pos = await self._position_repo.get_open()
+                open_pos = await self._position_repo.get_active_positions()
                 for p in open_pos:
                     orders.append(
                         {
@@ -1170,7 +1170,7 @@ class TelegramInteractiveInterface:
 
         if self._position_repo:
             try:
-                open_pos = await self._position_repo.get_open()
+                open_pos = await self._position_repo.get_active_positions()
                 open_pos_count = len(open_pos)
                 for p in open_pos:
                     entry = float(getattr(p, "entry_price", 0.0) or 0.0)
