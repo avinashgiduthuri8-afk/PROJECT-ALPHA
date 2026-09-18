@@ -53,11 +53,20 @@ class STEAdapter(BaseBotAdapter):
         rounded_sl = round_price(pair, raw_sl)
         rounded_tp = round_price(pair, raw_tp)
 
-        approved_amount = max(200.0, float(approved_amount))
-        raw_qty = approved_amount / rounded_entry if rounded_entry > 0 else 0.0
+        usdt_inr_rate = float(ai_adjustments.get("usdt_inr_rate", 91.50))
+        is_usdt = pair.endswith("USDT")
+        
+        target_amount = float(approved_amount)
+        if is_usdt and target_amount >= 50.0:
+            target_amount = target_amount / usdt_inr_rate
+
+        min_notional = (200.0 / usdt_inr_rate) if is_usdt else 200.0
+        target_amount = max(min_notional, target_amount)
+        
+        raw_qty = target_amount / rounded_entry if rounded_entry > 0 else 0.0
         rounded_qty = round_qty(pair, raw_qty)
-        if rounded_entry * rounded_qty < 200.0 and rounded_entry > 0:
-            rounded_qty = round_qty_up(pair, 200.0 / rounded_entry)
+        if rounded_entry * rounded_qty < min_notional and rounded_entry > 0:
+            rounded_qty = round_qty_up(pair, min_notional / rounded_entry)
 
         return {
             "bot": self.bot_name,
