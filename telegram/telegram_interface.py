@@ -333,6 +333,8 @@ class TelegramInteractiveInterface:
             await self._send_alerts(chat_id)
         elif cmd == "/logs":
             await self._send_logs(chat_id)
+        elif cmd in ("/export", "/db"):
+            await self._send_database_export(chat_id)
 
         else:
             await self._telegram.send_message(
@@ -1737,6 +1739,57 @@ class TelegramInteractiveInterface:
             target_chat_id=str(chat_id),
             reply_markup=build_back_keyboard(),
         )
+
+    async def _send_database_export(self, chat_id: str | int) -> None:
+        """Export the main SQLite database file and send it via Telegram."""
+        import os
+        import gzip
+        import asyncio
+        from core.config import AppConfig
+        
+        db_path = AppConfig().sqlite_db_path
+        if not os.path.exists(db_path):
+            await self._telegram.send_message(
+                text="❌ Error: Database file not found on server.",
+                target_chat_id=str(chat_id)
+            )
+            return
+            
+        await self._telegram.send_message(
+            text="⏳ <b>Exporting Database...</b>\nCompressing <code>alpha_v2.db</code> for download. This may take a moment...",
+            target_chat_id=str(chat_id)
+        )
+        
+        # Compress the db asynchronously to avoid blocking the event loop
+        zip_path = f"{db_path}.gz"
+        def compress_db():
+            with open(db_path, 'rb') as f_in:
+                with gzip.open(zip_path, 'wb') as f_out:
+                    f_out.writelines(f_in)
+                    
+        try:
+            await asyncio.to_thread(compress_db)
+            
+            success = await self._telegram.send_document(
+                document_path=zip_path,
+                caption="📂 <b>PROJECT-ALPHA Database Export</b>\nExtract the .gz file and use DB Browser for SQLite to view the contents offline.",
+                target_chat_id=str(chat_id)
+            )
+            
+            if not success:
+                await self._telegram.send_message(
+                    text="❌ <b>Export Failed</b>\nThe file might still be too large for the Telegram Bot API (Max 50MB).",
+                    target_chat_id=str(chat_id)
+                )
+        except Exception as e:
+            logger.error(f"Failed to compress or send DB: {e}")
+            await self._telegram.send_message(
+                text=f"❌ <b>Export Error:</b> {e}",
+                target_chat_id=str(chat_id)
+            )
+        finally:
+            if os.path.exists(zip_path):
+                os.remove(zip_path)
 
     # Legacy Bot Fleet and Stages (Preserved for compatibility)
 

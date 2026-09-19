@@ -100,6 +100,56 @@ class TelegramClient:
 
         return False
 
+    async def send_document(
+        self,
+        document_path: str,
+        caption: str = "",
+        target_chat_id: str | None = None,
+        max_retries: int = 2,
+    ) -> bool:
+        """Send a document (file) to a target or default Telegram chat."""
+        cid = target_chat_id or self._chat_id
+        if not self._bot_token or not cid:
+            return False
+
+        # Rate limiter pacing
+        elapsed = time.monotonic() - self._last_send_time
+        if elapsed < self._min_interval:
+            await asyncio.sleep(self._min_interval - elapsed)
+
+        url = f"https://api.telegram.org/bot{self._bot_token}/sendDocument"
+        
+        for attempt in range(max_retries + 1):
+            try:
+                import os
+                if not os.path.exists(document_path):
+                    logger.error(f"File not found: {document_path}")
+                    return False
+                    
+                async with httpx.AsyncClient(timeout=self._timeout * 2) as client:
+                    with open(document_path, "rb") as f:
+                        files = {"document": (os.path.basename(document_path), f)}
+                        data = {"chat_id": cid, "caption": caption}
+                        resp = await client.post(url, data=data, files=files)
+                        
+                    self._last_send_time = time.monotonic()
+                    if resp.status_code == 200:
+                        return True
+                    logger.warning(
+                        "Telegram sendDocument error response",
+                        extra={"status": resp.status_code, "body": resp.text[:200]},
+                    )
+            except Exception as exc:
+                if attempt == max_retries:
+                    logger.error(
+                        "Failed to dispatch Telegram document after retries",
+                        extra={"error": str(exc)},
+                    )
+                    return False
+                await asyncio.sleep(0.5 * (attempt + 1))
+
+        return False
+
     async def edit_message_text(
         self,
         text: str,
