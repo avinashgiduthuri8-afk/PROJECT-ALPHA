@@ -84,6 +84,30 @@ class TestIndicatorEvaluator:
         assert res_unaligned.passed is False
         assert "multi-timeframe" in res_unaligned.reasons[0].lower()
 
+    def test_volume_ratio_rejection(self):
+        evaluator = IndicatorEvaluator()
+        sig = _make_test_signal(mtf_alignment=True, score=90)
+        # Volume ratio < 0.8 should reduce score by 20 and fail
+        res = evaluator.evaluate({"volume_ratio": 0.5}, sig)
+        assert res.passed is False
+        assert "Insufficient relative volume" in res.reasons[0]
+        
+        # Volume ratio >= 0.8 should pass
+        res_pass = evaluator.evaluate({"volume_ratio": 1.2}, sig)
+        assert res_pass.passed is True
+        
+    def test_rsi_momentum_rejection(self):
+        evaluator = IndicatorEvaluator()
+        sig = _make_test_signal(mtf_alignment=True, score=90)
+        # RSI < 60 should reduce score by 15 and fail
+        res = evaluator.evaluate({"rsi": 55.0}, sig)
+        assert res.passed is False
+        assert "Weak momentum RSI" in res.reasons[0]
+        
+        # RSI >= 60 should pass
+        res_pass = evaluator.evaluate({"rsi": 65.0}, sig)
+        assert res_pass.passed is True
+
 
 class TestMarketSentimentEvaluator:
     def test_risk_on_bullish_btc_passes(self):

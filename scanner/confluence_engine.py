@@ -124,6 +124,17 @@ class IndicatorEvaluator:
             score -= 20
             reasons.append("Signal priority is WATCH (insufficient conviction)")
 
+        # Evidence-based filters from trade analysis
+        vol_ratio = candidate.get("volume_ratio")
+        if vol_ratio is not None and float(vol_ratio) < 0.8:
+            score -= 20
+            reasons.append(f"Insufficient relative volume ({vol_ratio})")
+
+        rsi = candidate.get("rsi")
+        if rsi is not None and float(rsi) < 60.0:
+            score -= 20
+            reasons.append(f"Weak momentum RSI ({rsi})")
+
         score = max(0, min(100, score))
         passed = score >= 75 and signal.mtf_alignment
 
@@ -135,6 +146,8 @@ class IndicatorEvaluator:
                 "mtf_alignment": signal.mtf_alignment,
                 "raw_score": signal.score,
                 "priority": signal.priority.value,
+                "volume_ratio": vol_ratio,
+                "rsi": rsi,
             },
             reasons=reasons,
         )
