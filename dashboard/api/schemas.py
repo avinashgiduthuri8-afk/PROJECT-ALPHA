@@ -499,7 +499,7 @@ class SimulateSignalResponseSchema(BaseModel):
 
 
 class SetModeRequestSchema(BaseModel):
-    mode: str = Field(description="'LIVE_MICROCASH', 'PAPER', or 'SHADOW'")
+    mode: str = Field(description="'LIVE' (or 'LIVE_MICROCASH') or 'PAPER'")
     password: str | None = Field(
         default=None,
         description="Configured operator password for LIVE mode authorization",
@@ -591,7 +591,7 @@ class UnifiedOrderSchema(BaseModel):
     qty: float
     price: float
     executed_price: float | None = None
-    mode: str = "SHADOW"
+    mode: str = "PAPER"
     status: str = "FILLED"
     created_at: str | None = None
     filled_at: str | None = None
@@ -614,7 +614,7 @@ class OrderLifecycleSchema(BaseModel):
     requested_price: float = 0.0
     executed_price: float | None = None
     slippage_pct: float | None = None
-    mode: str = "SHADOW"
+    mode: str = "PAPER"
     timestamps: dict[str, Any] = Field(default_factory=dict)
     stages: list[dict[str, Any]] = Field(default_factory=list)
     rejection_reason: str | None = None

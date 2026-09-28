@@ -266,9 +266,9 @@ class TradingService:
                         )
                         return
 
-            deployment_mode = getattr(self._config, "deployment_mode", "SHADOW").upper()
+            deployment_mode = getattr(self._config, "deployment_mode", "PAPER").upper()
             is_live = (
-                deployment_mode == "LIVE_MICROCASH" and self._config.trading_enabled
+                deployment_mode in ("LIVE", "LIVE_MICROCASH") and self._config.trading_enabled
             )
 
             # Evaluate Live Execution Safety Guards before NEW live orders
@@ -778,7 +778,7 @@ class TradingService:
                 if (
                     pos.mode == BotMode.LIVE
                     and self._config.trading_enabled
-                    and deployment_mode == "LIVE_MICROCASH"
+                    and deployment_mode in ("LIVE", "LIVE_MICROCASH")
                 ):
                     sub_client = self._subaccount_manager.get_client(pos.bot)
                     try:
@@ -1112,13 +1112,13 @@ class TradingService:
         sell_filled_qty = pos.qty
         is_partial_sell = False
         is_live = (pos.mode == BotMode.LIVE) or (
-            self._config.trading_enabled and deployment_mode == "LIVE_MICROCASH"
+            self._config.trading_enabled and deployment_mode in ("LIVE", "LIVE_MICROCASH")
         )
 
         if (
             pos.mode == BotMode.LIVE
             and self._config.trading_enabled
-            and deployment_mode == "LIVE_MICROCASH"
+            and deployment_mode in ("LIVE", "LIVE_MICROCASH")
         ):
             sub_client = self._subaccount_manager.get_client(pos.bot)
         if is_live:

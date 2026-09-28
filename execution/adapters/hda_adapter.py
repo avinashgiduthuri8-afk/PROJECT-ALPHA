@@ -22,9 +22,9 @@ class HDAAdapter(BaseBotAdapter):
 
     def __init__(self) -> None:
         super().__init__(BotName.HDA)
-        self.base_sl_pct = 2.2
-        self.tightened_sl_pct = 1.4
-        self.take_profit_pct = 5.28
+        self.base_sl_pct = 4.5
+        self.tightened_sl_pct = 3.5
+        self.take_profit_pct = 6.8
 
     def calculate_order(
         self,

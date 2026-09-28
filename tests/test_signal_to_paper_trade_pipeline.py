@@ -132,7 +132,7 @@ async def test_complete_signal_to_paper_trade_pipeline():
     # EventBus and Services
     bus = EventBus()
     config = AppConfig(
-        v2_deployment_mode="SHADOW",
+        v2_deployment_mode="PAPER",
         v2_ai_enabled=True,
         v2_ai_confidence_threshold=60,
         order_size_inr=200.0,

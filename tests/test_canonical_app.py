@@ -22,8 +22,8 @@ from core.config import get_config, invalidate_config
 @pytest.fixture(autouse=True)
 def isolate_canonical_test_env(monkeypatch, tmp_path):
     """Ensure clean test environment isolated from other tests."""
-    monkeypatch.setenv("DEPLOYMENT_MODE", "SHADOW")
-    monkeypatch.setenv("V2_DEPLOYMENT_MODE", "SHADOW")
+    monkeypatch.setenv("DEPLOYMENT_MODE", "PAPER")
+    monkeypatch.setenv("V2_DEPLOYMENT_MODE", "PAPER")
     monkeypatch.setenv("TRADING_ENABLED", "false")
     monkeypatch.setenv("V2_TRADING_ENABLED", "false")
     monkeypatch.setenv("DASHBOARD_API_KEY", "alpha-prod-key")
@@ -31,7 +31,7 @@ def isolate_canonical_test_env(monkeypatch, tmp_path):
     monkeypatch.setenv("V2_DB_PATH", str(tmp_path / "test_canonical_app.db"))
     invalidate_config()
     cfg = get_config()
-    cfg.deployment_mode = "SHADOW"
+    cfg.deployment_mode = "PAPER"
     cfg.trading_enabled = False
     yield
     invalidate_config()

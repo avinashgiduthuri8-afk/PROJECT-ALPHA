@@ -484,7 +484,7 @@ def mask_sensitive_data(text: str) -> str:
 
 def format_telegram_status(d: dict[str, Any]) -> str:
     """Format comprehensive /status operator response."""
-    mode = d.get("mode", "SHADOW")
+    mode = d.get("mode", "PAPER")
     cap_str = (
         f"₹{d['available_capital']:,.2f}"
         if d.get("available_capital") is not None
@@ -516,7 +516,7 @@ def format_telegram_status(d: dict[str, Any]) -> str:
 
 def format_telegram_health(h: dict[str, Any]) -> str:
     """Format component-level /health status."""
-    mode = h.get("mode", "SHADOW")
+    mode = h.get("mode", "PAPER")
     components = h.get("components", {})
 
     def icon(ok: bool) -> str:
@@ -568,7 +568,7 @@ def format_telegram_mode(m: dict[str, Any]) -> str:
 
 def format_telegram_uptime(u: dict[str, Any]) -> str:
     """Format /uptime response."""
-    mode = u.get("mode", "SHADOW")
+    mode = u.get("mode", "PAPER")
     return (
         f"⏱️ <b>SYSTEM UPTIME & TELEMETRY</b>\n"
         f"<b>MODE: {mode}</b>\n"
@@ -583,7 +583,7 @@ def format_telegram_uptime(u: dict[str, Any]) -> str:
 
 def format_telegram_scan(s: dict[str, Any]) -> str:
     """Format /scan summary showing latest cycle and strongest signals."""
-    mode = s.get("mode", "SHADOW")
+    mode = s.get("mode", "PAPER")
     signals = s.get("signals", [])
 
     lines = [
@@ -614,7 +614,7 @@ def format_telegram_scan(s: dict[str, Any]) -> str:
 
 
 def format_telegram_signal_detail(
-    c: dict[str, Any], symbol: str, mode: str = "SHADOW"
+    c: dict[str, Any], symbol: str, mode: str = "PAPER"
 ) -> str:
     """Format /signal <symbol> deep-dive inspector with 4-pillar scores & AI conviction."""
     pair = c.get("pair") or symbol.upper()
@@ -678,7 +678,7 @@ def format_telegram_signal_detail(
     return "\n".join(lines)
 
 
-def format_telegram_watchlist(watchlist: list[str], mode: str = "SHADOW") -> str:
+def format_telegram_watchlist(watchlist: list[str], mode: str = "PAPER") -> str:
     """Format /watchlist response."""
     lines = [
         f"📋 <b>ACTIVE SCANNER WATCHLIST ({len(watchlist)})</b>",
@@ -696,7 +696,7 @@ def format_telegram_watchlist(watchlist: list[str], mode: str = "SHADOW") -> str
     return "\n".join(lines)
 
 
-def format_telegram_funnel(f: dict[str, Any], mode: str = "SHADOW") -> str:
+def format_telegram_funnel(f: dict[str, Any], mode: str = "PAPER") -> str:
     """Format /funnel conversion metrics."""
     raw = f.get("raw_signals_count", 0)
     pre = f.get("pre_filtered_count", 0)
@@ -720,7 +720,7 @@ def format_telegram_funnel(f: dict[str, Any], mode: str = "SHADOW") -> str:
 
 def format_telegram_pnl(p: dict[str, Any]) -> str:
     """Format /pnl summary."""
-    mode = p.get("mode", "SHADOW")
+    mode = p.get("mode", "PAPER")
     realized = float(p.get("realized_pnl", 0.0))
     unrealized = float(p.get("unrealized_pnl", 0.0))
     total = realized + unrealized
@@ -744,7 +744,7 @@ def format_telegram_pnl(p: dict[str, Any]) -> str:
     )
 
 
-def format_telegram_orders(orders: list[dict[str, Any]], mode: str = "SHADOW") -> str:
+def format_telegram_orders(orders: list[dict[str, Any]], mode: str = "PAPER") -> str:
     """Format /orders feed."""
     lines = [
         f"📜 <b>RECENT ORDERS LEDGER ({len(orders)})</b>",
@@ -774,7 +774,7 @@ def format_telegram_orders(orders: list[dict[str, Any]], mode: str = "SHADOW") -
 
 def format_telegram_capital(c: dict[str, Any]) -> str:
     """Format /capital response strictly obeying capital reality and C2 specification."""
-    mode = c.get("mode", "SHADOW")
+    mode = c.get("mode", "PAPER")
     avail = c.get("available_capital")
     deployed = float(c.get("deployed_capital", 0.0))
     min_order = float(c.get("min_order_size", 200.0))
@@ -822,7 +822,7 @@ def format_telegram_capital(c: dict[str, Any]) -> str:
 
 def format_telegram_config(cfg: dict[str, Any]) -> str:
     """Format /config response."""
-    mode = cfg.get("mode", "SHADOW")
+    mode = cfg.get("mode", "PAPER")
     order_amt = float(cfg.get("order_amount_inr", 200.0))
     limit = cfg.get("total_capital_limit")
     limit_str = f"₹{limit:,.2f}" if limit is not None else "DYNAMIC"
@@ -843,7 +843,7 @@ def format_telegram_config(cfg: dict[str, Any]) -> str:
     )
 
 
-def format_telegram_reconciliation(r: dict[str, Any], mode: str = "SHADOW") -> str:
+def format_telegram_reconciliation(r: dict[str, Any], mode: str = "PAPER") -> str:
     """Format /reconcile report."""
     status = r.get("status", "IN_SYNC")
     icon = "🟢" if status == "IN_SYNC" else "⚠️"
@@ -874,7 +874,7 @@ def format_telegram_reconciliation(r: dict[str, Any], mode: str = "SHADOW") -> s
     return "\n".join(lines)
 
 
-def format_telegram_limits(l: dict[str, Any], mode: str = "SHADOW") -> str:
+def format_telegram_limits(l: dict[str, Any], mode: str = "PAPER") -> str:
     """Format /limits response."""
     return (
         f"🛡️ <b>RISK ENGINE CONFIGURED LIMITS</b>\n"
@@ -890,7 +890,7 @@ def format_telegram_limits(l: dict[str, Any], mode: str = "SHADOW") -> str:
     )
 
 
-def format_telegram_alerts(alerts: list[dict[str, Any]], mode: str = "SHADOW") -> str:
+def format_telegram_alerts(alerts: list[dict[str, Any]], mode: str = "PAPER") -> str:
     """Format /alerts feed."""
     lines = [
         f"🚨 <b>ACTIVE ALERTS & SYSTEM WARNINGS ({len(alerts)})</b>",
@@ -909,7 +909,7 @@ def format_telegram_alerts(alerts: list[dict[str, Any]], mode: str = "SHADOW") -
     return "\n".join(lines)
 
 
-def format_telegram_logs(logs: list[dict[str, Any]], mode: str = "SHADOW") -> str:
+def format_telegram_logs(logs: list[dict[str, Any]], mode: str = "PAPER") -> str:
     """Format /logs feed with strict secret masking."""
     lines = [
         f"📜 <b>OPERATIONAL EVENT LOGS (LAST {len(logs)})</b>",
@@ -956,7 +956,7 @@ def format_telegram_help() -> str:
         "  • /positions — Active open positions & SL/TP\n"
         "  • /trades — Recent executed/closed trades\n"
         "  • /pnl — Realized, unrealized & total P&L\n"
-        "  • /orders — Unified orders ledger (PAPER/SHADOW/LIVE)\n"
+        "  • /orders — Unified orders ledger (PAPER/LIVE)\n"
         "  • /capital — Dynamic capital & CoinDCX live balance\n"
         "  • /config — Current trading configuration\n\n"
         "<b>4. Order Amount Control:</b>\n"

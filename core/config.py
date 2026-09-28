@@ -560,7 +560,7 @@ class AppConfig(BaseSettings):
             "deployment_mode",
             "v2_deployment_mode",
         ),
-        description="Execution mode: PAPER, LIVE_MICROCASH, SHADOW, etc.",
+        description="Execution mode: PAPER or LIVE (LIVE_MICROCASH).",
     )
     websocket_enabled: bool = Field(
         default=False,
@@ -618,6 +618,10 @@ class AppConfig(BaseSettings):
 
     @property
     def v2_db_path(self) -> str:
+        return self.db_path
+
+    @property
+    def sqlite_db_path(self) -> str:
         return self.db_path
 
     @property

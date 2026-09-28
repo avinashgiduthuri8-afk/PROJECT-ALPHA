@@ -643,8 +643,8 @@ class CoinDCXSubAccountClient:
         from core.config import get_config
 
         cfg = get_config()
-        mode = getattr(cfg, "deployment_mode", "SHADOW").upper()
-        if not cfg.trading_enabled or mode != "LIVE_MICROCASH":
+        mode = getattr(cfg, "deployment_mode", "PAPER").upper()
+        if not cfg.trading_enabled or mode not in ("LIVE", "LIVE_MICROCASH"):
             logger.warning(
                 "[%s] Outbound live order blocked by kill-switch/mode gate: trading_enabled=%s, mode=%s",
                 self.subaccount_id,

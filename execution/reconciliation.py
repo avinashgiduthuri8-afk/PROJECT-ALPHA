@@ -189,8 +189,12 @@ class ReconciliationService:
         except Exception as exc:
             logger.warning("Error fetching active orders for reconciliation: %s", exc)
 
-        # 2. Check Each Local Active Position against Exchange Status
+        # 2. Check Each Local Active Position against Exchange Status (LIVE mode only)
         for pos in active_positions:
+            pos_mode_str = str(getattr(pos.mode, "value", pos.mode)).upper()
+            if pos_mode_str != "LIVE":
+                continue
+
             orders_checked += 1
             ex_id = getattr(pos, "exchange_order_id", None)
             cl_id = getattr(pos, "client_order_id", None) or getattr(pos, "id", None)
@@ -412,8 +416,12 @@ class ReconciliationService:
                         discrepancies.append(pos_mismatch_item)
                         mismatches_count += 1
 
-                # Check specifically for OPEN positions with 0.0 exchange balance (DESYNCED_MISSING_BALANCE)
+                # Check specifically for OPEN positions with 0.0 exchange balance (DESYNCED_MISSING_BALANCE) - LIVE ONLY
                 for pos in active_positions:
+                    pos_mode_str = str(getattr(pos.mode, "value", pos.mode)).upper()
+                    if pos_mode_str != "LIVE":
+                        continue
+
                     pos_status_str = str(
                         getattr(pos.status, "value", pos.status)
                     ).upper()

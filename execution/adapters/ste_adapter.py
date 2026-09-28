@@ -22,9 +22,9 @@ class STEAdapter(BaseBotAdapter):
 
     def __init__(self) -> None:
         super().__init__(BotName.STE)
-        self.base_sl_pct = 2.0
-        self.tightened_sl_pct = 1.2
-        self.take_profit_pct = 4.6
+        self.base_sl_pct = 4.5
+        self.tightened_sl_pct = 3.5
+        self.take_profit_pct = 6.2
 
     def calculate_order(
         self,

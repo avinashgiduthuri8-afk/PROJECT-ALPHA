@@ -156,6 +156,17 @@ class TelegramInteractiveInterface:
         self._offset: int | None = None
         self._start_time = datetime.now(timezone.utc)
 
+        from background.ai.assistant import MBTAssistantAgent
+        self._assistant_agent = MBTAssistantAgent(
+            config=self._config,
+            position_repo=self._position_repo,
+            trade_repo=self._trade_repo,
+            portfolio_service=self._portfolio_service,
+            health_checker=self._health_checker,
+            risk_service=self._risk_service,
+            scanner_service=self._scanner_service,
+        )
+
     def _get_subaccount_manager(self) -> Any | None:
         """Safely resolve subaccount manager from trading service."""
         if not self._trading_service:
@@ -256,6 +267,15 @@ class TelegramInteractiveInterface:
                 target_chat_id=str(chat_id),
             )
             return
+        # Natural language operator query via MBT AI Assistant Agent
+        if not text.startswith("/"):
+            response_text = await self._assistant_agent.process_query(text)
+            await self._telegram.send_message(
+                text=response_text,
+                target_chat_id=str(chat_id),
+                reply_markup=build_back_keyboard(),
+            )
+            return
 
         parts = text.split()
         cmd = parts[0].lower()
@@ -337,8 +357,11 @@ class TelegramInteractiveInterface:
             await self._send_database_export(chat_id)
 
         else:
+            clean_query = text.lstrip("/").replace("_", " ")
+            response_text = await self._assistant_agent.process_query(clean_query)
+            msg = f"❓ Unknown command <code>{cmd}</code>. Use /help to view available commands.\n\n{response_text}"
             await self._telegram.send_message(
-                text=f"❓ Unknown command <code>{cmd}</code>. Use /help to view available commands.",
+                text=msg,
                 target_chat_id=str(chat_id),
                 reply_markup=build_main_menu_keyboard(),
             )
@@ -350,11 +373,13 @@ class TelegramInteractiveInterface:
         message = cb.get("message", {})
         chat_id = message.get("chat", {}).get("id")
         message_id = message.get("message_id")
+        from_id = cb.get("from", {}).get("id")
 
         if not cb_id or not chat_id or not message_id:
             return
 
-        if not self.is_authorized(chat_id):
+        # Support authorization check by chat_id or operator user_id
+        if not (self.is_authorized(chat_id) or (from_id and self.is_authorized(from_id))):
             await self._telegram.answer_callback_query(
                 cb_id, text="Unauthorized.", show_alert=True
             )
@@ -362,44 +387,47 @@ class TelegramInteractiveInterface:
 
         await self._telegram.answer_callback_query(cb_id)
 
-        if data in ("cb:menu", "cb:refresh"):
-            await self._render_main_menu_edit(chat_id, message_id)
-        elif data == "cb:status":
-            await self._render_status_edit(chat_id, message_id)
-        elif data == "cb:health":
-            await self._render_health_edit(chat_id, message_id)
-        elif data == "cb:capital":
-            await self._render_capital_edit(chat_id, message_id)
-        elif data == "cb:positions":
-            await self._render_positions_edit(chat_id, message_id)
-        elif data == "cb:trades":
-            await self._render_trades_edit(chat_id, message_id)
-        elif data == "cb:orders":
-            await self._render_orders_edit(chat_id, message_id)
-        elif data == "cb:pnl":
-            await self._render_pnl_edit(chat_id, message_id)
-        elif data == "cb:scan":
-            await self._render_scan_edit(chat_id, message_id)
-        elif data == "cb:signals":
-            await self._render_signals_edit(chat_id, message_id)
-        elif data == "cb:risk":
-            await self._render_risk_edit(chat_id, message_id)
-        elif data == "cb:stop":
-            await self._render_stop_prompt_edit(chat_id, message_id)
-        elif data == "cb:confirm_stop":
-            await self._handle_confirm_stop_edit(chat_id, message_id)
-        elif data == "cb:resume":
-            await self._handle_resume_edit(chat_id, message_id)
-        elif data == "cb:bots":
-            await self._render_bot_fleet_edit(chat_id, message_id)
-        elif data == "cb:stages":
-            await self._render_stages_edit(chat_id, message_id)
+        try:
+            if data in ("cb:menu", "cb:refresh"):
+                await self._render_main_menu_edit(chat_id, message_id)
+            elif data == "cb:status":
+                await self._render_status_edit(chat_id, message_id)
+            elif data == "cb:health":
+                await self._render_health_edit(chat_id, message_id)
+            elif data == "cb:capital":
+                await self._render_capital_edit(chat_id, message_id)
+            elif data == "cb:positions":
+                await self._render_positions_edit(chat_id, message_id)
+            elif data == "cb:trades":
+                await self._render_trades_edit(chat_id, message_id)
+            elif data == "cb:orders":
+                await self._render_orders_edit(chat_id, message_id)
+            elif data == "cb:pnl":
+                await self._render_pnl_edit(chat_id, message_id)
+            elif data == "cb:scan":
+                await self._render_scan_edit(chat_id, message_id)
+            elif data == "cb:signals":
+                await self._render_signals_edit(chat_id, message_id)
+            elif data == "cb:risk":
+                await self._render_risk_edit(chat_id, message_id)
+            elif data == "cb:stop":
+                await self._render_stop_prompt_edit(chat_id, message_id)
+            elif data == "cb:confirm_stop":
+                await self._handle_confirm_stop_edit(chat_id, message_id)
+            elif data == "cb:resume":
+                await self._handle_resume_edit(chat_id, message_id)
+            elif data == "cb:bots":
+                await self._render_bot_fleet_edit(chat_id, message_id)
+            elif data == "cb:stages":
+                await self._render_stages_edit(chat_id, message_id)
+        except Exception as exc:
+            logger.error("Error executing callback query %s: %s", data, exc, exc_info=True)
 
     # ── View Builders & Command Handlers ─────────────────────────────────────
 
     def _get_active_mode(self) -> str:
         """Return standardized active trading deployment mode."""
-        return getattr(self._config, "deployment_mode", "SHADOW")
+        return getattr(self._config, "deployment_mode", "PAPER")
 
     # 1. System Handlers
 
@@ -613,7 +641,7 @@ class TelegramInteractiveInterface:
             return
 
         target = args[0].strip().upper()
-        if target in ("PAPER", "SHADOW"):
+        if target == "PAPER":
             self._config.deployment_mode = "PAPER"
             self._config.trading_enabled = True
             self._config.shadow_mode = False
@@ -1745,51 +1773,77 @@ class TelegramInteractiveInterface:
         import os
         import gzip
         import asyncio
-        from core.config import AppConfig
-        
-        db_path = AppConfig().sqlite_db_path
+        import sqlite3
+        import time
+
+        db_path = getattr(self._config, "db_path", None) or getattr(self._config, "sqlite_db_path", None) or "v2/data/alpha_v2.db"
+        if not os.path.exists(db_path):
+            fallbacks = ["/opt/project-alpha/v2/data/alpha_v2.db", "v2/data/alpha_v2.db", "data/project_alpha.db"]
+            for fb in fallbacks:
+                if os.path.exists(fb):
+                    db_path = fb
+                    break
+
         if not os.path.exists(db_path):
             await self._telegram.send_message(
-                text="❌ Error: Database file not found on server.",
-                target_chat_id=str(chat_id)
+                text=f"❌ Error: Database file not found at <code>{db_path}</code>.",
+                target_chat_id=str(chat_id),
             )
             return
-            
+
         await self._telegram.send_message(
-            text="⏳ <b>Exporting Database...</b>\nCompressing <code>alpha_v2.db</code> for download. This may take a moment...",
-            target_chat_id=str(chat_id)
+            text="⏳ <b>Exporting Database...</b>\nCreating clean snapshot and compressing database for download...",
+            target_chat_id=str(chat_id),
         )
-        
-        # Compress the db asynchronously to avoid blocking the event loop
-        zip_path = f"{db_path}.gz"
-        def compress_db():
-            with open(db_path, 'rb') as f_in:
-                with gzip.open(zip_path, 'wb') as f_out:
+
+        tmp_dir = "/tmp" if os.path.isdir("/tmp") else os.path.dirname(os.path.abspath(db_path))
+        snapshot_db = os.path.join(tmp_dir, f"mbt_snapshot_{int(time.time())}.db")
+        zip_path = f"{snapshot_db}.gz"
+
+        def backup_and_compress():
+            # Use SQLite native online backup to safely snapshot live WAL database
+            src = sqlite3.connect(db_path)
+            dst = sqlite3.connect(snapshot_db)
+            src.backup(dst)
+            dst.close()
+            src.close()
+
+            with open(snapshot_db, "rb") as f_in:
+                with gzip.open(zip_path, "wb") as f_out:
                     f_out.writelines(f_in)
-                    
+
         try:
-            await asyncio.to_thread(compress_db)
-            
+            await asyncio.to_thread(backup_and_compress)
+
+            file_size_mb = os.path.getsize(zip_path) / (1024 * 1024)
             success = await self._telegram.send_document(
                 document_path=zip_path,
-                caption="📂 <b>PROJECT-ALPHA Database Export</b>\nExtract the .gz file and use DB Browser for SQLite to view the contents offline.",
-                target_chat_id=str(chat_id)
+                caption=f"📂 <b>PROJECT-ALPHA Database Export</b>\nSize: {file_size_mb:.2f} MB\nExtract the .gz file to inspect with DB Browser for SQLite.",
+                target_chat_id=str(chat_id),
             )
-            
+
             if not success:
                 await self._telegram.send_message(
-                    text="❌ <b>Export Failed</b>\nThe file might still be too large for the Telegram Bot API (Max 50MB).",
-                    target_chat_id=str(chat_id)
+                    text="❌ <b>Export Failed</b>\nThe file could not be delivered to Telegram.",
+                    target_chat_id=str(chat_id),
                 )
         except Exception as e:
-            logger.error(f"Failed to compress or send DB: {e}")
+            logger.error("Failed to snapshot or export DB: %s", e, exc_info=True)
             await self._telegram.send_message(
                 text=f"❌ <b>Export Error:</b> {e}",
-                target_chat_id=str(chat_id)
+                target_chat_id=str(chat_id),
             )
         finally:
+            if os.path.exists(snapshot_db):
+                try:
+                    os.remove(snapshot_db)
+                except Exception:
+                    pass
             if os.path.exists(zip_path):
-                os.remove(zip_path)
+                try:
+                    os.remove(zip_path)
+                except Exception:
+                    pass
 
     # Legacy Bot Fleet and Stages (Preserved for compatibility)
 

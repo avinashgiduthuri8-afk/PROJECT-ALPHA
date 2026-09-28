@@ -166,13 +166,13 @@ class PositionRepository(BaseRepository):
     async def get_open(self, bot: BotName | None = None) -> list[Position]:
         if bot:
             rows = await self._fetchall(
-                "SELECT * FROM positions WHERE status='OPEN' AND bot=? "
+                "SELECT * FROM positions WHERE status != 'CLOSED' AND bot=? "
                 "ORDER BY entry_time DESC",
-                (bot.value,),
+                (bot.value if hasattr(bot, "value") else str(bot),),
             )
         else:
             rows = await self._fetchall(
-                "SELECT * FROM positions WHERE status='OPEN' ORDER BY entry_time DESC"
+                "SELECT * FROM positions WHERE status != 'CLOSED' ORDER BY entry_time DESC"
             )
         return [_row_to_position(r) for r in rows]
 

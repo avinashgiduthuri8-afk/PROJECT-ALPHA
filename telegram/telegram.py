@@ -105,6 +105,7 @@ class TelegramClient:
         document_path: str,
         caption: str = "",
         target_chat_id: str | None = None,
+        parse_mode: str = "HTML",
         max_retries: int = 2,
     ) -> bool:
         """Send a document (file) to a target or default Telegram chat."""
@@ -126,10 +127,10 @@ class TelegramClient:
                     logger.error(f"File not found: {document_path}")
                     return False
                     
-                async with httpx.AsyncClient(timeout=self._timeout * 2) as client:
+                async with httpx.AsyncClient(timeout=120.0) as client:
                     with open(document_path, "rb") as f:
                         files = {"document": (os.path.basename(document_path), f)}
-                        data = {"chat_id": cid, "caption": caption}
+                        data = {"chat_id": cid, "caption": caption, "parse_mode": parse_mode}
                         resp = await client.post(url, data=data, files=files)
                         
                     self._last_send_time = time.monotonic()

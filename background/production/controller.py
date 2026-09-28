@@ -184,11 +184,11 @@ class ProductionController:
         raw_mode = target_mode.strip().upper()
         if raw_mode in ("LIVE", "LIVE_MICROCASH"):
             mode = "LIVE_MICROCASH"
-        elif raw_mode in ("PAPER", "SHADOW"):
+        elif raw_mode == "PAPER":
             mode = "PAPER"
         else:
             raise ValueError(
-                f"Invalid mode '{target_mode}'. Valid modes: PAPER, LIVE (LIVE_MICROCASH)"
+                f"Invalid mode '{target_mode}'. Valid modes: PAPER, LIVE"
             )
 
         if mode == "LIVE_MICROCASH":
@@ -481,7 +481,7 @@ class ProductionController:
 
         # 4. Determine resume mode
         resume_mode = (target_mode or "PAPER").upper().strip()
-        if resume_mode not in ("PAPER", "LIVE_MICROCASH", "SHADOW"):
+        if resume_mode not in ("PAPER", "LIVE_MICROCASH", "LIVE"):
             resume_mode = "PAPER"
 
         # Apply mode

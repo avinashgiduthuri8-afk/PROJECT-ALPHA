@@ -83,6 +83,7 @@ class MockTelegramClient:
         self.sent_messages: list[dict] = []
         self.edited_messages: list[dict] = []
         self.answered_callbacks: list[dict] = []
+        self.sent_documents: list[dict] = []
         self.is_configured = True
 
     async def send_message(
@@ -98,6 +99,26 @@ class MockTelegramClient:
         }
         self.sent_messages.append(msg)
         return {"ok": True, "result": {"message_id": len(self.sent_messages)}}
+
+    async def send_document(
+        self,
+        document_path: str,
+        caption: str = "",
+        target_chat_id: str | None = None,
+        parse_mode: str = "HTML",
+        max_retries: int = 2,
+    ) -> bool:
+        self.sent_documents.append(
+            {
+                "document_path": document_path,
+                "caption": caption,
+                "target_chat_id": (
+                    str(target_chat_id) if target_chat_id is not None else None
+                ),
+                "parse_mode": parse_mode,
+            }
+        )
+        return True
 
     async def edit_message_text(
         self, text: str, chat_id: Any, message_id: int, reply_markup: Any = None
@@ -131,7 +152,7 @@ def clean_config(monkeypatch):
 
 
 async def _setup_telegram_test_env(
-    mode: str = "SHADOW",
+    mode: str = "PAPER",
     order_size: float = 200.0,
     live_balance: float | None = None,
     scanner_healthy: bool = True,
@@ -377,12 +398,12 @@ async def test_cmd_health_reports_component_health():
 @pytest.mark.anyio
 async def test_cmd_mode_shows_active_parameters():
     """Verify /mode displays current mode and trading_enabled state."""
-    db, *_, tg_client, c2 = await _setup_telegram_test_env(mode="SHADOW")
+    db, *_, tg_client, c2 = await _setup_telegram_test_env(mode="PAPER")
 
     await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/mode"})
     text = tg_client.sent_messages[0]["text"]
-    assert "MODE: SHADOW" in text
-    assert "SHADOW" in text
+    assert "MODE: PAPER" in text
+    assert "PAPER" in text
     assert "YES" in text
     await db.close()
 
@@ -973,4 +994,60 @@ async def test_no_dashboard_telegram_command():
     reply = tg_client.sent_messages[-1]["text"]
     assert "Unknown command" in reply or "Use /help" in reply
     assert "/dashboard" in reply
+    await db.close()
+
+
+@pytest.mark.anyio
+async def test_cmd_mode_switching_and_shadow_rejection():
+    """Verify /mode paper, /mode live confirm work, and /mode shadow is strictly rejected."""
+    db, *_, tg_client, c2 = await _setup_telegram_test_env(mode="PAPER")
+
+    # 1. /mode paper
+    await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/mode paper"})
+    assert "Mode Switched to PAPER" in tg_client.sent_messages[-1]["text"]
+    assert c2._config.deployment_mode == "PAPER"
+
+    # 2. /mode live without confirm -> prompt
+    await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/mode live"})
+    assert "CONFIRMATION REQUIRED" in tg_client.sent_messages[-1]["text"]
+
+    # 3. /mode live confirm -> switch to LIVE
+    await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/mode live confirm"})
+    assert "Mode Switched to LIVE" in tg_client.sent_messages[-1]["text"]
+    assert c2._config.deployment_mode == "LIVE_MICROCASH"
+
+    # 4. /mode shadow -> strictly rejected (only PAPER and LIVE allowed)
+    await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/mode shadow"})
+    assert "Invalid mode" in tg_client.sent_messages[-1]["text"]
+    assert "Valid modes: <code>paper</code>, <code>live</code>" in tg_client.sent_messages[-1]["text"]
+
+    await db.close()
+
+
+@pytest.mark.anyio
+async def test_cmd_db_export():
+    """Verify /db command snapshots SQLite WAL database and dispatches document."""
+    db, *_, tg_client, c2 = await _setup_telegram_test_env(mode="PAPER")
+
+    await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "/db"})
+    # Check messages and document dispatch
+    assert any("Exporting Database" in m["text"] for m in tg_client.sent_messages)
+    assert len(tg_client.sent_documents) >= 1
+    doc = tg_client.sent_documents[-1]
+    assert doc["document_path"].endswith(".gz")
+    assert "PROJECT-ALPHA Database Export" in doc["caption"]
+
+    await db.close()
+
+
+@pytest.mark.anyio
+async def test_assistant_natural_language_dispatch():
+    """Verify non-slash query is processed by MBT AI Assistant Agent."""
+    db, *_, tg_client, c2 = await _setup_telegram_test_env(mode="PAPER")
+
+    await c2._handle_incoming_message({"chat": {"id": 999888}, "text": "How many positions are open?"})
+    assert len(tg_client.sent_messages) >= 1
+    reply = tg_client.sent_messages[-1]["text"]
+    assert "Active Positions" in reply
+
     await db.close()

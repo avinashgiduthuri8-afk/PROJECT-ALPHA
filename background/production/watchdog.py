@@ -393,7 +393,7 @@ class ProductionWatchdog:
         if not self._trading_service:
             return {"status": "UNKNOWN", "message": "Trading service not wired"}
         try:
-            mode = getattr(self._config, "deployment_mode", "SHADOW")
+            mode = getattr(self._config, "deployment_mode", "PAPER")
             trading_enabled = getattr(self._config, "trading_enabled", False)
             return {
                 "status": "OK",

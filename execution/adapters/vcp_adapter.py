@@ -22,9 +22,9 @@ class VCPAdapter(BaseBotAdapter):
 
     def __init__(self) -> None:
         super().__init__(BotName.VCP)
-        self.base_sl_pct = 2.5
-        self.tightened_sl_pct = 1.5
-        self.take_profit_pct = 5.0
+        self.base_sl_pct = 4.8
+        self.tightened_sl_pct = 3.8
+        self.take_profit_pct = 6.6
 
     def calculate_order(
         self,

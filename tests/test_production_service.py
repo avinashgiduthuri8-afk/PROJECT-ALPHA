@@ -30,7 +30,12 @@ def setup_test_env(tmp_path, monkeypatch):
     test_db = str(tmp_path / f"test_prod_{uuid.uuid4().hex[:6]}.db")
     monkeypatch.setenv("V2_DB_PATH", test_db)
     monkeypatch.setenv("DASHBOARD_API_KEY", "test-prod-key")
+    monkeypatch.setenv("DASHBOARD_SECURITY_PASSWORD", "test-sec-pass")
+    monkeypatch.setenv("COINDCX_API_KEY", "test-coindcx-key-real")
+    monkeypatch.setenv("COINDCX_API_SECRET", "test-coindcx-secret-real")
     monkeypatch.setenv("BOT_MODE", "PAPER")
+    monkeypatch.setenv("DEPLOYMENT_MODE", "PAPER")
+    monkeypatch.setenv("V2_DEPLOYMENT_MODE", "PAPER")
     invalidate_config()
     yield
     invalidate_config()
@@ -49,7 +54,7 @@ async def test_production_state_repo_crud(tmp_path):
 
         # Initial seed check
         mode = await repo.get("v2_deployment_mode")
-        assert mode in ("PAPER", "SHADOW", "LIVE_MICROCASH")
+        assert mode in ("PAPER", "LIVE_MICROCASH")
 
         # Set and get single key
         await repo.set("operator_note", "Unit test execution", updated_by="TEST_RUNNER")
@@ -101,7 +106,7 @@ async def test_production_controller_mode_transition(tmp_path):
         )
 
         # Check initial mode
-        assert ctrl.get_active_mode() in ("PAPER", "SHADOW", "LIVE_MICROCASH")
+        assert ctrl.get_active_mode() in ("PAPER", "LIVE_MICROCASH")
 
         # Transition to PAPER
         res2 = await ctrl.set_mode("PAPER", operator="TEST_OPERATOR")

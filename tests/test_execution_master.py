@@ -155,7 +155,7 @@ async def test_02_shadow_buy_never_reaches_live():
         cfg,
         mgr,
         service,
-    ) = await _create_test_env(mode="SHADOW", trading_enabled=False)
+    ) = await _create_test_env(mode="PAPER", trading_enabled=False)
     client = mgr.get_client(BotName.STE)
     client.place_live_order = AsyncMock()
 

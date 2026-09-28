@@ -1604,7 +1604,7 @@ async def get_order_lifecycle(entity_id: str) -> OrderLifecycleSchema:
     coin = "BTC"
     pair = "BTC/INR"
     status = "FILLED"
-    mode = "SHADOW"
+    mode = "PAPER"
     qty = 0.0
     price = 0.0
     sig_id = clean_id

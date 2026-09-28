@@ -31,7 +31,7 @@ def setup_test_env(tmp_path, monkeypatch):
     test_db = str(tmp_path / f"test_exec_{uuid.uuid4().hex[:6]}.db")
     monkeypatch.setenv("V2_DB_PATH", test_db)
     monkeypatch.setenv("DASHBOARD_API_KEY", "test-exec-key")
-    monkeypatch.setenv("V2_DEPLOYMENT_MODE", "SHADOW")
+    monkeypatch.setenv("V2_DEPLOYMENT_MODE", "PAPER")
     monkeypatch.setenv("V2_TRADING_ENABLED", "false")
     monkeypatch.setenv("TOTAL_CAPITAL_LIMIT", "10000.0")
     monkeypatch.setenv("ORDER_SIZE_INR", "200.0")
@@ -55,7 +55,7 @@ async def test_1_paper_buy_execution(tmp_path):
     trade_repo = TradeRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
     cfg = AppConfig(
-        v2_deployment_mode="SHADOW",
+        v2_deployment_mode="PAPER",
         v2_trading_enabled=False,
         total_capital_limit=10000.0,
     )
@@ -354,7 +354,7 @@ async def test_7_paper_sell_execution(tmp_path):
     trade_repo = TradeRepository(db.connection)
     event_repo = EventLogRepository(db.connection)
     cfg = AppConfig(
-        v2_deployment_mode="SHADOW",
+        v2_deployment_mode="PAPER",
         v2_trading_enabled=False,
         total_capital_limit=10000.0,
     )

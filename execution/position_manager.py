@@ -215,13 +215,17 @@ class PositionManager:
         peak = max(self._peak_prices.get(position_id, pos.entry_price), norm_price)
         self._peak_prices[position_id] = peak
 
-        trailing_stop = peak * (1.0 - trailing_pct)
-        # Ensure trailing stop only moves upwards and never drops below initial stop loss
-        if pos.stop_loss and trailing_stop < pos.stop_loss:
-            trailing_stop = pos.stop_loss
-
-        self._trailing_stops[position_id] = trailing_stop
-        return trailing_stop
+        # Trailing stop only activates once peak price reaches profit threshold (>= +3.5%)
+        # This protects trades from getting choked by market noise at entry before initial SL
+        if pos.entry_price > 0 and peak >= pos.entry_price * 1.035:
+            trailing_stop = peak * (1.0 - trailing_pct)
+            if pos.stop_loss and trailing_stop < pos.stop_loss:
+                trailing_stop = pos.stop_loss
+            self._trailing_stops[position_id] = trailing_stop
+            return trailing_stop
+        else:
+            self._trailing_stops[position_id] = pos.stop_loss
+            return pos.stop_loss
 
     async def update_mark_price(
         self,
@@ -260,11 +264,15 @@ class PositionManager:
         peak = max(self._peak_prices.get(pos.id, pos.entry_price), norm_price)
         self._peak_prices[pos.id] = peak
 
-        # Update dynamic trailing stop trigger level (ratchets upward only)
-        trailing_stop = peak * (1.0 - trailing_pct)
-        if pos.stop_loss and trailing_stop < pos.stop_loss:
+        # Update dynamic trailing stop trigger level (only activates after price reaches profit threshold >= +3.5%)
+        if pos.entry_price > 0 and peak >= pos.entry_price * 1.035:
+            trailing_stop = peak * (1.0 - trailing_pct)
+            if pos.stop_loss and trailing_stop < pos.stop_loss:
+                trailing_stop = pos.stop_loss
+            self._trailing_stops[pos.id] = trailing_stop
+        else:
             trailing_stop = pos.stop_loss
-        self._trailing_stops[pos.id] = trailing_stop
+            self._trailing_stops[pos.id] = trailing_stop
 
         # Calculate unrealised PnL: (current_price - entry_price) * qty
         unrealised = round((norm_price - pos.entry_price) * pos.qty, 4)

@@ -97,8 +97,8 @@ class RiskService:
             return breaker_dec
 
         # 2. Dynamic Live Balance Verification (In LIVE_MICROCASH mode)
-        deployment_mode = getattr(self._config, "deployment_mode", "SHADOW").upper()
-        if deployment_mode == "LIVE_MICROCASH":
+        deployment_mode = getattr(self._config, "deployment_mode", "PAPER").upper()
+        if deployment_mode in ("LIVE", "LIVE_MICROCASH"):
             live_cap = available_capital
             if (
                 live_cap is None
@@ -342,8 +342,8 @@ class RiskService:
                 )
 
         # 3. Dynamic capital & exchange safety in LIVE mode
-        deployment_mode = getattr(self._config, "deployment_mode", "SHADOW").upper()
-        if deployment_mode == "LIVE_MICROCASH":
+        deployment_mode = getattr(self._config, "deployment_mode", "PAPER").upper()
+        if deployment_mode in ("LIVE", "LIVE_MICROCASH"):
             if not self._config.coindcx_api_key or not self._config.coindcx_api_secret:
                 return False, "CoinDCX API credentials missing or incomplete"
             if hasattr(self, "_trading_service") and self._trading_service:

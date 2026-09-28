@@ -67,7 +67,7 @@ async def get_production_status() -> ProductionStatusSchema:
     unified capital pool headroom, open positions count, circuit breaker,
     and watchdog inspection status.
     """
-    mode = getattr(_config, "deployment_mode", "SHADOW") if _config else "SHADOW"
+    mode = getattr(_config, "deployment_mode", "PAPER") if _config else "PAPER"
     trading_enabled = getattr(_config, "trading_enabled", False) if _config else False
     shadow_mode = getattr(_config, "shadow_mode", True) if _config else True
     cap_limit = getattr(_config, "total_capital_limit", None) if _config else None
@@ -155,10 +155,10 @@ async def set_execution_mode(body: SetModeRequestSchema) -> SetModeResponseSchem
     Dynamically transition execution mode with configuration override persistence.
     """
     target = body.mode.strip().upper()
-    if target not in ("LIVE_MICROCASH", "PAPER", "SHADOW"):
+    if target not in ("LIVE_MICROCASH", "LIVE", "PAPER"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid mode. Must be 'LIVE_MICROCASH', 'PAPER', or 'SHADOW'.",
+            detail="Invalid mode. Must be 'PAPER' or 'LIVE'.",
         )
 
     if target in ("LIVE", "LIVE_MICROCASH"):
@@ -264,8 +264,8 @@ async def trigger_emergency_kill_switch() -> KillSwitchResponseSchema:
 
     if _config:
         _config.trading_enabled = False
-        _config.deployment_mode = "SHADOW"
-        _config.shadow_mode = True
+        _config.deployment_mode = "PAPER"
+        _config.shadow_mode = False
 
     return KillSwitchResponseSchema(
         ok=True,

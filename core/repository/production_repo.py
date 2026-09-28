@@ -37,14 +37,14 @@ class ProductionRepository:
                     "updated_at": row[3],
                 }
             return {
-                "deployment_mode": "SHADOW",
+                "deployment_mode": "PAPER",
                 "is_active": True,
                 "global_kill_switch": False,
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }
 
     async def set_deployment_mode(self, mode: str) -> None:
-        """Update deployment mode (SHADOW, PAPER, LIVE_MICROCASH)."""
+        """Update deployment mode (PAPER, LIVE / LIVE_MICROCASH)."""
         now = datetime.now(timezone.utc).isoformat()
         await self._conn.execute(
             """
@@ -65,7 +65,7 @@ class ProductionRepository:
         await self._conn.execute(
             """
             INSERT INTO production_ops_state (id, deployment_mode, is_active, global_kill_switch, updated_at)
-            VALUES (1, 'SHADOW', ?, ?, ?)
+            VALUES (1, 'PAPER', ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 global_kill_switch = excluded.global_kill_switch,
                 is_active = CASE WHEN excluded.global_kill_switch = 1 THEN 0 ELSE 1 END,
