@@ -83,9 +83,15 @@ class ShadowService:
             conflicts = payload.get("conflicts") or []
             reason = f"AI rejected signal (confidence {payload.get('confidence_score', 0)}): {', '.join(conflicts[:2])}"
 
+            bot_str = payload.get("bot", "STE")
+            try:
+                bot = BotName(bot_str)
+            except ValueError:
+                bot = BotName.STE
+
             await self._divergence_tracker.record_divergence(
                 signal_id=signal_id,
-                bot=BotName.MTB,
+                bot=bot,
                 coin=coin,
                 v1_action="POTENTIAL_ENTRY",
                 v2_action="AI_REJECTED",
@@ -103,11 +109,11 @@ class ShadowService:
         try:
             signal_id = payload.get("signal_id") or "UNKNOWN"
             coin = payload.get("coin", "UNKNOWN")
-            bot_str = payload.get("bot", "MTB")
+            bot_str = payload.get("bot", "STE")
             try:
                 bot = BotName(bot_str)
             except ValueError:
-                bot = BotName.MTB
+                bot = BotName.STE
 
             reason = (
                 f"Risk engine blocked trade: {payload.get('reason', 'Capital limit')}"

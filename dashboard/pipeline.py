@@ -542,7 +542,7 @@ class PipelineStageCollector:
 
         elif event_type == EventType.TRADE_APPROVED.value:
             coin = payload.get("coin", "UNKNOWN")
-            bot = payload.get("bot", "MTB")
+            bot = payload.get("bot", "STE")
             amt = payload.get("approved_amount", 0.0)
             self._stages["trade_constructor"]["last_event"] = {
                 "type": "ORDER_CONSTRUCTED",
@@ -576,7 +576,7 @@ class PipelineStageCollector:
 
         elif event_type == EventType.TRADE_EXECUTED.value:
             coin = payload.get("coin", "UNKNOWN")
-            bot = payload.get("bot", "MTB")
+            bot = payload.get("bot", "STE")
             price = payload.get("entry_price", 0.0)
             self._stages["auto_trade"]["last_event"] = {
                 "type": event_type,
