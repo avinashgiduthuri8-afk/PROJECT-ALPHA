@@ -131,7 +131,8 @@ class Database:
         if db_p.parent and str(db_p.parent) not in ("", "."):
             db_p.parent.mkdir(parents=True, exist_ok=True)
 
-        self._conn = await aiosqlite.connect(self._path)
+        is_uri = str(self._path).startswith("file:")
+        self._conn = await aiosqlite.connect(self._path, uri=is_uri)
         self._conn.row_factory = aiosqlite.Row
 
         # WAL mode + foreign keys

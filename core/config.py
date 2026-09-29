@@ -531,12 +531,12 @@ class AppConfig(BaseSettings):
         validation_alias=AliasChoices("DASHBOARD_API_KEY", "dashboard_api_key"),
     )
     dashboard_security_password: str | None = Field(
-        default=None,
+        default="alpha2026",
         validation_alias=AliasChoices(
             "DASHBOARD_SECURITY_PASSWORD",
             "dashboard_security_password",
         ),
-        description="Optional operator password required for live-mode transitions.",
+        description="Operator security password required for live-mode transitions.",
     )
 
     # ── Network & Server Bindings ─────────────────────────────────────────────

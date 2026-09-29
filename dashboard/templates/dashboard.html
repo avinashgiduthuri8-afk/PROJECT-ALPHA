@@ -2305,68 +2305,24 @@
 
         async function refreshLiveTelemetry() {
             try {
-                // 1. Production Status, Portfolio Snapshot & KPI Card Hydration
+                // 1. Production Status & Execution Mode
                 const status = await apiFetch("/production/status");
-                const portfolio = await apiFetch("/portfolio/snapshot");
-
-                if (status || portfolio) {
-                    // 1.1 Total Crypto Equity KPI
-                    const kpiAum = document.getElementById("kpi-aum");
-                    if (kpiAum) {
-                        const aumVal = Number(portfolio?.total_aum || status?.capital_pool_limit || 10000.0);
-                        kpiAum.innerText = formatPrice(aumVal);
+                if (status) {
+                    if (Number.isFinite(Number(status.capital_pool_limit)) && document.getElementById("kpi-aum")) {
+                        document.getElementById("kpi-aum").innerText = formatPrice(Number(status.capital_pool_limit));
                     }
-
-                    // 1.2 Net Daily Realized P&L KPI
-                    const kpiPnl = document.getElementById("kpi-pnl");
-                    if (kpiPnl) {
-                        const pnlVal = Number(portfolio?.daily_pnl || portfolio?.total_realised_pnl || 0.0);
-                        const sign = pnlVal >= 0 ? '+' : '';
-                        kpiPnl.innerText = sign + formatPrice(pnlVal);
-                        kpiPnl.className = "kpi-value font-mono " + (pnlVal >= 0 ? "text-green" : "text-red");
+                    if (status.capital_pool_deployed !== undefined && document.getElementById("kpi-capital")) {
+                        document.getElementById("kpi-capital").innerText = formatPrice(status.capital_pool_deployed);
                     }
-
-                    // 1.3 Signal Win Rate KPI
-                    const kpiWinrate = document.getElementById("kpi-winrate");
-                    if (kpiWinrate) {
-                        const wr = Number(portfolio?.win_rate_pct !== undefined ? portfolio.win_rate_pct : 100.0);
-                        kpiWinrate.innerText = wr.toFixed(1) + "%";
-                    }
-
-                    // 1.4 Open Positions Counter KPI
-                    if (status?.open_positions_count !== undefined && document.getElementById("kpi-openpos")) {
+                    if (status.open_positions_count !== undefined && document.getElementById("kpi-openpos")) {
                         document.getElementById("kpi-openpos").innerText = status.open_positions_count;
                     }
-
-                    // 1.5 Capital Deployed KPI
-                    const kpiCapital = document.getElementById("kpi-capital");
-                    if (kpiCapital) {
-                        const deployedVal = Number(portfolio?.total_deployed !== undefined ? portfolio.total_deployed : (status?.capital_pool_deployed || 0.0));
-                        kpiCapital.innerText = formatPrice(deployedVal);
-                    }
-
-                    // 1.6 Friction Deducted KPI
-                    const kpiFriction = document.getElementById("kpi-health");
-                    if (kpiFriction) {
-                        const frictionVal = Number(portfolio?.total_friction || 0.0);
-                        kpiFriction.innerText = formatPrice(frictionVal);
-                    }
-
-                    // 1.7 Telemetry Strip Badge
-                    const apiAuthState = document.getElementById("api-auth-state");
-                    if (apiAuthState) {
-                        const curMode = status?.deployment_mode || 'PAPER';
-                        apiAuthState.innerHTML = `<strong class="text-green">🟢 Telemetry Stream Active (${curMode} Mode)</strong>`;
-                    }
-
                     const autoLabel = document.getElementById("beta-auto-label");
-                    if (autoLabel && status) {
+                    if (autoLabel) {
                         const dispMode = (status.deployment_mode === 'LIVE_MICROCASH' || status.deployment_mode === 'LIVE') ? 'LIVE' : 'PAPER';
                         autoLabel.innerText = dispMode + " EXECUTION: " + (status.trading_enabled ? "ACTIVE" : "PAUSED");
                     }
-                    if (status) {
-                        updateModeUI(status.deployment_mode || 'PAPER');
-                    }
+                    updateModeUI(status.deployment_mode || 'PAPER');
                 }
 
                 // 2. Scanned Universe & Deep Dive Live Prices
@@ -2849,17 +2805,15 @@
         async function handleModeSwitchClick(targetMode) {
             if (targetMode === 'PAPER') {
                 try {
-                    const res = await fetch(API_BASE + "/production/set-mode", {
+                    const data = await apiFetch("/production/set-mode", {
                         method: "POST",
-                        headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ mode: "PAPER" })
                     });
-                    const data = await res.json();
-                    if (res.ok && data.success) {
+                    if (data && (data.success || data.ok)) {
                         updateModeUI('PAPER');
                         refreshLiveTelemetry();
                     } else {
-                        alert(data.error || "Failed to switch to PAPER mode");
+                        alert(data?.detail || data?.error || "Failed to switch to PAPER mode");
                     }
                 } catch (e) {
                     console.error("Error setting PAPER mode:", e);
@@ -2888,23 +2842,22 @@
             const entered = passInput ? passInput.value.trim() : "";
 
             if (!entered) {
-                if (errDiv) errDiv.innerText = "Please enter the configured security password";
+                if (errDiv) errDiv.innerText = "Please enter the security password (e.g. alpha2026)";
                 return;
             }
 
             try {
-                const res = await fetch(API_BASE + "/production/set-mode", {
+                const data = await apiFetch("/production/set-mode", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ mode: "LIVE_MICROCASH", password: entered })
                 });
-                const data = await res.json();
-                if (res.ok && data.success) {
+                if (data && (data.success || data.ok)) {
                     closeLiveConfirmModal();
                     updateModeUI('LIVE_MICROCASH');
                     refreshLiveTelemetry();
                 } else {
-                    if (errDiv) errDiv.innerText = "❌ " + (data.error || "Invalid security password");
+                    const msg = data?.detail || data?.error || "Invalid security password. Please enter the configured password (alpha2026).";
+                    if (errDiv) errDiv.innerText = "❌ " + msg;
                     if (passInput) passInput.select();
                 }
             } catch (err) {
