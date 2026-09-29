@@ -485,11 +485,11 @@ def mask_sensitive_data(text: str) -> str:
 def format_telegram_status(d: dict[str, Any]) -> str:
     """Format comprehensive /status operator response."""
     mode = d.get("mode", "PAPER")
-    cap_val = d.get("available_capital")
-    if cap_val is not None:
-        cap_str = f"₹{cap_val:,.2f}"
-    else:
-        cap_str = "COINDCX_UNAVAILABLE" if mode in ("LIVE", "LIVE_MICROCASH") else "CAPITAL UNKNOWN"
+    cap_str = (
+        f"₹{d['available_capital']:,.2f}"
+        if d.get("available_capital") is not None
+        else "CAPITAL UNKNOWN"
+    )
     amt_str = f"₹{d.get('order_amount_inr', 200.0):,.2f}"
 
     lines = [

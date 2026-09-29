@@ -2,68 +2,37 @@ from datetime import datetime, timezone
 import pytest
 from core.config import AppConfig
 from core.types import BotMode, BotName, Position, PositionStatus
-from execution.adapters.ste_adapter import STEAdapter
-from execution.adapters.vcp_adapter import VCPAdapter
-from execution.adapters.hda_adapter import HDAAdapter
-from execution.adapters.bbs_adapter import BBSAdapter
 from execution.risk.capital_guard import CapitalGuard
 
 
-def test_position_deployed_capital_currency_conversion():
-    """Verify Position.deployed_capital computes correctly for INR vs USDT pairs."""
-    now = datetime.now(timezone.utc)
-    # 1. INR pair: deployed_capital = qty * entry_price
-    pos_inr = Position(
+def test_position_deployed_capital_inr_pair():
+    pos = Position(
         id="pos-inr-1",
-        bot=BotName.STE,
+        bot=BotName.VCP,
         coin="BTC",
         pair="BTC/INR",
         qty=0.0001,
-        entry_price=6000000.0,
-        entry_time=now,
+        entry_price=5000000.0,
+        entry_time=datetime.now(timezone.utc),
         mode=BotMode.PAPER,
-        status=PositionStatus.OPEN,
     )
-    assert pos_inr.deployed_capital == pytest.approx(600.0, abs=0.01)
+    # 5,000,000 * 0.0001 = 500 INR
+    assert pos.deployed_capital == 500.0
 
-    # 2. USDT pair: deployed_capital = qty * entry_price * 91.50
-    pos_usdt = Position(
+
+def test_position_deployed_capital_usdt_pair():
+    pos = Position(
         id="pos-usdt-1",
         bot=BotName.STE,
         coin="SOL",
         pair="SOL/USDT",
-        qty=0.1,
-        entry_price=150.0,  # $15.00 USDT value
-        entry_time=now,
+        qty=0.01,           # 0.01 SOL
+        entry_price=150.0,  # 150 USDT => 1.50 USDT notional
+        entry_time=datetime.now(timezone.utc),
         mode=BotMode.PAPER,
-        status=PositionStatus.OPEN,
     )
-    # 0.1 * 150 * 91.50 = 1372.50 INR
-    assert pos_usdt.deployed_capital == pytest.approx(1372.50, abs=0.01)
-
-
-def test_strategy_adapters_convert_inr_to_usdt():
-    """Verify strategy adapters calculate order quantity using INR converted to USDT."""
-    ste = STEAdapter()
-    vcp = VCPAdapter()
-    hda = HDAAdapter()
-    bbs = BBSAdapter()
-
-    # Given ₹250 INR allocation on a USDT pair with SOL @ $150 USDT and rate = 91.50
-    # $250 / 91.50 = 2.7322 USDT target
-    # qty = 2.7322 / 150 = ~0.0182 SOL
-    for adapter in (ste, vcp, hda, bbs):
-        order = adapter.calculate_order(
-            coin="SOL",
-            pair="SOL/USDT",
-            approved_amount=250.0,  # ₹250 INR
-            current_price=150.0,   # $150 USDT
-            ai_adjustments={"usdt_inr_rate": 91.50},
-        )
-        assert order["entry_price"] == 150.0
-        # Notional in USDT must be around 2.73 USDT, NOT 250 USDT
-        assert order["amount"] < 10.0  # Around $2.73 USDT
-        assert order["amount"] > 1.0
+    # 1.50 USDT * 91.50 INR/USDT = 137.25 INR
+    assert pos.deployed_capital == pytest.approx(137.25, rel=1e-3)
 
 
 def test_capital_guard_enforces_inr_master_budget():

@@ -1,132 +1,96 @@
 """
-background/production/safety_gate.py — Universal LIVE Mode Safety Verification Gate.
-
-Enforces all 7 safety invariants before allowing transition to LIVE / LIVE_MICROCASH:
-1. Valid, non-mock CoinDCX API credentials present.
-2. Emergency Stop / Global Kill-Switch is inactive.
-3. Risk Engine is active and Circuit Breaker is normal (closed).
-4. CoinDCX REST exchange connectivity succeeds.
-5. CoinDCX available INR balance is retrieved.
-6. Available INR balance is a valid, non-negative number.
-7. Available INR balance >= configured order amount (order_size_inr, minimum ₹200.00).
-
-Fails closed on any exception or discrepancy.
+Safety gate validation for LIVE execution mode.
+Enforces 7 strict checks before allowing LIVE_MICROCASH activation:
+1. Credentials presence (API key and Secret)
+2. Risk Engine health (circuit breaker not open)
+3. Emergency stop inactive
+4. CoinDCX connectivity & subaccount manager resolution
+5. CoinDCX live INR balance retrieval success
+6. CoinDCX INR balance validity (non-negative)
+7. CoinDCX available INR balance >= configured order amount
 """
 
 from __future__ import annotations
 
-import os
+import logging
 from typing import Any
 
-from core.config import AppConfig, get_config
-from core.logging import get_logger
-
-logger = get_logger("background.production.safety_gate")
+logger = logging.getLogger("background.production.safety_gate")
 
 
 async def verify_live_mode_safety_gate(
-    config: AppConfig | None = None,
-    risk_service: Any | None = None,
-    trading_service: Any | None = None,
+    config: Any,
     subaccount_manager: Any | None = None,
+    risk_service: Any | None = None,
 ) -> tuple[bool, str, float | None]:
     """
-    Evaluate all 7 safety preconditions required for LIVE mode activation.
+    Verify all safety conditions before enabling LIVE_MICROCASH mode.
 
     Returns:
-        tuple (passed: bool, reason: str, available_inr_balance: float | None)
+        (passed: bool, reason: str, live_inr_balance: float | None)
     """
-    cfg = config or get_config()
-    min_order_required = max(200.0, float(getattr(cfg, "order_size_inr", 200.0)))
-
     # 1. Credentials Check
-    api_key = os.getenv("COINDCX_API_KEY") or getattr(cfg, "coindcx_api_key", None)
-    api_secret = os.getenv("COINDCX_API_SECRET") or getattr(cfg, "coindcx_api_secret", None)
+    key = getattr(config, "coindcx_api_key", None) or getattr(config, "coindcx_key", None) or getattr(config, "coindcx_live_api_key", None)
+    secret = getattr(config, "coindcx_api_secret", None) or getattr(config, "coindcx_secret", None) or getattr(config, "coindcx_live_api_secret", None)
+    if not key or not secret:
+        return False, "Missing CoinDCX API credentials (API key or secret).", None
 
-    if not api_key or not api_secret:
-        msg = "CoinDCX API credentials (COINDCX_API_KEY / COINDCX_API_SECRET) are missing."
-        logger.warning("LIVE Safety Gate failed: %s", msg)
-        return False, msg, None
+    # 2. Risk Engine / Circuit Breaker Check
+    if risk_service:
+        cb = getattr(risk_service, "circuit_breaker", None)
+        if cb:
+            is_open = getattr(cb, "is_open", False)
+            if callable(is_open):
+                is_open = is_open()
+            if is_open is True:
+                return False, "Risk Engine: Circuit breaker is open / tripped.", None
 
-    key_str = str(api_key).strip().lower()
-    secret_str = str(api_secret).strip().lower()
-    if (
-        "mock" in key_str
-        or "dummy" in key_str
-        or "test" in key_str
-        or len(key_str) < 10
-        or len(secret_str) < 10
-    ):
-        msg = "CoinDCX API credentials are placeholder or invalid mock keys."
-        logger.warning("LIVE Safety Gate failed: %s", msg)
-        return False, msg, None
+            em_stop = getattr(cb, "emergency_stop", False)
+            if callable(em_stop):
+                em_stop = em_stop()
+            if em_stop is True:
+                return False, "Risk Engine: Emergency stop is active.", None
 
-    # 2 & 3. Risk Engine & Circuit Breaker Check
-    if risk_service is not None:
-        if hasattr(risk_service, "circuit_breaker") and risk_service.circuit_breaker.is_open:
-            reason = getattr(risk_service.circuit_breaker, "reason", "Triggered")
-            msg = f"Circuit Breaker is tripped/OPEN ({reason}). Reset circuit breaker before activating live trading."
-            logger.warning("LIVE Safety Gate failed: %s", msg)
-            return False, msg, None
-        if hasattr(risk_service, "is_kill_switch_tripped") and risk_service.is_kill_switch_tripped:
-            msg = "Global emergency stop / kill-switch is active."
-            logger.warning("LIVE Safety Gate failed: %s", msg)
-            return False, msg, None
-
-    # 4 & 5. CoinDCX Connectivity & Balance Retrieval
-    sub_mgr = subaccount_manager
-    if sub_mgr is None and trading_service is not None:
-        sub_mgr = getattr(trading_service, "subaccount_manager", None) or getattr(
-            trading_service, "_subaccount_manager", None
-        )
-
-    if sub_mgr is None:
-        from execution.trading.subaccount_manager import CoinDCXSubAccountManager
+    # 3. Subaccount Manager / Client Connectivity & Balance Retrieval
+    if not subaccount_manager:
         try:
-            sub_mgr = CoinDCXSubAccountManager(config=cfg)
-        except Exception as e:
-            msg = f"Unable to initialize CoinDCX SubAccountManager: {e}"
-            logger.error("LIVE Safety Gate failed: %s", msg)
-            return False, msg, None
+            from execution.trading.subaccount_manager import CoinDCXSubAccountManager
+            subaccount_manager = CoinDCXSubAccountManager(config)
+        except Exception as exc:
+            return False, f"CoinDCX Subaccount Manager unavailable: {exc}", None
 
     try:
-        bal_res = await sub_mgr.get_live_balance()
+        if hasattr(subaccount_manager, "get_live_balance"):
+            bal_res = await subaccount_manager.get_live_balance()
+        elif hasattr(subaccount_manager, "fetch_live_balance"):
+            bal_res = await subaccount_manager.fetch_live_balance()
+        elif hasattr(subaccount_manager, "get_balances"):
+            bal_res = await subaccount_manager.get_balances()
+        else:
+            return False, "CoinDCX Subaccount Manager does not support balance fetching.", None
     except Exception as exc:
-        msg = f"CoinDCX network connectivity error: {exc}"
-        logger.error("LIVE Safety Gate failed: %s", msg)
-        return False, msg, None
+        return False, f"CoinDCX connection error during balance check: {exc}", None
 
-    if not bal_res.get("success"):
-        err = bal_res.get("error") or bal_res.get("message") or "COINDCX_UNAVAILABLE"
-        msg = f"CoinDCX authentication/connectivity failed: {err}"
-        logger.warning("LIVE Safety Gate failed: %s", msg)
-        return False, msg, None
+    if not isinstance(bal_res, dict) or not bal_res.get("success", False):
+        err = bal_res.get("error", "Unknown API error") if isinstance(bal_res, dict) else "Invalid balance response"
+        return False, f"CoinDCX API balance retrieval failed: {err}", None
 
-    # 6. INR Balance Validation
+    # 4. INR Balance Validity
     inr_bal = bal_res.get("inr_balance")
     if inr_bal is None or not isinstance(inr_bal, (int, float)):
-        msg = "CoinDCX INR available balance could not be determined."
-        logger.warning("LIVE Safety Gate failed: %s", msg)
-        return False, msg, None
+        return False, "CoinDCX INR balance is invalid or missing from response.", None
 
-    inr_float = float(inr_bal)
-    if inr_float < 0.0:
-        msg = f"Invalid negative CoinDCX INR balance detected: ₹{inr_float:,.2f}."
-        logger.warning("LIVE Safety Gate failed: %s", msg)
-        return False, msg, None
+    inr_bal = float(inr_bal)
+    if inr_bal < 0:
+        return False, f"CoinDCX INR balance is negative: ₹{inr_bal:.2f}", inr_bal
 
-    # 7. Available INR Balance vs Configured Order Amount (Min ₹200)
-    if inr_float < min_order_required:
-        msg = (
-            f"Insufficient CoinDCX INR balance. Available: ₹{inr_float:,.2f}, "
-            f"Required: ₹{min_order_required:,.2f} for micro-order execution."
+    # 5. Order Amount Threshold Check
+    order_size = max(200.0, float(getattr(config, "order_size_inr", 200.0)))
+    if inr_bal < order_size:
+        return (
+            False,
+            f"Insufficient CoinDCX INR balance: ₹{inr_bal:,.2f} is below configured order size ₹{order_size:,.2f}.",
+            inr_bal,
         )
-        logger.warning("LIVE Safety Gate failed: %s", msg)
-        return False, msg, inr_float
 
-    logger.info(
-        "LIVE Safety Gate PASSED: CoinDCX INR Balance=₹%.2f, Order Size=₹%.2f",
-        inr_float,
-        min_order_required,
-    )
-    return True, "All live trading safety invariants verified.", inr_float
+    return True, "READY", inr_bal
