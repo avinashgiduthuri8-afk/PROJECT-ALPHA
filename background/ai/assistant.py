@@ -327,47 +327,11 @@ class MBTAssistantAgent:
                     return await self.explain_trade_exit(recent[0].coin)
             return "ℹ️ Please specify the coin symbol, e.g. <i>'Why did INJ close?'</i>"
 
-        # 5. Database status & export
-        if any(w in lower for w in ("export database", "download database", "download db", "export db", "backup database")):
-            return (
-                "📂 <b>Database Export Command Triggered</b>\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                "Use the <code>/db</code> or <code>/export</code> command directly to receive the compressed <code>.db.gz</code> file in Telegram."
-            )
-
+        # 5. Database status
         if any(w in lower for w in ("check database", "db status", "database health", "inspect db", "database stats", "database rows")):
             return await self.check_database_status()
 
-        # 6. Operational Execution Control
-        if any(w in lower for w in ("pause trading", "stop trading", "halt trading", "pause execution")):
-            self._config.trading_enabled = False
-            return (
-                "⏸️ <b>OPERATIONAL CONTROL: TRADING PAUSED</b>\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                "• Trading state updated: <b>PAUSED</b>\n"
-                "• New automated signal entries are currently suspended.\n"
-                "• Say <i>'resume trading'</i> or send /resume to re-enable execution."
-            )
-
-        if any(w in lower for w in ("resume trading", "start trading", "unpause trading", "resume execution")):
-            self._config.trading_enabled = True
-            return (
-                "▶️ <b>OPERATIONAL CONTROL: TRADING RESUMED</b>\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                "• Trading state updated: <b>ENABLED</b>\n"
-                "• Automated signal evaluation & position entries restored.\n"
-                "• Say <i>'pause trading'</i> or send /pause to suspend."
-            )
-
-        if "switch to paper" in lower or "set mode paper" in lower:
-            setattr(self._config, "deployment_mode", "PAPER")
-            return "📝 <b>OPERATIONAL CONTROL: MODE SWITCHED TO PAPER</b>\nAll execution is now running in simulated PAPER mode."
-
-        if "switch to live" in lower or "set mode live" in lower:
-            setattr(self._config, "deployment_mode", "LIVE_MICROCASH")
-            return "🚀 <b>OPERATIONAL CONTROL: MODE SWITCHED TO LIVE_MICROCASH</b>\nReal live execution mode engaged."
-
-        # 7. System health & diagnostics
+        # 6. System health & diagnostics
         if any(w in lower for w in ("what is wrong", "diagnose", "is bot working", "any errors", "health check", "system status", "subsystems", "bot status")):
             return await self.get_system_health()
 
