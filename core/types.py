@@ -201,7 +201,11 @@ class Position:
 
     @property
     def deployed_capital(self) -> float:
-        return self.qty * self.entry_price
+        """Calculate deployed capital in master INR accounting currency."""
+        pair_str = (self.pair or "").upper()
+        is_usdt = pair_str.endswith("/USDT") or pair_str.endswith("USDT")
+        rate = 91.50
+        return (self.qty * self.entry_price * rate) if is_usdt else (self.qty * self.entry_price)
 
 
 @dataclass
