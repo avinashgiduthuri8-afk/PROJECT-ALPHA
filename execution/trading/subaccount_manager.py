@@ -536,6 +536,16 @@ class CoinDCXSubAccountClient:
         Query real CoinDCX user balances endpoint:
         POST https://api.coindcx.com/exchange/v1/users/balances
         """
+        if not self.is_live_mode or not self.config.api_key or self.config.api_key in ("", "DUMMY_KEY", "mock_key"):
+            return {
+                "success": True,
+                "status_code": 200,
+                "inr_balance": self.wallet_balance_inr,
+                "inr_locked": float(self._shared_state.get("deployed_capital_inr", 0.0)),
+                "asset_balances": {},
+                "balances": [],
+            }
+
         payload = {"timestamp": int(time.time() * 1000)}
         headers = self.generate_auth_headers(payload)
         url = f"{self.base_url}/exchange/v1/users/balances"
