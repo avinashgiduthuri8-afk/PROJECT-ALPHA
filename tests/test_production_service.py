@@ -106,7 +106,7 @@ async def test_production_controller_mode_transition(tmp_path):
         )
 
         # Check initial mode
-        assert ctrl.get_active_mode() in ("PAPER", "LIVE_MICROCASH")
+        assert ctrl.get_active_mode() in ("PAPER", "LIVE", "LIVE_MICROCASH")
 
         # Transition to PAPER
         res2 = await ctrl.set_mode("PAPER", operator="TEST_OPERATOR")
@@ -115,12 +115,12 @@ async def test_production_controller_mode_transition(tmp_path):
         assert ctrl.get_active_mode() == "PAPER"
         assert await state_repo.get("v2_deployment_mode") == "PAPER"
 
-        # Transition to LIVE_MICROCASH
-        res3 = await ctrl.set_mode("LIVE_MICROCASH", operator="TEST_OPERATOR")
+        # Transition to LIVE
+        res3 = await ctrl.set_mode("LIVE", operator="TEST_OPERATOR")
         assert res3["ok"] is True
-        assert res3["mode"] == "LIVE_MICROCASH"
-        assert ctrl.get_active_mode() == "LIVE_MICROCASH"
-        assert await state_repo.get("v2_deployment_mode") == "LIVE_MICROCASH"
+        assert res3["mode"] in ("LIVE", "LIVE_MICROCASH")
+        assert ctrl.get_active_mode() in ("LIVE", "LIVE_MICROCASH")
+        assert await state_repo.get("v2_deployment_mode") in ("LIVE", "LIVE_MICROCASH")
 
         # Invalid mode rejection
         with pytest.raises(ValueError):

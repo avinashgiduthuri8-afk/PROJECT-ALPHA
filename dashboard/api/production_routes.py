@@ -162,11 +162,18 @@ async def set_execution_mode(body: SetModeRequestSchema) -> SetModeResponseSchem
         )
 
     if target in ("LIVE", "LIVE_MICROCASH"):
-        expected_password = getattr(_config, "dashboard_security_password", None) or "alpha2026"
-        if (
-            not body.password
-            or not hmac.compare_digest(body.password.strip(), expected_password)
-        ):
+        expected_password = getattr(_config, "dashboard_security_password", None) or os.getenv("DASHBOARD_SECURITY_PASSWORD")
+        if not expected_password:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Security password not configured on server (DASHBOARD_SECURITY_PASSWORD).",
+            )
+        if not body.password:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Configured security password required to switch to LIVE mode.",
+            )
+        if not hmac.compare_digest(body.password.strip(), expected_password):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Invalid security password. Authorization denied.",
@@ -189,7 +196,7 @@ async def set_execution_mode(body: SetModeRequestSchema) -> SetModeResponseSchem
 
     _config.deployment_mode = target
     if target in ("LIVE", "LIVE_MICROCASH"):
-        _config.deployment_mode = "LIVE_MICROCASH"
+        _config.deployment_mode = "LIVE"
         _config.trading_enabled = True
         _config.shadow_mode = False
         msg = f"Switched to LIVE. Real micro-orders (₹{_config.order_size_inr:.2f}) dispatch to CoinDCX."

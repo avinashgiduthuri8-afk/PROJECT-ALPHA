@@ -183,7 +183,7 @@ class ProductionController:
         """
         raw_mode = target_mode.strip().upper()
         if raw_mode in ("LIVE", "LIVE_MICROCASH"):
-            mode = "LIVE_MICROCASH"
+            mode = "LIVE"
         elif raw_mode == "PAPER":
             mode = "PAPER"
         else:
@@ -191,17 +191,17 @@ class ProductionController:
                 f"Invalid mode '{target_mode}'. Valid modes: PAPER, LIVE"
             )
 
-        if mode == "LIVE_MICROCASH":
+        if mode == "LIVE":
             if (
                 self._risk_service
                 and hasattr(self._risk_service, "circuit_breaker")
                 and self._risk_service.circuit_breaker.is_open
             ):
                 raise ValueError(
-                    f"Cannot transition to LIVE_MICROCASH: Circuit breaker is OPEN ({self._risk_service.circuit_breaker.reason})"
+                    f"Cannot transition to LIVE: Circuit breaker is OPEN ({self._risk_service.circuit_breaker.reason})"
                 )
 
-            # P0-05 Security: Validate credentials before setting LIVE_MICROCASH mode
+            # P0-05 Security: Validate credentials before setting LIVE mode
             self._config.validate_live_security()
 
             if self._trading_service and hasattr(
@@ -217,12 +217,12 @@ class ProductionController:
                     bal_res = await sub_mgr.check_account_connectivity()
                     if not bal_res.get("success"):
                         raise ValueError(
-                            f"Cannot transition to LIVE_MICROCASH: CoinDCX connectivity check failed ({bal_res.get('error') or bal_res.get('message')})"
+                            f"Cannot transition to LIVE: CoinDCX connectivity check failed ({bal_res.get('error') or bal_res.get('message')})"
                         )
-            self._config.deployment_mode = "LIVE_MICROCASH"
+            self._config.deployment_mode = "LIVE"
             self._config.trading_enabled = True
             self._config.shadow_mode = False
-            msg = f"Mode transitioned to LIVE_MICROCASH. Real micro-orders (₹{self._config.order_size_inr:.2f}) dispatch to CoinDCX."
+            msg = f"Mode transitioned to LIVE. Real micro-orders (₹{self._config.order_size_inr:.2f}) dispatch to CoinDCX."
         else:
             self._config.deployment_mode = "PAPER"
             self._config.trading_enabled = True

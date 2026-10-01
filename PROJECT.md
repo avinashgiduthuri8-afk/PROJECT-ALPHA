@@ -1,100 +1,84 @@
-# Project: PROJECT-ALPHA Platform, Telemetry & UI Fixes
+# Project: PROJECT-ALPHA Execution Module (E) Hardening
 
 ## Architecture
-PROJECT-ALPHA is an automated crypto algorithmic trading system operating strictly under `BotMode.PAPER` with a unified shared capital pool (minimum ₹200 notional per order).
-Data flow and module boundaries:
-1. **Repository Layer (`v2/repository/`)**:
-   - `PositionRepository`: SQLite database interface for `positions` and `trades`. Tracks lifecycle (`PENDING_ENTRY`, `OPEN`, `PENDING_EXIT`, `CLOSING`, `CLOSED`). Provides `get_active_positions()` (`status != 'CLOSED'`).
-2. **Service Layer (`core/`)**:
-   - `BotPipelineTracker` (`dashboard_service/bot_pipeline.py`): Tracks 4 execution bots (`STE`, `HDA`, `VCP`, `BBS`) with configured capacities `(3, 3, 2, 4)`. Must hydrate active positions and deployed capital from `PositionRepository` on startup.
-   - `DashboardService` (`dashboard_service/service.py`) & `DashboardAggregator`: Aggregates overview metrics, fleet state, risk metrics, and active positions for API and WebSocket delivery.
-   - `PortfolioService` & `PortfolioAggregator`: Computes cash balance, total MTM valuation, statutory friction, and dynamic total equity ($\text{Cash} + \text{MTM} - \text{Friction}$).
-   - `ScannerService` (`scanner_service/`): Generates universe scan candidates, EMA trend, RSI, MTF alignment, and B3/B4 confluence scores.
-   - `AIIntelligenceService` (`ai_intelligence_service/`): Gating decisions and market regime intelligence.
-3. **API Routing Layer (`v2/api/`)**:
-   - `v2/api/router.py`: Main FastAPI router. Mounts `research_router`, `production_router`, `dashboard_router`.
-   - `/positions/open` convenience endpoint: Must query non-closed positions via `get_active_positions()`.
-   - `/scanner/watchlist` & `/scanner/coins`: Feed universe coins with price changes and confluence scores.
-   - `/research/candles/{symbol}`: Returns recent OHLCV candlestick data for chart plotting.
-4. **Presentation Layer (`v2/templates/dashboard.html`)**:
-   - Institutional single-page trading dashboard with live telemetry polling (`refreshLiveTelemetry()`) and WebSocket streaming.
-   - KPI metrics (`kpi-openpos`), active positions tables (`home-positions-tbody`, `open-positions-tbody`), bot fleet cards with configured capacities.
-   - Interactive Watchlist Center table.
-   - Interactive Canvas OHLCV trade chart widget (`#trade-chart-container`) with Entry/SL/TP overlay markers.
-
----
+- **Package**: `execution`
+- **Core Components**:
+  - `execution/trading/subaccount_manager.py`: Manages subaccounts, master client, API credential resolution, order placement (`place_order`), cancellation, and CoinDCX REST interaction.
+  - `execution/reconciliation.py`: Position & order reconciliation service reconciling local SQLite state (`PositionRepository`, `OrderRepository`) with authoritative exchange orders.
+  - `execution/auto_trader.py`: `AutoTradeRouter` routing verified scanner signals to execution strategies under risk limits and single-tranche caps.
+  - `execution/service.py`: High-level `TradingService` coordinating EventBus signals (`SIGNAL_GENERATED` -> AI confirmation -> `TRADE_APPROVED`), trade execution, and lifecycle management.
+- **Data Flow**:
+  1. Scanner generates signal -> AIIntelligenceService confirms -> RiskService approves (`EventType.TRADE_APPROVED`).
+  2. `AutoTradeRouter` / `TradingService` validates verified signal & risk authorization, clamps sizing to ₹200 / `ORDER_SIZE_INR`, and routes order.
+  3. `SubaccountManager` places order without mock credentials, returning structured result with `exchange_order_id`.
+  4. `ReconciliationService` executes safe 3-stage `FLAG -> VERIFY -> RECONCILE` protocol, preserving active disaster stop-losses and resting limit orders.
 
 ## Feature Inventory
 | # | Feature | Description | Milestone | Source |
 |---|---------|-------------|-----------|--------|
-| 1 | SQLite Active Position Startup Hydration | `BotPipelineTracker.sync_from_repository()` populates bot active position counts and deployed capital on server initialization from SQLite. | M1 | ORIGINAL_REQUEST R2 |
-| 2 | Main API Router Mounting | Mount `dashboard_routes` into `v2/api/router.py` and initialize aggregator dependencies in `init_router()`. | M1 | ORIGINAL_REQUEST R2 |
-| 3 | Non-Closed Positions API Routing | Update `/positions/open`, `/trading/positions?status=OPEN`, and `/production/status` to query `get_active_positions()` (`status != 'CLOSED'`). | M1 | ORIGINAL_REQUEST R2 |
-| 4 | Dashboard Overview Positions Payload | Include `open_positions` and `open_positions_count` in `DashboardService.get_overview()` and `DashboardOverviewSchema`. | M1 | ORIGINAL_REQUEST R2 |
-| 5 | Dynamic Equity & Capital Calculation | Calculate dynamic Total Equity ($\text{Cash} + \text{MTM} - \text{Friction}$) and deployed capital incorporating active positions. | M1 | ORIGINAL_REQUEST R2 |
-| 6 | Frontend HTML & Modal Syntax Fixes | Fix unclosed/mismatched tags in `#liveTradeConfirmModal`, fix `#positionActionModal` onsubmit handler, fix security PIN check bypass. | M2 | ORIGINAL_REQUEST R1 |
-| 7 | Dashboard Telemetry DOM Synchronization | Ensure `refreshLiveTelemetry()` populates `#kpi-openpos`, `#home-positions-tbody`, `#open-positions-tbody` from live API data. | M2 | ORIGINAL_REQUEST R1 |
-| 8 | Fleet Bot Capacity & Count Alignment | Set bot cards and tab views to configured capacities `STE: 3, HDA: 3, VCP: 2, BBS: 4` instead of hardcoded `0 / 1 (None)`. | M2 | ORIGINAL_REQUEST R1 |
-| 9 | Watchlist Widget Live Feed | Wire `#watchlist-center` to `/scanner/coins` or `/scanner/watchlist` with price changes, volume ratios, and confluence scores. | M2 | ORIGINAL_REQUEST R3 |
-| 10 | AI Intelligence Telemetry Binding | Bind market regime, B3/B4 scores, and AI risk assessment telemetry to dashboard cards. | M2 | ORIGINAL_REQUEST R3 |
-| 11 | OHLCV Candlestick API Feed | Add `/research/candles/{symbol}` endpoint in `v2/api/research_routes.py` returning recent OHLCV bars. | M3 | ORIGINAL_REQUEST R4 |
-| 12 | Interactive Trade Chart Plotting Widget | Embed `#trade-chart-container` with Canvas OHLCV candlestick plotter and TP/SL/Entry price overlay markers in Research Hub. | M3 | ORIGINAL_REQUEST R4 |
-| 13 | Comprehensive E2E Test Suite | Build opaque-box 4-tier E2E test suite covering all features, boundaries, and acceptance criteria. | M0 | ORIGINAL_REQUEST Verification |
-| 14 | 100% Automated Acceptance Verification | Fix stale assertions in `test_v2_dashboard_ui.py` and verify all tests pass 100% under pytest with `--basetemp`. | M4 | ORIGINAL_REQUEST Acceptance |
-
----
+| F1 | Eliminate mock API credentials in subaccount manager | Remove `mock_master_key_alpha12345` and `mock_master_secret_alpha67890abcdef`, implement fail-closed live credentials check | M1 | ORIGINAL_REQUEST §R1 |
+| F2 | Deduplicate `"status"` evaluations | Remove duplicate `"status"` keys at lines 305-306 and 459-460 in `subaccount_manager.py` | M1 | ORIGINAL_REQUEST §R1 |
+| F3 | Eliminate unreachable return statements | Consolidate duplicate returns at lines 344-349 and 478-483 to return both `order` and `exchange_order_id` | M1 | ORIGINAL_REQUEST §R1 |
+| F4 | Prune shadowed methods and fix config scope | Remove dead shadowed `cancel_order`, `get_order_status`, `get_account_balances` and fix `trading_cfg` NameError in `subaccount_manager.py` | M1 | Survey Explorer 1 |
+| F5 | Safe FLAG stage in reconciliation | Flag mismatched exchange orders as pending reconciliation without immediate cancellation | M2 | ORIGINAL_REQUEST §R2 |
+| F6 | Safe VERIFY stage in reconciliation | Perform retries and query authoritative exchange status before considering any action | M2 | ORIGINAL_REQUEST §R2 |
+| F7 | Safe RECONCILE stage in reconciliation | Synchronize local state with exchange fills, only closing/cancelling after verified orphan status | M2 | ORIGINAL_REQUEST §R2 |
+| F8 | Disaster stop-loss and limit order protection | Index `pos.stop_loss_order_id` in `pos_by_ex_id` and check `OrderRepository` so active protective orders are never cancelled | M2 | Survey Explorer 2 |
+| F9 | Remove legacy autonomous background trade triggers | Deprecate raw `SIGNAL_GENERATED` handler in `AutoTradeRouter`, gate execution strictly on verified signals & risk approval | M3 | ORIGINAL_REQUEST §R3 |
+| F10 | Enforce strict ₹200 / `ORDER_SIZE_INR` micro-tranche sizing | Update default fallback from 500 to 200 INR and clamp trade amounts in `AutoTradeRouter` | M3 | ORIGINAL_REQUEST §R3, GEMINI.md §3 |
+| F11 | Enforce `BotMode.PAPER` invariants | Ensure `AutoTradeRouter` respects paper mode without direct unrecorded live exchange calls | M3 | Survey Explorer 3, GEMINI.md |
+| F12 | Comprehensive test suite verification | Verify `test_execution_master.py`, `test_safety_invariants.py`, and `test_bot_pipeline.py` pass cleanly | M4 | ORIGINAL_REQUEST §Acceptance Criteria |
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| M0 | E2E Testing Suite (Tiers 1-4) | Design test harness and test cases in `tests/e2e/`, publish `TEST_INFRA.md` & `TEST_READY.md`. | none | IN_PROGRESS |
-| M1 | Backend Startup Hydration & Active Positions Routing | Implement features 1, 2, 3, 4, 5 in `core/`, `v2/api/`, `v2/repository/`. | none | PLANNED |
-| M2 | Frontend Script, DOM Sync, Capacities & Watchlist | Implement features 6, 7, 8, 9, 10 in `v2/templates/dashboard.html` and schemas. | M1 | PLANNED |
-| M3 | Trade Chart Plotting Integration | Implement features 11, 12 in `v2/api/research_routes.py` and `v2/templates/dashboard.html`. | M2 | PLANNED |
-| M4 | Final Acceptance & Adversarial Hardening | Implement feature 14, run full pytest suite (100% pass), adversarial coverage audit. | M0, M1, M2, M3 | PLANNED |
-
----
+| M1 | Subaccount Manager Hardening | `execution/trading/subaccount_manager.py` (F1, F2, F3, F4) | none | DONE |
+| M2 | Safe Reconciliation Protocol | `execution/reconciliation.py`, `execution/service.py` (F5, F6, F7, F8) | M1 | DONE |
+| M3 | AutoTrader Signal-Driven Alignment | `execution/auto_trader.py` (F9, F10, F11) | M1 | DONE |
+| M4 | Master Test Suite Pass & Adversarial Hardening | Full test suites, white-box stress testing, integrity audit (F12) | M1, M2, M3 | DONE |
 
 ## Interface Contracts
-### `PositionRepository` ↔ `BotPipelineTracker`
-- Method: `await position_repo.get_active_positions() -> list[PositionModel]`
-- Hydration Signature: `async def sync_from_repository(self, position_repo: PositionRepository) -> None`
-- Behavior: Counts active positions grouped by `bot_name` (`STE`, `HDA`, `VCP`, `BBS`), sets `open_positions`, accumulates `capital_deployed`, and sets `current_stage = "position_manager"` with `stage_status = "IN_POSITION"`.
+### `SubaccountManager.place_order` -> Caller (`TradingService` / `AutoTradeRouter`)
+- **Return Value**:
+  ```python
+  {
+      "success": True,
+      "exchange_order_id": str,
+      "order": dict,
+  }
+  ```
+- **Error Value**:
+  ```python
+  {
+      "success": False,
+      "error": str,  # e.g., "MISSING_CREDENTIALS", "TIMEOUT"
+      "message": str,
+      "requires_reconciliation": bool,
+  }
+  ```
 
-### Main Router ↔ Dashboard Router
-- Module: `v2/api/dashboard_routes.py`
-- Mount: `router.include_router(dashboard_router, prefix="/dashboard", tags=["dashboard"])`
-- Initialization: `init_dashboard_routes(bot_tracker, aggregator)` called within `init_router(...)`.
+### `ReconciliationService` ↔ `PositionRepository` & `OrderRepository`
+- `ReconciliationService` receives `position_repo: PositionRepository` and optional `order_repo: OrderRepository`.
+- Indices built:
+  - `pos_by_ex_id`: maps `pos.exchange_order_id` and `pos.stop_loss_order_id` to `Position`.
+  - `pos_by_client_id`: maps `pos.client_order_id` to `Position`.
+  - `orders_by_ex_id`: maps active limit order exchange IDs to `Order`.
+- State Machine:
+  - Detection -> `FLAG` (recorded in `_flagged_orders[order_id]` with timestamp and retry counter).
+  - Next cycle -> `VERIFY` (poll status, verify grace period / minimum consecutive mismatches).
+  - Confirmed orphan -> `RECONCILE` (cancel or sync).
 
-### `/positions/open` API Endpoint
-- Route: `GET /api/v2/positions/open`
-- Header: `X-API-Key`
-- Response: `list[PositionSchema]` where `status != 'CLOSED'`. Includes `PENDING_ENTRY`, `OPEN`, `PENDING_EXIT`, `CLOSING`.
-
-### Dashboard Overview API Endpoint
-- Route: `GET /api/v2/dashboard/overview`
-- Response Schema: `DashboardOverviewSchema` containing:
-  - `open_positions_count: int`
-  - `open_positions: list[dict]`
-  - `system_status: str`
-  - `execution_fleet: dict`
-  - `portfolio: dict`
-
-### Research Candles API Endpoint
-- Route: `GET /api/v2/research/candles/{symbol}?interval=1h&limit=50`
-- Response: `list[dict]` with fields `[time, open, high, low, close, volume]`.
-
----
+### `AutoTradeRouter.handle_signal` ↔ Caller
+- Input: `payload: dict` or `OpportunitySignal` containing:
+  - `verified_scanner_signal`: `True`
+  - `risk_decision` or `is_risk_approved`: `True`
+  - `trade_amount_inr`: capped at `min(amount, ORDER_SIZE_INR)`
+- Rejection:
+  - If unverified or not risk-approved -> return `{"success": False, "error": "UNAUTHORIZED_SIGNAL"}`.
 
 ## Code Layout
-- `core/dashboard_service/bot_pipeline.py`: Bot pipeline and hydration tracking.
-- `core/dashboard_service/service.py`: Dashboard overview aggregation.
-- `v2/api/router.py`: FastAPI root router and `/positions/open` handler.
-- `v2/api/dashboard_routes.py`: Dashboard fleet, signals, overview routes.
-- `v2/api/research_routes.py`: Research candle feed for charting.
-- `v2/api/schemas.py`: Schema definitions (`DashboardOverviewSchema`, `ScannedCoinSchema`, etc.).
-- `core/portfolio_service/`: Dynamic total equity calculation.
-- `v2/templates/dashboard.html`: Single-page application HTML/JS/CSS.
-- `tests/test_v2_dashboard_ui.py`: UI and API endpoint unit tests.
-- `tests/e2e/`: Opaque-box E2E test suite.
-
+- `execution/trading/subaccount_manager.py` — Owned exclusively by Milestone M1 Worker
+- `execution/reconciliation.py` — Owned exclusively by Milestone M2 Worker
+- `execution/service.py` — Shared integration points (co-owned / updated in M2)
+- `execution/auto_trader.py` — Owned exclusively by Milestone M3 Worker
+- `tests/` — Test suites updated/verified in M4

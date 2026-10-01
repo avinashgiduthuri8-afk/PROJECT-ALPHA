@@ -124,12 +124,6 @@ class AutoTradeRouter:
                     else str(signal.opportunity_type)
                 ),
                 "score": signal.score,
-                "target_bot": (
-                    signal.raw_payload.get("target_bot") if signal.raw_payload else None
-                ),
-                "price": (
-                    signal.raw_payload.get("price") if signal.raw_payload else None
-                ),
                 "price": getattr(signal, "price", None)
                 or (signal.raw_payload.get("price") if signal.raw_payload else None),
                 "signal_price": getattr(signal, "signal_price", None)
@@ -164,9 +158,9 @@ class AutoTradeRouter:
                 or (signal.raw_payload.get("timestamp") if signal.raw_payload else None)
                 or signal.generated_at,
                 "trade_amount": (
-                    signal.raw_payload.get("trade_amount", 500.0)
+                    signal.raw_payload.get("trade_amount", 200.0)
                     if signal.raw_payload
-                    else 500.0
+                    else 200.0
                 ),
             }
         elif isinstance(signal, dict):

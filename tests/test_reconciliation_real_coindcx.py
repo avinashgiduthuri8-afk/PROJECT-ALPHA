@@ -340,8 +340,8 @@ async def test_reconciliation_detects_position_asset_mismatch(test_env):
 
 
 @pytest.mark.anyio
-async def test_reconciliation_cancels_orphan_orders(test_env):
-    """Verifies that resting orphan orders on exchange are automatically cancelled via cancel_order()."""
+async def test_reconciliation_flags_orphan_orders_safely(test_env):
+    """Verifies that resting orphan orders on exchange are safely flagged for verification rather than immediately cancelled."""
     rec_service = test_env["rec_service"]
     mgr = test_env["mgr"]
     client = mgr.get_client(BotName.STE)
@@ -377,8 +377,8 @@ async def test_reconciliation_cancels_orphan_orders(test_env):
     res = await rec_service.reconcile_positions()
     assert res["status"] == "DISCREPANCIES_DETECTED"
     assert len(res["orphan_orders"]) == 1
-    assert res["orphan_orders"][0]["action"] == "CANCELLED_ORPHAN_ORDER"
-    client.cancel_order.assert_called_once_with("ex-orphan-auto-cancel-123")
+    assert res["orphan_orders"][0]["action"] == "FLAGGED_ORPHAN_ORDER"
+    client.cancel_order.assert_not_called()
 
 
 @pytest.mark.anyio

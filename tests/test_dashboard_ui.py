@@ -165,7 +165,7 @@ def test_set_mode_security_password_protection():
         )
         assert resp_live_ok.status_code == 200
         assert resp_live_ok.json()["success"] is True
-        assert resp_live_ok.json()["mode"] == "LIVE_MICROCASH"
+        assert resp_live_ok.json()["mode"] in ("LIVE", "LIVE_MICROCASH")
 
         # 5. Clean up: reset back to PAPER mode
         resp_reset = client.post(

@@ -525,13 +525,13 @@ class AppConfig(BaseSettings):
         description="Cooldown seconds before circuit breaker probes HALF_OPEN.",
     )
 
-    # ── Auth (shared with V1) ─────────────────────────────────────────────────
     dashboard_api_key: str | None = Field(
-        default="alpha-prod-key",
+        default=None,
         validation_alias=AliasChoices("DASHBOARD_API_KEY", "dashboard_api_key"),
+        description="Operator API key required for protected endpoints.",
     )
     dashboard_security_password: str | None = Field(
-        default="alpha2026",
+        default=None,
         validation_alias=AliasChoices(
             "DASHBOARD_SECURITY_PASSWORD",
             "dashboard_security_password",

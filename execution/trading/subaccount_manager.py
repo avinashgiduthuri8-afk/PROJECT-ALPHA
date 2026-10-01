@@ -109,7 +109,7 @@ class CoinDCXSubAccountClient:
     @property
     def is_live_mode(self) -> bool:
         current_env = os.environ.get("DEPLOYMENT_MODE", self.mode).upper()
-        return current_env == "LIVE_MICROCASH"
+        return current_env in ("LIVE", "LIVE_MICROCASH")
 
     def generate_auth_headers(self, payload: dict[str, Any]) -> dict[str, str]:
         """
@@ -140,6 +140,14 @@ class CoinDCXSubAccountClient:
         client: httpx.AsyncClient | None = None,
     ) -> dict[str, Any]:
         """Execute authenticated async HTTP POST request to CoinDCX endpoint."""
+        if not self.config.api_key or not self.config.api_secret:
+            logger.error("CoinDCX API request failed on %s: missing API credentials", endpoint)
+            return {
+                "success": False,
+                "error": "MISSING_API_CREDENTIALS",
+                "message": "CoinDCX API credentials not configured.",
+            }
+
         url = f"{self.base_url.rstrip('/')}/{endpoint.lstrip('/')}"
         headers = self.generate_auth_headers(payload)
 
@@ -302,7 +310,6 @@ class CoinDCXSubAccountClient:
                 "price": rounded_price,
                 "qty": rounded_qty,
                 "notional_inr": notional,
-                "status": "FILLED",
                 "status": "OPEN" if order_type.lower() == "stop_limit" else "FILLED",
                 "auth_headers_verified": bool(headers.get("X-AUTH-SIGNATURE")),
                 "timestamp": payload["timestamp"],
@@ -341,7 +348,6 @@ class CoinDCXSubAccountClient:
             rounded_qty,
             notional,
         )
-        return {"success": True, "order": order_record}
         return {
             "success": True,
             "exchange_order_id": order_record["exchange_order_id"],
@@ -456,7 +462,6 @@ class CoinDCXSubAccountClient:
                 "price": rounded_price,
                 "qty": rounded_qty,
                 "notional_inr": notional,
-                "status": "FILLED",
                 "status": "OPEN" if order_type.lower() == "stop_limit" else "FILLED",
                 "auth_headers_verified": bool(headers.get("X-AUTH-SIGNATURE")),
                 "timestamp": payload["timestamp"],
@@ -475,7 +480,6 @@ class CoinDCXSubAccountClient:
                 rounded_qty,
                 notional,
             )
-            return {"success": True, "order": order_record}
             return {
                 "success": True,
                 "exchange_order_id": order_record["exchange_order_id"],
@@ -1260,11 +1264,9 @@ class CoinDCXSubAccountManager:
 
         self._shared_pool_state["wallet_balance_inr"] = pool_limit
 
-        # Master API Credentials
-        master_api_key = os.getenv("COINDCX_API_KEY", "mock_master_key_alpha12345")
-        master_api_secret = os.getenv(
-            "COINDCX_API_SECRET", "mock_master_secret_alpha67890abcdef"
-        )
+        # Master API Credentials (must be set in environment for LIVE execution)
+        master_api_key = os.getenv("COINDCX_API_KEY", "")
+        master_api_secret = os.getenv("COINDCX_API_SECRET", "")
 
         # Default strategy configurations
         defaults = {

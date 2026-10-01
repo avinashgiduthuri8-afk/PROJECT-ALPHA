@@ -139,30 +139,13 @@ class ReconciliationService:
                     )
                     if not matched_pos:
                         action_msg = "FLAGGED_ORPHAN_ORDER"
-                        if ex_ord_id:
-                            try:
-                                cancel_res = await master_client.cancel_order(ex_ord_id)
-                                if (
-                                    isinstance(cancel_res, dict)
-                                    and cancel_res.get("success") is True
-                                ):
-                                    action_msg = "CANCELLED_ORPHAN_ORDER"
-                                    logger.info(
-                                        "Successfully cancelled orphan order %s on CoinDCX",
-                                        ex_ord_id,
-                                    )
-                                else:
-                                    logger.warning(
-                                        "Attempted to cancel orphan order %s but got: %s",
-                                        ex_ord_id,
-                                        cancel_res,
-                                    )
-                            except Exception as cancel_exc:
-                                logger.error(
-                                    "Failed to cancel orphan order %s: %s",
-                                    ex_ord_id,
-                                    cancel_exc,
-                                )
+                        logger.warning(
+                            "Orphan order %s (client_id=%s, market=%s) detected on exchange without local position. "
+                            "FLAGGED for verification; skipping immediate cancellation to prevent live risk during desync/restarts.",
+                            ex_ord_id,
+                            cl_ord_id,
+                            market,
+                        )
 
                         orphan_item = {
                             "exchange_order_id": ex_ord_id or None,
