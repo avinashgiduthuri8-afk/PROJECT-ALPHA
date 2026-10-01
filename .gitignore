@@ -46,6 +46,7 @@ logs/*.log
 .pytest_t*
 .pytest_temp*
 pytest_temp*
+temp_pytest*
 .pytest_cache/
 .pytest_tmp*
 .test_dbs/
