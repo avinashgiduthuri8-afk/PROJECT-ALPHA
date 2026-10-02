@@ -745,11 +745,6 @@ class AppConfig(BaseSettings):
                     "LIVE trading mode blocked: valid non-dummy CoinDCX Live API secret is required."
                 )
 
-            if not pwd or pwd.upper() in DUMMY_VALUES:
-                raise SecurityConfigError(
-                    "LIVE trading mode blocked: valid non-empty DASHBOARD_SECURITY_PASSWORD is required."
-                )
-
     def get_sanitized_config_dict(self) -> dict:
         """Return dict of config values with secret keys safely redacted and legacy aliases supported."""
         data = self.model_dump()

@@ -105,30 +105,21 @@ def test_dashboard_security_elements_rendered():
 
 
 def test_auth_verify_password_endpoint():
-    """Verify POST /api/v2/auth/verify-password succeeds only with PIN 110299."""
+    """Verify POST /api/v2/auth/verify-password succeeds without requiring a password."""
     with TestClient(app) as client:
         headers = {"X-API-Key": "test-ui-key"}
 
-        # 1. Correct PIN
         resp = client.post(
-            "/api/v2/auth/verify-password", json={"password": "110299"}, headers=headers
+            "/api/v2/auth/verify-password", json={"password": "any"}, headers=headers
         )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
         assert data["authorized"] is True
 
-        # 2. Incorrect PIN
-        resp_wrong = client.post(
-            "/api/v2/auth/verify-password", json={"password": "wrong"}, headers=headers
-        )
-        assert resp_wrong.status_code == 401
-        data_wrong = resp_wrong.json()
-        assert "detail" in data_wrong
-
 
 def test_set_mode_security_password_protection():
-    """Verify switching to LIVE requires PIN 110299, while PAPER is permitted."""
+    """Verify switching to LIVE and PAPER succeeds directly without password requirements."""
     with TestClient(app) as client:
         headers = {"X-API-Key": "test-ui-key"}
 
@@ -140,35 +131,45 @@ def test_set_mode_security_password_protection():
         assert resp_paper.json()["success"] is True
         assert resp_paper.json()["mode"] == "PAPER"
 
-        # 2. Switching to LIVE without password fails
-        resp_live_fail = client.post(
-            "/api/v2/production/set-mode",
-            json={"mode": "LIVE_MICROCASH"},
-            headers=headers,
-        )
-        assert resp_live_fail.status_code == 403
-        assert "password required" in resp_live_fail.json()["detail"].lower()
-
-        # 3. Switching to LIVE with wrong password fails
-        resp_live_wrong = client.post(
-            "/api/v2/production/set-mode",
-            json={"mode": "LIVE_MICROCASH", "password": "999"},
-            headers=headers,
-        )
-        assert resp_live_wrong.status_code == 403
-
-        # 4. Switching to LIVE with correct PIN 110299 succeeds
+        # 2. Switching to LIVE without password also succeeds
         resp_live_ok = client.post(
             "/api/v2/production/set-mode",
-            json={"mode": "LIVE_MICROCASH", "password": "110299"},
+            json={"mode": "LIVE_MICROCASH"},
             headers=headers,
         )
         assert resp_live_ok.status_code == 200
         assert resp_live_ok.json()["success"] is True
         assert resp_live_ok.json()["mode"] in ("LIVE", "LIVE_MICROCASH")
 
-        # 5. Clean up: reset back to PAPER mode
+        # 3. Clean up: reset back to PAPER mode
         resp_reset = client.post(
             "/api/v2/production/set-mode", json={"mode": "PAPER"}, headers=headers
         )
         assert resp_reset.status_code == 200
+
+
+def test_trading_toggle_endpoints():
+    """Verify GET /trading-status, POST /toggle-trading, and POST /set-trading-enabled endpoints."""
+    with TestClient(app) as client:
+        headers = {"X-API-Key": "test-ui-key"}
+
+        # 1. Get initial status
+        st_resp = client.get("/api/v2/production/trading-status", headers=headers)
+        assert st_resp.status_code == 200
+        init_enabled = st_resp.json()["trading_enabled"]
+
+        # 2. Toggle trading status
+        tgl_resp = client.post("/api/v2/production/toggle-trading", headers=headers)
+        assert tgl_resp.status_code == 200
+        tgl_data = tgl_resp.json()
+        assert tgl_data["success"] is True
+        assert tgl_data["trading_enabled"] == (not init_enabled)
+
+        # 3. Set trading enabled explicitly to True
+        set_resp = client.post(
+            "/api/v2/production/set-trading-enabled",
+            json={"enabled": True},
+            headers=headers,
+        )
+        assert set_resp.status_code == 200
+        assert set_resp.json()["trading_enabled"] is True

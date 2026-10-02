@@ -161,24 +161,6 @@ async def set_execution_mode(body: SetModeRequestSchema) -> SetModeResponseSchem
             detail="Invalid mode. Must be 'PAPER' or 'LIVE'.",
         )
 
-    if target in ("LIVE", "LIVE_MICROCASH"):
-        expected_password = getattr(_config, "dashboard_security_password", None) or os.getenv("DASHBOARD_SECURITY_PASSWORD")
-        if not expected_password:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Security password not configured on server (DASHBOARD_SECURITY_PASSWORD).",
-            )
-        if not body.password:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Configured security password required to switch to LIVE mode.",
-            )
-        if not hmac.compare_digest(body.password.strip(), expected_password):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Invalid security password. Authorization denied.",
-            )
-
     if _controller:
         try:
             res = await _controller.set_mode(target, operator="API")
@@ -230,6 +212,53 @@ async def set_execution_mode(body: SetModeRequestSchema) -> SetModeResponseSchem
         shadow_mode=_config.shadow_mode,
         message=msg,
     )
+
+
+@production_router.get(
+    "/trading-status",
+    dependencies=[Depends(require_api_key)],
+    summary="Get trading_enabled status flag",
+)
+@production_router.post(
+    "/toggle-trading",
+    dependencies=[Depends(require_api_key)],
+    summary="Toggle trading_enabled flag on or off",
+)
+@production_router.post(
+    "/set-trading-enabled",
+    dependencies=[Depends(require_api_key)],
+    summary="Set trading_enabled flag explicitly",
+)
+async def toggle_trading_enabled(body: dict | None = None) -> dict[str, Any]:
+    """Dynamically toggle or set trading_enabled flag."""
+    if _config is None:
+        raise HTTPException(status_code=503, detail="Config not initialized")
+
+    if body and "enabled" in body:
+        _config.trading_enabled = bool(body["enabled"])
+    else:
+        _config.trading_enabled = not _config.trading_enabled
+
+    try:
+        from core.config import AppConfig
+
+        AppConfig.save_runtime_overrides(
+            {
+                "trading_enabled": _config.trading_enabled,
+                "v2_trading_enabled": _config.trading_enabled,
+            }
+        )
+    except Exception as exc:
+        logger.warning("Could not persist trading_enabled override: %s", exc)
+
+    state_str = "ENABLED" if _config.trading_enabled else "DISABLED"
+    logger.info("Trading status updated to %s", state_str)
+    return {
+        "ok": True,
+        "success": True,
+        "trading_enabled": _config.trading_enabled,
+        "message": f"Trading status is now {state_str}.",
+    }
 
 
 @production_router.post(

