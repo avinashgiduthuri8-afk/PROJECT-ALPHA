@@ -833,14 +833,13 @@
                         </button>
                     </div>
 
-                    <!-- Trading Status Enable / Disable Toggle -->
-                    <button id="btn-trading-toggle" onclick="toggleTradingStatus()" class="btn-sm" style="background:#10b981; color:#fff; font-weight:700; border:none; padding:8px 14px; border-radius:6px; cursor:pointer; font-family:'JetBrains Mono',monospace;" title="Click to Toggle Master Trading Status">
-                        🟢 TRADING ENABLED
-                    </button>
-
                     <span class="status-badge-item font-mono text-xs text-secondary">
                         MARKET: <strong class="text-green">24/7 SPOT CRYPTO</strong>
                     </span>
+
+                    <button onclick="lockDashboard()" class="btn-lock-nav" title="Lock Dashboard with Security Password">
+                        <span>🔒</span> Lock
+                    </button>
 
                     <button onclick="triggerEmergencyKill()" class="btn-sm" style="background:#ef4444;color:#fff;font-weight:700;border:none;">
                         🚨 KILL SWITCH
@@ -2324,9 +2323,6 @@
                         autoLabel.innerText = dispMode + " EXECUTION: " + (status.trading_enabled ? "ACTIVE" : "PAUSED");
                     }
                     updateModeUI(status.deployment_mode || 'PAPER');
-                    if (status.trading_enabled !== undefined) {
-                        updateTradingToggleUI(status.trading_enabled);
-                    }
                 }
 
                 // 2. Scanned Universe & Deep Dive Live Prices
@@ -2711,7 +2707,6 @@
         // ═══════════════════════════════════════════════════════════════════
         //  DASHBOARD SECURITY GATEWAY & TRADING MODE CONTROLLER
         // ═══════════════════════════════════════════════════════════════════
-        // Never embed the operator secret in the dashboard bundle.
         function checkDashboardSecurity() {
             const overlay = document.getElementById("dashboardSecurityOverlay");
             if (overlay) overlay.style.display = "none";
@@ -2867,7 +2862,7 @@
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!--  DASHBOARD SECURITY PASSWORD LOCK SCREEN              -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
-    <div id="dashboardSecurityOverlay" class="security-overlay" style="display:none;">
+    <div id="dashboardSecurityOverlay" class="security-overlay">
         <div class="security-card" id="securityCardBox">
             <div class="security-icon">🔒</div>
             <div class="security-title">PROJECT-ALPHA V2</div>
