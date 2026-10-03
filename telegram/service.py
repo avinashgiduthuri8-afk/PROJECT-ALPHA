@@ -4,6 +4,8 @@ V2 NotificationService — central event listener and alert coordinator.
 
 from __future__ import annotations
 
+from typing import Any
+
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
 from core.config import AppConfig
