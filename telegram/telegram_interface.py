@@ -56,6 +56,31 @@ from .telegram import TelegramClient
 
 logger = get_logger("telegram.telegram_interface")
 
+BOT_AUTOFILL_COMMANDS: list[dict[str, str]] = [
+    {"command": "status", "description": "📊 Engine status & active fleet"},
+    {"command": "health", "description": "🩺 System health & connectivity"},
+    {"command": "scan", "description": "📡 Live market scanner results"},
+    {"command": "signals", "description": "🎯 Active MTF trading signals"},
+    {"command": "positions", "description": "📈 Active positions & live PnL"},
+    {"command": "trades", "description": "📜 Recent executed trade history"},
+    {"command": "pnl", "description": "💰 Closed trade PnL & win rate"},
+    {"command": "orders", "description": "📋 Open exchange orders"},
+    {"command": "balance", "description": "💼 Account balance & available cash"},
+    {"command": "portfolio", "description": "📊 Portfolio capital allocation"},
+    {"command": "capital", "description": "💵 Trading capital & position sizing"},
+    {"command": "winrate", "description": "🏆 Fleet win rate & profit factor"},
+    {"command": "funnel", "description": "🌪️ Scanner multi-stage filter funnel"},
+    {"command": "risk", "description": "🛡️ Risk engine & circuit breakers"},
+    {"command": "fleet", "description": "🤖 Multi-bot fleet operational state"},
+    {"command": "stages", "description": "⚡ Bot pipeline stage tracking"},
+    {"command": "config", "description": "⚙️ System configuration parameters"},
+    {"command": "help", "description": "📖 Complete command manual & instructions"},
+    {"command": "pause", "description": "⏸️ Pause new trade entries"},
+    {"command": "resume", "description": "▶️ Resume automated trading"},
+    {"command": "reconcile", "description": "🔄 Audit exchange orders & balances"},
+    {"command": "emergency_stop", "description": "🛑 Emergency stop & close positions"},
+]
+
 
 def build_main_menu_keyboard(mode: str = "PAPER") -> dict:
     """Build the interactive inline keyboard tailored for Live vs Paper Mission Control."""
@@ -242,6 +267,12 @@ class TelegramInteractiveInterface:
             return
 
         self._running = True
+        try:
+            if hasattr(self._telegram, "set_my_commands"):
+                await self._telegram.set_my_commands(BOT_AUTOFILL_COMMANDS)
+        except Exception as exc:
+            logger.debug("Failed to set native bot commands: %s", exc)
+
         self._poll_task = asyncio.create_task(self._poll_loop())
         logger.info("Telegram Interactive C2 Interface started with long-polling.")
 

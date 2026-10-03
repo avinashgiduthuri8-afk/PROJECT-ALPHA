@@ -275,3 +275,26 @@ class TelegramClient:
             logger.error("Error fetching Telegram updates: %s", exc)
 
         return []
+
+    async def set_my_commands(self, commands: list[dict[str, str]]) -> bool:
+        """Register bot commands with Telegram API for native slash autofill/autocomplete."""
+        if not self._bot_token:
+            return False
+
+        url = f"https://api.telegram.org/bot{self._bot_token}/setMyCommands"
+        payload = {"commands": commands}
+        try:
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                resp = await client.post(url, json=payload)
+                if resp.status_code == 200 and resp.json().get("ok"):
+                    logger.info("Telegram setMyCommands succeeded for %d commands", len(commands))
+                    return True
+                logger.warning(
+                    "Telegram setMyCommands error: status=%s body=%s",
+                    resp.status_code,
+                    resp.text[:200],
+                )
+        except Exception as exc:
+            logger.error("Failed to register Telegram bot commands: %s", exc)
+        return False
+
