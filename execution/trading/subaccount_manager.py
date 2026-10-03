@@ -124,13 +124,6 @@ class CoinDCXSubAccountClient:
         api_key = (self.config.api_key or "").strip()
         api_secret = (self.config.api_secret or "").strip()
 
-        if not api_key or not api_secret:
-            return {
-                "Content-Type": "application/json",
-                "X-AUTH-APIKEY": api_key,
-                "X-AUTH-SIGNATURE": "",
-            }
-
         json_body = json.dumps(payload, separators=(",", ":"))
         secret_bytes = api_secret.encode("utf-8")
         signature = hmac.new(
@@ -1245,7 +1238,7 @@ class CoinDCXSubAccountManager:
         initial_balance = (
             float(self._config.total_capital_limit)
             if (self._config and self._config.total_capital_limit is not None)
-            else float("inf")
+            else 10000.0
         )
         self._shared_pool_state: dict[str, float] = {
             "wallet_balance_inr": initial_balance,
@@ -1260,7 +1253,7 @@ class CoinDCXSubAccountManager:
         pool_limit = (
             float(self._config.total_capital_limit)
             if (self._config and self._config.total_capital_limit is not None)
-            else float("inf")
+            else 10000.0
         )
 
         if os.path.exists(self.config_path):

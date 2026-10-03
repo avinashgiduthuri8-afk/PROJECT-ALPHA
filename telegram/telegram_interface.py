@@ -24,6 +24,7 @@ from core.repository.trade_repo import TradeRepository
 
 from .formatters import (
     format_telegram_alerts,
+    format_telegram_balance,
     format_telegram_bot_fleet,
     format_telegram_capital,
     format_telegram_config,
@@ -36,6 +37,7 @@ from .formatters import (
     format_telegram_orders,
     format_telegram_pipeline_stages,
     format_telegram_pnl,
+    format_telegram_portfolio,
     format_telegram_positions,
     format_telegram_reconciliation,
     format_telegram_risk,
@@ -46,42 +48,65 @@ from .formatters import (
     format_telegram_trades,
     format_telegram_uptime,
     format_telegram_watchlist,
+    format_telegram_winrate,
 )
 from .telegram import TelegramClient
 
 logger = get_logger("telegram.telegram_interface")
 
 
-def build_main_menu_keyboard() -> dict:
-    """Build the interactive inline keyboard for Mission Control."""
-    return {
-        "inline_keyboard": [
-            [
-                {"text": "📊 Status", "callback_data": "cb:status"},
-                {"text": "🩺 Health", "callback_data": "cb:health"},
-            ],
-            [
-                {"text": "💼 Capital", "callback_data": "cb:capital"},
-                {"text": "📈 Positions", "callback_data": "cb:positions"},
-            ],
-            [
-                {"text": "📜 Orders", "callback_data": "cb:orders"},
-                {"text": "💰 P&L", "callback_data": "cb:pnl"},
-            ],
-            [
-                {"text": "📡 Scan", "callback_data": "cb:scan"},
-                {"text": "🎯 Signals", "callback_data": "cb:signals"},
-            ],
-            [
-                {"text": "🛡️ Risk", "callback_data": "cb:risk"},
-                {"text": "🔄 Refresh", "callback_data": "cb:refresh"},
-            ],
-            [
-                {"text": "🛑 Emergency Stop", "callback_data": "cb:stop"},
-                {"text": "▶️ Resume Trading", "callback_data": "cb:resume"},
-            ],
-        ]
-    }
+def build_main_menu_keyboard(mode: str = "PAPER") -> dict:
+    """Build the interactive inline keyboard tailored for Live vs Paper Mission Control."""
+    if mode in ("LIVE", "LIVE_MICROCASH"):
+        return {
+            "inline_keyboard": [
+                [
+                    {"text": "💼 Live Balance", "callback_data": "cb:balance"},
+                    {"text": "📊 Live Portfolio", "callback_data": "cb:portfolio"},
+                ],
+                [
+                    {"text": "📈 Positions", "callback_data": "cb:positions"},
+                    {"text": "📜 Live Orders", "callback_data": "cb:orders"},
+                ],
+                [
+                    {"text": "💰 P&L", "callback_data": "cb:pnl"},
+                    {"text": "🛡️ Risk Ceilings", "callback_data": "cb:risk"},
+                ],
+                [
+                    {"text": "📊 Fleet Status", "callback_data": "cb:status"},
+                    {"text": "🩺 Health Probe", "callback_data": "cb:health"},
+                ],
+                [
+                    {"text": "🛑 Emergency Stop", "callback_data": "cb:stop"},
+                    {"text": "▶️ Resume Trading", "callback_data": "cb:resume"},
+                ],
+            ]
+        }
+    else:
+        return {
+            "inline_keyboard": [
+                [
+                    {"text": "🏆 Win Rate", "callback_data": "cb:winrate"},
+                    {"text": "📊 Stats & Metrics", "callback_data": "cb:stats"},
+                ],
+                [
+                    {"text": "🎯 MTF Signals", "callback_data": "cb:signals"},
+                    {"text": "📡 Live Scan", "callback_data": "cb:scan"},
+                ],
+                [
+                    {"text": "📈 Paper Positions", "callback_data": "cb:positions"},
+                    {"text": "📜 Paper Trades", "callback_data": "cb:trades"},
+                ],
+                [
+                    {"text": "💼 Paper Wallet (₹10k)", "callback_data": "cb:balance"},
+                    {"text": "🌪️ Filter Funnel", "callback_data": "cb:funnel"},
+                ],
+                [
+                    {"text": "📊 Engine Status", "callback_data": "cb:status"},
+                    {"text": "🔄 Refresh", "callback_data": "cb:refresh"},
+                ],
+            ]
+        }
 
 
 def build_back_keyboard(refresh_cb: str = "cb:refresh") -> dict:
@@ -314,7 +339,19 @@ class TelegramInteractiveInterface:
         elif cmd == "/funnel":
             await self._send_funnel(chat_id)
 
-        # 3. Trading Commands
+        # 3. Dedicated Balance & Portfolio & Capital Commands
+        elif cmd in ("/balance", "/wallet"):
+            await self._send_balance(chat_id)
+        elif cmd == "/portfolio":
+            await self._send_portfolio(chat_id)
+        elif cmd == "/capital":
+            await self._send_capital(chat_id)
+
+        # 4. Strategy Win Rate & Stats Commands
+        elif cmd in ("/winrate", "/stats", "/performance"):
+            await self._send_winrate(chat_id)
+
+        # 5. Trading & Position Commands
         elif cmd == "/positions":
             await self._send_positions(chat_id)
         elif cmd == "/trades":
@@ -323,16 +360,14 @@ class TelegramInteractiveInterface:
             await self._send_pnl(chat_id)
         elif cmd == "/orders":
             await self._send_orders(chat_id)
-        elif cmd in ("/capital", "/portfolio", "/balance"):
-            await self._send_capital(chat_id)
         elif cmd == "/config":
             await self._send_config(chat_id)
 
-        # 4. Order Amount Control
+        # 6. Order Amount Control
         elif cmd == "/setamount":
             await self._handle_set_amount(chat_id, args)
 
-        # 5. Trading Control
+        # 7. Trading Control & Safety
         elif cmd == "/pause":
             await self._handle_pause(chat_id)
         elif cmd == "/resume":
@@ -344,8 +379,8 @@ class TelegramInteractiveInterface:
         elif cmd == "/reconcile":
             await self._handle_reconcile(chat_id)
 
-        # 6. Risk & Monitoring
-        elif cmd == "/risk":
+        # 8. Risk & Monitoring
+        elif cmd in ("/risk", "/safety"):
             await self._send_risk(chat_id)
         elif cmd == "/limits":
             await self._send_limits(chat_id)
@@ -363,7 +398,7 @@ class TelegramInteractiveInterface:
             await self._telegram.send_message(
                 text=msg,
                 target_chat_id=str(chat_id),
-                reply_markup=build_main_menu_keyboard(),
+                reply_markup=build_main_menu_keyboard(self._get_active_mode()),
             )
 
     async def _handle_callback_query(self, cb: dict[str, Any]) -> None:
@@ -394,6 +429,12 @@ class TelegramInteractiveInterface:
                 await self._render_status_edit(chat_id, message_id)
             elif data == "cb:health":
                 await self._render_health_edit(chat_id, message_id)
+            elif data == "cb:balance":
+                await self._render_balance_edit(chat_id, message_id)
+            elif data == "cb:portfolio":
+                await self._render_portfolio_edit(chat_id, message_id)
+            elif data in ("cb:winrate", "cb:stats", "cb:performance"):
+                await self._render_winrate_edit(chat_id, message_id)
             elif data == "cb:capital":
                 await self._render_capital_edit(chat_id, message_id)
             elif data == "cb:positions":
@@ -408,6 +449,8 @@ class TelegramInteractiveInterface:
                 await self._render_scan_edit(chat_id, message_id)
             elif data == "cb:signals":
                 await self._render_signals_edit(chat_id, message_id)
+            elif data == "cb:funnel":
+                await self._render_funnel_edit(chat_id, message_id)
             elif data == "cb:risk":
                 await self._render_risk_edit(chat_id, message_id)
             elif data == "cb:stop":
@@ -445,7 +488,7 @@ class TelegramInteractiveInterface:
         await self._telegram.send_message(
             text=text,
             target_chat_id=str(chat_id),
-            reply_markup=build_main_menu_keyboard(),
+            reply_markup=build_main_menu_keyboard(mode),
         )
 
     async def _render_main_menu_edit(self, chat_id: str | int, message_id: int) -> None:
@@ -463,11 +506,12 @@ class TelegramInteractiveInterface:
             text=text,
             chat_id=chat_id,
             message_id=message_id,
-            reply_markup=build_main_menu_keyboard(),
+            reply_markup=build_main_menu_keyboard(mode),
         )
 
     async def _send_help(self, chat_id: str | int) -> None:
-        text = format_telegram_help()
+        mode = self._get_active_mode()
+        text = format_telegram_help(mode=mode)
         await self._telegram.send_message(
             text=text,
             target_chat_id=str(chat_id),
@@ -1273,6 +1317,256 @@ class TelegramInteractiveInterface:
             chat_id=chat_id,
             message_id=message_id,
             reply_markup=build_back_keyboard("cb:capital"),
+        )
+
+    # ── Dedicated Balance & Portfolio Handlers ────────────────────────────────
+
+    async def _compile_balance_data(self) -> dict[str, Any]:
+        mode = self._get_active_mode()
+        is_live = mode in ("LIVE", "LIVE_MICROCASH")
+        inr_bal = 0.0
+        inr_locked = 0.0
+        asset_balances: dict[str, float] = {}
+
+        if is_live:
+            sub_mgr = self._get_subaccount_manager()
+            if sub_mgr:
+                try:
+                    master_client = sub_mgr.get_client()
+                    bal_res = await master_client.get_balances()
+                    if bal_res.get("success"):
+                        inr_bal = float(bal_res.get("inr_balance", 0.0))
+                        inr_locked = float(bal_res.get("inr_locked", 0.0))
+                        asset_balances = bal_res.get("asset_balances", {})
+                except Exception as exc:
+                    logger.debug("Live broker balance fetch error: %s", exc)
+
+        deployed_cap = 0.0
+        open_pos_count = 0
+        if self._position_repo:
+            try:
+                open_pos = await self._position_repo.get_active_positions()
+                open_pos_count = len(open_pos)
+                deployed_cap = sum(float(getattr(p, "deployed_capital", 0.0) or 0.0) for p in open_pos)
+            except Exception as exc:
+                logger.debug("Balance positions fetch error: %s", exc)
+
+        return {
+            "mode": mode,
+            "inr_balance": inr_bal,
+            "inr_locked": inr_locked,
+            "asset_balances": asset_balances,
+            "capital_limit": self._config.total_capital_limit or 10000.0,
+            "deployed_capital": deployed_cap,
+            "open_positions_count": open_pos_count,
+        }
+
+    async def _send_balance(self, chat_id: str | int) -> None:
+        data = await self._compile_balance_data()
+        text = format_telegram_balance(data)
+        await self._telegram.send_message(
+            text=text,
+            target_chat_id=str(chat_id),
+            reply_markup=build_back_keyboard("cb:balance"),
+        )
+
+    async def _render_balance_edit(self, chat_id: str | int, message_id: int) -> None:
+        data = await self._compile_balance_data()
+        text = format_telegram_balance(data)
+        await self._telegram.edit_message_text(
+            text=text,
+            chat_id=chat_id,
+            message_id=message_id,
+            reply_markup=build_back_keyboard("cb:balance"),
+        )
+
+    async def _compile_portfolio_data(self) -> dict[str, Any]:
+        mode = self._get_active_mode()
+        is_live = mode in ("LIVE", "LIVE_MICROCASH")
+        open_pos_list: list[dict[str, Any]] = []
+        deployed_cap = 0.0
+        realized_pnl = 0.0
+        unrealized_pnl = 0.0
+        trades_cnt = 0
+        win_rate = 0.0
+        avail_cash = 0.0
+
+        if self._position_repo:
+            try:
+                raw_positions = await self._position_repo.get_active_positions()
+                for p in raw_positions:
+                    entry = float(getattr(p, "entry_price", 0.0) or 0.0)
+                    cur = float(getattr(p, "current_price", entry) or entry)
+                    qty = float(getattr(p, "qty", 0.0) or 0.0)
+                    pos_dep = float(getattr(p, "deployed_capital", 0.0) or (entry * qty))
+                    deployed_cap += pos_dep
+                    u_pnl = float(getattr(p, "unrealized_pnl", 0.0) or 0.0)
+                    u_pct = float(getattr(p, "unrealized_pnl_pct", 0.0) or 0.0)
+                    unrealized_pnl += u_pnl
+                    bot_str = p.bot.value if hasattr(p.bot, "value") else str(p.bot or "BOT")
+                    open_pos_list.append({
+                        "coin": p.coin,
+                        "bot": bot_str,
+                        "entry_price": entry,
+                        "current_price": cur,
+                        "qty": qty,
+                        "deployed": pos_dep,
+                        "unrealized_pnl": u_pnl,
+                        "unrealized_pnl_pct": u_pct,
+                    })
+            except Exception as exc:
+                logger.debug("Portfolio positions fetch error: %s", exc)
+
+        if self._portfolio_service:
+            try:
+                snap = await self._portfolio_service.get_snapshot()
+                realized_pnl = snap.total_realised_pnl
+            except Exception:
+                pass
+
+        if self._trade_repo:
+            try:
+                recent = await self._trade_repo.get_recent(limit=100)
+                trades_cnt = len(recent)
+                wins = sum(1 for t in recent if getattr(t, "pnl", 0.0) > 0)
+                win_rate = (wins / trades_cnt * 100.0) if trades_cnt > 0 else 0.0
+            except Exception:
+                pass
+
+        if is_live:
+            sub_mgr = self._get_subaccount_manager()
+            if sub_mgr:
+                try:
+                    bal_res = await sub_mgr.get_live_balance()
+                    if bal_res.get("success"):
+                        avail_cash = float(bal_res.get("inr_balance", 0.0))
+                except Exception:
+                    pass
+
+        return {
+            "mode": mode,
+            "open_positions": open_pos_list,
+            "deployed_capital": deployed_cap,
+            "available_cash": avail_cash,
+            "realized_pnl": realized_pnl,
+            "unrealized_pnl": unrealized_pnl,
+            "trades_count": trades_cnt,
+            "win_rate_pct": win_rate,
+            "starting_capital": self._config.total_capital_limit or 10000.0,
+        }
+
+    async def _send_portfolio(self, chat_id: str | int) -> None:
+        data = await self._compile_portfolio_data()
+        text = format_telegram_portfolio(data)
+        await self._telegram.send_message(
+            text=text,
+            target_chat_id=str(chat_id),
+            reply_markup=build_back_keyboard("cb:portfolio"),
+        )
+
+    async def _render_portfolio_edit(self, chat_id: str | int, message_id: int) -> None:
+        data = await self._compile_portfolio_data()
+        text = format_telegram_portfolio(data)
+        await self._telegram.edit_message_text(
+            text=text,
+            chat_id=chat_id,
+            message_id=message_id,
+            reply_markup=build_back_keyboard("cb:portfolio"),
+        )
+
+    # ── Strategy Win Rate & Stats Handlers ───────────────────────────────────
+
+    async def _compile_winrate_data(self) -> dict[str, Any]:
+        mode = self._get_active_mode()
+        total_trades = 0
+        wins_cnt = 0
+        realized_pnl = 0.0
+        win_pnls: list[float] = []
+        loss_pnls: list[float] = []
+        strat_stats: dict[str, dict[str, Any]] = {}
+        signals_cnt = 0
+
+        if self._trade_repo:
+            try:
+                recent = await self._trade_repo.get_recent(limit=200)
+                total_trades = len(recent)
+                for t in recent:
+                    p = float(getattr(t, "pnl", 0.0) or 0.0)
+                    realized_pnl += p
+                    b = t.bot.value if hasattr(t.bot, "value") else str(t.bot or "BOT")
+                    if b not in strat_stats:
+                        strat_stats[b] = {"trades": 0, "wins": 0, "pnl": 0.0}
+                    strat_stats[b]["trades"] += 1
+                    strat_stats[b]["pnl"] += p
+
+                    if p > 0:
+                        wins_cnt += 1
+                        win_pnls.append(p)
+                        strat_stats[b]["wins"] += 1
+                    else:
+                        loss_pnls.append(abs(p))
+
+                for s_data in strat_stats.values():
+                    s_t = s_data["trades"]
+                    s_w = s_data["wins"]
+                    s_data["win_rate_pct"] = (s_w / s_t * 100.0) if s_t > 0 else 0.0
+            except Exception as exc:
+                logger.debug("Winrate trades compilation error: %s", exc)
+
+        if self._signal_repo:
+            try:
+                signals = await self._signal_repo.get_recent(limit=100)
+                signals_cnt = len(signals)
+            except Exception:
+                pass
+
+        win_rate = (wins_cnt / total_trades * 100.0) if total_trades > 0 else 0.0
+        avg_win = (sum(win_pnls) / len(win_pnls)) if win_pnls else 0.0
+        avg_loss = (sum(loss_pnls) / len(loss_pnls)) if loss_pnls else 0.0
+        tot_win_sum = sum(win_pnls)
+        tot_loss_sum = sum(loss_pnls)
+        profit_factor = (tot_win_sum / tot_loss_sum) if tot_loss_sum > 0 else (tot_win_sum if tot_win_sum > 0 else 1.0)
+
+        return {
+            "mode": mode,
+            "trades_count": total_trades,
+            "wins_count": wins_cnt,
+            "win_rate_pct": win_rate,
+            "realized_pnl": realized_pnl,
+            "avg_win_inr": avg_win,
+            "avg_loss_inr": avg_loss,
+            "profit_factor": profit_factor,
+            "signals_evaluated": signals_cnt,
+            "strategy_stats": strat_stats,
+        }
+
+    async def _send_winrate(self, chat_id: str | int) -> None:
+        data = await self._compile_winrate_data()
+        text = format_telegram_winrate(data)
+        await self._telegram.send_message(
+            text=text,
+            target_chat_id=str(chat_id),
+            reply_markup=build_back_keyboard("cb:winrate"),
+        )
+
+    async def _render_winrate_edit(self, chat_id: str | int, message_id: int) -> None:
+        data = await self._compile_winrate_data()
+        text = format_telegram_winrate(data)
+        await self._telegram.edit_message_text(
+            text=text,
+            chat_id=chat_id,
+            message_id=message_id,
+            reply_markup=build_back_keyboard("cb:winrate"),
+        )
+
+    async def _render_funnel_edit(self, chat_id: str | int, message_id: int) -> None:
+        data = await self._compile_funnel_data()
+        text = format_telegram_funnel(data)
+        await self._telegram.edit_message_text(
+            text=text,
+            chat_id=chat_id,
+            message_id=message_id,
+            reply_markup=build_back_keyboard("cb:funnel"),
         )
 
     async def _send_config(self, chat_id: str | int) -> None:

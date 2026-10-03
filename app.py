@@ -68,6 +68,7 @@ from core.repository.signal_repo import SignalRepository
 from core.repository.trade_repo import TradeRepository
 from dashboard import DashboardService
 from dashboard.api.dashboard_routes import init_dashboard_routes
+from dashboard.api.production_routes import init_production_routes
 from dashboard.api.router import init_router
 from dashboard.api.router import router as api_router
 from dashboard.api.websocket import init_websocket
@@ -379,6 +380,14 @@ async def lifespan(app: FastAPI):
         aggregator=_dashboard_service.aggregator,
         dashboard_service=_dashboard_service,
         bot_tracker=_dashboard_service.bot_tracker,
+    )
+
+    init_production_routes(
+        controller=_production_controller,
+        watchdog=_production_watchdog,
+        config=cfg,
+        position_repo=position_repo,
+        risk_service=_risk_service,
     )
 
     if position_repo and hasattr(

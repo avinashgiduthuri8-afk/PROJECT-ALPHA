@@ -935,44 +935,268 @@ def format_telegram_logs(logs: list[dict[str, Any]], mode: str = "PAPER") -> str
     return "\n".join(lines)
 
 
-def format_telegram_help() -> str:
-    """Format comprehensive help manual listing all 24 operator commands."""
-    return (
-        "📖 <b>PROJECT-ALPHA OPERATOR COMMANDS</b>\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        "<b>1. System Commands:</b>\n"
-        "  • /start — Welcome & Operator Overview\n"
-        "  • /help — Show this complete manual\n"
-        "  • /status — Comprehensive system health & telemetry\n"
-        "  • /health — Component-level diagnostic probes\n"
-        "  • /mode — Current execution mode & parameters\n"
-        "  • /uptime — Server start time & cycle statistics\n"
-        "  • /bots — Active bot fleet status\n\n"
-        "<b>2. Scanner Commands:</b>\n"
-        "  • /scan — Latest scanner cycle & top candidates\n"
-        "  • /signals — High-quality active signals\n"
-        "  • /signal &lt;symbol&gt; — Detailed technical breakdown\n"
-        "  • /watchlist — Active monitored coins\n"
-        "  • /funnel — 5-Layer conversion funnel metrics\n\n"
-        "<b>3. Trading Commands:</b>\n"
-        "  • /positions — Active open positions & SL/TP\n"
-        "  • /trades — Recent executed/closed trades\n"
-        "  • /pnl — Realized, unrealized & total P&L\n"
-        "  • /orders — Unified orders ledger (PAPER/LIVE)\n"
-        "  • /capital — Dynamic capital & CoinDCX live balance\n"
-        "  • /config — Current trading configuration\n\n"
-        "<b>4. Order Amount Control:</b>\n"
-        "  • /setamount &lt;value&gt; — Edit configured order amount (e.g. /setamount 500)\n\n"
-        "<b>5. Trading Control:</b>\n"
-        "  • /pause — Pause new entries (positions remain open)\n"
-        "  • /resume — Resume normal trading operations\n"
-        "  • /emergency_stop — Trip circuit breaker & freeze trading\n"
-        "  • /reconcile — Run exchange order reconciliation\n\n"
-        "<b>6. Risk & Monitoring:</b>\n"
-        "  🔹 /risk — Circuit breaker & exposure state\n"
-        "  🔹 /limits — Configured loss limits & fleet ceilings\n"
-        "  🔹 /alerts — Active alerts & system warnings\n"
-        "  🔹 /logs — Recent operational events (secrets scrubbed)\n"
-        "  🔹 /db — Export SQLite database to analyze offline\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━━"
-    )
+def format_telegram_balance(b: dict[str, Any]) -> str:
+    """Format dedicated /balance response with live exchange or paper pool funds."""
+    mode = b.get("mode", "PAPER")
+    is_live = mode in ("LIVE", "LIVE_MICROCASH")
+
+    if is_live:
+        inr_avail = float(b.get("inr_balance", 0.0))
+        inr_locked = float(b.get("inr_locked", 0.0))
+        total_inr = inr_avail + inr_locked
+        assets = b.get("asset_balances", {})
+
+        lines = [
+            "💼 <b>COINDCX LIVE BROKER BALANCES</b>",
+            "🔴 <b>MODE: LIVE PRODUCTION</b>",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━",
+            f"• <b>Available Cash (INR):</b> <code>₹{inr_avail:,.2f}</code>",
+            f"• <b>Locked in Orders (INR):</b> <code>₹{inr_locked:,.2f}</code>",
+            f"• <b>Total INR Cash:</b> <b>₹{total_inr:,.2f}</b>",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━",
+            "<b>Crypto Asset Holdings:</b>",
+        ]
+        if assets and any(v > 0.000001 for v in assets.values()):
+            for coin, qty in sorted(assets.items()):
+                if qty > 0.000001:
+                    lines.append(f"  • <b>{coin}:</b> <code>{format_qty(qty)}</code>")
+        else:
+            lines.append("  • <i>No spot crypto assets currently held</i>")
+
+        lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━")
+        lines.append(f"• <b>Source:</b> <code>COINDCX_EXCHANGE (Verified API)</code>")
+        return "\n".join(lines)
+    else:
+        pool_limit = float(b.get("capital_limit", 10000.0) or 10000.0)
+        deployed = float(b.get("deployed_capital", 0.0))
+        avail = max(0.0, pool_limit - deployed)
+        open_cnt = int(b.get("open_positions_count", 0))
+
+        return (
+            "📊 <b>PAPER SIMULATION WALLET</b>\n"
+            "🟡 <b>MODE: 24/7 PAPER SIMULATION</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"• <b>Virtual Capital Pool:</b> <code>₹{pool_limit:,.2f}</code>\n"
+            f"• <b>Available Simulation Cash:</b> <code>₹{avail:,.2f}</code>\n"
+            f"• <b>Deployed in Paper Trades:</b> <code>₹{deployed:,.2f}</code>\n"
+            f"• <b>Active Virtual Positions:</b> <code>{open_cnt}</code>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            "• <b>Source:</b> <code>VIRTUAL_PAPER_POOL</code>"
+        )
+
+
+def format_telegram_portfolio(p: dict[str, Any]) -> str:
+    """Format dedicated /portfolio valuation and risk exposure."""
+    mode = p.get("mode", "PAPER")
+    is_live = mode in ("LIVE", "LIVE_MICROCASH")
+
+    # Handle legacy portfolio snapshot dictionary if passed from unit tests
+    if "total_aum" in p or "total_cash" in p:
+        aum = float(p.get("total_aum", 0.0))
+        dep = float(p.get("total_deployed", 0.0))
+        cash = float(p.get("total_cash", 0.0))
+        u_pnl = float(p.get("total_unrealised_pnl", 0.0))
+        r_pnl = float(p.get("total_realised_pnl", 0.0))
+        return (
+            "📊 <b>PORTFOLIO & CAPITAL ALLOCATION</b>\n"
+            f"<b>MODE: {mode}</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"• <b>Total Portfolio AUM:</b> <code>₹{aum:,.2f}</code>\n"
+            f"• <b>Available Cash:</b> <code>₹{cash:,.2f}</code>\n"
+            f"• <b>Deployed Capital:</b> <code>₹{dep:,.2f}</code>\n"
+            f"• <b>Realized P&L:</b> <code>₹{r_pnl:,.2f}</code>\n"
+            f"• <b>Unrealized P&L:</b> <code>₹{u_pnl:,.2f}</code>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━━"
+        )
+
+    open_pos = p.get("open_positions", [])
+    deployed = float(p.get("deployed_capital", 0.0))
+    realized_pnl = float(p.get("realized_pnl", 0.0))
+    unrealized_pnl = float(p.get("unrealized_pnl", 0.0))
+    total_pnl = realized_pnl + unrealized_pnl
+
+    real_icon = "🟢" if realized_pnl >= 0 else "🔴"
+    unreal_icon = "🟢" if unrealized_pnl >= 0 else "🔴"
+    tot_icon = "🟢" if total_pnl >= 0 else "🔴"
+
+    if is_live:
+        cash = float(p.get("available_cash", 0.0))
+        nav = cash + deployed + unrealized_pnl
+        exposure_pct = (deployed / nav * 100.0) if nav > 0 else 0.0
+
+        lines = [
+            "📊 <b>PORTFOLIO & CAPITAL ALLOCATION</b>",
+            "🔴 <b>MODE: LIVE PRODUCTION</b>",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━",
+            f"• <b>Net Portfolio NAV:</b> <b>₹{nav:,.2f}</b>",
+            f"• <b>Free Cash Balance:</b> <code>₹{cash:,.2f}</code>",
+            f"• <b>Active Capital Deployed:</b> <code>₹{deployed:,.2f}</code> ({exposure_pct:.1f}% Exposure)",
+            f"• <b>Open Market Positions:</b> <code>{len(open_pos)}</code>",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━",
+            f"• <b>24h Realized P&L:</b> {real_icon} ₹{realized_pnl:,.2f}",
+            f"• <b>Live Unrealized P&L:</b> {unreal_icon} ₹{unrealized_pnl:,.2f}",
+            f"• <b>Net Combined P&L:</b> {tot_icon} <b>₹{total_pnl:,.2f}</b>",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━",
+        ]
+        if open_pos:
+            lines.append("<b>Active Live Holdings:</b>")
+            for pos in open_pos[:5]:
+                sym = pos.get("coin", "COIN")
+                bot = pos.get("bot", "BOT")
+                u_pnl = float(pos.get("unrealized_pnl", 0.0))
+                u_pct = float(pos.get("unrealized_pnl_pct", 0.0))
+                p_icon = "🟢" if u_pnl >= 0 else "🔴"
+                lines.append(f"  • <b>{sym}</b> ({bot}): {p_icon} ₹{u_pnl:+,.2f} ({u_pct:+.2f}%)")
+        else:
+            lines.append("<i>Zero active market positions — 100% dry powder reserve.</i>")
+        lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━")
+        return "\n".join(lines)
+    else:
+        starting = float(p.get("starting_capital", 10000.0) or 10000.0)
+        nav = starting + total_pnl
+        trades_cnt = int(p.get("trades_count", 0))
+        win_rate = float(p.get("win_rate_pct", 0.0))
+
+        lines = [
+            "📊 <b>PORTFOLIO & CAPITAL ALLOCATION</b>",
+            "🟡 <b>MODE: 24/7 SIMULATION</b>",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━",
+            f"• <b>Virtual Starting Capital:</b> <code>₹{starting:,.2f}</code>",
+            f"• <b>Current Simulation NAV:</b> <b>₹{nav:,.2f}</b>",
+            f"• <b>Simulated Net P&L:</b> {tot_icon} <b>₹{total_pnl:+,.2f}</b>",
+            f"• <b>Total Closed Trades:</b> <code>{trades_cnt}</code>",
+            f"• <b>Rolling Win Rate:</b> <code>{win_rate:.1f}%</code>",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━",
+            f"• <b>Active Virtual Positions:</b> <code>{len(open_pos)}</code>",
+        ]
+        if open_pos:
+            for pos in open_pos[:5]:
+                sym = pos.get("coin", "COIN")
+                bot = pos.get("bot", "BOT")
+                u_pnl = float(pos.get("unrealized_pnl", 0.0))
+                u_pct = float(pos.get("unrealized_pnl_pct", 0.0))
+                p_icon = "🟢" if u_pnl >= 0 else "🔴"
+                lines.append(f"  • <b>{sym}</b> ({bot}): {p_icon} ₹{u_pnl:+,.2f} ({u_pct:+.2f}%)")
+        else:
+            lines.append("<i>No active virtual positions currently open.</i>")
+        lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━")
+        return "\n".join(lines)
+
+
+def format_telegram_winrate(w: dict[str, Any]) -> str:
+    """Format dedicated /winrate and /stats strategy performance report."""
+    mode = w.get("mode", "PAPER")
+    total_trades = int(w.get("trades_count", 0))
+    wins = int(w.get("wins_count", 0))
+    losses = total_trades - wins
+    win_rate = float(w.get("win_rate_pct", 0.0))
+    realized_pnl = float(w.get("realized_pnl", 0.0))
+    avg_win = float(w.get("avg_win_inr", 0.0))
+    avg_loss = float(w.get("avg_loss_inr", 0.0))
+    profit_factor = float(w.get("profit_factor", 0.0))
+    signals_evaluated = int(w.get("signals_evaluated", 0))
+
+    wr_icon = "🟢" if win_rate >= 60.0 else "🟡" if win_rate >= 45.0 else "🔴"
+    pnl_icon = "🟢" if realized_pnl >= 0 else "🔴"
+
+    lines = [
+        "🏆 <b>24/7 STRATEGY WIN RATE & PERFORMANCE</b>",
+        f"<b>MODE: {mode}</b>",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━",
+        f"• <b>Rolling Win Rate:</b> {wr_icon} <b>{win_rate:.1f}%</b>",
+        f"• <b>Total Closed Trades:</b> <code>{total_trades}</code> (Wins: <code>{wins}</code> | Losses: <code>{losses}</code>)",
+        f"• <b>Total Realized P&L:</b> {pnl_icon} <b>₹{realized_pnl:+,.2f}</b> (post-statutory friction)",
+        f"• <b>Average Win:</b> <code>+₹{avg_win:,.2f}</code>",
+        f"• <b>Average Loss:</b> <code>-₹{avg_loss:,.2f}</code>",
+        f"• <b>Profit Factor:</b> <code>{profit_factor:.2f}</code>",
+        f"• <b>Total Signals Evaluated:</b> <code>{signals_evaluated}</code>",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━",
+        "<b>Strategy Breakdown:</b>",
+    ]
+    per_strategy = w.get("strategy_stats", {})
+    if per_strategy:
+        for strat, stats in per_strategy.items():
+            s_trades = stats.get("trades", 0)
+            s_wr = stats.get("win_rate_pct", 0.0)
+            s_pnl = stats.get("pnl", 0.0)
+            s_icon = "🟢" if s_wr >= 60.0 else "🟡" if s_wr >= 45.0 else "⚪"
+            lines.append(f"  • <b>{strat}:</b> {s_icon} <code>{s_wr:.1f}%</code> ({s_trades} trades | ₹{s_pnl:+,.2f})")
+    else:
+        lines.append("  • <i>STE: SuperTrend ATR Breakout</i>")
+        lines.append("  • <i>HDA: High Delivery Absorption</i>")
+        lines.append("  • <i>VCP: Volatility Contraction</i>")
+        lines.append("  • <i>BBS: Bollinger Band Squeeze</i>")
+
+    lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━")
+    return "\n".join(lines)
+
+
+def format_telegram_help(mode: str = "PAPER") -> str:
+    """Format comprehensive help manual tailored to LIVE or PAPER bot."""
+    is_live = mode in ("LIVE", "LIVE_MICROCASH")
+
+    if is_live:
+        return (
+            "📖 <b>PROJECT-ALPHA OPERATOR COMMANDS</b>\n"
+            "🔴 <b>MODE: LIVE PRODUCTION (COINDCX)</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            "<b>1. Live Wallet & Balance Commands:</b>\n"
+            "  • /balance — Real-Time CoinDCX INR & Crypto Balances\n"
+            "  • /portfolio — Live Fleet Valuation & Asset Exposure\n"
+            "  • /capital — Dynamic Broker Capital & Free Margin\n"
+            "  • /pnl — Realized & Unrealized Live P&L\n\n"
+            "<b>2. Live Execution & Position Commands:</b>\n"
+            "  • /positions — Active Market Positions with Trailing Stops\n"
+            "  • /orders — Live Exchange Orders & Execution Fills\n"
+            "  • /trades — Realized Trade Logs & Fill Prices\n\n"
+            "<b>3. Live Safety & Emergency Commands:</b>\n"
+            "  • /status — Production Fleet Health & Telemetry\n"
+            "  • /bots — Active bot fleet status\n"
+            "  • /risk — Circuit Breaker & Safety Ceilings\n"
+            "  • /limits — Micro-Order Caps (₹200.00 Limit)\n"
+            "  • /pause — Pause New Live Entries\n"
+            "  • /resume — Resume Live Automated Execution\n"
+            "  • /emergency_stop — Trip circuit breaker & freeze trading\n"
+            "  • /kill — Emergency Freeze & Trip Kill Switch\n"
+            "  • /reconcile — Audit Local Ledger vs Exchange State\n\n"
+            "<b>4. Monitoring & System Commands:</b>\n"
+            "  • /start — Welcome & Operator Overview\n"
+            "  • /help — Show this complete manual\n"
+            "  • /health — Subsystem Diagnostic Probes\n"
+            "  • /alerts — Active Live Alerts & Warnings\n"
+            "  • /logs — Scrubbed Audit Trail\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━━"
+        )
+    else:
+        return (
+            "📖 <b>PROJECT-ALPHA OPERATOR COMMANDS</b>\n"
+            "🟡 <b>MODE: 24/7 SIMULATION & WIN RATE ENGINE</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            "<b>1. Strategy Success & Win Rate Commands:</b>\n"
+            "  • /winrate — 24/7 Rolling Win Rate % & Net R:R\n"
+            "  • /stats — Detailed Performance & Trade Expectancy\n"
+            "  • /portfolio — ₹10,000 Paper Capital & Simulated NAV\n"
+            "  • /balance — Paper Simulation Capital Pool\n"
+            "  • /pnl — Simulated Realized & Unrealized P&L\n\n"
+            "<b>2. Multi-Timeframe Scanner Commands:</b>\n"
+            "  • /signals — Active High-Conviction MTF Signals (80-89 & 90+ Elite)\n"
+            "  • /scan — Latest Scanner Cycle & Candidate Rankings\n"
+            "  • /signal &lt;coin&gt; — In-Depth Coin Technical Breakdown\n"
+            "  • /funnel — 5-Layer Filter Conversion Statistics\n"
+            "  • /watchlist — Active Filtered Coin Watchlist\n\n"
+            "<b>3. Virtual Simulation Execution Commands:</b>\n"
+            "  • /positions — Active Virtual Paper Trades & Live Trailing Stops\n"
+            "  • /trades — Simulated Trade History Ledger\n"
+            "  • /orders — Simulated Order Queue & Fills\n\n"
+            "<b>4. Engine & System Commands:</b>\n"
+            "  • /start — Welcome & Operator Overview\n"
+            "  • /help — Show this complete manual\n"
+            "  • /status — Paper Simulation Health & Cycle Stats\n"
+            "  • /bots — Active bot fleet status\n"
+            "  • /emergency_stop — Trip circuit breaker & freeze trading\n"
+            "  • /health — Subsystem Integrity Check\n"
+            "  • /config — Active Scanner & Simulation Settings\n"
+            "  • /db — Export Simulation Database for Analysis\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━━"
+        )
+

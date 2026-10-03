@@ -90,12 +90,19 @@ class PortfolioService:
             since = datetime.now(timezone.utc).replace(
                 hour=0, minute=0, second=0, microsecond=0
             )
-            recent_trades = await self._trade_repo.get_since(since, limit=200)
+        mode = (
+            getattr(self._config, "deployment_mode", "PAPER")
+            if self._config
+            else "PAPER"
+        )
+        base_cash = 10000.0
+        if self._config and hasattr(self._config, "total_capital_limit") and self._config.total_capital_limit:
+            base_cash = float(self._config.total_capital_limit)
 
         snapshot = PortfolioAggregator.aggregate(
             positions=open_positions,
             closed_trades=recent_trades,
-            base_cash=100000.0,
+            base_cash=base_cash,
         )
         self._last_snapshot = snapshot
         return snapshot

@@ -12,6 +12,7 @@ from .formatters import (
     format_position_closed_alert,
     format_position_opened_alert,
     format_signal_ai_alert,
+    format_telegram_balance,
     format_telegram_bot_fleet,
     format_telegram_help,
     format_telegram_menu,
@@ -21,6 +22,7 @@ from .formatters import (
     format_telegram_risk,
     format_telegram_signals,
     format_telegram_trades,
+    format_telegram_winrate,
     format_trade_approved_alert,
     format_trade_denied_alert,
 )

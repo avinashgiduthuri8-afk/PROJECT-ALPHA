@@ -1,6 +1,6 @@
 {
   "order_size_inr": 250.0,
-  "deployment_mode": "PAPER",
+  "deployment_mode": "LIVE_MICROCASH",
   "trading_enabled": true,
   "shadow_mode": false,
   "v2_deployment_mode": "LIVE_MICROCASH",

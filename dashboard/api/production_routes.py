@@ -85,15 +85,34 @@ async def get_production_status() -> ProductionStatusSchema:
         except Exception as exc:
             logger.debug("Failed fetching active positions for status: %s", exc)
 
+    if mode in ("LIVE", "LIVE_MICROCASH"):
+        # Fetch real CoinDCX available INR wallet balance for live trading
+        if _controller and hasattr(_controller, "_trading_service") and _controller._trading_service:
+            sub_mgr = getattr(_controller._trading_service, "subaccount_manager", None) or getattr(
+                _controller._trading_service, "_subaccount_manager", None
+            )
+            if sub_mgr and hasattr(sub_mgr, "get_live_balance"):
+                try:
+                    bal_res = await sub_mgr.get_live_balance()
+                    if bal_res.get("success"):
+                        cap_avail = round(float(bal_res.get("inr_balance", 0.0)), 2)
+                        cap_limit = round(cap_avail + deployed, 2)
+                except Exception as exc:
+                    logger.debug("Failed fetching live CoinDCX balance for status: %s", exc)
+    else:
+        # Strict Paper Capital: ₹10,000.0
+        if cap_limit is None or cap_limit == float("inf"):
+            cap_limit = 10000.0
+        cap_avail = round(max(0.0, cap_limit - deployed), 2)
+
     breaker_status = "NORMAL"
     if _risk_service and hasattr(_risk_service, "circuit_breaker"):
         cb = _risk_service.circuit_breaker
         if cb.is_tripped or cb.emergency_stop:
             breaker_status = "TRIPPED"
 
-    cap_avail = (
-        round(max(0.0, cap_limit - deployed), 2) if cap_limit is not None else None
-    )
+    if cap_avail is None and cap_limit is not None:
+        cap_avail = round(max(0.0, cap_limit - deployed), 2)
 
     watchdog_status = None
     subsystems_healthy = None

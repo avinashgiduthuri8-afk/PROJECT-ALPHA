@@ -730,6 +730,7 @@
                     <button class="nav-dropdown-toggle active" data-menu="overview">Overview</button>
                     <div class="nav-dropdown-menu" id="menu-overview">
                         <a href="#" class="nav-anchor active" data-target="home-view">Dashboard Home</a>
+                        <a href="#" class="nav-anchor" data-target="open-view" style="color:#6ee7b7; font-weight:700;">🔴 Live Positions &amp; Trades</a>
                         <a href="#" class="nav-anchor" data-target="alpha-pipeline-view">⚡ ALPHA 14-Stage Pipeline</a>
                         <a href="#" class="nav-anchor" data-target="stock-research-view">🔍 Crypto Research Hub</a>
                         <a href="#" class="nav-anchor" data-target="scanner-view">Crypto Scanner Center</a>
@@ -738,16 +739,16 @@
                 </div>
 
                 <div class="nav-dropdown-group">
-                    <button class="nav-dropdown-toggle" data-menu="logs">Execution Logs</button>
-                    <div class="nav-dropdown-menu view-hidden" id="menu-logs">
+                    <button class="nav-dropdown-toggle active" data-menu="logs">Execution &amp; History</button>
+                    <div class="nav-dropdown-menu" id="menu-logs">
                         <a href="#" class="nav-anchor" data-target="open-view">Live Positions (Post-Friction)</a>
                         <a href="#" class="nav-anchor" data-target="history-view">Settled Trade History</a>
                     </div>
                 </div>
 
                 <div class="nav-dropdown-group">
-                    <button class="nav-dropdown-toggle" data-menu="bots">Production Fleet</button>
-                    <div class="nav-dropdown-menu view-hidden" id="menu-bots">
+                    <button class="nav-dropdown-toggle active" data-menu="bots">Production Fleet</button>
+                    <div class="nav-dropdown-menu" id="menu-bots">
                         <a href="#" class="nav-anchor" data-target="ste-view">STE · SuperTrend Bot</a>
                         <a href="#" class="nav-anchor" data-target="hda-view">HDA · Absorption Bot</a>
                         <a href="#" class="nav-anchor" data-target="vcp-view">VCP · Contraction Bot</a>
@@ -756,22 +757,22 @@
                 </div>
 
                 <div class="nav-dropdown-group">
-                    <button class="nav-dropdown-toggle" data-menu="analytics">Intelligence Analytics</button>
-                    <div class="nav-dropdown-menu view-hidden" id="menu-analytics">
+                    <button class="nav-dropdown-toggle active" data-menu="analytics">Intelligence Analytics</button>
+                    <div class="nav-dropdown-menu" id="menu-analytics">
                         <a href="#" class="nav-anchor" data-target="intelligence-analytics">Intelligence Analytics Overview</a>
                     </div>
                 </div>
 
                 <div class="nav-dropdown-group">
-                    <button class="nav-dropdown-toggle" data-menu="watchlist">Watchlist</button>
-                    <div class="nav-dropdown-menu view-hidden" id="menu-watchlist">
+                    <button class="nav-dropdown-toggle active" data-menu="watchlist">Watchlist</button>
+                    <div class="nav-dropdown-menu" id="menu-watchlist">
                         <a href="#" class="nav-anchor" data-target="watchlist-center">CoinDCX Universe</a>
                     </div>
                 </div>
 
                 <div class="nav-dropdown-group">
-                    <button class="nav-dropdown-toggle" data-menu="devops">Engine &amp; Risk Control</button>
-                    <div class="nav-dropdown-menu view-hidden" id="menu-devops">
+                    <button class="nav-dropdown-toggle active" data-menu="devops">Engine &amp; Risk Control</button>
+                    <div class="nav-dropdown-menu" id="menu-devops">
                         <a href="#" class="nav-anchor" data-target="monitoring-view">System Telemetry &amp; RMS</a>
                         <a href="#" class="nav-anchor" data-target="settings-view">Deployment Mode Controller</a>
                     </div>
@@ -832,6 +833,10 @@
                             <span>🔴</span> LIVE TRADE
                         </button>
                     </div>
+
+                    <button onclick="switchToView('open-view')" class="btn-sm" style="background:rgba(99,102,241,0.2); border:1px solid var(--accent-indigo); color:#c7d2fe; font-weight:700; cursor:pointer;" title="View Live Open Positions and Active Orders">
+                        📊 Live Trades
+                    </button>
 
                     <span class="status-badge-item font-mono text-xs text-secondary">
                         MARKET: <strong class="text-green">24/7 SPOT CRYPTO</strong>
@@ -1729,19 +1734,31 @@
         }
 
         // Tab Navigation
+        function switchToView(targetId) {
+            document.querySelectorAll('.nav-anchor').forEach(l => {
+                if (l.getAttribute('data-target') === targetId) {
+                    l.classList.add('active');
+                } else {
+                    l.classList.remove('active');
+                }
+            });
+            document.querySelectorAll('.spa-view-layer').forEach(view => {
+                if (view.id === targetId) {
+                    view.classList.remove('view-hidden');
+                } else {
+                    view.classList.add('view-hidden');
+                }
+            });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
         document.querySelectorAll('.nav-anchor').forEach(link => {
             link.addEventListener('click', function(e) {
                 e.preventDefault();
-                document.querySelectorAll('.nav-anchor').forEach(l => l.classList.remove('active'));
-                this.classList.add('active');
                 const target = this.getAttribute('data-target');
-                document.querySelectorAll('.spa-view-layer').forEach(view => {
-                    if (view.id === target) {
-                        view.classList.remove('view-hidden');
-                    } else {
-                        view.classList.add('view-hidden');
-                    }
-                });
+                if (target) {
+                    switchToView(target);
+                }
             });
         });
 
