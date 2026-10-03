@@ -121,15 +121,25 @@ class CoinDCXSubAccountClient:
         if "timestamp" not in payload:
             payload["timestamp"] = int(time.time() * 1000)
 
+        api_key = (self.config.api_key or "").strip()
+        api_secret = (self.config.api_secret or "").strip()
+
+        if not api_key or not api_secret:
+            return {
+                "Content-Type": "application/json",
+                "X-AUTH-APIKEY": api_key,
+                "X-AUTH-SIGNATURE": "",
+            }
+
         json_body = json.dumps(payload, separators=(",", ":"))
-        secret_bytes = self.config.api_secret.encode("utf-8")
+        secret_bytes = api_secret.encode("utf-8")
         signature = hmac.new(
             secret_bytes, json_body.encode("utf-8"), hashlib.sha256
         ).hexdigest()
 
         return {
             "Content-Type": "application/json",
-            "X-AUTH-APIKEY": self.config.api_key,
+            "X-AUTH-APIKEY": api_key,
             "X-AUTH-SIGNATURE": signature,
         }
 
@@ -540,6 +550,17 @@ class CoinDCXSubAccountClient:
         Query real CoinDCX user balances endpoint:
         POST https://api.coindcx.com/exchange/v1/users/balances
         """
+        if not self.config.api_key or not self.config.api_secret:
+            logger.error(
+                "[%s] CoinDCX balance fetch failed: missing API credentials",
+                self.subaccount_id,
+            )
+            return {
+                "success": False,
+                "error": "MISSING_API_CREDENTIALS",
+                "message": "CoinDCX API credentials not configured.",
+            }
+
         payload = {"timestamp": int(time.time() * 1000)}
         headers = self.generate_auth_headers(payload)
         url = f"{self.base_url}/exchange/v1/users/balances"
@@ -1264,9 +1285,26 @@ class CoinDCXSubAccountManager:
 
         self._shared_pool_state["wallet_balance_inr"] = pool_limit
 
-        # Master API Credentials (must be set in environment for LIVE execution)
-        master_api_key = os.getenv("COINDCX_API_KEY", "")
-        master_api_secret = os.getenv("COINDCX_API_SECRET", "")
+        # Master API Credentials resolved with strict fallback hierarchy:
+        # Key: 1. self._config.coindcx_live_api_key -> 2. self._config.coindcx_api_key -> 3. COINDCX_LIVE_API_KEY -> 4. COINDCX_API_KEY
+        master_api_key = ""
+        if self._config:
+            if getattr(self._config, "coindcx_live_api_key", None):
+                master_api_key = str(self._config.coindcx_live_api_key).strip()
+            elif getattr(self._config, "coindcx_api_key", None):
+                master_api_key = str(self._config.coindcx_api_key).strip()
+        if not master_api_key:
+            master_api_key = (os.getenv("COINDCX_LIVE_API_KEY") or os.getenv("COINDCX_API_KEY") or "").strip()
+
+        # Secret: 1. self._config.coindcx_live_api_secret -> 2. self._config.coindcx_api_secret -> 3. COINDCX_LIVE_API_SECRET -> 4. COINDCX_API_SECRET
+        master_api_secret = ""
+        if self._config:
+            if getattr(self._config, "coindcx_live_api_secret", None):
+                master_api_secret = str(self._config.coindcx_live_api_secret).strip()
+            elif getattr(self._config, "coindcx_api_secret", None):
+                master_api_secret = str(self._config.coindcx_api_secret).strip()
+        if not master_api_secret:
+            master_api_secret = (os.getenv("COINDCX_LIVE_API_SECRET") or os.getenv("COINDCX_API_SECRET") or "").strip()
 
         # Default strategy configurations
         defaults = {
@@ -1333,8 +1371,8 @@ class CoinDCXSubAccountManager:
             api_key_var = cfg_dict.get("api_key_env", "COINDCX_API_KEY")
             secret_key_var = cfg_dict.get("secret_key_env", "COINDCX_API_SECRET")
 
-            api_key = os.getenv(api_key_var, master_api_key)
-            api_secret = os.getenv(secret_key_var, master_api_secret)
+            api_key = (os.getenv(api_key_var) or master_api_key).strip()
+            api_secret = (os.getenv(secret_key_var) or master_api_secret).strip()
 
             sub_cfg = SubAccountConfig(
                 bot_name=bot_name,
@@ -1389,6 +1427,12 @@ class CoinDCXSubAccountManager:
                 "inr_locked": res.get("inr_locked", 0.0),
             }
         return res
+
+    async def get_live_balance(
+        self, client: httpx.AsyncClient | None = None
+    ) -> dict[str, Any]:
+        """Backward-compatible alias delegating directly to fetch_live_balance."""
+        return await self.fetch_live_balance(client=client)
 
     def get_client(self, bot_name: BotName = BotName.STE) -> CoinDCXSubAccountClient:
         """Retrieve execution client for a bot drawing from the unified pool."""

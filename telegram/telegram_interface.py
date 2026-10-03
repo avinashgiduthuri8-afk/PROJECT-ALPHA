@@ -486,12 +486,15 @@ class TelegramInteractiveInterface:
 
         # Capital resolution
         avail_cap = None
-        if mode == "LIVE_MICROCASH":
+        if mode in ("LIVE", "LIVE_MICROCASH"):
             sub_mgr = self._get_subaccount_manager()
             if sub_mgr:
-                bal = await sub_mgr.get_live_balance()
-                if bal.get("success"):
-                    avail_cap = bal.get("inr_balance")
+                try:
+                    bal = await sub_mgr.get_live_balance()
+                    if bal.get("success"):
+                        avail_cap = bal.get("inr_balance")
+                except Exception as e:
+                    logger.debug("Live balance fetch error in status: %s", e)
         else:
             avail_cap = self._config.total_capital_limit
 
@@ -592,19 +595,38 @@ class TelegramInteractiveInterface:
             components["database"] = self._position_repo is not None
 
         # CoinDCX connectivity probe
-        sub_mgr = self._get_subaccount_manager()
-        if sub_mgr:
-            try:
-                bal = await sub_mgr.get_live_balance()
-                components["coindcx"] = bool(bal.get("success", False))
-            except Exception:
+        is_live = mode in ("LIVE", "LIVE_MICROCASH")
+        if is_live:
+            # LIVE mode requires authenticated CoinDCX connectivity
+            sub_mgr = self._get_subaccount_manager()
+            if sub_mgr:
+                try:
+                    bal = await sub_mgr.get_live_balance()
+                    components["coindcx"] = bool(bal.get("success", False))
+                except Exception as e:
+                    logger.debug("CoinDCX live health probe error: %s", e)
+                    components["coindcx"] = False
+            else:
                 components["coindcx"] = False
         else:
-            components["coindcx"] = False
+            # PAPER mode: probe public CoinDCX connectivity (does not require private credentials)
+            try:
+                async with httpx.AsyncClient(timeout=4.0) as client:
+                    resp = await client.get("https://api.coindcx.com/exchange/ticker")
+                    components["coindcx"] = resp.status_code == 200
+            except Exception as e:
+                logger.debug("CoinDCX public health probe error: %s", e)
+                sub_mgr = self._get_subaccount_manager()
+                components["coindcx"] = sub_mgr is not None
+
+        # Overall health logic: in LIVE mode, coindcx must also be healthy
+        required_components = ["database", "scanner", "risk", "execution"]
+        if is_live:
+            required_components.append("coindcx")
 
         overall = (
             "healthy"
-            if all(components[k] for k in ("database", "scanner", "risk", "execution"))
+            if all(components.get(k, False) for k in required_components)
             else "degraded"
         )
 
@@ -1177,14 +1199,19 @@ class TelegramInteractiveInterface:
         avail_cap = None
         source = "SIMULATION"
 
-        if mode == "LIVE_MICROCASH":
+        if mode in ("LIVE", "LIVE_MICROCASH"):
             sub_mgr = self._get_subaccount_manager()
             if sub_mgr:
-                bal_resp = await sub_mgr.get_live_balance()
-                if bal_resp.get("success"):
-                    avail_cap = bal_resp.get("inr_balance")
-                    source = "COINDCX_EXCHANGE"
-                else:
+                try:
+                    bal_resp = await sub_mgr.get_live_balance()
+                    if bal_resp.get("success"):
+                        avail_cap = bal_resp.get("inr_balance")
+                        source = "COINDCX_EXCHANGE"
+                    else:
+                        avail_cap = None
+                        source = "COINDCX_UNAVAILABLE"
+                except Exception as e:
+                    logger.debug("Live balance fetch error in capital: %s", e)
                     avail_cap = None
                     source = "COINDCX_UNAVAILABLE"
             else:
