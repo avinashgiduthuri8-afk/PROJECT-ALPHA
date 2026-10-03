@@ -26,7 +26,7 @@ logger = get_logger("telegram.service")
 
 
 class NotificationService:
-    """Subscribes to significant trading events and routes formatted notifications."""
+    """Dispatches trade alerts and supervises interactive Telegram C2 interfaces for Paper & Live."""
 
     def __init__(
         self,
@@ -47,12 +47,30 @@ class NotificationService:
     ) -> None:
         self._bus = bus
         self._config = config
-        self._telegram = telegram_client or TelegramClient(
-            bot_token=config.alert_bot_token,
-            chat_id=config.alert_chat_id,
+
+        # Resolve Live Trading Telegram Client
+        live_token = getattr(config, "live_bot_token", None) or getattr(config, "alert_bot_token", None)
+        live_chat = getattr(config, "live_chat_id", None) or getattr(config, "alert_chat_id", None)
+        self._live_telegram = telegram_client or TelegramClient(
+            bot_token=live_token,
+            chat_id=live_chat,
         )
+        self._telegram = self._live_telegram  # Backward compatibility reference
+
+        # Resolve Paper Trading Telegram Client
+        paper_token = getattr(config, "paper_bot_token", None) or live_token
+        paper_chat = getattr(config, "paper_chat_id", None) or live_chat
+        if paper_token == live_token and paper_chat == live_chat and telegram_client:
+            self._paper_telegram = telegram_client
+        else:
+            self._paper_telegram = TelegramClient(
+                bot_token=paper_token,
+                chat_id=paper_chat,
+            )
+
+        # Primary Live Interactive Interface
         self._interactive_interface = TelegramInteractiveInterface(
-            telegram_client=self._telegram,
+            telegram_client=self._live_telegram,
             bus=self._bus,
             config=self._config,
             signal_repo=signal_repo,
@@ -66,7 +84,30 @@ class NotificationService:
             health_checker=health_checker,
             event_log_repo=event_log_repo,
             production_controller=production_controller,
+            mode_override="LIVE",
         )
+
+        # Dedicated Paper Interactive Interface (if separate bot token provided)
+        self._paper_interface: TelegramInteractiveInterface | None = None
+        if paper_token and paper_token != live_token:
+            self._paper_interface = TelegramInteractiveInterface(
+                telegram_client=self._paper_telegram,
+                bus=self._bus,
+                config=self._config,
+                signal_repo=signal_repo,
+                position_repo=position_repo,
+                trade_repo=trade_repo,
+                portfolio_service=portfolio_service,
+                risk_service=risk_service,
+                trading_service=trading_service,
+                dashboard_service=dashboard_service,
+                scanner_service=scanner_service,
+                health_checker=health_checker,
+                event_log_repo=event_log_repo,
+                production_controller=production_controller,
+                mode_override="PAPER",
+            )
+
         self._total_dispatched = 0
         self._alert_rate_limits: dict[str, float] = {}
         self._dedup_cache: dict[tuple[str, str, str], float] = {}
@@ -74,11 +115,23 @@ class NotificationService:
 
     @property
     def telegram_client(self) -> TelegramClient:
-        return self._telegram
+        return self._live_telegram
+
+    @property
+    def paper_telegram_client(self) -> TelegramClient:
+        return self._paper_telegram
+
+    @property
+    def live_telegram_client(self) -> TelegramClient:
+        return self._live_telegram
 
     @property
     def interactive_interface(self) -> TelegramInteractiveInterface:
         return self._interactive_interface
+
+    @property
+    def paper_interactive_interface(self) -> TelegramInteractiveInterface | None:
+        return self._paper_interface
 
     def _is_duplicate_alert(
         self, event_type: str, coin: str, reason: str, ttl_seconds: float = 1800.0
@@ -115,29 +168,34 @@ class NotificationService:
         event_log_repo: Any | None = None,
         production_controller: Any | None = None,
     ) -> None:
-        """Dynamically wire late-bound subsystem references into the interactive interface."""
-        if signal_repo is not None:
-            self._interactive_interface._signal_repo = signal_repo
-        if position_repo is not None:
-            self._interactive_interface._position_repo = position_repo
-        if trade_repo is not None:
-            self._interactive_interface._trade_repo = trade_repo
-        if portfolio_service is not None:
-            self._interactive_interface._portfolio_service = portfolio_service
-        if risk_service is not None:
-            self._interactive_interface._risk_service = risk_service
-        if trading_service is not None:
-            self._interactive_interface._trading_service = trading_service
-        if dashboard_service is not None:
-            self._interactive_interface._dashboard_service = dashboard_service
-        if scanner_service is not None:
-            self._interactive_interface._scanner_service = scanner_service
-        if health_checker is not None:
-            self._interactive_interface._health_checker = health_checker
-        if event_log_repo is not None:
-            self._interactive_interface._event_log_repo = event_log_repo
-        if production_controller is not None:
-            self._interactive_interface._production_controller = production_controller
+        """Dynamically wire late-bound subsystem references into both interactive interfaces."""
+        interfaces = [self._interactive_interface]
+        if self._paper_interface:
+            interfaces.append(self._paper_interface)
+
+        for iface in interfaces:
+            if signal_repo is not None:
+                iface._signal_repo = signal_repo
+            if position_repo is not None:
+                iface._position_repo = position_repo
+            if trade_repo is not None:
+                iface._trade_repo = trade_repo
+            if portfolio_service is not None:
+                iface._portfolio_service = portfolio_service
+            if risk_service is not None:
+                iface._risk_service = risk_service
+            if trading_service is not None:
+                iface._trading_service = trading_service
+            if dashboard_service is not None:
+                iface._dashboard_service = dashboard_service
+            if scanner_service is not None:
+                iface._scanner_service = scanner_service
+            if health_checker is not None:
+                iface._health_checker = health_checker
+            if event_log_repo is not None:
+                iface._event_log_repo = event_log_repo
+            if production_controller is not None:
+                iface._production_controller = production_controller
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -157,14 +215,21 @@ class NotificationService:
             EventType.SYSTEM_STARTUP, {"service": "notification_service"}
         )
         await self._interactive_interface.start()
+        if self._paper_interface:
+            await self._paper_interface.start()
         logger.info(
             "NotificationService started",
-            extra={"telegram_configured": self._telegram.is_configured},
+            extra={
+                "live_telegram_configured": self._live_telegram.is_configured,
+                "paper_telegram_configured": self._paper_telegram.is_configured,
+            },
         )
 
     async def stop(self) -> None:
         self._started = False
         await self._interactive_interface.stop()
+        if self._paper_interface:
+            await self._paper_interface.stop()
         self._bus.unsubscribe(EventType.POSITION_OPENED, self._on_position_opened)
         self._bus.unsubscribe(EventType.POSITION_CLOSED, self._on_position_closed)
         self._bus.unsubscribe(
@@ -174,11 +239,27 @@ class NotificationService:
         self._bus.unsubscribe(EventType.TRADE_DENIED, self._on_trade_denied)
         logger.info("NotificationService stopped")
 
+    # ── Target Resolution Helper ──────────────────────────────────────────────
+
+    def _resolve_target_telegram(self, payload: dict[str, Any] | None = None) -> TelegramClient:
+        """Route to Paper Telegram for simulated events and Live Telegram for real events."""
+        if not payload:
+            return self._live_telegram
+
+        mode = str(payload.get("mode", "")).upper()
+        if not mode:
+            mode = str(getattr(self._config, "deployment_mode", "PAPER")).upper()
+
+        if mode in ("LIVE", "LIVE_MICROCASH"):
+            return self._live_telegram
+        return self._paper_telegram
+
     # ── Dispatch Handlers ─────────────────────────────────────────────────────
 
-    async def send_custom_alert(self, text: str) -> bool:
-        """Manually dispatch a custom alert through the pipeline."""
-        sent = await self._telegram.send_message(text)
+    async def send_custom_alert(self, text: str, mode: str | None = None) -> bool:
+        """Manually dispatch a custom alert through the appropriate pipeline."""
+        target = self._paper_telegram if mode and mode.upper() == "PAPER" else self._live_telegram
+        sent = await target.send_message(text)
         if sent:
             self._total_dispatched += 1
         return sent
@@ -192,7 +273,8 @@ class NotificationService:
             if self._is_duplicate_alert("SIGNAL_AI", coin, rec):
                 return
             msg = format_signal_ai_alert(payload)
-            if await self._telegram.send_message(msg):
+            target = self._resolve_target_telegram(payload)
+            if await target.send_message(msg):
                 self._total_dispatched += 1
         except Exception as exc:
             logger.warning("Error dispatching AI alert", extra={"error": str(exc)})
@@ -200,7 +282,8 @@ class NotificationService:
     async def _on_trade_approved(self, event_type: EventType, payload: dict) -> None:
         try:
             msg = format_trade_approved_alert(payload)
-            if await self._telegram.send_message(msg):
+            target = self._resolve_target_telegram(payload)
+            if await target.send_message(msg):
                 self._total_dispatched += 1
         except Exception as exc:
             logger.warning(
@@ -240,7 +323,8 @@ class NotificationService:
                 return
 
             msg = format_trade_denied_alert(payload)
-            if await self._telegram.send_message(msg):
+            target = self._resolve_target_telegram(payload)
+            if await target.send_message(msg):
                 self._total_dispatched += 1
         except Exception as exc:
             logger.warning(
@@ -250,7 +334,8 @@ class NotificationService:
     async def _on_position_opened(self, event_type: EventType, payload: dict) -> None:
         try:
             msg = format_position_opened_alert(payload)
-            if await self._telegram.send_message(msg):
+            target = self._resolve_target_telegram(payload)
+            if await target.send_message(msg):
                 self._total_dispatched += 1
         except Exception as exc:
             logger.warning(
@@ -260,7 +345,8 @@ class NotificationService:
     async def _on_position_closed(self, event_type: EventType, payload: dict) -> None:
         try:
             msg = format_position_closed_alert(payload)
-            if await self._telegram.send_message(msg):
+            target = self._resolve_target_telegram(payload)
+            if await target.send_message(msg):
                 self._total_dispatched += 1
         except Exception as exc:
             logger.warning(
@@ -275,7 +361,11 @@ class NotificationService:
             ):
                 return
             msg = format_circuit_breaker_alert(payload)
-            if await self._telegram.send_message(msg):
+            # Circuit breaker fires to Live bot AND Paper bot if separate
+            sent_live = await self._live_telegram.send_message(msg)
+            if self._paper_telegram != self._live_telegram:
+                await self._paper_telegram.send_message(msg)
+            if sent_live:
                 self._total_dispatched += 1
         except Exception as exc:
             logger.warning(
@@ -289,7 +379,8 @@ class NotificationService:
             if self._is_duplicate_alert("DIVERGENCE", coin, div_type):
                 return
             msg = format_divergence_alert(payload)
-            if await self._telegram.send_message(msg):
+            target = self._resolve_target_telegram(payload)
+            if await target.send_message(msg):
                 self._total_dispatched += 1
         except Exception as exc:
             logger.warning(
@@ -308,7 +399,8 @@ class NotificationService:
                 return
 
             msg = format_generic_alert(payload)
-            if await self._telegram.send_message(msg):
+            target = self._resolve_target_telegram(payload)
+            if await target.send_message(msg):
                 self._total_dispatched += 1
         except Exception as exc:
             logger.warning("Error dispatching Generic alert", extra={"error": str(exc)})
@@ -316,6 +408,7 @@ class NotificationService:
     def get_health(self) -> dict:
         return {
             "healthy": self._started,
-            "telegram_configured": self._telegram.is_configured,
+            "live_telegram_configured": self._live_telegram.is_configured,
+            "paper_telegram_configured": self._paper_telegram.is_configured,
             "total_dispatched": self._total_dispatched,
         }

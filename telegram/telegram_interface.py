@@ -160,6 +160,7 @@ class TelegramInteractiveInterface:
         health_checker: Any | None = None,
         event_log_repo: EventLogRepository | None = None,
         production_controller: Any | None = None,
+        mode_override: str | None = None,
     ) -> None:
         self._telegram = telegram_client
         self._bus = bus
@@ -175,6 +176,7 @@ class TelegramInteractiveInterface:
         self._health_checker = health_checker
         self._event_log_repo = event_log_repo
         self._production_controller = production_controller
+        self._mode_override = mode_override
 
         self._running = False
         self._poll_task: asyncio.Task | None = None
@@ -292,8 +294,11 @@ class TelegramInteractiveInterface:
                 target_chat_id=str(chat_id),
             )
             return
-        # Natural language operator query via MBT AI Assistant Agent
+        # Natural language operator query or main menu shortcuts
         if not text.startswith("/"):
+            if text.lower().strip() in ("menu", "main menu", "main", "back", "home", "dashboard"):
+                await self._send_main_menu(chat_id)
+                return
             response_text = await self._assistant_agent.process_query(text)
             await self._telegram.send_message(
                 text=response_text,
@@ -309,7 +314,7 @@ class TelegramInteractiveInterface:
         args = parts[1:]
 
         # 1. System Commands
-        if cmd in ("/start", "/menu"):
+        if cmd in ("/start", "/menu", "/main", "/mainmenu", "/main_menu", "/home", "/back", "/dashboard"):
             await self._send_main_menu(chat_id)
         elif cmd == "/help":
             await self._send_help(chat_id)
@@ -423,7 +428,7 @@ class TelegramInteractiveInterface:
         await self._telegram.answer_callback_query(cb_id)
 
         try:
-            if data in ("cb:menu", "cb:refresh"):
+            if data in ("cb:menu", "cb:refresh", "cb:main", "cb:main_menu", "cb:back", "cb:home", "menu", "back", "home", "main"):
                 await self._render_main_menu_edit(chat_id, message_id)
             elif data == "cb:status":
                 await self._render_status_edit(chat_id, message_id)
@@ -463,6 +468,9 @@ class TelegramInteractiveInterface:
                 await self._render_bot_fleet_edit(chat_id, message_id)
             elif data == "cb:stages":
                 await self._render_stages_edit(chat_id, message_id)
+            else:
+                # Any unrecognized callback defaults back to main menu
+                await self._render_main_menu_edit(chat_id, message_id)
         except Exception as exc:
             logger.error("Error executing callback query %s: %s", data, exc, exc_info=True)
 
@@ -470,6 +478,8 @@ class TelegramInteractiveInterface:
 
     def _get_active_mode(self) -> str:
         """Return standardized active trading deployment mode."""
+        if getattr(self, "_mode_override", None):
+            return self._mode_override
         return getattr(self._config, "deployment_mode", "PAPER")
 
     # 1. System Handlers
@@ -502,12 +512,14 @@ class TelegramInteractiveInterface:
             "• Send /help for the complete operator manual\n"
             "━━━━━━━━━━━━━━━━━━━━━━━━━"
         )
-        await self._telegram.edit_message_text(
+        ok = await self._telegram.edit_message_text(
             text=text,
             chat_id=chat_id,
             message_id=message_id,
             reply_markup=build_main_menu_keyboard(mode),
         )
+        if not ok:
+            await self._send_main_menu(chat_id)
 
     async def _send_help(self, chat_id: str | int) -> None:
         mode = self._get_active_mode()

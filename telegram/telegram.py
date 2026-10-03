@@ -26,6 +26,14 @@ class TelegramClient:
         chat_id: str | None = None,
         timeout: float = 8.0,
     ) -> None:
+        if bot_token is None or chat_id is None:
+            try:
+                from core.config import get_config
+                cfg = get_config()
+                bot_token = bot_token or getattr(cfg, "alert_bot_token", None) or getattr(cfg, "telegram_bot_token", None)
+                chat_id = chat_id or getattr(cfg, "alert_chat_id", None) or getattr(cfg, "telegram_chat_id", None)
+            except Exception:
+                pass
         self._bot_token = bot_token
         self._chat_id = chat_id
         self._timeout = timeout

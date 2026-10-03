@@ -429,18 +429,46 @@ class AppConfig(BaseSettings):
         ),
     )
 
-    # ── Notification & Telegram Interactive C2 ───────────────────────────────
+    # ── Notification & Telegram Dual C2 (Paper vs Live) ─────────────────────
     alert_bot_token: str | None = Field(
         default=None,
         validation_alias=AliasChoices(
-            "ALERT_BOT_TOKEN", "TELEGRAM_BOT_TOKEN", "alert_bot_token"
+            "ALERT_BOT_TOKEN", "TELEGRAM_BOT_TOKEN", "LIVE_BOT_TOKEN", "alert_bot_token"
         ),
     )
     alert_chat_id: str | None = Field(
         default=None,
         validation_alias=AliasChoices(
-            "ALERT_CHAT_ID", "TELEGRAM_CHAT_ID", "alert_chat_id"
+            "ALERT_CHAT_ID", "TELEGRAM_CHAT_ID", "LIVE_CHAT_ID", "alert_chat_id"
         ),
+    )
+    paper_bot_token: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "PAPER_BOT_TOKEN", "TELEGRAM_PAPER_BOT_TOKEN", "paper_bot_token"
+        ),
+        description="Dedicated Telegram Bot Token for simulated Paper Trading and test alerts.",
+    )
+    paper_chat_id: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "PAPER_CHAT_ID", "TELEGRAM_PAPER_CHAT_ID", "paper_chat_id"
+        ),
+        description="Dedicated Chat ID for Paper Trading bot.",
+    )
+    live_bot_token: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "LIVE_BOT_TOKEN", "TELEGRAM_LIVE_BOT_TOKEN", "ALERT_BOT_TOKEN", "live_bot_token"
+        ),
+        description="Dedicated Telegram Bot Token for Real Money Live Trading.",
+    )
+    live_chat_id: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "LIVE_CHAT_ID", "TELEGRAM_LIVE_CHAT_ID", "ALERT_CHAT_ID", "live_chat_id"
+        ),
+        description="Dedicated Chat ID for Real Money Live Trading bot.",
     )
     telegram_interactive_enabled: bool = Field(
         default=True,
