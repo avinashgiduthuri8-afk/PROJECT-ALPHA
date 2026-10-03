@@ -13,6 +13,8 @@ import math
 from datetime import datetime, timezone
 from typing import Any
 
+import httpx
+
 from core.bus.event_bus import EventBus
 from core.bus.event_types import EventType
 from core.config import AppConfig, get_config
@@ -206,12 +208,21 @@ class TelegramInteractiveInterface:
         """Verify if the sender chat ID is authorized."""
         cid_str = str(chat_id).strip()
 
-        # Whitelist from config
+        # Whitelist from config and active client
         allowed = set()
-        if self._config.alert_chat_id:
-            allowed.add(str(self._config.alert_chat_id).strip())
-        if self._config.telegram_allowed_chat_ids:
-            for piece in self._config.telegram_allowed_chat_ids.split(","):
+        for cand in (
+            getattr(self._config, "alert_chat_id", None),
+            getattr(self._config, "telegram_chat_id", None),
+            getattr(self._config, "paper_chat_id", None),
+            getattr(self._config, "live_chat_id", None),
+            getattr(self._telegram, "default_chat_id", None),
+        ):
+            if cand:
+                allowed.add(str(cand).strip())
+
+        allowed_csv = getattr(self._config, "telegram_allowed_chat_ids", None)
+        if allowed_csv:
+            for piece in str(allowed_csv).split(","):
                 if piece.strip():
                     allowed.add(piece.strip())
 
@@ -314,7 +325,7 @@ class TelegramInteractiveInterface:
         args = parts[1:]
 
         # 1. System Commands
-        if cmd in ("/start", "/menu", "/main", "/mainmenu", "/main_menu", "/home", "/back", "/dashboard"):
+        if cmd in ("/start", "/menu", "/main", "/mainmenu", "/main_menu", "/home", "/back"):
             await self._send_main_menu(chat_id)
         elif cmd == "/help":
             await self._send_help(chat_id)
@@ -411,11 +422,14 @@ class TelegramInteractiveInterface:
         cb_id = cb.get("id")
         data = cb.get("data", "")
         message = cb.get("message", {})
-        chat_id = message.get("chat", {}).get("id")
-        message_id = message.get("message_id")
+        chat_id = message.get("chat", {}).get("id") if message else None
+        message_id = message.get("message_id") if message else None
         from_id = cb.get("from", {}).get("id")
 
-        if not cb_id or not chat_id or not message_id:
+        if not chat_id and from_id:
+            chat_id = from_id
+
+        if not cb_id or not chat_id:
             return
 
         # Support authorization check by chat_id or operator user_id
@@ -427,52 +441,61 @@ class TelegramInteractiveInterface:
 
         await self._telegram.answer_callback_query(cb_id)
 
+        data_clean = str(data or "").strip().lower()
+        if data_clean.startswith("cb:"):
+            action = data_clean[3:]
+        else:
+            action = data_clean
+
         try:
-            if data in ("cb:menu", "cb:refresh", "cb:main", "cb:main_menu", "cb:back", "cb:home", "menu", "back", "home", "main"):
+            logger.info("Handling Telegram button tap: action='%s', raw='%s', chat_id=%s, msg_id=%s", action, data, chat_id, message_id)
+            if action in ("menu", "main", "main_menu", "back", "home", "refresh", "dashboard"):
                 await self._render_main_menu_edit(chat_id, message_id)
-            elif data == "cb:status":
+            elif action in ("status", "fleet_status", "engine_status"):
                 await self._render_status_edit(chat_id, message_id)
-            elif data == "cb:health":
+            elif action in ("health", "health_probe"):
                 await self._render_health_edit(chat_id, message_id)
-            elif data == "cb:balance":
+            elif action in ("balance", "wallet"):
                 await self._render_balance_edit(chat_id, message_id)
-            elif data == "cb:portfolio":
+            elif action == "portfolio":
                 await self._render_portfolio_edit(chat_id, message_id)
-            elif data in ("cb:winrate", "cb:stats", "cb:performance"):
+            elif action in ("winrate", "stats", "performance"):
                 await self._render_winrate_edit(chat_id, message_id)
-            elif data == "cb:capital":
+            elif action == "capital":
                 await self._render_capital_edit(chat_id, message_id)
-            elif data == "cb:positions":
+            elif action == "positions":
                 await self._render_positions_edit(chat_id, message_id)
-            elif data == "cb:trades":
+            elif action == "trades":
                 await self._render_trades_edit(chat_id, message_id)
-            elif data == "cb:orders":
+            elif action == "orders":
                 await self._render_orders_edit(chat_id, message_id)
-            elif data == "cb:pnl":
+            elif action == "pnl":
                 await self._render_pnl_edit(chat_id, message_id)
-            elif data == "cb:scan":
+            elif action in ("scan", "scans"):
                 await self._render_scan_edit(chat_id, message_id)
-            elif data == "cb:signals":
+            elif action in ("signals", "signal"):
                 await self._render_signals_edit(chat_id, message_id)
-            elif data == "cb:funnel":
+            elif action == "funnel":
                 await self._render_funnel_edit(chat_id, message_id)
-            elif data == "cb:risk":
+            elif action in ("risk", "safety"):
                 await self._render_risk_edit(chat_id, message_id)
-            elif data == "cb:stop":
+            elif action == "stop":
                 await self._render_stop_prompt_edit(chat_id, message_id)
-            elif data == "cb:confirm_stop":
+            elif action == "confirm_stop":
                 await self._handle_confirm_stop_edit(chat_id, message_id)
-            elif data == "cb:resume":
+            elif action == "resume":
                 await self._handle_resume_edit(chat_id, message_id)
-            elif data == "cb:bots":
+            elif action in ("bots", "fleet"):
                 await self._render_bot_fleet_edit(chat_id, message_id)
-            elif data == "cb:stages":
+            elif action in ("stages", "pipeline"):
                 await self._render_stages_edit(chat_id, message_id)
             else:
                 # Any unrecognized callback defaults back to main menu
                 await self._render_main_menu_edit(chat_id, message_id)
         except Exception as exc:
             logger.error("Error executing callback query %s: %s", data, exc, exc_info=True)
+            if chat_id:
+                await self._send_main_menu(chat_id)
 
     # ── View Builders & Command Handlers ─────────────────────────────────────
 
@@ -501,7 +524,7 @@ class TelegramInteractiveInterface:
             reply_markup=build_main_menu_keyboard(mode),
         )
 
-    async def _render_main_menu_edit(self, chat_id: str | int, message_id: int) -> None:
+    async def _render_main_menu_edit(self, chat_id: str | int, message_id: int | None = None) -> None:
         mode = self._get_active_mode()
         text = (
             "🤖 <b>PROJECT-ALPHA MISSION CONTROL</b>\n"
@@ -512,12 +535,18 @@ class TelegramInteractiveInterface:
             "• Send /help for the complete operator manual\n"
             "━━━━━━━━━━━━━━━━━━━━━━━━━"
         )
-        ok = await self._telegram.edit_message_text(
-            text=text,
-            chat_id=chat_id,
-            message_id=message_id,
-            reply_markup=build_main_menu_keyboard(mode),
-        )
+        ok = False
+        if message_id:
+            try:
+                ok = await self._telegram.edit_message_text(
+                    text=text,
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    reply_markup=build_main_menu_keyboard(mode),
+                )
+            except Exception as e:
+                logger.debug("Edit main menu error: %s", e)
+                ok = False
         if not ok:
             await self._send_main_menu(chat_id)
 
@@ -605,15 +634,23 @@ class TelegramInteractiveInterface:
             reply_markup=build_back_keyboard("cb:status"),
         )
 
-    async def _render_status_edit(self, chat_id: str | int, message_id: int) -> None:
+    async def _render_status_edit(self, chat_id: str | int, message_id: int | None = None) -> None:
         data = await self._compile_status_data()
         text = format_telegram_status(data)
-        await self._telegram.edit_message_text(
-            text=text,
-            chat_id=chat_id,
-            message_id=message_id,
-            reply_markup=build_back_keyboard("cb:status"),
-        )
+        ok = False
+        if message_id:
+            try:
+                ok = await self._telegram.edit_message_text(
+                    text=text,
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    reply_markup=build_back_keyboard("cb:status"),
+                )
+            except Exception as e:
+                logger.debug("Edit status error: %s", e)
+                ok = False
+        if not ok:
+            await self._send_status(chat_id)
 
     async def _compile_health_data(self) -> dict[str, Any]:
         mode = self._get_active_mode()
@@ -702,15 +739,23 @@ class TelegramInteractiveInterface:
             reply_markup=build_back_keyboard("cb:health"),
         )
 
-    async def _render_health_edit(self, chat_id: str | int, message_id: int) -> None:
+    async def _render_health_edit(self, chat_id: str | int, message_id: int | None = None) -> None:
         data = await self._compile_health_data()
         text = format_telegram_health(data)
-        await self._telegram.edit_message_text(
-            text=text,
-            chat_id=chat_id,
-            message_id=message_id,
-            reply_markup=build_back_keyboard("cb:health"),
-        )
+        ok = False
+        if message_id:
+            try:
+                ok = await self._telegram.edit_message_text(
+                    text=text,
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    reply_markup=build_back_keyboard("cb:health"),
+                )
+            except Exception as e:
+                logger.debug("Edit health error: %s", e)
+                ok = False
+        if not ok:
+            await self._send_health(chat_id)
 
     async def _handle_mode_command(self, chat_id: str | int, args: list[str]) -> None:
         """Handle /mode query or dynamic mode switching."""
@@ -864,15 +909,23 @@ class TelegramInteractiveInterface:
             reply_markup=build_back_keyboard("cb:scan"),
         )
 
-    async def _render_scan_edit(self, chat_id: str | int, message_id: int) -> None:
+    async def _render_scan_edit(self, chat_id: str | int, message_id: int | None = None) -> None:
         data = await self._compile_scan_data()
         text = format_telegram_scan(data)
-        await self._telegram.edit_message_text(
-            text=text,
-            chat_id=chat_id,
-            message_id=message_id,
-            reply_markup=build_back_keyboard("cb:scan"),
-        )
+        ok = False
+        if message_id:
+            try:
+                ok = await self._telegram.edit_message_text(
+                    text=text,
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    reply_markup=build_back_keyboard("cb:scan"),
+                )
+            except Exception as e:
+                logger.debug("Edit scan error: %s", e)
+                ok = False
+        if not ok:
+            await self._send_scan(chat_id)
 
     async def _send_signals(self, chat_id: str | int) -> None:
         signals = await self._fetch_signals_data()
@@ -883,15 +936,23 @@ class TelegramInteractiveInterface:
             reply_markup=build_back_keyboard("cb:signals"),
         )
 
-    async def _render_signals_edit(self, chat_id: str | int, message_id: int) -> None:
+    async def _render_signals_edit(self, chat_id: str | int, message_id: int | None = None) -> None:
         signals = await self._fetch_signals_data()
         text = format_telegram_signals(signals)
-        await self._telegram.edit_message_text(
-            text=text,
-            chat_id=chat_id,
-            message_id=message_id,
-            reply_markup=build_back_keyboard("cb:signals"),
-        )
+        ok = False
+        if message_id:
+            try:
+                ok = await self._telegram.edit_message_text(
+                    text=text,
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    reply_markup=build_back_keyboard("cb:signals"),
+                )
+            except Exception as e:
+                logger.debug("Edit signals error: %s", e)
+                ok = False
+        if not ok:
+            await self._send_signals(chat_id)
 
     async def _fetch_signals_data(self) -> list[dict[str, Any]]:
         mode = self._get_active_mode()
@@ -1011,8 +1072,7 @@ class TelegramInteractiveInterface:
             reply_markup=build_back_keyboard(),
         )
 
-    async def _send_funnel(self, chat_id: str | int) -> None:
-        mode = self._get_active_mode()
+    async def _compile_funnel_data(self) -> dict[str, Any]:
         data = {}
         if self._dashboard_service and hasattr(
             self._dashboard_service, "get_funnel_analytics"
@@ -1033,11 +1093,16 @@ class TelegramInteractiveInterface:
                 "ai_conversion_pct": 0.0,
                 "execution_conversion_pct": 0.0,
             }
+        return data
+
+    async def _send_funnel(self, chat_id: str | int) -> None:
+        mode = self._get_active_mode()
+        data = await self._compile_funnel_data()
         text = format_telegram_funnel(data, mode)
         await self._telegram.send_message(
             text=text,
             target_chat_id=str(chat_id),
-            reply_markup=build_back_keyboard(),
+            reply_markup=build_back_keyboard("cb:funnel"),
         )
 
     # 3. Trading Handlers
@@ -1051,15 +1116,23 @@ class TelegramInteractiveInterface:
             reply_markup=build_back_keyboard("cb:positions"),
         )
 
-    async def _render_positions_edit(self, chat_id: str | int, message_id: int) -> None:
+    async def _render_positions_edit(self, chat_id: str | int, message_id: int | None = None) -> None:
         positions = await self._fetch_positions_data()
         text = format_telegram_positions(positions)
-        await self._telegram.edit_message_text(
-            text=text,
-            chat_id=chat_id,
-            message_id=message_id,
-            reply_markup=build_back_keyboard("cb:positions"),
-        )
+        ok = False
+        if message_id:
+            try:
+                ok = await self._telegram.edit_message_text(
+                    text=text,
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    reply_markup=build_back_keyboard("cb:positions"),
+                )
+            except Exception as e:
+                logger.debug("Edit positions error: %s", e)
+                ok = False
+        if not ok:
+            await self._send_positions(chat_id)
 
     async def _fetch_positions_data(self) -> list[dict[str, Any]]:
         if self._position_repo:
@@ -1099,15 +1172,23 @@ class TelegramInteractiveInterface:
             reply_markup=build_back_keyboard("cb:trades"),
         )
 
-    async def _render_trades_edit(self, chat_id: str | int, message_id: int) -> None:
+    async def _render_trades_edit(self, chat_id: str | int, message_id: int | None = None) -> None:
         trades = await self._fetch_trades_data()
         text = format_telegram_trades(trades)
-        await self._telegram.edit_message_text(
-            text=text,
-            chat_id=chat_id,
-            message_id=message_id,
-            reply_markup=build_back_keyboard("cb:trades"),
-        )
+        ok = False
+        if message_id:
+            try:
+                ok = await self._telegram.edit_message_text(
+                    text=text,
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    reply_markup=build_back_keyboard("cb:trades"),
+                )
+            except Exception as e:
+                logger.debug("Edit trades error: %s", e)
+                ok = False
+        if not ok:
+            await self._send_trades(chat_id)
 
     async def _fetch_trades_data(self) -> list[dict[str, Any]]:
         if self._trade_repo:
@@ -1137,15 +1218,23 @@ class TelegramInteractiveInterface:
             reply_markup=build_back_keyboard("cb:pnl"),
         )
 
-    async def _render_pnl_edit(self, chat_id: str | int, message_id: int) -> None:
+    async def _render_pnl_edit(self, chat_id: str | int, message_id: int | None = None) -> None:
         data = await self._compile_pnl_data()
         text = format_telegram_pnl(data)
-        await self._telegram.edit_message_text(
-            text=text,
-            chat_id=chat_id,
-            message_id=message_id,
-            reply_markup=build_back_keyboard("cb:pnl"),
-        )
+        ok = False
+        if message_id:
+            try:
+                ok = await self._telegram.edit_message_text(
+                    text=text,
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    reply_markup=build_back_keyboard("cb:pnl"),
+                )
+            except Exception as e:
+                logger.debug("Edit pnl error: %s", e)
+                ok = False
+        if not ok:
+            await self._send_pnl(chat_id)
 
     async def _compile_pnl_data(self) -> dict[str, Any]:
         mode = self._get_active_mode()
@@ -1240,15 +1329,23 @@ class TelegramInteractiveInterface:
             reply_markup=build_back_keyboard("cb:orders"),
         )
 
-    async def _render_orders_edit(self, chat_id: str | int, message_id: int) -> None:
+    async def _render_orders_edit(self, chat_id: str | int, message_id: int | None = None) -> None:
         orders = await self._compile_orders_data()
         text = format_telegram_orders(orders, self._get_active_mode())
-        await self._telegram.edit_message_text(
-            text=text,
-            chat_id=chat_id,
-            message_id=message_id,
-            reply_markup=build_back_keyboard("cb:orders"),
-        )
+        ok = False
+        if message_id:
+            try:
+                ok = await self._telegram.edit_message_text(
+                    text=text,
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    reply_markup=build_back_keyboard("cb:orders"),
+                )
+            except Exception as e:
+                logger.debug("Edit orders error: %s", e)
+                ok = False
+        if not ok:
+            await self._send_orders(chat_id)
 
     async def _compile_capital_data(self) -> dict[str, Any]:
         mode = self._get_active_mode()
@@ -1321,15 +1418,23 @@ class TelegramInteractiveInterface:
             reply_markup=build_back_keyboard("cb:capital"),
         )
 
-    async def _render_capital_edit(self, chat_id: str | int, message_id: int) -> None:
+    async def _render_capital_edit(self, chat_id: str | int, message_id: int | None = None) -> None:
         data = await self._compile_capital_data()
         text = format_telegram_capital(data)
-        await self._telegram.edit_message_text(
-            text=text,
-            chat_id=chat_id,
-            message_id=message_id,
-            reply_markup=build_back_keyboard("cb:capital"),
-        )
+        ok = False
+        if message_id:
+            try:
+                ok = await self._telegram.edit_message_text(
+                    text=text,
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    reply_markup=build_back_keyboard("cb:capital"),
+                )
+            except Exception as e:
+                logger.debug("Edit capital error: %s", e)
+                ok = False
+        if not ok:
+            await self._send_capital(chat_id)
 
     # ── Dedicated Balance & Portfolio Handlers ────────────────────────────────
 
@@ -1382,15 +1487,23 @@ class TelegramInteractiveInterface:
             reply_markup=build_back_keyboard("cb:balance"),
         )
 
-    async def _render_balance_edit(self, chat_id: str | int, message_id: int) -> None:
+    async def _render_balance_edit(self, chat_id: str | int, message_id: int | None = None) -> None:
         data = await self._compile_balance_data()
         text = format_telegram_balance(data)
-        await self._telegram.edit_message_text(
-            text=text,
-            chat_id=chat_id,
-            message_id=message_id,
-            reply_markup=build_back_keyboard("cb:balance"),
-        )
+        ok = False
+        if message_id:
+            try:
+                ok = await self._telegram.edit_message_text(
+                    text=text,
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    reply_markup=build_back_keyboard("cb:balance"),
+                )
+            except Exception as e:
+                logger.debug("Edit balance error: %s", e)
+                ok = False
+        if not ok:
+            await self._send_balance(chat_id)
 
     async def _compile_portfolio_data(self) -> dict[str, Any]:
         mode = self._get_active_mode()
@@ -1476,15 +1589,23 @@ class TelegramInteractiveInterface:
             reply_markup=build_back_keyboard("cb:portfolio"),
         )
 
-    async def _render_portfolio_edit(self, chat_id: str | int, message_id: int) -> None:
+    async def _render_portfolio_edit(self, chat_id: str | int, message_id: int | None = None) -> None:
         data = await self._compile_portfolio_data()
         text = format_telegram_portfolio(data)
-        await self._telegram.edit_message_text(
-            text=text,
-            chat_id=chat_id,
-            message_id=message_id,
-            reply_markup=build_back_keyboard("cb:portfolio"),
-        )
+        ok = False
+        if message_id:
+            try:
+                ok = await self._telegram.edit_message_text(
+                    text=text,
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    reply_markup=build_back_keyboard("cb:portfolio"),
+                )
+            except Exception as e:
+                logger.debug("Edit portfolio error: %s", e)
+                ok = False
+        if not ok:
+            await self._send_portfolio(chat_id)
 
     # ── Strategy Win Rate & Stats Handlers ───────────────────────────────────
 
@@ -1561,25 +1682,42 @@ class TelegramInteractiveInterface:
             reply_markup=build_back_keyboard("cb:winrate"),
         )
 
-    async def _render_winrate_edit(self, chat_id: str | int, message_id: int) -> None:
+    async def _render_winrate_edit(self, chat_id: str | int, message_id: int | None = None) -> None:
         data = await self._compile_winrate_data()
         text = format_telegram_winrate(data)
-        await self._telegram.edit_message_text(
-            text=text,
-            chat_id=chat_id,
-            message_id=message_id,
-            reply_markup=build_back_keyboard("cb:winrate"),
-        )
+        ok = False
+        if message_id:
+            try:
+                ok = await self._telegram.edit_message_text(
+                    text=text,
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    reply_markup=build_back_keyboard("cb:winrate"),
+                )
+            except Exception as e:
+                logger.debug("Edit winrate error: %s", e)
+                ok = False
+        if not ok:
+            await self._send_winrate(chat_id)
 
-    async def _render_funnel_edit(self, chat_id: str | int, message_id: int) -> None:
+    async def _render_funnel_edit(self, chat_id: str | int, message_id: int | None = None) -> None:
         data = await self._compile_funnel_data()
-        text = format_telegram_funnel(data)
-        await self._telegram.edit_message_text(
-            text=text,
-            chat_id=chat_id,
-            message_id=message_id,
-            reply_markup=build_back_keyboard("cb:funnel"),
-        )
+        mode = self._get_active_mode()
+        text = format_telegram_funnel(data, mode)
+        ok = False
+        if message_id:
+            try:
+                ok = await self._telegram.edit_message_text(
+                    text=text,
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    reply_markup=build_back_keyboard("cb:funnel"),
+                )
+            except Exception as e:
+                logger.debug("Edit funnel error: %s", e)
+                ok = False
+        if not ok:
+            await self._send_funnel(chat_id)
 
     async def _send_config(self, chat_id: str | int) -> None:
         mode = self._get_active_mode()
@@ -2010,15 +2148,23 @@ class TelegramInteractiveInterface:
             reply_markup=build_back_keyboard("cb:risk"),
         )
 
-    async def _render_risk_edit(self, chat_id: str | int, message_id: int) -> None:
+    async def _render_risk_edit(self, chat_id: str | int, message_id: int | None = None) -> None:
         risk_data = await self._fetch_risk_data()
         text = format_telegram_risk(risk_data)
-        await self._telegram.edit_message_text(
-            text=text,
-            chat_id=chat_id,
-            message_id=message_id,
-            reply_markup=build_back_keyboard("cb:risk"),
-        )
+        ok = False
+        if message_id:
+            try:
+                ok = await self._telegram.edit_message_text(
+                    text=text,
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    reply_markup=build_back_keyboard("cb:risk"),
+                )
+            except Exception as e:
+                logger.debug("Edit risk error: %s", e)
+                ok = False
+        if not ok:
+            await self._send_risk(chat_id)
 
     async def _fetch_risk_data(self) -> dict[str, Any]:
         if self._risk_service:
@@ -2189,15 +2335,23 @@ class TelegramInteractiveInterface:
             reply_markup=build_back_keyboard("cb:bots"),
         )
 
-    async def _render_bot_fleet_edit(self, chat_id: str | int, message_id: int) -> None:
+    async def _render_bot_fleet_edit(self, chat_id: str | int, message_id: int | None = None) -> None:
         bots = await self._fetch_bots_data()
         text = format_telegram_bot_fleet(bots)
-        await self._telegram.edit_message_text(
-            text=text,
-            chat_id=chat_id,
-            message_id=message_id,
-            reply_markup=build_back_keyboard("cb:bots"),
-        )
+        ok = False
+        if message_id:
+            try:
+                ok = await self._telegram.edit_message_text(
+                    text=text,
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    reply_markup=build_back_keyboard("cb:bots"),
+                )
+            except Exception as e:
+                logger.debug("Edit bot fleet error: %s", e)
+                ok = False
+        if not ok:
+            await self._send_bot_fleet(chat_id)
 
     async def _fetch_bots_data(self) -> list[dict[str, Any]]:
         if self._dashboard_service and hasattr(
@@ -2230,15 +2384,23 @@ class TelegramInteractiveInterface:
             reply_markup=build_back_keyboard("cb:stages"),
         )
 
-    async def _render_stages_edit(self, chat_id: str | int, message_id: int) -> None:
+    async def _render_stages_edit(self, chat_id: str | int, message_id: int | None = None) -> None:
         stages = await self._fetch_stages_data()
         text = format_telegram_pipeline_stages(stages)
-        await self._telegram.edit_message_text(
-            text=text,
-            chat_id=chat_id,
-            message_id=message_id,
-            reply_markup=build_back_keyboard("cb:stages"),
-        )
+        ok = False
+        if message_id:
+            try:
+                ok = await self._telegram.edit_message_text(
+                    text=text,
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    reply_markup=build_back_keyboard("cb:stages"),
+                )
+            except Exception as e:
+                logger.debug("Edit stages error: %s", e)
+                ok = False
+        if not ok:
+            await self._send_pipeline_stages(chat_id)
 
     async def _fetch_stages_data(self) -> list[dict[str, Any]]:
         if self._dashboard_service and hasattr(

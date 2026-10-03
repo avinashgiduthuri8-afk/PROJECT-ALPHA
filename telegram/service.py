@@ -60,7 +60,7 @@ class NotificationService:
         # Resolve Paper Trading Telegram Client
         paper_token = getattr(config, "paper_bot_token", None) or live_token
         paper_chat = getattr(config, "paper_chat_id", None) or live_chat
-        if paper_token == live_token and paper_chat == live_chat and telegram_client:
+        if telegram_client:
             self._paper_telegram = telegram_client
         else:
             self._paper_telegram = TelegramClient(
