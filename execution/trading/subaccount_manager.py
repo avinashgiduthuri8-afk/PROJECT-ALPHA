@@ -13,6 +13,7 @@ import asyncio
 import hashlib
 import hmac
 import json
+import math
 import os
 import threading
 import time
@@ -516,10 +517,12 @@ class CoinDCXSubAccountClient:
         if self.is_live_mode:
             return await self._post_exchange("exchange/v1/users/balances", payload)
         with self._lock:
+            wb = self.wallet_balance_inr
+            ab = self.available_balance_inr
             return {
                 "success": True,
-                "wallet_balance_inr": self.wallet_balance_inr,
-                "available_balance_inr": self.available_balance_inr,
+                "wallet_balance_inr": None if (wb is None or math.isinf(wb)) else wb,
+                "available_balance_inr": None if (ab is None or math.isinf(ab)) else ab,
                 "deployed_capital_inr": self._deployed_capital_inr,
             }
 
@@ -1238,7 +1241,7 @@ class CoinDCXSubAccountManager:
         initial_balance = (
             float(self._config.total_capital_limit)
             if (self._config and self._config.total_capital_limit is not None)
-            else 10000.0
+            else math.inf
         )
         self._shared_pool_state: dict[str, float] = {
             "wallet_balance_inr": initial_balance,
@@ -1253,7 +1256,7 @@ class CoinDCXSubAccountManager:
         pool_limit = (
             float(self._config.total_capital_limit)
             if (self._config and self._config.total_capital_limit is not None)
-            else 10000.0
+            else math.inf
         )
 
         if os.path.exists(self.config_path):
@@ -1439,10 +1442,12 @@ class CoinDCXSubAccountManager:
         with self._lock:
             telemetry = {}
             for bot, client in self._clients.items():
+                wb = client.wallet_balance_inr
+                ab = client.available_balance_inr
                 telemetry[bot.value] = {
                     "subaccount_id": client.subaccount_id,
-                    "wallet_balance_inr": client.wallet_balance_inr,
-                    "available_balance_inr": client.available_balance_inr,
+                    "wallet_balance_inr": None if (wb is None or math.isinf(wb)) else wb,
+                    "available_balance_inr": None if (ab is None or math.isinf(ab)) else ab,
                     "max_positions": client.config.max_positions,
                     "default_trade_amount_inr": client.config.default_trade_amount_inr,
                     "allowed_pairs": client.config.allowed_pairs,

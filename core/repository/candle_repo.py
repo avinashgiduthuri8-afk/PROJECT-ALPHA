@@ -137,19 +137,30 @@ class CandleRepository(BaseRepository):
             VALUES (:pair, :timeframe, :timestamp, :open, :high, :low, :close, :volume)
         """
 
-        # Ensure correct types and capitalization
+        # Ensure correct types and capitalization, filtering out corrupted / negative candles
         formatted = []
         for c in candles_list:
+            o = float(c.get("open", c.get("o", 0.0)))
+            h = float(c.get("high", c.get("h", 0.0)))
+            l = float(c.get("low", c.get("l", 0.0)))
+            close_px = float(c.get("close", c.get("c", 0.0)))
+            v = float(c.get("volume", c.get("v", 0.0)))
+
+            if o <= 0 or h <= 0 or l <= 0 or close_px <= 0:
+                continue
+            if h < l or h < o or h < close_px or l > o or l > close_px:
+                continue
+
             formatted.append(
                 {
                     "pair": str(c["pair"]).upper(),
                     "timeframe": str(c["timeframe"]),
                     "timestamp": int(c["timestamp"]),
-                    "open": float(c.get("open", c.get("o", 0.0))),
-                    "high": float(c.get("high", c.get("h", 0.0))),
-                    "low": float(c.get("low", c.get("l", 0.0))),
-                    "close": float(c.get("close", c.get("c", 0.0))),
-                    "volume": float(c.get("volume", c.get("v", 0.0))),
+                    "open": o,
+                    "high": h,
+                    "low": l,
+                    "close": close_px,
+                    "volume": v,
                 }
             )
 

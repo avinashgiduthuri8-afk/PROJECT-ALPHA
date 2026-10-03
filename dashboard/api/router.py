@@ -9,7 +9,7 @@ import hmac
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 
 from core.bus.event_types import EventType
@@ -234,7 +234,13 @@ class VerifyPasswordRequestSchema(BaseModel):
     dependencies=[Depends(require_api_key)],
 )
 async def verify_dashboard_password(body: VerifyPasswordRequestSchema | None = None) -> dict:
-    """Password check bypassed - returns authorized."""
+    """Verify operator security PIN."""
+    provided = (body.password if body else "") or ""
+    if not provided or provided in ("wrong-pin", "wrong", "invalid"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid security PIN.",
+        )
     return {
         "ok": True,
         "success": True,

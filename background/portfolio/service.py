@@ -13,7 +13,7 @@ from core.logging import get_logger
 from core.repository.metrics_repo import MetricsRepository
 from core.repository.position_repo import PositionRepository
 from core.repository.trade_repo import TradeRepository
-from core.types import PortfolioSnapshot
+from core.types import BotMode, PortfolioSnapshot
 
 from .aggregator import PortfolioAggregator
 
@@ -76,25 +76,27 @@ class PortfolioService:
 
     # ── Aggregation & State ───────────────────────────────────────────────────
 
-    async def get_snapshot(self) -> PortfolioSnapshot:
+    async def get_snapshot(self, mode: str | BotMode | None = None) -> PortfolioSnapshot:
         """Fetch current positions and completed trades from database, then aggregate."""
+        target_mode = mode or (
+            getattr(self._config, "deployment_mode", "PAPER")
+            if self._config
+            else "PAPER"
+        )
+        if hasattr(target_mode, "value"):
+            target_mode = target_mode.value
+
         open_positions = []
         if self._position_repo is not None:
-            if hasattr(self._position_repo, "get_active_positions"):
-                open_positions = await self._position_repo.get_active_positions()
-            else:
-                open_positions = await self._position_repo.get_open()
+            open_positions = await self._position_repo.get_open(mode=target_mode)
 
         recent_trades = []
         if self._trade_repo is not None:
             since = datetime.now(timezone.utc).replace(
                 hour=0, minute=0, second=0, microsecond=0
             )
-        mode = (
-            getattr(self._config, "deployment_mode", "PAPER")
-            if self._config
-            else "PAPER"
-        )
+            recent_trades = await self._trade_repo.get_since(since, mode=target_mode)
+
         base_cash = 10000.0
         if self._config and hasattr(self._config, "total_capital_limit") and self._config.total_capital_limit:
             base_cash = float(self._config.total_capital_limit)

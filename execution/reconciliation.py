@@ -87,7 +87,7 @@ class ReconciliationService:
           - position mismatches (crypto asset holding discrepancies vs SQLite open positions)
         """
         now_str = datetime.now(timezone.utc).isoformat()
-        active_positions = await self._position_repo.get_active_positions()
+        active_positions = await self._position_repo.get_active_positions(mode="LIVE")
 
         orphan_orders: list[dict[str, Any]] = []
         missing_orders: list[dict[str, Any]] = []
@@ -104,12 +104,16 @@ class ReconciliationService:
         mismatches_count = 0
         unknown_orders_count = 0
 
-        # Build lookup maps for SQLite open positions
+        # Build lookup maps for SQLite LIVE open positions only
         pos_by_ex_id: dict[str, Any] = {}
         pos_by_client_id: dict[str, Any] = {}
         pos_qty_by_coin: dict[str, float] = {}
 
         for pos in active_positions:
+            pos_mode_str = str(getattr(pos.mode, "value", pos.mode)).upper()
+            if pos_mode_str != "LIVE":
+                continue
+
             ex_id = getattr(pos, "exchange_order_id", None)
             cl_id = getattr(pos, "client_order_id", None) or getattr(pos, "id", None)
             coin = (getattr(pos, "coin", "") or "").upper()

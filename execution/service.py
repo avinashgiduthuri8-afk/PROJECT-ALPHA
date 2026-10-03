@@ -1397,3 +1397,7 @@ class TradingService:
             "trailing_stop": trailing_stop_val,
             "message": f"Targets for {pos.coin} updated: SL=₹{new_sl or 0:.2f}, TP=₹{new_tp or 0:.2f}",
         }
+
+    async def reconcile_live_orders(self) -> dict[str, Any]:
+        """Trigger reconciliation of live exchange orders and positions."""
+        return await self.reconciliation_service.reconcile_positions()

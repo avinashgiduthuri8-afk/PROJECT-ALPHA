@@ -23,9 +23,11 @@ def test_missing_production_api_key_fails_closed(monkeypatch):
 
 
 def test_dev_key_not_accepted_in_production(monkeypatch):
-    """alpha-dev-key is not accepted when expected key is alpha-prod-key."""
+    """alpha-dev-key is not accepted when expected key is custom-prod-key."""
     cfg = get_config()
-    monkeypatch.setattr(cfg, "dashboard_api_key", "alpha-prod-key")
+    monkeypatch.setattr(cfg, "dashboard_api_key", "custom-prod-key")
+    monkeypatch.setattr(cfg, "deployment_mode", "PAPER")
+    monkeypatch.setattr(cfg, "trading_enabled", False)
     with TestClient(app) as client:
         r = client.get("/protected", headers={"X-API-Key": "alpha-dev-key"})
         assert r.status_code == 401

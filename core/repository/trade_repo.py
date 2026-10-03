@@ -104,18 +104,44 @@ class TradeRepository(BaseRepository):
         return _row_to_trade(row) if row else None
 
     async def get_by_bot(
-        self, bot: BotName, limit: int = 100, offset: int = 0
+        self,
+        bot: BotName,
+        limit: int = 100,
+        offset: int = 0,
+        mode: BotMode | str | None = None,
     ) -> list[Trade]:
+        conditions = ["bot=?"]
+        bot_str = bot.value if hasattr(bot, "value") else str(bot)
+        params: list = [bot_str]
+        if mode:
+            conditions.append("mode=?")
+            params.append(mode.value if hasattr(mode, "value") else str(mode))
+
+        where = " AND ".join(conditions)
+        params.extend([limit, offset])
         rows = await self._fetchall(
-            "SELECT * FROM trades WHERE bot=? ORDER BY exit_time DESC LIMIT ? OFFSET ?",
-            (bot.value, limit, offset),
+            f"SELECT * FROM trades WHERE {where} ORDER BY exit_time DESC LIMIT ? OFFSET ?",
+            tuple(params),
         )
         return [_row_to_trade(r) for r in rows]
 
-    async def get_by_coin(self, coin: str, limit: int = 50) -> list[Trade]:
+    async def get_by_coin(
+        self,
+        coin: str,
+        limit: int = 50,
+        mode: BotMode | str | None = None,
+    ) -> list[Trade]:
+        conditions = ["coin=?"]
+        params: list = [coin]
+        if mode:
+            conditions.append("mode=?")
+            params.append(mode.value if hasattr(mode, "value") else str(mode))
+
+        where = " AND ".join(conditions)
+        params.append(limit)
         rows = await self._fetchall(
-            "SELECT * FROM trades WHERE coin=? ORDER BY exit_time DESC LIMIT ?",
-            (coin, limit),
+            f"SELECT * FROM trades WHERE {where} ORDER BY exit_time DESC LIMIT ?",
+            tuple(params),
         )
         return [_row_to_trade(r) for r in rows]
 
@@ -126,39 +152,67 @@ class TradeRepository(BaseRepository):
         )
         return [_row_to_trade(r) for r in rows]
 
-    async def get_since(self, since: datetime, limit: int | None = None) -> list[Trade]:
+    async def get_since(
+        self,
+        since: datetime,
+        limit: int | None = None,
+        mode: BotMode | str | None = None,
+    ) -> list[Trade]:
+        conditions = ["exit_time >= ?"]
+        params: list = [since.isoformat()]
+        if mode:
+            conditions.append("mode=?")
+            params.append(mode.value if hasattr(mode, "value") else str(mode))
+
+        where = " AND ".join(conditions)
         if limit:
+            params.append(limit)
             rows = await self._fetchall(
-                "SELECT * FROM trades WHERE exit_time >= ? ORDER BY exit_time DESC LIMIT ?",
-                (since.isoformat(), limit),
+                f"SELECT * FROM trades WHERE {where} ORDER BY exit_time DESC LIMIT ?",
+                tuple(params),
             )
         else:
             rows = await self._fetchall(
-                "SELECT * FROM trades WHERE exit_time >= ? ORDER BY exit_time DESC",
-                (since.isoformat(),),
+                f"SELECT * FROM trades WHERE {where} ORDER BY exit_time DESC",
+                tuple(params),
             )
         return [_row_to_trade(r) for r in rows]
 
-    async def get_recent(self, limit: int = 50) -> list[Trade]:
-        rows = await self._fetchall(
-            "SELECT * FROM trades ORDER BY exit_time DESC LIMIT ?", (limit,)
-        )
+    async def get_recent(
+        self,
+        limit: int = 50,
+        mode: BotMode | str | None = None,
+    ) -> list[Trade]:
+        if mode:
+            mode_str = mode.value if hasattr(mode, "value") else str(mode)
+            rows = await self._fetchall(
+                "SELECT * FROM trades WHERE mode=? ORDER BY exit_time DESC LIMIT ?",
+                (mode_str, limit),
+            )
+        else:
+            rows = await self._fetchall(
+                "SELECT * FROM trades ORDER BY exit_time DESC LIMIT ?", (limit,)
+            )
         return [_row_to_trade(r) for r in rows]
 
     async def get_win_rate(
         self,
         bot: BotName | None = None,
         since: datetime | None = None,
+        mode: BotMode | str | None = None,
     ) -> float:
         """Return fraction of profitable trades (pnl > 0). Returns 0.0 if no trades."""
         conditions = []
         params: list = []
         if bot:
             conditions.append("bot=?")
-            params.append(bot.value)
+            params.append(bot.value if hasattr(bot, "value") else str(bot))
         if since:
             conditions.append("exit_time >= ?")
             params.append(since.isoformat())
+        if mode:
+            conditions.append("mode=?")
+            params.append(mode.value if hasattr(mode, "value") else str(mode))
         where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
 
         row = await self._fetchone(
@@ -175,15 +229,19 @@ class TradeRepository(BaseRepository):
         self,
         bot: BotName | None = None,
         since: datetime | None = None,
+        mode: BotMode | str | None = None,
     ) -> list[tuple[datetime, float]]:
         conditions = []
         params: list = []
         if bot:
             conditions.append("bot=?")
-            params.append(bot.value)
+            params.append(bot.value if hasattr(bot, "value") else str(bot))
         if since:
             conditions.append("exit_time >= ?")
             params.append(since.isoformat())
+        if mode:
+            conditions.append("mode=?")
+            params.append(mode.value if hasattr(mode, "value") else str(mode))
         where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
 
         rows = await self._fetchall(

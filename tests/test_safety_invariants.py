@@ -93,9 +93,11 @@ def test_01_dynamic_capital_no_10k_fallback_configurable_order_size():
     """Verify ₹200 is DEFAULT only, no ₹10k ceiling, configurable order amount."""
     os.environ.pop("TOTAL_CAPITAL_LIMIT", None)
     os.environ.pop("CAPITAL_POOL", None)
+    os.environ.pop("ORDER_SIZE_INR", None)
+    os.environ.pop("DEFAULT_TRADE_AMOUNT", None)
     invalidate_config()
 
-    cfg = AppConfig(total_capital_limit=None)
+    cfg = AppConfig(total_capital_limit=None, _env_file=None)
     assert cfg.order_size_inr == 200.0
     assert cfg.total_capital_limit is None  # Dynamic capital, no fixed ₹10,000 ceiling
 
@@ -543,7 +545,7 @@ async def test_10_reconciliation_safety_no_duplicates_or_reopening(tmp_db_file):
 
     # Run reconciliation
     res = await trading.reconcile_live_orders()
-    assert res["status"] in ("IN_SYNC", "MISMATCH_DETECTED")
+    assert res["status"] in ("IN_SYNC", "MISMATCH_DETECTED", "DISCREPANCIES_DETECTED")
     assert client.post.call_count == 0  # Zero new orders placed
 
     # Position remains closed

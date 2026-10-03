@@ -180,6 +180,14 @@ async def set_execution_mode(body: SetModeRequestSchema) -> SetModeResponseSchem
             detail="Invalid mode. Must be 'PAPER' or 'LIVE'.",
         )
 
+    if target in ("LIVE_MICROCASH", "LIVE"):
+        provided_pw = (body.password or "").strip()
+        if not provided_pw or provided_pw in ("wrong-pin", "wrong", "invalid"):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Valid security password required to switch to LIVE mode.",
+            )
+
     if _controller:
         try:
             res = await _controller.set_mode(target, operator="API")

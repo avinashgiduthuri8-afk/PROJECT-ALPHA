@@ -163,17 +163,25 @@ class PositionRepository(BaseRepository):
         row = await self._fetchone("SELECT * FROM positions WHERE id=?", (position_id,))
         return _row_to_position(row) if row else None
 
-    async def get_open(self, bot: BotName | None = None) -> list[Position]:
+    async def get_open(
+        self,
+        bot: BotName | None = None,
+        mode: BotMode | str | None = None,
+    ) -> list[Position]:
+        conditions = ["status != 'CLOSED'"]
+        params: list = []
         if bot:
-            rows = await self._fetchall(
-                "SELECT * FROM positions WHERE status != 'CLOSED' AND bot=? "
-                "ORDER BY entry_time DESC",
-                (bot.value if hasattr(bot, "value") else str(bot),),
-            )
-        else:
-            rows = await self._fetchall(
-                "SELECT * FROM positions WHERE status != 'CLOSED' ORDER BY entry_time DESC"
-            )
+            conditions.append("bot=?")
+            params.append(bot.value if hasattr(bot, "value") else str(bot))
+        if mode:
+            conditions.append("mode=?")
+            params.append(mode.value if hasattr(mode, "value") else str(mode))
+
+        where = " AND ".join(conditions)
+        rows = await self._fetchall(
+            f"SELECT * FROM positions WHERE {where} ORDER BY entry_time DESC",
+            tuple(params),
+        )
         return [_row_to_position(r) for r in rows]
 
     async def close_position(
@@ -184,28 +192,37 @@ class PositionRepository(BaseRepository):
     ) -> None:
         await self.close(position_id, exit_price, exit_reason)
 
-    async def get_open_by_bot(self, bot: BotName) -> list[Position]:
-        return await self.get_open(bot=bot)
+    async def get_open_by_bot(
+        self,
+        bot: BotName,
+        mode: BotMode | str | None = None,
+    ) -> list[Position]:
+        return await self.get_open(bot=bot, mode=mode)
 
-    async def get_all(self, limit: int = 50) -> list[Position]:
-        rows = await self._fetchall(
-            "SELECT * FROM positions ORDER BY entry_time DESC LIMIT ?", (limit,)
-        )
-        return [_row_to_position(r) for r in rows]
-
-    async def get_active_positions(self, bot: BotName | None = None) -> list[Position]:
-        """Fetch all non-CLOSED positions (OPEN, PENDING_ENTRY, PENDING_EXIT)."""
-        if bot:
-            bot_str = bot.value if hasattr(bot, "value") else str(bot)
+    async def get_all(
+        self,
+        limit: int = 50,
+        mode: BotMode | str | None = None,
+    ) -> list[Position]:
+        if mode:
+            mode_str = mode.value if hasattr(mode, "value") else str(mode)
             rows = await self._fetchall(
-                "SELECT * FROM positions WHERE status != 'CLOSED' AND bot=? ORDER BY entry_time DESC",
-                (bot_str,),
+                "SELECT * FROM positions WHERE mode=? ORDER BY entry_time DESC LIMIT ?",
+                (mode_str, limit),
             )
         else:
             rows = await self._fetchall(
-                "SELECT * FROM positions WHERE status != 'CLOSED' ORDER BY entry_time DESC"
+                "SELECT * FROM positions ORDER BY entry_time DESC LIMIT ?", (limit,)
             )
         return [_row_to_position(r) for r in rows]
+
+    async def get_active_positions(
+        self,
+        bot: BotName | None = None,
+        mode: BotMode | str | None = None,
+    ) -> list[Position]:
+        """Fetch all non-CLOSED positions (OPEN, PENDING_ENTRY, PENDING_EXIT)."""
+        return await self.get_open(bot=bot, mode=mode)
 
     async def update_status(
         self,
@@ -239,11 +256,22 @@ class PositionRepository(BaseRepository):
                 (status_val, position_id),
             )
 
-    async def get_deployed_capital(self, bot: BotName) -> float:
+    async def get_deployed_capital(
+        self,
+        bot: BotName,
+        mode: BotMode | str | None = None,
+    ) -> float:
+        conditions = ["status='OPEN'", "bot=?"]
+        bot_str = bot.value if hasattr(bot, "value") else str(bot)
+        params: list = [bot_str]
+        if mode:
+            conditions.append("mode=?")
+            params.append(mode.value if hasattr(mode, "value") else str(mode))
+
+        where = " AND ".join(conditions)
         row = await self._fetchone(
-            "SELECT COALESCE(SUM(qty * entry_price), 0.0) as total "
-            "FROM positions WHERE status='OPEN' AND bot=?",
-            (bot.value,),
+            f"SELECT COALESCE(SUM(qty * entry_price), 0.0) as total FROM positions WHERE {where}",
+            tuple(params),
         )
         return float(row["total"]) if row else 0.0
 
@@ -273,9 +301,21 @@ class PositionRepository(BaseRepository):
             (stop_loss, take_profit, position_id),
         )
 
-    async def get_all_deployed_capital(self) -> dict[str, float]:
-        rows = await self._fetchall(
-            "SELECT bot, COALESCE(SUM(qty * entry_price), 0.0) as total "
-            "FROM positions WHERE status='OPEN' GROUP BY bot"
-        )
+    async def get_all_deployed_capital(
+        self,
+        mode: BotMode | str | None = None,
+    ) -> dict[str, float]:
+        if mode:
+            mode_str = mode.value if hasattr(mode, "value") else str(mode)
+            rows = await self._fetchall(
+                "SELECT bot, COALESCE(SUM(qty * entry_price), 0.0) as total "
+                "FROM positions WHERE status='OPEN' AND mode=? GROUP BY bot",
+                (mode_str,),
+            )
+        else:
+            rows = await self._fetchall(
+                "SELECT bot, COALESCE(SUM(qty * entry_price), 0.0) as total "
+                "FROM positions WHERE status='OPEN' GROUP BY bot"
+            )
         return {r["bot"]: float(r["total"]) for r in rows}
+

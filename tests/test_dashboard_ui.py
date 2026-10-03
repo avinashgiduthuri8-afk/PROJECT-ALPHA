@@ -131,10 +131,10 @@ def test_set_mode_security_password_protection():
         assert resp_paper.json()["success"] is True
         assert resp_paper.json()["mode"] == "PAPER"
 
-        # 2. Switching to LIVE without password also succeeds
+        # 2. Switching to LIVE with password succeeds
         resp_live_ok = client.post(
             "/api/v2/production/set-mode",
-            json={"mode": "LIVE_MICROCASH"},
+            json={"mode": "LIVE_MICROCASH", "password": "admin"},
             headers=headers,
         )
         assert resp_live_ok.status_code == 200

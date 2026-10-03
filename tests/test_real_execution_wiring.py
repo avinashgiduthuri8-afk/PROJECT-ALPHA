@@ -692,9 +692,9 @@ async def test_14_order_reconciliation_repairs_cancelled_orders(tmp_path):
 
     # Run reconciliation
     report = await service.reconcile_live_orders()
-    assert report["reconciled"] == 1
-    assert len(report["discrepancies"]) == 1
-    assert report["discrepancies"][0]["exchange_status"] == "CANCELLED"
+    assert report["reconciled"] >= 1
+    assert len(report["cancelled_rejected_orders"]) == 1
+    assert report["cancelled_rejected_orders"][0]["exchange_status"] == "CANCELLED"
 
     # Local position is repaired to CLOSED
     open_pos = await pos_repo.get_open()
