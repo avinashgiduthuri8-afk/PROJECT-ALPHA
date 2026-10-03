@@ -7,7 +7,8 @@
 
 ## 2. Dynamic Take Profit (TP) & Risk Management
 - **Standard Score Signals (80 - 89 Score)**: Target **Standard Profits (4.6% - 6.0%)**.
-- **High-Conviction / Elite Signals (90+ Score)**: Extend Target to **Big Profits (20.0% - 25.0%)**.
+- **Elite Signals (90 - 94 Score)**: Target **10.0% - 15.0% Moves** (Multi-timeframe swing expansion & strong momentum).
+- **Super Elite Signals (95+ Score / Maximum Conviction)**: Target **Big Profits (20.0% - 25.0%+)** (Higher risk, fast-decision breakout runners).
 - **Stop Loss (SL)**: Set appropriately (`3.5%` to `5.0%`) to survive market noise.
 
 ## 3. Active Trade Momentum & Market Shift (The SOL Scenario)

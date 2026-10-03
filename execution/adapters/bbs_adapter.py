@@ -37,14 +37,19 @@ class BBSAdapter(BaseBotAdapter):
         tighten = ai_adjustments.get("tighten_stop", False)
         sl_pct = self.tightened_sl_pct if tighten else self.base_sl_pct
 
-        # Dynamic TP: Standard 6.0% unless High Conviction (score >= 90) which targets 25.0%
+        # Dynamic TP Classification:
+        # - Super Elite (Score >= 95 or super_conviction): Target 25.0%+ fast runner
+        # - Elite (Score 90-94): Target 14.0% (10.0% - 15.0% MTF swing)
+        # - Standard (Score < 90): Target base TP (6.2%)
         score = float(
             ai_adjustments.get("score") or ai_adjustments.get("confluence_score") or 0.0
         )
-        is_high_conviction = score >= 90.0 or ai_adjustments.get(
-            "high_conviction", False
-        )
-        tp_pct = 25.0 if is_high_conviction else self.take_profit_pct
+        if score >= 95.0 or ai_adjustments.get("super_elite", False):
+            tp_pct = 25.0
+        elif score >= 90.0 or ai_adjustments.get("high_conviction", False) or ai_adjustments.get("elite", False):
+            tp_pct = 14.0
+        else:
+            tp_pct = self.take_profit_pct
 
         rounded_entry = round_price(pair, current_price)
         raw_sl = rounded_entry * (1.0 - sl_pct / 100.0)

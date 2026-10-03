@@ -331,11 +331,17 @@ class AdversarialStressEngine:
 
         # Determine Target Profit (TP) and Stop Loss (SL) based on PROJECT-ALPHA rules:
         # Standard Score Signals (80 - 89 Score): Target 4.6% - 6.0% TP, 3.5% - 5.0% SL
-        # Elite Signals (90+ Score): Target 20.0% - 25.0% TP, 3.5% - 5.0% SL
+        # Elite Signals (90 - 94 Score): Target 10.0% - 15.0% TP
+        # Super Elite Signals (95+ Score): Target 20.0%+ TP (20.0% - 25.0% fast breakout runners)
         if "take_profit" in payload:
             tp_price = float(payload["take_profit"])
         else:
-            tp_pct = 0.20 if signal.score >= 90 else 0.05
+            if signal.score >= 95:
+                tp_pct = 0.22
+            elif signal.score >= 90:
+                tp_pct = 0.125
+            else:
+                tp_pct = 0.05
             tp_price = entry_price * (1.0 + tp_pct)
 
         if "stop_loss" in payload:

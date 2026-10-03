@@ -1539,9 +1539,9 @@ class ScannerService:
                     "composite_score": round(composite_rank_score, 2),
                     "price": latest_close,
                     "priority": (
-                        "Elite"
-                        if score >= 90
-                        else ("High" if score >= 80 else "Medium")
+                        "Super Elite"
+                        if score >= 95
+                        else ("Elite" if score >= 90 else ("High" if score >= 80 else "Medium"))
                     ),
                     "strategy": strategy_name,
                     "timeframe": "1h",
